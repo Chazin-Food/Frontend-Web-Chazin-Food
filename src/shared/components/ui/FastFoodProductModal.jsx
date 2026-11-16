@@ -780,30 +780,29 @@ export function FastFoodProductModal({
     const nonDummy = vars.filter((v) => !isDummyOrBaseVariant(v.nombre, producto?.nombre));
     if (nonDummy.length === 0) return [];
 
-    const result = [];
-    const hasBase = vars.some((v) => isDummyOrBaseVariant(v.nombre, producto?.nombre));
-    if (!hasBase) {
-      result.push({
-        idVariante: producto?.id || producto?.idProducto,
+    const baseVar = vars.find((v) => isDummyOrBaseVariant(v.nombre, producto?.nombre));
+    const result = [
+      {
+        idVariante: baseVar?.idVariante || baseVar?.id || producto?.id || producto?.idProducto,
         idProducto: producto?.id || producto?.idProducto,
         nombre: "Preparación Clásica / Estándar",
-        descripcion: "Receta tradicional con los ingredientes originales",
-        precio: Number(producto?.precio || 0),
+        descripcion: baseVar?.descripcion || "Receta tradicional con los ingredientes originales",
+        precio: Number(baseVar?.precio || producto?.precio || 0),
+        imagen: baseVar?.imagen || null,
         esOriginal: true,
         insumosModificados: []
-      });
-    }
+      }
+    ];
 
-    vars.forEach((v) => {
-      const isBase = isDummyOrBaseVariant(v.nombre, producto?.nombre);
+    nonDummy.forEach((v) => {
       result.push({
         idVariante: v.idVariante || v.id,
         idProducto: v.idProducto || producto?.id || producto?.idProducto,
-        nombre: isBase ? "Preparación Clásica / Estándar" : v.nombre,
-        descripcion: v.descripcion || (isBase ? "Receta tradicional con los ingredientes originales" : ""),
+        nombre: v.nombre,
+        descripcion: v.descripcion || "",
         precio: Number(v.precio || producto?.precio || 0),
         imagen: v.imagen || null,
-        esOriginal: isBase,
+        esOriginal: false,
         insumosModificados: Array.isArray(v.insumosModificados) ? v.insumosModificados : []
       });
     });

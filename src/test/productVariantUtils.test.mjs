@@ -11,8 +11,12 @@ test("isDummyOrBaseVariant identifies tautological base variants cleanly", () =>
   assert.equal(isDummyOrBaseVariant("Hamburguesa Clásica", "Hamburguesa Clásica"), true);
   assert.equal(isDummyOrBaseVariant("Base", "Hamburguesa Clásica"), true);
   assert.equal(isDummyOrBaseVariant("Hamburguesa Clásica - base", "Hamburguesa Clásica"), true);
+  assert.equal(isDummyOrBaseVariant("Individual BBQ Bacon 150g", "Hamburguesa BBQ Bacon Chazin"), true);
+  assert.equal(isDummyOrBaseVariant("Mexicana Clásica", "Hamburguesa Mexicana Chazin"), true);
+  assert.equal(isDummyOrBaseVariant("Porción Personal Grande", "Salchipapa Criolla Chazin"), true);
   assert.equal(isDummyOrBaseVariant("Carne Picante", "Hamburguesa Clásica"), false);
   assert.equal(isDummyOrBaseVariant("Doble", "Hamburguesa Clásica"), false);
+  assert.equal(isDummyOrBaseVariant("BBQ Bacon Cheddar & Jalapeño", "Hamburguesa BBQ Bacon Chazin"), false);
 });
 
 test("getDisplayProductVariants excludes combos, dummy variants, and duplicate names", () => {
