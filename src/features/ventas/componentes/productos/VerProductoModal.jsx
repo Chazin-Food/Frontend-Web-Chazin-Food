@@ -618,7 +618,14 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                     {variantes.map((v, i) => {
                       const varDetalles = Array.isArray(v.fichaTecnica?.detalles) ? v.fichaTecnica.detalles : [];
                       const baseDetRef = fichaTecnica?.detalles || producto?.fichaTecnica?.detalles || [];
-                      const varExtrasInfo = summarizeVariantExtras(varDetalles, baseDetRef, v.insumosModificados, isDrink);
+                      const varExtrasInfo = summarizeVariantExtras(
+                        varDetalles,
+                        baseDetRef,
+                        v.insumosModificados,
+                        isDrink,
+                        v.nombre
+                      );
+                      const vCat = varExtrasInfo.variantCategory;
                       return (
                       <div
                         key={v.idVariante || v.id || i}
@@ -638,9 +645,25 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                               </span>
                             )}
                             <div className="min-w-0">
-                              <span className="font-semibold text-gray-800 dark:text-gray-200 truncate block">
-                                {v.nombre}
-                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+                                  {v.nombre}
+                                </span>
+                                {vCat && (
+                                  <span
+                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${
+                                      vCat.id === "base_proteina"
+                                        ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
+                                        : vCat.id === "sabor_salsa"
+                                          ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800"
+                                          : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
+                                    }`}
+                                    title={vCat.label}
+                                  >
+                                    {vCat.shortLabel}
+                                  </span>
+                                )}
+                              </div>
                               {varDetalles.length > 0 && (
                                 <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate block">
                                   {varDetalles.slice(0, 3).map((d) => `${d.nombreInsumo || d.insumo?.nombre || "Insumo"} (${Number(d.cantidad)} ${d.unidadMedida || ""})`).join(" · ")}
@@ -657,7 +680,7 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                             )}
                             {varExtrasInfo.extrasCount > 0 && (
                               <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
-                                +{varExtrasInfo.extrasCount} extra{varExtrasInfo.extrasCount > 1 ? "s" : ""}
+                                {varExtrasInfo.extrasCount} cambio{varExtrasInfo.extrasCount > 1 ? "s" : ""}
                               </span>
                             )}
                             <span className="text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/50 px-2 py-0.5 rounded-md">
@@ -673,7 +696,9 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                                 className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${
                                   ext.kind === "reemplazo"
                                     ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
-                                    : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800"
+                                    : ext.kind === "extra_nuevo"
+                                      ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800"
+                                      : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
                                 }`}
                                 title={ext.badgeText}
                               >

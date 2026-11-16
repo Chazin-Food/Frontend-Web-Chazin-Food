@@ -28,7 +28,7 @@ import {
   Globe
 } from "lucide-react";
 import { getProductEmoji, getAdditionEmoji, stripEmojis, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
-import { classifyVariantIngredientStatus, summarizeVariantExtras } from "@/features/ventas/utils/variantFichaUtils";
+import { classifyVariantCategory, classifyVariantIngredientStatus, summarizeVariantExtras } from "@/features/ventas/utils/variantFichaUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
 import { apiClient } from "@/shared/api/apiClient";
@@ -2784,8 +2784,14 @@ export function FastFoodProductModal({
                           (v.esOriginal && (!selectedVariant || selectedVariant.esOriginal || (selectedVariant.idVariante === (producto?.id || producto?.idProducto))));
                         const baseDetForVar = ficha?.detalles || ficha?.insumos || producto?.fichaTecnica?.detalles || [];
                         const varExtrasInfo = !v.esOriginal
-                          ? summarizeVariantExtras(v.fichaTecnica?.detalles || [], baseDetForVar, v.insumosModificados || [], false)
-                          : { extrasCount: 0, extraItems: [] };
+                          ? summarizeVariantExtras(v.fichaTecnica?.detalles || [], baseDetForVar, v.insumosModificados || [], false, v.nombre)
+                          : { extrasCount: 0, extraItems: [], variantCategory: null };
+                        const vCat = !v.esOriginal
+                          ? (varExtrasInfo.variantCategory || classifyVariantCategory(v, baseDetForVar, false))
+                          : null;
+                        const isScaledFamily =
+                          varExtrasInfo.extraItems.length > 3 &&
+                          varExtrasInfo.extraItems.every((e) => e.kind === "extra_cantidad");
                         return (
                           <div
                             key={v.idVariante || v.id || v.nombre}
@@ -2798,15 +2804,28 @@ export function FastFoodProductModal({
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                                   <span className="font-bold text-gray-900 dark:text-gray-100 truncate">
                                     {v.nombre}
                                   </span>
-                                  {v.esOriginal && (
+                                  {v.esOriginal ? (
                                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0">
                                       Base
                                     </span>
-                                  )}
+                                  ) : vCat ? (
+                                    <span
+                                      className={`text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${
+                                        vCat.id === "base_proteina"
+                                          ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
+                                          : vCat.id === "sabor_salsa"
+                                            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800"
+                                            : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
+                                      }`}
+                                      title={vCat.label}
+                                    >
+                                      {vCat.shortLabel}
+                                    </span>
+                                  ) : null}
                                 </div>
                                 {(() => {
                                   const vPrice = Number(v.precio || producto?.precio || 0);
@@ -2827,20 +2846,31 @@ export function FastFoodProductModal({
                               )}
                               {varExtrasInfo.extrasCount > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {varExtrasInfo.extraItems.map((ext) => (
-                                    <span
-                                      key={`var-ext-${ext.idInsumo}`}
-                                      className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${
-                                        ext.kind === "reemplazo"
-                                          ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800"
-                                          : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
-                                      }`}
-                                      title={ext.badgeText}
-                                    >
-                                      {ext.kind === "reemplazo" ? "⇄ Reemplaza: " : "+ Extra: "}
-                                      {ext.nombre}
+                                  {isScaledFamily ? (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800">
+                                      ▲ Porción Familiar: Doble cantidad en los {varExtrasInfo.extrasCount} insumos base
                                     </span>
-                                  ))}
+                                  ) : (
+                                    varExtrasInfo.extraItems.map((ext) => (
+                                      <span
+                                        key={`var-ext-${ext.idInsumo}`}
+                                        className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${
+                                          ext.kind === "reemplazo"
+                                            ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800"
+                                            : ext.kind === "extra_nuevo"
+                                              ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800"
+                                              : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800"
+                                        }`}
+                                        title={ext.badgeText}
+                                      >
+                                        {ext.kind === "reemplazo"
+                                          ? `⇄ ${ext.nombre} (por ${ext.replacedName})`
+                                          : ext.kind === "extra_cantidad"
+                                            ? `▲ Porción: ${ext.nombre} (+${ext.diffQty} ${ext.unit})`
+                                            : `★ Sabor/Salsa: ${ext.nombre}`}
+                                      </span>
+                                    ))
+                                  )}
                                 </div>
                               )}
                             </div>

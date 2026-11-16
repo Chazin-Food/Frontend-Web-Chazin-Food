@@ -53,6 +53,12 @@ export function useInsumos() {
         estado: i.estado === 1 || i.estado === "Activo" || i.estado === "1" ? "Activo" : "Inactivo"
       }));
 
+      const baseById = new Map(baseMapped.map((b) => [Number(b.idInsumo || b.id), b]));
+      const baseByName = new Map(
+        baseMapped.map((b) => [String(b.nombre || "").trim().toLowerCase(), b])
+      );
+      const mirroredBaseIds = new Set();
+
       const prepMapped = (preparadosData || []).map(p => {
         const fichaNorm = p.fichaTecnica
           ? normalizeFichaWithVersions(p.fichaTecnica, "INSUMO_PREPARADO", p.id)
@@ -62,11 +68,24 @@ export function useInsumos() {
           ent?.precioUnitario !== undefined && Number(ent.precioUnitario) > 0
             ? Number(ent.precioUnitario)
             : (p.precioVenta || p.costoTotal || 0);
+        const mirror =
+          baseById.get(Number(p.id)) ||
+          baseByName.get(String(p.nombre || "").trim().toLowerCase()) ||
+          null;
+        if (mirror) {
+          mirroredBaseIds.add(Number(mirror.idInsumo || mirror.id));
+        }
         return {
           id: p.id,
           idInsumo: p.id,
           nombre: p.nombre,
           tipo: "Preparado",
+          idCategoriaInsumo: mirror?.idCategoriaInsumo ?? p.idCategoriaInsumo ?? null,
+          categoria: mirror?.categoria || mirror?.categoriaNombre || p.categoria || "Preparados",
+          categoriaNombre: mirror?.categoriaNombre || mirror?.categoria || p.categoriaNombre || "Preparados",
+          stockMinimo: mirror ? Number(mirror.stockMinimo ?? 0) : undefined,
+          stockMaximo: mirror ? Number(mirror.stockMaximo ?? 100) : undefined,
+          stock: mirror && Number(mirror.stock || 0) > 0 ? Number(mirror.stock) : Number(p.stock || 0),
           descripcion: ent?.descripcion !== undefined ? ent.descripcion : (p.descripcion || ""),
           precio: resolvedPrecio,
           precioUnitario: resolvedPrecio,
@@ -84,7 +103,10 @@ export function useInsumos() {
         };
       });
 
-      const allInsumos = [...baseMapped, ...prepMapped];
+      const dedupedBase = baseMapped.filter(
+        (b) => !mirroredBaseIds.has(Number(b.idInsumo || b.id))
+      );
+      const allInsumos = [...dedupedBase, ...prepMapped];
       setInsumos(allInsumos);
       setCategorias(categoriasData || []);
       setProveedores(proveedoresData || []);

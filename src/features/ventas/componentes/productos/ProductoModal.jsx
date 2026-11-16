@@ -41,6 +41,7 @@ import {
   computeInsumosModificadosDeltas,
   resolveDrinkInsumoId,
   buildDefaultDrinkVariantDetalles,
+  classifyVariantCategory,
   classifyVariantIngredientStatus,
   summarizeVariantExtras
 } from "../../utils/variantFichaUtils";
@@ -54,6 +55,7 @@ export {
   computeInsumosModificadosDeltas,
   resolveDrinkInsumoId,
   buildDefaultDrinkVariantDetalles,
+  classifyVariantCategory,
   classifyVariantIngredientStatus,
   summarizeVariantExtras
 };
@@ -1437,7 +1439,15 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     const marginPct = effectivePriceNum > 0 && varCostNum > 0
       ? Math.round(((effectivePriceNum - varCostNum) / effectivePriceNum) * 100)
       : null;
-    const variantExtrasSummary = summarizeVariantExtras(varDetalles, baseIngredients, v.insumosModificados, isDrink);
+    const variantExtrasSummary = summarizeVariantExtras(
+      varDetalles,
+      baseIngredients,
+      v.insumosModificados,
+      isDrink,
+      v.nombre
+    );
+    const vCategory =
+      variantExtrasSummary.variantCategory || classifyVariantCategory(v, baseIngredients, isDrink);
 
     return (
       <div
@@ -1502,7 +1512,20 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                   className="w-full text-sm sm:text-[15px] font-bold text-gray-900 dark:text-gray-100 bg-transparent border border-transparent hover:border-gray-200 dark:hover:border-gray-700 focus:border-gray-300 focus:bg-gray-50/70 dark:focus:bg-gray-800 rounded-lg px-2 py-1 -ml-2 outline-none transition"
                 />
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+              <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5 flex-wrap">
+                {vCategory && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      vCategory.id === "base_proteina"
+                        ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
+                        : vCategory.id === "sabor_salsa"
+                          ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800"
+                          : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
+                    }`}
+                  >
+                    {vCategory.label}
+                  </span>
+                )}
                 {isTamano && (
                   <span className="text-amber-600 dark:text-amber-400 font-medium">
                     Tamaño{factorActual > 1 ? ` ×${factorActual}` : ""}
@@ -1513,7 +1536,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     Sabor
                   </span>
                 )}
-                {(isTamano || isSabor) && <span>·</span>}
+                <span>·</span>
                 <span>
                   {v.precio !== undefined && v.precio !== "" ? "Precio personalizado" : "Usa precio base"}
                 </span>
@@ -1815,9 +1838,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
           ) : (
             <div className="space-y-3">
               {variantExtrasSummary.extrasCount > 0 && (
-                <div className="px-3 py-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-900/50 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 mr-1">
-                    Extras / Cambios ({variantExtrasSummary.extrasCount}):
+                <div className="px-3 py-2 rounded-xl bg-slate-50/90 dark:bg-gray-800/60 border border-slate-200/80 dark:border-gray-700/70 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10.5px] font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mr-1">
+                    Cambios de Variante — {vCategory?.label} ({variantExtrasSummary.extrasCount}):
                   </span>
                   {variantExtrasSummary.extraItems.map((ext) => (
                     <span
@@ -1825,7 +1848,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold border ${
                         ext.kind === "reemplazo"
                           ? "bg-purple-100/90 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
-                          : "bg-emerald-100/90 text-emerald-800 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-200 dark:border-emerald-700"
+                          : ext.kind === "extra_nuevo"
+                            ? "bg-rose-100/90 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800"
+                            : "bg-amber-100/90 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
                       }`}
                     >
                       <span>{ext.nombre}</span>
@@ -4168,7 +4193,15 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     return cat ? checkInsumoInvalido(cat).vencido : false;
                   });
                   const factorItem = Number(v.factorTamano || 1);
-                  const railExtras = summarizeVariantExtras(varDetalles, baseIngredients, v.insumosModificados, isDrink);
+                  const railExtras = summarizeVariantExtras(
+                    varDetalles,
+                    baseIngredients,
+                    v.insumosModificados,
+                    isDrink,
+                    v.nombre
+                  );
+                  const railCat =
+                    railExtras.variantCategory || classifyVariantCategory(v, baseIngredients, isDrink);
 
                   return (
                     <button
@@ -4213,9 +4246,14 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                             ${displayPrice.toLocaleString("es-CO")}
                           </span>
                           <span> · {varDetalles.length} ins.</span>
+                          {railCat && (
+                            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-semibold text-[9.5px]">
+                              {railCat.shortLabel}
+                            </span>
+                          )}
                           {railExtras.extrasCount > 0 && (
                             <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
-                              +{railExtras.extrasCount} extra{railExtras.extrasCount > 1 ? "s" : ""}
+                              {railExtras.extrasCount} cambio{railExtras.extrasCount > 1 ? "s" : ""}
                             </span>
                           )}
                           {factorItem > 1 && <span className="text-amber-600 dark:text-amber-400"> · ×{factorItem}</span>}
@@ -4229,6 +4267,34 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
 
                 return (
                   <div className="space-y-4">
+                    {/* Guía estructural: Producto Base (Padre) vs Variante (Hijo) vs Adiciones (Add-ons) */}
+                    <div className="px-3.5 py-2.5 rounded-2xl bg-slate-50/90 dark:bg-gray-800/50 border border-slate-200/80 dark:border-gray-700/70 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                      <div className="flex items-start gap-2">
+                        <span className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-black text-[9.5px] shrink-0">
+                          1. BASE
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300 leading-snug">
+                          <strong>Producto Base (Padre):</strong> Receta principal definida en Paso 2.
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-200 font-black text-[9.5px] shrink-0">
+                          2. VARIANTE
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300 leading-snug">
+                          <strong>Variante (Hijo):</strong> Tamaño/Porción, Base/Proteína o Sabor/Salsa.
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 font-black text-[9.5px] shrink-0">
+                          3. ADICIONES
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300 leading-snug">
+                          <strong>Add-ons:</strong> Toppings opcionales configurados en Paso 4.
+                        </span>
+                      </div>
+                    </div>
+
                     {/* Cabecera superior minimalista */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
@@ -4254,8 +4320,15 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                             </button>
 
                             {showQuickTemplates && (
-                              <div className="absolute right-0 top-full mt-1.5 w-48 p-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl z-40 space-y-0.5 animate-in fade-in duration-100">
-                                {["Original / Clásica", "BBQ Ahumada", "Picante / Jalapeño", "Grande", "Doble", "Familiar"].map((sug) => (
+                              <div className="absolute right-0 top-full mt-1.5 w-60 p-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl z-40 space-y-0.5 animate-in fade-in duration-100">
+                                {[
+                                  "Doble Carne (300g)",
+                                  "Familiar (2 a 3 Personas)",
+                                  "En Pan Integral con Semillas",
+                                  "Proteína Pechuga Grillé",
+                                  "Sabor Salsa Miel Mostaza",
+                                  "Sabor Salsa Buffalo Picante"
+                                ].map((sug) => (
                                   <button
                                     key={sug}
                                     type="button"
@@ -4265,8 +4338,8 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                                     }}
                                     className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1.5 transition cursor-pointer"
                                   >
-                                    <Plus className="w-3 h-3 text-[#F05454]" />
-                                    <span>{sug}</span>
+                                    <Plus className="w-3 h-3 text-[#F05454] shrink-0" />
+                                    <span className="truncate">{sug}</span>
                                   </button>
                                 ))}
                               </div>
@@ -4329,7 +4402,14 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                                 { label: "Sin Azúcar / Zero", action: () => handleAddSabor("Sin Azúcar / Zero") },
                                 { label: "Manzana", action: () => handleAddSabor("Manzana") }
                               ]
-                            : ["Original / Clásica", "BBQ Ahumada", "Picante / Jalapeño", "Familiar"].map((sug) => ({
+                            : [
+                                "Doble Carne (300g)",
+                                "Familiar (2 a 3 Personas)",
+                                "En Pan Integral con Semillas",
+                                "Proteína Pechuga Grillé",
+                                "Sabor Salsa Miel Mostaza",
+                                "Sabor Salsa Buffalo Picante"
+                              ].map((sug) => ({
                                 label: sug,
                                 action: () => handleAddVariante(sug)
                               }))

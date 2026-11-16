@@ -317,11 +317,82 @@ const formatCleanQty = (val) => {
   return Number.isInteger(num) ? String(num) : String(num);
 };
 
+const VARIANT_CATEGORY_META = {
+  tamano_porcion: { id: "tamano_porcion", label: "Tamaño o porción", shortLabel: "Tamaño / Porción" },
+  base_proteina: { id: "base_proteina", label: "Tipo de base o proteína", shortLabel: "Base / Proteína" },
+  sabor_salsa: { id: "sabor_salsa", label: "Sabor o salsa", shortLabel: "Sabor / Salsa" }
+};
+
 /**
- * Clasifica cada ingrediente de una variante respecto a la receta base y a sus deltas:
- * - "reemplazo" (isExtra: true): reemplaza a otro insumo de la base
- * - "extra_nuevo" (isExtra: true): insumo adicional no incluido en la base
- * - "extra_cantidad" (isExtra: true): insumo presente en la base con cantidad superior en la variante
+ * Clasifica una variante en una de las 3 categorías estándar de comida rápida:
+ * - tamano_porcion ("Tamaño o porción")
+ * - base_proteina ("Tipo de base o proteína")
+ * - sabor_salsa ("Sabor o salsa")
+ */
+export const classifyVariantCategory = (variant = {}, baseDetalles = [], isDrink = false) => {
+  const explicit = String(variant?.categoriaVariante || "").trim();
+  if (explicit && VARIANT_CATEGORY_META[explicit]) {
+    return VARIANT_CATEGORY_META[explicit];
+  }
+
+  const varName = String(variant?.nombre || "").trim();
+  if (isDrink) {
+    const isDrinkSize =
+      detectVariantSizeInfo(varName).isSize ||
+      /\b(botella|mega|litros?|1\.5|2\.5|3\.0|personal|grande|mediana)\b/i.test(varName);
+    return isDrinkSize
+      ? VARIANT_CATEGORY_META.tamano_porcion
+      : VARIANT_CATEGORY_META.sabor_salsa;
+  }
+
+  const deltas = Array.isArray(variant?.insumosModificados) ? variant.insumosModificados : [];
+  const varDetalles = Array.isArray(variant?.fichaTecnica?.detalles) ? variant.fichaTecnica.detalles : [];
+  const baseList = Array.isArray(baseDetalles) ? baseDetalles : [];
+  const baseIds = new Set(
+    baseList.map((b) => Number(b?.idInsumo || b?.insumo?.idInsumo || b?.id || 0)).filter(Boolean)
+  );
+
+  const isBaseOrProteinText = /pan\b|integral|brioche|papa|criolla|casco|prote[ií]na|angus|grill[eé]|chorizo|pollo\s+a\s+la/i;
+  const isSalsaOrFlavorText = /sabor|salsa|miel\s+mostaza|buffalo|bbq|t[aá]rtara|bañad/i;
+
+  if (isBaseOrProteinText.test(varName)) {
+    return VARIANT_CATEGORY_META.base_proteina;
+  }
+
+  if (isSalsaOrFlavorText.test(varName) && !/doble|familiar|\d+\s*g|\d+\s*personas/i.test(varName)) {
+    return VARIANT_CATEGORY_META.sabor_salsa;
+  }
+
+  const replaceDeltas = deltas.filter((d) => String(d?.tipoAccion || "").toUpperCase() === "REEMPLAZAR");
+  if (replaceDeltas.length > 0) {
+    const allSalsaReplacements = replaceDeltas.every((d) => {
+      const targetName = String(d?.insumo?.nombre || d?.insumoReemplazado?.nombre || "");
+      return /salsa|cheddar\s+fundido|aderezo/i.test(targetName);
+    });
+    return allSalsaReplacements ? VARIANT_CATEGORY_META.sabor_salsa : VARIANT_CATEGORY_META.base_proteina;
+  }
+
+  const addDeltas = deltas.filter((d) => String(d?.tipoAccion || "").toUpperCase() === "AGREGAR");
+  if (
+    addDeltas.length > 0 ||
+    (baseIds.size > 0 && varDetalles.some((d) => {
+      const dId = Number(d?.idInsumo || d?.insumo?.idInsumo || 0);
+      const dNom = String(d?.insumo?.nombre || d?.nombre || "");
+      return dId && !baseIds.has(dId) && /salsa|aderezo|buffalo|mostaza/i.test(dNom);
+    }))
+  ) {
+    return VARIANT_CATEGORY_META.sabor_salsa;
+  }
+
+  return VARIANT_CATEGORY_META.tamano_porcion;
+};
+
+/**
+ * Clasifica cada ingrediente dentro de la receta de una variante comparándolo contra la receta base.
+ * Retorna status:
+ * - "reemplazo" (isExtra: true): sustituye otro insumo de la receta base (ej. pan/papa/proteína)
+ * - "extra_nuevo" (isExtra: true): sabor/salsa o insumo nuevo no presente en base
+ * - "extra_cantidad" (isExtra: true): porción aumentada respecto a la receta base (MODIFICAR_CANTIDAD)
  * - "reducido" (isExtra: false): cantidad menor a la receta base
  * - "base" (isExtra: false): coincide con la receta base
  */
@@ -335,6 +406,7 @@ export const classifyVariantIngredientStatus = (
     return {
       kind: "base",
       isExtra: false,
+      category: null,
       shortBadge: "Base",
       badgeText: "Base",
       diffQty: 0,
@@ -375,6 +447,7 @@ export const classifyVariantIngredientStatus = (
     return {
       kind: "reemplazo",
       isExtra: true,
+      category: "base_proteina",
       replacedName,
       shortBadge: `⇄ Reemplaza: ${replacedName}`,
       badgeText: `⇄ Reemplaza: ${replacedName}`,
@@ -402,11 +475,12 @@ export const classifyVariantIngredientStatus = (
       return {
         kind: "extra_cantidad",
         isExtra: true,
+        category: "tamano_porcion",
         diffQty: diff,
         baseQty: Number(baseClean),
         unit: varUnit,
-        shortBadge: `+ Extra (+${diffClean} ${varUnit})`,
-        badgeText: `+ Extra (+${diffClean} ${varUnit} · Base: ${baseClean} ${varUnit})`
+        shortBadge: `▲ Porción (+${diffClean} ${varUnit})`,
+        badgeText: `▲ Porción (+${diffClean} ${varUnit} · Base: ${baseClean} ${varUnit})`
       };
     }
 
@@ -414,6 +488,7 @@ export const classifyVariantIngredientStatus = (
       return {
         kind: "reducido",
         isExtra: false,
+        category: null,
         diffQty: diff,
         baseQty: Number(baseClean),
         unit: varUnit,
@@ -425,6 +500,7 @@ export const classifyVariantIngredientStatus = (
     return {
       kind: "base",
       isExtra: false,
+      category: null,
       diffQty: 0,
       baseQty: Number(baseClean),
       unit: varUnit,
@@ -433,16 +509,21 @@ export const classifyVariantIngredientStatus = (
     };
   }
 
+  const extraNuevoLabel = isDrink ? "★ Sabor / Presentación" : "★ Sabor / Salsa";
+  const formatExtraNuevoBadge = () =>
+    varQty > 0 ? `${extraNuevoLabel} (${formatCleanQty(varQty)} ${varUnit})` : extraNuevoLabel;
+
   // Fallback cuando no hay baseDetalles o el insumo no está en la receta base
   if (baseMap.size > 0) {
     return {
       kind: "extra_nuevo",
       isExtra: true,
+      category: "sabor_salsa",
       diffQty: varQty,
       baseQty: 0,
       unit: varUnit,
-      shortBadge: "+ Extra Nuevo",
-      badgeText: varQty > 0 ? `+ Extra Nuevo (${formatCleanQty(varQty)} ${varUnit})` : "+ Extra Nuevo"
+      shortBadge: extraNuevoLabel,
+      badgeText: formatExtraNuevoBadge()
     };
   }
 
@@ -454,17 +535,19 @@ export const classifyVariantIngredientStatus = (
       return {
         kind: "extra_cantidad",
         isExtra: true,
+        category: "tamano_porcion",
         diffQty: diff,
         baseQty: baseNum,
         unit: varUnit,
-        shortBadge: `+ Extra (+${diffClean} ${varUnit})`,
-        badgeText: `+ Extra (+${diffClean} ${varUnit} · Base: ${formatCleanQty(baseNum)} ${varUnit})`
+        shortBadge: `▲ Porción (+${diffClean} ${varUnit})`,
+        badgeText: `▲ Porción (+${diffClean} ${varUnit} · Base: ${formatCleanQty(baseNum)} ${varUnit})`
       };
     }
     if (diff < -0.001) {
       return {
         kind: "reducido",
         isExtra: false,
+        category: null,
         diffQty: diff,
         baseQty: baseNum,
         unit: varUnit,
@@ -475,6 +558,7 @@ export const classifyVariantIngredientStatus = (
     return {
       kind: "base",
       isExtra: false,
+      category: null,
       diffQty: 0,
       baseQty: baseNum,
       unit: varUnit,
@@ -487,11 +571,12 @@ export const classifyVariantIngredientStatus = (
     return {
       kind: "extra_nuevo",
       isExtra: true,
+      category: "sabor_salsa",
       diffQty: varQty,
       baseQty: 0,
       unit: varUnit,
-      shortBadge: "+ Extra Nuevo",
-      badgeText: varQty > 0 ? `+ Extra Nuevo (${formatCleanQty(varQty)} ${varUnit})` : "+ Extra Nuevo"
+      shortBadge: extraNuevoLabel,
+      badgeText: formatExtraNuevoBadge()
     };
   }
 
@@ -499,17 +584,19 @@ export const classifyVariantIngredientStatus = (
     return {
       kind: "extra_cantidad",
       isExtra: true,
+      category: "tamano_porcion",
       diffQty: varQty,
       baseQty: null,
       unit: varUnit,
-      shortBadge: `+ Extra (${formatCleanQty(varQty)} ${varUnit})`,
-      badgeText: `+ Extra (${formatCleanQty(varQty)} ${varUnit})`
+      shortBadge: `▲ Porción (${formatCleanQty(varQty)} ${varUnit})`,
+      badgeText: `▲ Porción (${formatCleanQty(varQty)} ${varUnit})`
     };
   }
 
   return {
     kind: "base",
     isExtra: false,
+    category: null,
     diffQty: 0,
     baseQty: null,
     unit: varUnit,
@@ -519,13 +606,15 @@ export const classifyVariantIngredientStatus = (
 };
 
 /**
- * Resume todos los insumos extra, aumentados en cantidad o reemplazados de una variante.
+ * Resume todos los cambios de preparación (porción aumentada, reemplazo de base/proteína o sabor/salsa)
+ * y clasifica la variante en Tamaño/Porción, Base/Proteína o Sabor/Salsa.
  */
 export const summarizeVariantExtras = (
   varDetalles = [],
   baseDetalles = [],
   deltas = [],
-  isDrink = false
+  isDrink = false,
+  variantName = ""
 ) => {
   const extraItems = [];
   for (const det of (varDetalles || [])) {
@@ -542,9 +631,19 @@ export const summarizeVariantExtras = (
       ...status
     });
   }
+  const variantCategory = classifyVariantCategory(
+    {
+      nombre: variantName,
+      insumosModificados: deltas,
+      fichaTecnica: { detalles: varDetalles }
+    },
+    baseDetalles,
+    isDrink
+  );
   return {
     extrasCount: extraItems.length,
-    extraItems
+    extraItems,
+    variantCategory
   };
 };
 

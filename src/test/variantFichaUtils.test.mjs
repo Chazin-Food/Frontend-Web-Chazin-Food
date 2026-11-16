@@ -8,6 +8,7 @@ import {
   computeInsumosModificadosDeltas,
   resolveDrinkInsumoId,
   buildDefaultDrinkVariantDetalles,
+  classifyVariantCategory,
   classifyVariantIngredientStatus,
   summarizeVariantExtras
 } from "../features/ventas/utils/variantFichaUtils.js";
@@ -251,7 +252,7 @@ test("resolveDrinkInsumoId y buildDefaultDrinkVariantDetalles mapean correctamen
   assert.equal(dets[0].nombre, "Coca-Cola Sin Azúcar / Light 400ml");
 });
 
-test("classifyVariantIngredientStatus y summarizeVariantExtras etiquetan extras nuevos, aumentos de cantidad y reemplazos", () => {
+test("classifyVariantIngredientStatus, summarizeVariantExtras y classifyVariantCategory etiquetan y agrupan categorías correctamente", () => {
   const base = [
     { idInsumo: 12, nombre: "Pan Brioche", cantidad: 1, unidadMedida: "und" },
     { idInsumo: 14, nombre: "Carne de Res 80/20", cantidad: 0.15, unidadMedida: "kg" },
@@ -263,20 +264,22 @@ test("classifyVariantIngredientStatus y summarizeVariantExtras etiquetan extras 
   assert.equal(panStatus.kind, "base");
   assert.equal(panStatus.isExtra, false);
 
-  // 2. Mayor cantidad (incluso en otra unidad compatible: 300g vs 0.15kg) -> "extra_cantidad"
+  // 2. Mayor cantidad (incluso en otra unidad compatible: 300g vs 0.15kg) -> "extra_cantidad" (Tamaño o porción)
   const doubleMeatStatus = classifyVariantIngredientStatus({ idInsumo: 14, cantidad: 300, unidadMedida: "g" }, base);
   assert.equal(doubleMeatStatus.kind, "extra_cantidad");
   assert.equal(doubleMeatStatus.isExtra, true);
+  assert.equal(doubleMeatStatus.category, "tamano_porcion");
   assert.equal(doubleMeatStatus.diffQty, 150);
-  assert.match(doubleMeatStatus.badgeText, /\+ Extra \(\+150 gr · Base: 150 gr\)/);
+  assert.match(doubleMeatStatus.badgeText, /▲ Porción \(\+150 gr · Base: 150 gr\)/);
 
-  // 3. Insumo agregado -> "extra_nuevo"
-  const bbqStatus = classifyVariantIngredientStatus({ idInsumo: 44, nombre: "Salsa BBQ", cantidad: 0.03, unidadMedida: "kg" }, base);
-  assert.equal(bbqStatus.kind, "extra_nuevo");
-  assert.equal(bbqStatus.isExtra, true);
-  assert.equal(bbqStatus.shortBadge, "+ Extra Nuevo");
+  // 3. Insumo agregado -> "extra_nuevo" (Sabor o salsa)
+  const salsaStatus = classifyVariantIngredientStatus({ idInsumo: 55, nombre: "Salsa Miel Mostaza Artesanal", cantidad: 0.03, unidadMedida: "kg" }, base);
+  assert.equal(salsaStatus.kind, "extra_nuevo");
+  assert.equal(salsaStatus.isExtra, true);
+  assert.equal(salsaStatus.category, "sabor_salsa");
+  assert.equal(salsaStatus.shortBadge, "★ Sabor / Salsa");
 
-  // 4. Insumo reemplazado -> "reemplazo"
+  // 4. Insumo reemplazado -> "reemplazo" (Base o proteína)
   const cascoStatus = classifyVariantIngredientStatus(
     { idInsumo: 38, nombre: "Papas en Casco", cantidad: 0.25, unidadMedida: "kg" },
     base,
@@ -284,21 +287,41 @@ test("classifyVariantIngredientStatus y summarizeVariantExtras etiquetan extras 
   );
   assert.equal(cascoStatus.kind, "reemplazo");
   assert.equal(cascoStatus.isExtra, true);
-  assert.match(cascoStatus.badgeText, /Reemplaza: Papas a la Francesa/);
+  assert.equal(cascoStatus.category, "base_proteina");
+  assert.match(cascoStatus.badgeText, /⇄ Reemplaza: Papas a la Francesa/);
 
-  // 5. Resumen de todos los extras de la variante
+  // 5. Resumen completo de cambios (porción + salsa + reemplazo)
   const summary = summarizeVariantExtras(
     [
       { idInsumo: 12, nombre: "Pan Brioche", cantidad: 1, unidadMedida: "und" },
       { idInsumo: 14, nombre: "Carne de Res 80/20", cantidad: 0.3, unidadMedida: "kg" },
-      { idInsumo: 44, nombre: "Salsa BBQ", cantidad: 0.03, unidadMedida: "kg" },
+      { idInsumo: 55, nombre: "Salsa Miel Mostaza Artesanal", cantidad: 0.03, unidadMedida: "kg" },
       { idInsumo: 38, nombre: "Papas en Casco", cantidad: 0.25, unidadMedida: "kg" }
     ],
     base,
-    [{ tipoAccion: "REEMPLAZAR", idInsumo: 38, idInsumoReemplazado: 21, cantidad: 0.25, unidadMedida: "kg" }]
+    [{ tipoAccion: "REEMPLAZAR", idInsumo: 38, idInsumoReemplazado: 21, cantidad: 0.25, unidadMedida: "kg" }],
+    false,
+    "Costeña con Papas en Casco Rústicas"
   );
   assert.equal(summary.extrasCount, 3);
-  assert.deepEqual(summary.extraItems.map((e) => e.idInsumo), [14, 44, 38]);
+  assert.deepEqual(summary.extraItems.map((e) => e.idInsumo), [14, 55, 38]);
+  assert.equal(summary.variantCategory.id, "base_proteina");
+
+  // 6. classifyVariantCategory para los 3 tipos en comida y bebida
+  assert.equal(
+    classifyVariantCategory(
+      { nombre: "Doble Carne Clásica (300g)", insumosModificados: [{ tipoAccion: "MODIFICAR_CANTIDAD", idInsumo: 14, cantidad: 0.3, unidadMedida: "kg" }] },
+      base,
+      false
+    ).id,
+    "tamano_porcion"
+  );
+  assert.equal(classifyVariantCategory({ nombre: "Proteína Carne Angus Certified (180g)" }, base, false).id, "base_proteina");
+  assert.equal(classifyVariantCategory({ nombre: "En Pan Integral Artesanal con Semillas" }, base, false).id, "base_proteina");
+  assert.equal(classifyVariantCategory({ nombre: "Sabor Salsa Buffalo Picante Artesanal" }, base, false).id, "sabor_salsa");
+  assert.equal(classifyVariantCategory({ nombre: "Familiar Costeña (2 Personas)" }, base, false).id, "tamano_porcion");
+  assert.equal(classifyVariantCategory({ nombre: "Botella 1.5 Litros" }, [], true).id, "tamano_porcion");
+  assert.equal(classifyVariantCategory({ nombre: "Sin Azúcar / Light 400ml" }, [], true).id, "sabor_salsa");
 });
 
 
