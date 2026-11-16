@@ -27,7 +27,7 @@ import {
   getUnidadesCompatibles
 } from "../utils/costoUtils";
 
-const FASES_DEFAULT = [
+export const FASES_DEFAULT = [
   { id: "p1", fase: "Alistamiento / Mise & place", descripcion: "Selección, pesaje, lavado y porcionado de insumos requeridos." },
   { id: "p2", fase: "Cocción / Procesamiento térmico", descripcion: "Cocción de proteínas y preparación térmica de ingredientes." },
   { id: "p3", fase: "Ensamblaje y Montaje", descripcion: "Montaje secuencial de base, ingredientes, salsas y presentación final." },
@@ -41,7 +41,7 @@ const sanitizeSnapshot = (snap) => {
   return clean;
 };
 
-function desglosarProcedimiento(texto) {
+export function desglosarProcedimiento(texto) {
   if (!texto || !String(texto).trim()) {
     return FASES_DEFAULT.map((f, i) => ({ ...f, id: `fase-${i}-${Date.now()}` }));
   }
@@ -77,7 +77,7 @@ function desglosarProcedimiento(texto) {
   return parsed.length > 0 ? parsed : FASES_DEFAULT.map((f, i) => ({ ...f, id: `fase-${i}-${Date.now()}` }));
 }
 
-function serializarPasos(pasos) {
+export function serializarPasos(pasos) {
   if (!Array.isArray(pasos) || pasos.length === 0) return "";
   return pasos
     .filter(p => p && p.descripcion && String(p.descripcion).trim())
@@ -86,6 +86,36 @@ function serializarPasos(pasos) {
       return `${idx + 1}. ${cleanFase}: ${String(p.descripcion).trim()}`;
     })
     .join("\n\n");
+}
+
+export function buildDefaultCalidadFields(productName = "", fRaw = null) {
+  const lower = String(productName || "").toLowerCase();
+  const isDrink = /gaseosa|coca|pepsi|sprite|quatro|cuatro|postob|agua\b|jugo|bebida|malteada|limonada/i.test(lower);
+  const defaults = isDrink
+    ? {
+        especificaciones: "Bebida servida fría entre 2°C y 4°C, envase sellado e higiene verificada.",
+        caracteristicas: "Sabor refrescante característico, color uniforme y frescura óptima al servicio.",
+        informacionNutricional: /agua|sin az|light|zero/i.test(lower)
+          ? "Porción 400 ml: 0 kcal | 0 g carbohidratos | 0 g grasas | 10 mg sodio."
+          : "Porción 400 ml: ~165 kcal | 40 g carbohidratos (azúcares) | 0 g grasa | 35 mg sodio.",
+        condicionesAlmacenamiento: "Mantener refrigerada entre 2°C y 6°C, protegida de la luz solar directa.",
+        vidaUtil: "Según fecha impresa en envase; consumo inmediato tras abrir."
+      }
+    : {
+        especificaciones: "Cocción completa (> 70°C en centro térmico), gramaje estandarizado y empaque higiénico.",
+        caracteristicas: "Aroma fresco recién preparado, color dorado uniforme, textura equilibrada y buena presentación.",
+        informacionNutricional: "Porción estándar: ~650 kcal | Proteínas: 32 g | Carbohidratos: 48 g | Grasas: 34 g.",
+        condicionesAlmacenamiento: "Consumo inmediato en mesa. Para delivery, envolver en papel térmico antigrasa y despachar en menos de 25 minutos.",
+        vidaUtil: "Consumo inmediato"
+      };
+
+  return {
+    especificaciones: String(fRaw?.especificaciones || "").trim() || defaults.especificaciones,
+    caracteristicas: String(fRaw?.caracteristicas || "").trim() || defaults.caracteristicas,
+    informacionNutricional: String(fRaw?.informacionNutricional || "").trim() || defaults.informacionNutricional,
+    condicionesAlmacenamiento: String(fRaw?.condicionesAlmacenamiento || "").trim() || defaults.condicionesAlmacenamiento,
+    vidaUtil: String(fRaw?.vidaUtil || "").trim() || defaults.vidaUtil
+  };
 }
 
 const inputCls = "w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-[#F05454]/30 focus:border-[#F05454] text-xs font-medium transition shadow-2xs outline-none";
@@ -136,15 +166,21 @@ export function FichaTecnicaProducto({
   const [activeTab, setActiveTab] = useState("ingredientes"); // "ingredientes" | "proceso" | "calidad" | "versiones"
   const [dbInsumosList, setDbInsumosList] = useState([]);
   const [insumos, setInsumos] = useState([]);
-  const [procedimiento, setProcedimiento] = useState("");
+  const initialCalidad = useMemo(
+    () => buildDefaultCalidadFields(productName, initialData),
+    // Solo para valores iniciales cuando se monta el formulario
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const [procedimiento, setProcedimiento] = useState(() => serializarPasos(FASES_DEFAULT));
   const [pasosProceso, setPasosProceso] = useState(FASES_DEFAULT);
-  const [tiempoPreparacion, setTiempoPreparacion] = useState("");
+  const [tiempoPreparacion, setTiempoPreparacion] = useState("15");
   const [rendimiento, setRendimiento] = useState("1 porción");
-  const [especificaciones, setEspecificaciones] = useState("");
-  const [caracteristicas, setCaracteristicas] = useState("");
-  const [informacionNutricional, setInformacionNutricional] = useState("");
-  const [condicionesAlmacenamiento, setCondicionesAlmacenamiento] = useState("");
-  const [vidaUtil, setVidaUtil] = useState("");
+  const [especificaciones, setEspecificaciones] = useState(initialCalidad.especificaciones);
+  const [caracteristicas, setCaracteristicas] = useState(initialCalidad.caracteristicas);
+  const [informacionNutricional, setInformacionNutricional] = useState(initialCalidad.informacionNutricional);
+  const [condicionesAlmacenamiento, setCondicionesAlmacenamiento] = useState(initialCalidad.condicionesAlmacenamiento);
+  const [vidaUtil, setVidaUtil] = useState(initialCalidad.vidaUtil);
   const [observaciones, setObservaciones] = useState("");
   
   // Escalado dinámico de procesos (Requerimiento de procesos escalables)
@@ -348,24 +384,28 @@ export function FichaTecnicaProducto({
     const rawInsumos = f.detalles || f.insumos || [];
     setInsumos(sanitizeRecetaInsumos(rawInsumos, dbInsumosList, f.rendimiento));
 
-    const textoProc = f.procedimiento || f.descripcion || "";
+    const pasosDesglosados = desglosarProcedimiento(f.procedimiento || f.descripcion || "");
+    const textoProc = (f.procedimiento || f.descripcion || "").trim() || serializarPasos(pasosDesglosados);
+    const calidadResuelta = buildDefaultCalidadFields(productName, f);
+
     setProcedimiento(textoProc);
-    setPasosProceso(desglosarProcedimiento(textoProc));
+    setPasosProceso(pasosDesglosados);
     setTiempoPreparacion(f.tiempoPreparacion ? String(f.tiempoPreparacion) : "15");
     setRendimiento(f.rendimiento || "1 porción");
-    setEspecificaciones(f.especificaciones || "");
-    setCaracteristicas(f.caracteristicas || "");
-    setInformacionNutricional(f.informacionNutricional || "");
-    setCondicionesAlmacenamiento(f.condicionesAlmacenamiento || "");
-    setVidaUtil(f.vidaUtil || "Consumo inmediato");
+    setEspecificaciones(calidadResuelta.especificaciones);
+    setCaracteristicas(calidadResuelta.caracteristicas);
+    setInformacionNutricional(calidadResuelta.informacionNutricional);
+    setCondicionesAlmacenamiento(calidadResuelta.condicionesAlmacenamiento);
+    setVidaUtil(calidadResuelta.vidaUtil);
     setObservaciones(extractFichaVersionMeta(f.observaciones || "").cleanObservaciones);
+    setErrors({});
     setVersionInfo({
       versionActual: f.versionActual || 1,
       fechaInicioVigencia: f.fechaInicioVigencia || f.fechaCreacion || null,
       versionesAnteriores: f.versionesAnteriores || [],
       prevFichaSnapshot: sanitizeSnapshot(fRaw?._isRestoredVersionCommit ? fRaw : f)
     });
-  }, [dbInsumosList, productId]);
+  }, [dbInsumosList, productId, productName]);
 
   const loadFichaData = useCallback(async () => {
     if (initialData) {
@@ -374,6 +414,32 @@ export function FichaTecnicaProducto({
       }
       loadedInitialRef.current = initialData;
       populateFields(initialData);
+
+      const missingQuality =
+        !String(initialData.especificaciones || "").trim() ||
+        !String(initialData.caracteristicas || "").trim() ||
+        !String(initialData.informacionNutricional || "").trim();
+
+      if (missingQuality && productId) {
+        try {
+          const fullFicha = await fichasTecnicasService.getFichaByProducto(productId);
+          if (fullFicha && fullFicha.idFichaTecnica) {
+            populateFields({
+              ...fullFicha,
+              ...initialData,
+              especificaciones: initialData.especificaciones || fullFicha.especificaciones,
+              caracteristicas: initialData.caracteristicas || fullFicha.caracteristicas,
+              informacionNutricional: initialData.informacionNutricional || fullFicha.informacionNutricional,
+              condicionesAlmacenamiento: initialData.condicionesAlmacenamiento || fullFicha.condicionesAlmacenamiento,
+              vidaUtil: initialData.vidaUtil || fullFicha.vidaUtil,
+              versionesAnteriores: initialData.versionesAnteriores?.length ? initialData.versionesAnteriores : fullFicha.versionesAnteriores,
+              detalles: initialData.detalles?.length ? initialData.detalles : fullFicha.detalles
+            });
+          }
+        } catch (err) {
+          console.error("Error completando campos de calidad de ficha:", err);
+        }
+      }
       return;
     }
     if (productId && !initialData) {

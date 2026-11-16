@@ -3,11 +3,17 @@ import {
   X, Utensils, UploadCloud, Loader2, Plus, Trash2, Layers, Camera, 
   Sparkles, Lightbulb, AlertCircle, Calculator, Lock, FileText, 
   Search, Check, ChevronDown, ChevronRight, CheckCircle2, PackageCheck, 
-  Info, Eye, ArrowRight, ArrowLeft, Copy, History, RotateCcw, ChefHat, ArrowRightLeft, SlidersHorizontal,
+  Info, Eye, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Copy, History, RotateCcw, ChefHat, ArrowRightLeft, SlidersHorizontal,
   Ban, AlertTriangle, DollarSign
 } from "lucide-react";
 import { NumberInput } from "@/shared/components/ui/NumberInput";
-import { FichaTecnicaProducto, checkInsumoInvalido } from "@/features/fichas-tecnicas/componentes/FichaTecnicaProducto";
+import {
+  FichaTecnicaProducto,
+  checkInsumoInvalido,
+  FASES_DEFAULT,
+  desglosarProcedimiento,
+  serializarPasos
+} from "@/features/fichas-tecnicas/componentes/FichaTecnicaProducto";
 import { adicionesService } from "@/features/compras/servicios/adicionesService";
 import { productosService } from "@/features/ventas/servicios/productosService";
 import { insumosService } from "@/features/compras/servicios/insumosService";
@@ -468,6 +474,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
         const rawVarPrecio = v.precio !== undefined && v.precio !== null ? Number(v.precio) : 0;
         const customVarPrecio = rawVarPrecio > 0 && rawVarPrecio !== baseProdPrecio ? String(rawVarPrecio) : "";
 
+        const rawVarProc = existingVarFicha?.procedimiento || baseMeta?.procedimiento || "";
+        const initPasosVar = desglosarProcedimiento(rawVarProc);
+
         return {
           _key: v.idVariante ? `id-${v.idVariante}` : `var-${i}-${Date.now()}`,
           idVariante: v.idVariante || v.id || null,
@@ -484,7 +493,8 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
           fichaTecnica: {
             idFichaTecnica: existingVarFicha?.idFichaTecnica || null,
             descripcion: existingVarFicha?.descripcion || v.descripcion || baseMeta?.descripcion || "",
-            procedimiento: existingVarFicha?.procedimiento || baseMeta?.procedimiento || "",
+            procedimiento: rawVarProc.trim() || serializarPasos(initPasosVar),
+            _pasosProceso: initPasosVar,
             tiempoPreparacion: existingVarFicha?.tiempoPreparacion ?? baseMeta?.tiempoPreparacion ?? 0,
             rendimiento: existingVarFicha?.rendimiento || baseMeta?.rendimiento || "1 porción",
             condicionesAlmacenamiento: existingVarFicha?.condicionesAlmacenamiento || baseMeta?.condicionesAlmacenamiento || "",
@@ -775,6 +785,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       ? `${factor} porciones (${suggestedName || "Tamaño"})`
       : (baseMeta?.rendimiento || "1 porción");
 
+    const rawNewProc = baseMeta?.procedimiento || "";
+    const initPasosNew = desglosarProcedimiento(rawNewProc);
+
     return {
       _key: key,
       idVariante: null,
@@ -791,7 +804,8 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       fichaTecnica: {
         idFichaTecnica: null,
         descripcion: "",
-        procedimiento: baseMeta?.procedimiento || "",
+        procedimiento: rawNewProc.trim() || serializarPasos(initPasosNew),
+        _pasosProceso: initPasosNew,
         tiempoPreparacion: baseMeta?.tiempoPreparacion ?? 0,
         rendimiento: defaultRend,
         condicionesAlmacenamiento: baseMeta?.condicionesAlmacenamiento || "",
@@ -1098,6 +1112,27 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             }
           : v
       )
+    );
+  };
+
+  const handleUpdateVariantPasos = (variantKey, updaterFn) => {
+    setVariantes((prev) =>
+      prev.map((v) => {
+        if (v._key !== variantKey) return v;
+        const currentPasos =
+          Array.isArray(v.fichaTecnica?._pasosProceso) && v.fichaTecnica._pasosProceso.length > 0
+            ? v.fichaTecnica._pasosProceso
+            : desglosarProcedimiento(v.fichaTecnica?.procedimiento || "");
+        const nextPasos = updaterFn(currentPasos);
+        return {
+          ...v,
+          fichaTecnica: {
+            ...(v.fichaTecnica || {}),
+            _pasosProceso: nextPasos,
+            procedimiento: serializarPasos(nextPasos)
+          }
+        };
+      })
     );
   };
 
@@ -1607,17 +1642,151 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                 />
               </div>
 
-              <div className="sm:col-span-12">
-                <label className="block text-[11px] font-semibold text-gray-500 mb-1.5">
-                  Procedimiento de preparación
-                </label>
-                <textarea
-                  rows={3}
-                  value={v.fichaTecnica?.procedimiento || ""}
-                  onChange={(e) => handleUpdateVariantFichaMeta(v._key, "procedimiento", e.target.value)}
-                  placeholder="Pasos específicos de cocina para esta presentación..."
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 dark:text-gray-100 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#F05454]/20 focus:border-[#F05454] outline-none resize-y transition"
-                />
+              <div className="sm:col-span-12 space-y-2.5 pt-1">
+                {(() => {
+                  const varPasos =
+                    Array.isArray(v.fichaTecnica?._pasosProceso) && v.fichaTecnica._pasosProceso.length > 0
+                      ? v.fichaTecnica._pasosProceso
+                      : desglosarProcedimiento(v.fichaTecnica?.procedimiento || "");
+                  return (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-gray-100 dark:border-gray-800">
+                        <div>
+                          <label className="block text-[11px] font-black uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                            Fases Secuenciales de Preparación ({varPasos.length})
+                          </label>
+                          <p className="text-[10.5px] text-gray-400">
+                            Orden paso a paso en cocina para esta presentación.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const baseProc = fichaTecnica?.procedimiento || producto?.fichaTecnica?.procedimiento || "";
+                              const plantilla = baseProc.trim()
+                                ? desglosarProcedimiento(baseProc)
+                                : FASES_DEFAULT.map((f, idx) => ({ ...f, id: `vfase-${Date.now()}-${idx}` }));
+                              handleUpdateVariantPasos(v._key, () => plantilla);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/40 transition cursor-pointer"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>{fichaTecnica?.procedimiento ? "Copiar de base" : "Fases estándar"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleUpdateVariantPasos(v._key, (prevPasos) => [
+                                ...prevPasos,
+                                {
+                                  id: `vfase-${Date.now()}-${prevPasos.length}`,
+                                  fase: `Fase ${prevPasos.length + 1}`,
+                                  descripcion: ""
+                                }
+                              ])
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-[#F05454] hover:bg-[#d84343] transition shadow-2xs cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Agregar fase secuencial</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {varPasos.map((paso, pIdx) => (
+                          <div
+                            key={paso.id || pIdx}
+                            className="p-2.5 rounded-xl bg-gray-50/80 dark:bg-gray-800/40 border border-gray-200/80 dark:border-gray-700/80 space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="w-5 h-5 rounded-md bg-rose-100 text-[#F05454] dark:bg-rose-950/60 dark:text-rose-300 text-[11px] font-black flex items-center justify-center shrink-0">
+                                  {pIdx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={paso.fase}
+                                  onChange={(e) =>
+                                    handleUpdateVariantPasos(v._key, (prevPasos) =>
+                                      prevPasos.map((item, idx) =>
+                                        idx === pIdx ? { ...item, fase: e.target.value } : item
+                                      )
+                                    )
+                                  }
+                                  placeholder="Nombre de la fase (ej. Cocción, Ensamblaje)"
+                                  className="w-full sm:max-w-xs px-2.5 py-1 text-xs font-bold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-1 focus:ring-[#F05454]"
+                                />
+                              </div>
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={pIdx === 0}
+                                  onClick={() =>
+                                    handleUpdateVariantPasos(v._key, (prevPasos) => {
+                                      if (pIdx === 0) return prevPasos;
+                                      const copy = [...prevPasos];
+                                      [copy[pIdx - 1], copy[pIdx]] = [copy[pIdx], copy[pIdx - 1]];
+                                      return copy;
+                                    })
+                                  }
+                                  className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-30 rounded cursor-pointer"
+                                  title="Subir fase"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={pIdx === varPasos.length - 1}
+                                  onClick={() =>
+                                    handleUpdateVariantPasos(v._key, (prevPasos) => {
+                                      if (pIdx >= prevPasos.length - 1) return prevPasos;
+                                      const copy = [...prevPasos];
+                                      [copy[pIdx], copy[pIdx + 1]] = [copy[pIdx + 1], copy[pIdx]];
+                                      return copy;
+                                    })
+                                  }
+                                  className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-30 rounded cursor-pointer"
+                                  title="Bajar fase"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                {varPasos.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateVariantPasos(v._key, (prevPasos) =>
+                                        prevPasos.filter((_, idx) => idx !== pIdx)
+                                      )
+                                    }
+                                    className="p-1 text-gray-400 hover:text-red-500 rounded cursor-pointer"
+                                    title="Eliminar fase"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <textarea
+                              rows={2}
+                              value={paso.descripcion}
+                              onChange={(e) =>
+                                handleUpdateVariantPasos(v._key, (prevPasos) =>
+                                  prevPasos.map((item, idx) =>
+                                    idx === pIdx ? { ...item, descripcion: e.target.value } : item
+                                  )
+                                )
+                              }
+                              placeholder={`Describe las instrucciones para "${paso.fase || "esta fase"}"...`}
+                              className="w-full px-3 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-[#F05454]/20 focus:border-[#F05454] resize-none transition"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ) : (
@@ -2208,7 +2377,10 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     (v.fichaTecnica?.rendimiento || "").trim() ||
                     (v.esTamano ? `1 porción (${varName})` : "1 porción"),
                   tiempoPreparacion: Math.max(0, Number(v.fichaTecnica?.tiempoPreparacion) || 0),
-                  procedimiento: (v.fichaTecnica?.procedimiento || "").trim(),
+                  procedimiento: (
+                    v.fichaTecnica?.procedimiento ||
+                    (Array.isArray(v.fichaTecnica?._pasosProceso) ? serializarPasos(v.fichaTecnica._pasosProceso) : "")
+                  ).trim(),
                   detalles: cleanDetalles,
                   insumos: cleanDetalles
                 }
@@ -2513,7 +2685,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm overflow-hidden">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl h-[92vh] max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header Principal con Título y Estado */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
@@ -2830,8 +3002,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
           )}
         </div>
 
-        {/* Form Body - Paneles por Paso */}
-        <form onSubmit={handleSubmit} noValidate className="p-4 sm:p-6 overflow-y-auto flex-1">
+        {/* Form Body - Paneles por Paso con altura fija compartida */}
+        <form onSubmit={handleSubmit} noValidate className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
           
           {/* PASO 1: INFORMACIÓN PRINCIPAL & TIPO DE PRODUCTO (Layout 2 Columnas Optimizado) */}
           {activeStep === 1 && (
@@ -4308,8 +4481,10 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             </div>
           )}
 
-          {/* Footer de Navegación y Guardado */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-6 border-t border-gray-100 dark:border-gray-800 shrink-0">
+          </div>
+
+          {/* Footer de Navegación y Guardado (siempre fijo al fondo del modal) */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
             
             {/* Resumen rápido en vivo */}
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
