@@ -7,7 +7,9 @@ import {
   reconstructVariantDetallesFromDeltas,
   computeInsumosModificadosDeltas,
   resolveDrinkInsumoId,
-  buildDefaultDrinkVariantDetalles
+  buildDefaultDrinkVariantDetalles,
+  classifyVariantIngredientStatus,
+  summarizeVariantExtras
 } from "../features/ventas/utils/variantFichaUtils.js";
 import { resolveRecetaUnidadYCantidad } from "../features/fichas-tecnicas/utils/costoUtils.js";
 
@@ -247,6 +249,56 @@ test("resolveDrinkInsumoId y buildDefaultDrinkVariantDetalles mapean correctamen
   assert.equal(dets[0].unidadMedida, "und");
   assert.equal(dets[0].precioUnitario, 2500);
   assert.equal(dets[0].nombre, "Coca-Cola Sin Azúcar / Light 400ml");
+});
+
+test("classifyVariantIngredientStatus y summarizeVariantExtras etiquetan extras nuevos, aumentos de cantidad y reemplazos", () => {
+  const base = [
+    { idInsumo: 12, nombre: "Pan Brioche", cantidad: 1, unidadMedida: "und" },
+    { idInsumo: 14, nombre: "Carne de Res 80/20", cantidad: 0.15, unidadMedida: "kg" },
+    { idInsumo: 21, nombre: "Papas a la Francesa", cantidad: 0.25, unidadMedida: "kg" }
+  ];
+
+  // 1. Misma cantidad que base -> "base"
+  const panStatus = classifyVariantIngredientStatus({ idInsumo: 12, cantidad: 1, unidadMedida: "und" }, base);
+  assert.equal(panStatus.kind, "base");
+  assert.equal(panStatus.isExtra, false);
+
+  // 2. Mayor cantidad (incluso en otra unidad compatible: 300g vs 0.15kg) -> "extra_cantidad"
+  const doubleMeatStatus = classifyVariantIngredientStatus({ idInsumo: 14, cantidad: 300, unidadMedida: "g" }, base);
+  assert.equal(doubleMeatStatus.kind, "extra_cantidad");
+  assert.equal(doubleMeatStatus.isExtra, true);
+  assert.equal(doubleMeatStatus.diffQty, 150);
+  assert.match(doubleMeatStatus.badgeText, /\+ Extra \(\+150 gr · Base: 150 gr\)/);
+
+  // 3. Insumo agregado -> "extra_nuevo"
+  const bbqStatus = classifyVariantIngredientStatus({ idInsumo: 44, nombre: "Salsa BBQ", cantidad: 0.03, unidadMedida: "kg" }, base);
+  assert.equal(bbqStatus.kind, "extra_nuevo");
+  assert.equal(bbqStatus.isExtra, true);
+  assert.equal(bbqStatus.shortBadge, "+ Extra Nuevo");
+
+  // 4. Insumo reemplazado -> "reemplazo"
+  const cascoStatus = classifyVariantIngredientStatus(
+    { idInsumo: 38, nombre: "Papas en Casco", cantidad: 0.25, unidadMedida: "kg" },
+    base,
+    [{ tipoAccion: "REEMPLAZAR", idInsumo: 38, idInsumoReemplazado: 21, cantidad: 0.25, unidadMedida: "kg" }]
+  );
+  assert.equal(cascoStatus.kind, "reemplazo");
+  assert.equal(cascoStatus.isExtra, true);
+  assert.match(cascoStatus.badgeText, /Reemplaza: Papas a la Francesa/);
+
+  // 5. Resumen de todos los extras de la variante
+  const summary = summarizeVariantExtras(
+    [
+      { idInsumo: 12, nombre: "Pan Brioche", cantidad: 1, unidadMedida: "und" },
+      { idInsumo: 14, nombre: "Carne de Res 80/20", cantidad: 0.3, unidadMedida: "kg" },
+      { idInsumo: 44, nombre: "Salsa BBQ", cantidad: 0.03, unidadMedida: "kg" },
+      { idInsumo: 38, nombre: "Papas en Casco", cantidad: 0.25, unidadMedida: "kg" }
+    ],
+    base,
+    [{ tipoAccion: "REEMPLAZAR", idInsumo: 38, idInsumoReemplazado: 21, cantidad: 0.25, unidadMedida: "kg" }]
+  );
+  assert.equal(summary.extrasCount, 3);
+  assert.deepEqual(summary.extraItems.map((e) => e.idInsumo), [14, 44, 38]);
 });
 
 

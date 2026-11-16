@@ -6,6 +6,7 @@ import { FichaVersionesHistorial } from "@/features/fichas-tecnicas/componentes/
 import { StarRating } from "@/shared/components/ui/StarRating";
 import { apiClient } from "@/shared/api/apiClient";
 import { isSizeVariantName } from "./ProductoModal";
+import { classifyVariantIngredientStatus, summarizeVariantExtras } from "../../utils/variantFichaUtils";
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import { formatTipoEvento, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { calculateRecipeTotals } from "@/features/fichas-tecnicas/utils/costoUtils";
@@ -616,45 +617,72 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {variantes.map((v, i) => {
                       const varDetalles = Array.isArray(v.fichaTecnica?.detalles) ? v.fichaTecnica.detalles : [];
+                      const baseDetRef = fichaTecnica?.detalles || producto?.fichaTecnica?.detalles || [];
+                      const varExtrasInfo = summarizeVariantExtras(varDetalles, baseDetRef, v.insumosModificados, isDrink);
                       return (
                       <div
                         key={v.idVariante || v.id || i}
-                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-orange-150 dark:border-orange-900/40 shadow-2xs text-xs"
+                        className="flex flex-col gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-orange-150 dark:border-orange-900/40 shadow-2xs text-xs"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {v.imagen ? (
-                            <img
-                              src={v.imagen}
-                              alt={v.nombre}
-                              className="w-7 h-7 rounded-lg object-contain bg-orange-50 dark:bg-gray-900 p-0.5 border border-orange-100 dark:border-orange-900/50 shrink-0"
-                            />
-                          ) : (
-                            <span className="w-5 h-5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-bold text-[10px] flex items-center justify-center shrink-0">
-                              {i + 1}
-                            </span>
-                          )}
-                          <div className="min-w-0">
-                            <span className="font-semibold text-gray-800 dark:text-gray-200 truncate block">
-                              {v.nombre}
-                            </span>
-                            {varDetalles.length > 0 && (
-                              <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate block">
-                                {varDetalles.slice(0, 3).map((d) => `${d.nombreInsumo || "Insumo"} (${Number(d.cantidad)} ${d.unidadMedida || ""})`).join(" · ")}
-                                {varDetalles.length > 3 ? ` +${varDetalles.length - 3}` : ""}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {v.imagen ? (
+                              <img
+                                src={v.imagen}
+                                alt={v.nombre}
+                                className="w-7 h-7 rounded-lg object-contain bg-orange-50 dark:bg-gray-900 p-0.5 border border-orange-100 dark:border-orange-900/50 shrink-0"
+                              />
+                            ) : (
+                              <span className="w-5 h-5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                {i + 1}
                               </span>
                             )}
+                            <div className="min-w-0">
+                              <span className="font-semibold text-gray-800 dark:text-gray-200 truncate block">
+                                {v.nombre}
+                              </span>
+                              {varDetalles.length > 0 && (
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate block">
+                                  {varDetalles.slice(0, 3).map((d) => `${d.nombreInsumo || d.insumo?.nombre || "Insumo"} (${Number(d.cantidad)} ${d.unidadMedida || ""})`).join(" · ")}
+                                  {varDetalles.length > 3 ? ` +${varDetalles.length - 3}` : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {Number(v.precio) > 0 && Number(v.precio) !== Number(producto?.precio || 0) && (
+                              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md tabular-nums">
+                                ${Number(v.precio).toLocaleString("es-CO")}
+                              </span>
+                            )}
+                            {varExtrasInfo.extrasCount > 0 && (
+                              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
+                                +{varExtrasInfo.extrasCount} extra{varExtrasInfo.extrasCount > 1 ? "s" : ""}
+                              </span>
+                            )}
+                            <span className="text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/50 px-2 py-0.5 rounded-md">
+                              {varDetalles.length > 0 ? `${varDetalles.length} ins.` : "Opción"}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {Number(v.precio) > 0 && Number(v.precio) !== Number(producto?.precio || 0) && (
-                            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md tabular-nums">
-                              ${Number(v.precio).toLocaleString("es-CO")}
-                            </span>
-                          )}
-                          <span className="text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/50 px-2 py-0.5 rounded-md">
-                            {varDetalles.length > 0 ? `${varDetalles.length} ins.` : "Opción"}
-                          </span>
-                        </div>
+                        {varExtrasInfo.extrasCount > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1 border-t border-gray-100 dark:border-gray-700/60">
+                            {varExtrasInfo.extraItems.map((ext) => (
+                              <span
+                                key={`ver-ext-${ext.idInsumo}`}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${
+                                  ext.kind === "reemplazo"
+                                    ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
+                                    : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800"
+                                }`}
+                                title={ext.badgeText}
+                              >
+                                <span>{ext.nombre}:</span>
+                                <span>{ext.shortBadge}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       );
                     })}

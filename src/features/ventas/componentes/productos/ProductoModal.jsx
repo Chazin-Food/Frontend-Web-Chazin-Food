@@ -17,6 +17,7 @@ import {
 import { adicionesService } from "@/features/compras/servicios/adicionesService";
 import { productosService } from "@/features/ventas/servicios/productosService";
 import { insumosService } from "@/features/compras/servicios/insumosService";
+import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { getAdditionEmoji, isDummyOrBaseVariant } from "@/shared/utils/foodEmojiUtils";
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import { uploadImageToCloudinary } from "@/shared/servicios/cloudinaryService";
@@ -39,7 +40,9 @@ import {
   reconstructVariantDetallesFromDeltas,
   computeInsumosModificadosDeltas,
   resolveDrinkInsumoId,
-  buildDefaultDrinkVariantDetalles
+  buildDefaultDrinkVariantDetalles,
+  classifyVariantIngredientStatus,
+  summarizeVariantExtras
 } from "../../utils/variantFichaUtils";
 
 export {
@@ -50,7 +53,9 @@ export {
   reconstructVariantDetallesFromDeltas,
   computeInsumosModificadosDeltas,
   resolveDrinkInsumoId,
-  buildDefaultDrinkVariantDetalles
+  buildDefaultDrinkVariantDetalles,
+  classifyVariantIngredientStatus,
+  summarizeVariantExtras
 };
 
 export const getDefaultDrinkImageForSize = (sizeName = "", prodName = "") => {
@@ -318,6 +323,23 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
         adiciones: producto.adiciones || []
       });
       setFichaTecnica(producto.fichaTecnica || null);
+
+      const prodIdLoad = producto.idProducto || producto.id;
+      const hasLoadedBaseDetalles = Boolean(
+        producto.fichaTecnica &&
+        ((Array.isArray(producto.fichaTecnica.detalles) && producto.fichaTecnica.detalles.length > 0) ||
+          (Array.isArray(producto.fichaTecnica.insumos) && producto.fichaTecnica.insumos.length > 0))
+      );
+      if (prodIdLoad && !hasLoadedBaseDetalles) {
+        fichasTecnicasService
+          .getFichaByProducto(prodIdLoad)
+          .then((bf) => {
+            if (bf && ((Array.isArray(bf.detalles) && bf.detalles.length > 0) || (Array.isArray(bf.insumos) && bf.insumos.length > 0))) {
+              setFichaTecnica((prev) => prev || bf);
+            }
+          })
+          .catch(() => {});
+      }
 
       const isSpecialName = /batido|smoothie|malteada|jugo natural|frapp|limonada|shake|artesanal|preparad|coctel|cóctel|capuchino|café|cafe/i.test(producto.nombre || "") ||
                             /batido|smoothie|malteada|preparad/i.test(producto.descripcion || "");
@@ -1415,6 +1437,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     const marginPct = effectivePriceNum > 0 && varCostNum > 0
       ? Math.round(((effectivePriceNum - varCostNum) / effectivePriceNum) * 100)
       : null;
+    const variantExtrasSummary = summarizeVariantExtras(varDetalles, baseIngredients, v.insumosModificados, isDrink);
 
     return (
       <div
@@ -1791,6 +1814,26 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             </div>
           ) : (
             <div className="space-y-3">
+              {variantExtrasSummary.extrasCount > 0 && (
+                <div className="px-3 py-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-900/50 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10.5px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 mr-1">
+                    Extras / Cambios ({variantExtrasSummary.extrasCount}):
+                  </span>
+                  {variantExtrasSummary.extraItems.map((ext) => (
+                    <span
+                      key={`ext-pill-${ext.idInsumo}`}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold border ${
+                        ext.kind === "reemplazo"
+                          ? "bg-purple-100/90 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
+                          : "bg-emerald-100/90 text-emerald-800 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-200 dark:border-emerald-700"
+                      }`}
+                    >
+                      <span>{ext.nombre}</span>
+                      <span className="opacity-85">({ext.shortBadge})</span>
+                    </span>
+                  ))}
+                </div>
+              )}
               {/* Lista de Ingredientes limpia */}
               {detCount === 0 ? (
                 <div className="py-6 px-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 text-center space-y-2">
@@ -1809,7 +1852,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                   )}
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                <div className="divide-y divide-gray-100 dark:divide-gray-800 space-y-1">
                   {varDetalles.map((det, detIdx) => {
                     const catalogItem = todosInsumosCatalogo.find(
                       (c) => Number(c.idInsumo || c.id) === Number(det.idInsumo)
@@ -1825,45 +1868,62 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                       insumo: catalogItem || det.insumo
                     };
                     const rowCost = Math.round(calculateInsumoCost(unitCostItem) || 0);
-                    const isScaled = det.esBase && det.baseCantidad !== null && Number(det.cantidad) > Number(det.baseCantidad);
-                    const isQtyChanged = det.esBase && det.baseCantidad !== null && Math.abs(Number(det.cantidad) - Number(det.baseCantidad)) > 0.001;
+                    const ingStatus = classifyVariantIngredientStatus(det, baseIngredients, v.insumosModificados, isDrink);
                     const isReplacingThisRow =
                       replacingDetail?.variantKey === v._key && replacingDetail?.detailIdx === detIdx;
 
                     return (
                       <div
                         key={`${det.idInsumo}-${detIdx}`}
-                        className={`py-2.5 first:pt-1 last:pb-1 transition-colors ${
+                        className={`py-2.5 first:pt-1.5 last:pb-1.5 transition-colors ${
                           vencido
-                            ? "bg-red-50/70 dark:bg-red-950/20 px-2 rounded-lg"
+                            ? "bg-red-50/70 dark:bg-red-950/20 px-2.5 rounded-xl border-l-4 border-l-red-500"
                             : isReplacingThisRow
-                              ? "bg-indigo-50/30 dark:bg-indigo-950/20 px-2 rounded-lg"
-                              : ""
+                              ? "bg-indigo-50/40 dark:bg-indigo-950/20 px-2.5 rounded-xl border-l-4 border-l-indigo-500"
+                              : ingStatus.kind === "reemplazo"
+                                ? "bg-purple-50/55 dark:bg-purple-950/20 px-2.5 rounded-xl border-l-4 border-l-purple-500"
+                                : ingStatus.isExtra
+                                  ? "bg-emerald-50/55 dark:bg-emerald-950/20 px-2.5 rounded-xl border-l-4 border-l-emerald-500"
+                                  : ""
                         }`}
                       >
                         <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 text-xs">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
                               <span className={`font-semibold text-[13px] truncate ${vencido ? "text-red-700 dark:text-red-400" : "text-gray-900 dark:text-gray-100"}`}>
                                 {detName}
                               </span>
                               {vencido ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300 shrink-0">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300 shrink-0">
                                   ⛔ VENCIDO
                                 </span>
-                              ) : det.reemplazaA ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 shrink-0 truncate max-w-[160px]" title={`Reemplaza a ${det.reemplazaA.nombre}`}>
-                                  Reemplaza: {det.reemplazaA.nombre}
+                              ) : ingStatus.kind === "reemplazo" ? (
+                                <span
+                                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800 shrink-0 truncate max-w-[240px]"
+                                  title={ingStatus.badgeText}
+                                >
+                                  {ingStatus.badgeText}
                                 </span>
-                              ) : !det.esBase ? (
-                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 shrink-0">
-                                  Extra
+                              ) : ingStatus.kind === "extra_nuevo" ? (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800 shrink-0">
+                                  {ingStatus.badgeText}
                                 </span>
-                              ) : isQtyChanged ? (
-                                <span className="text-[10px] text-gray-400 shrink-0">
-                                  {isScaled ? `×${factorActual}` : `Base ${det.baseCantidad}`}
+                              ) : ingStatus.kind === "extra_cantidad" ? (
+                                <span
+                                  className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800 shrink-0"
+                                  title={ingStatus.badgeText}
+                                >
+                                  {ingStatus.badgeText}
                                 </span>
-                              ) : null}
+                              ) : ingStatus.kind === "reducido" ? (
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800 shrink-0">
+                                  {ingStatus.badgeText}
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 shrink-0">
+                                  Base
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -4108,6 +4168,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     return cat ? checkInsumoInvalido(cat).vencido : false;
                   });
                   const factorItem = Number(v.factorTamano || 1);
+                  const railExtras = summarizeVariantExtras(varDetalles, baseIngredients, v.insumosModificados, isDrink);
 
                   return (
                     <button
@@ -4152,6 +4213,11 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                             ${displayPrice.toLocaleString("es-CO")}
                           </span>
                           <span> · {varDetalles.length} ins.</span>
+                          {railExtras.extrasCount > 0 && (
+                            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
+                              +{railExtras.extrasCount} extra{railExtras.extrasCount > 1 ? "s" : ""}
+                            </span>
+                          )}
                           {factorItem > 1 && <span className="text-amber-600 dark:text-amber-400"> · ×{factorItem}</span>}
                         </p>
                       </div>

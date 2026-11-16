@@ -28,6 +28,7 @@ import {
   Globe
 } from "lucide-react";
 import { getProductEmoji, getAdditionEmoji, stripEmojis, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
+import { classifyVariantIngredientStatus, summarizeVariantExtras } from "@/features/ventas/utils/variantFichaUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
 import { apiClient } from "@/shared/api/apiClient";
@@ -510,12 +511,21 @@ export const extractPersonalizables = (producto, ficha, selectedVariant = null) 
   const seenNames = new Set();
 
   // 1. EXTRAER DIRECTAMENTE DE LA FICHA TÉCNICA (DETALLES CON INSUMOS REALES)
+  const baseDetallesRef = ficha?.detalles || ficha?.insumos || [];
+  const variantDeltasAll = selectedVariant?.insumosModificados || [];
+
   if (detalles && Array.isArray(detalles) && detalles.length > 0) {
     for (const d of detalles) {
       const item = resolveInsumoPersonalizable(d, producto);
       if (item && !seenNames.has(item.nombre.toLowerCase())) {
         seenNames.add(item.nombre.toLowerCase());
-        items.push(item);
+        const variantStatus = (selectedVariant && !selectedVariant.esOriginal)
+          ? classifyVariantIngredientStatus(d, baseDetallesRef, variantDeltasAll, false)
+          : null;
+        items.push({
+          ...item,
+          variantStatus: variantStatus?.isExtra ? variantStatus : null
+        });
       }
     }
   }
@@ -803,6 +813,7 @@ export function FastFoodProductModal({
         precio: Number(v.precio || producto?.precio || 0),
         imagen: v.imagen || null,
         esOriginal: false,
+        fichaTecnica: v.fichaTecnica || null,
         insumosModificados: Array.isArray(v.insumosModificados) ? v.insumosModificados : []
       });
     });
@@ -2771,6 +2782,10 @@ export function FastFoodProductModal({
                       {foodVariants.map((v) => {
                         const isSel = (selectedVariant?.idVariante || selectedVariant?.id) === (v.idVariante || v.id) ||
                           (v.esOriginal && (!selectedVariant || selectedVariant.esOriginal || (selectedVariant.idVariante === (producto?.id || producto?.idProducto))));
+                        const baseDetForVar = ficha?.detalles || ficha?.insumos || producto?.fichaTecnica?.detalles || [];
+                        const varExtrasInfo = !v.esOriginal
+                          ? summarizeVariantExtras(v.fichaTecnica?.detalles || [], baseDetForVar, v.insumosModificados || [], false)
+                          : { extrasCount: 0, extraItems: [] };
                         return (
                           <div
                             key={v.idVariante || v.id || v.nombre}
@@ -2810,6 +2825,24 @@ export function FastFoodProductModal({
                                   {v.descripcion}
                                 </p>
                               )}
+                              {varExtrasInfo.extrasCount > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {varExtrasInfo.extraItems.map((ext) => (
+                                    <span
+                                      key={`var-ext-${ext.idInsumo}`}
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${
+                                        ext.kind === "reemplazo"
+                                          ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800"
+                                          : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
+                                      }`}
+                                      title={ext.badgeText}
+                                    >
+                                      {ext.kind === "reemplazo" ? "⇄ Reemplaza: " : "+ Extra: "}
+                                      {ext.nombre}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                             <div
                               className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
@@ -2844,18 +2877,37 @@ export function FastFoodProductModal({
                       {baseIngredients.map((baseIng) => (
                         <div
                           key={baseIng.id}
-                          className="p-2.5 rounded-xl bg-white/90 dark:bg-gray-800/90 border border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between gap-2 shadow-2xs select-none"
-                          title="Ingrediente base indispensable del plato (no se puede retirar)"
+                          className={`p-2.5 rounded-xl flex items-center justify-between gap-2 shadow-2xs select-none border ${
+                            baseIng.variantStatus?.kind === "reemplazo"
+                              ? "bg-purple-50/60 dark:bg-purple-950/25 border-purple-300/80 dark:border-purple-800"
+                              : baseIng.variantStatus?.isExtra
+                                ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-300/80 dark:border-emerald-800"
+                                : "bg-white/90 dark:bg-gray-800/90 border-amber-200/60 dark:border-amber-900/40"
+                          }`}
+                          title={baseIng.variantStatus?.badgeText || "Ingrediente base indispensable del plato (no se puede retirar)"}
                         >
-                          <span className="flex items-center gap-2 truncate text-xs font-bold text-gray-800 dark:text-gray-200">
+                          <span className="flex items-center gap-2 min-w-0 flex-1 text-xs font-bold text-gray-800 dark:text-gray-200">
                             <span className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/70 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-300">
                               <FoodIcon name={baseIng.icono || baseIng.nombre} size={15} stroke={1.75} />
                             </span>
                             <span className="truncate">{baseIng.nombre}</span>
                           </span>
-                          <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/40 px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-1">
-                            <Check className="w-3 h-3 stroke-[3]" /> Obligatorio
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {baseIng.variantStatus?.isExtra && (
+                              <span
+                                className={`text-[9.5px] font-black px-1.5 py-0.5 rounded-md border ${
+                                  baseIng.variantStatus.kind === "reemplazo"
+                                    ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/70 dark:text-purple-200 dark:border-purple-700"
+                                    : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700"
+                                }`}
+                              >
+                                {baseIng.variantStatus.shortBadge}
+                              </span>
+                            )}
+                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/40 px-1.5 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
+                              <Check className="w-3 h-3 stroke-[3]" /> Obligatorio
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2885,15 +2937,32 @@ export function FastFoodProductModal({
                             className={`p-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-98 select-none ${
                               isRemoved
                                 ? "border-red-400 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 shadow-xs ring-2 ring-red-400/40"
-                                : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 text-gray-700 dark:text-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750"
+                                : ing.variantStatus?.kind === "reemplazo"
+                                  ? "border-purple-300 dark:border-purple-700 bg-purple-50/40 dark:bg-purple-950/20 text-purple-950 dark:text-purple-100 hover:bg-purple-50"
+                                  : ing.variantStatus?.isExtra
+                                    ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-100 hover:bg-emerald-50"
+                                    : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 text-gray-700 dark:text-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750"
                             }`}
                           >
-                            <span className="flex items-center gap-2.5 truncate">
+                            <span className="flex items-center gap-2.5 min-w-0 flex-1">
                               <span className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-750 flex items-center justify-center shrink-0 text-gray-700 dark:text-gray-200 shadow-2xs">
                                 <FoodIcon name={ing.icono || ing.nombre} size={18} stroke={1.75} />
                               </span>
-                              <span className={`truncate ${isRemoved ? "line-through opacity-75" : ""}`}>
-                                {ing.nombre}
+                              <span className="min-w-0 flex-1 text-left">
+                                <span className={`block truncate ${isRemoved ? "line-through opacity-75" : ""}`}>
+                                  {ing.nombre}
+                                </span>
+                                {ing.variantStatus?.isExtra && (
+                                  <span
+                                    className={`inline-block mt-0.5 text-[9.5px] font-black px-1.5 py-0.2 rounded ${
+                                      ing.variantStatus.kind === "reemplazo"
+                                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
+                                    }`}
+                                  >
+                                    {ing.variantStatus.shortBadge}
+                                  </span>
+                                )}
                               </span>
                             </span>
                             <span

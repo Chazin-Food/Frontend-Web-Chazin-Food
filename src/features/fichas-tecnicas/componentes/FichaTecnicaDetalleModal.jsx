@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { fichasTecnicasService } from "../servicios/fichasTecnicasService";
 import { FichaVersionesHistorial } from "./FichaVersionesHistorial";
+import { classifyVariantIngredientStatus } from "@/features/ventas/utils/variantFichaUtils";
 import {
   normalizeFichaWithVersions,
   formatFechaHoraFicha,
@@ -342,16 +343,51 @@ export function FichaTecnicaDetalleModal({
                       `Insumo #${det.idInsumo || det.id || idx + 1}`;
                     const cant = det.cantidad ?? 1;
                     const unidad = det.unidadMedida || det.insumo?.unidadMedida || "und";
+                    const baseRef = item?.baseFichaDetalles || item?.fichaTecnica?.detalles || [];
+                    const varDeltas = item?.varianteObj?.insumosModificados || [];
+                    const ingStatus = item?.varianteNombre
+                      ? classifyVariantIngredientStatus(det, baseRef, varDeltas, false)
+                      : null;
+
                     return (
                       <div
                         key={idx}
-                        className="p-3 rounded-xl border border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-800 flex items-center justify-between gap-3 shadow-2xs transition-colors hover:border-gray-300 dark:hover:border-gray-600"
+                        className={`p-3 rounded-xl border flex items-center justify-between gap-2.5 shadow-2xs transition-colors ${
+                          ingStatus?.kind === "reemplazo"
+                            ? "border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-950/25"
+                            : ingStatus?.isExtra
+                              ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/25"
+                              : "border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600"
+                        }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-2 h-2 rounded-full bg-[#F05454] shrink-0" />
-                          <span className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">
-                            {insName}
-                          </span>
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${
+                              ingStatus?.kind === "reemplazo"
+                                ? "bg-purple-500"
+                                : ingStatus?.isExtra
+                                  ? "bg-emerald-500"
+                                  : "bg-[#F05454]"
+                            }`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate block">
+                              {insName}
+                            </span>
+                            {ingStatus && (
+                              <span
+                                className={`inline-block mt-0.5 text-[9.5px] font-bold px-1.5 py-0.2 rounded ${
+                                  ingStatus.kind === "reemplazo"
+                                    ? "bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200"
+                                    : ingStatus.isExtra
+                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
+                                      : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                                }`}
+                              >
+                                {ingStatus.badgeText}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <span className="font-black text-xs text-[#F05454] dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 px-2.5 py-1 rounded-lg shrink-0">

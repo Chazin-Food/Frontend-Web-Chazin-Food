@@ -415,7 +415,9 @@ export function FichasTecnicas({ readOnly = false }) {
                                 nombre: `${item.nombre} — ${variant.nombre}`,
                                 varianteNombre: variant.nombre,
                                 idVariante: vId,
-                                fichaOverride: vf
+                                fichaOverride: vf,
+                                varianteObj: variant,
+                                baseFichaDetalles: fichaData?.detalles || fichaData?.insumos || fichaRaw?.detalles || fichaRaw?.insumos || []
                               });
                             }}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-bold bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-900/50 hover:bg-orange-100 dark:hover:bg-orange-900/60 transition cursor-pointer"

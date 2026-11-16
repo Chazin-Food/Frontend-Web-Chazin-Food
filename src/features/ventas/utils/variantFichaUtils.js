@@ -296,6 +296,258 @@ export const computeInsumosModificadosDeltas = (variantDetalles = [], baseList =
   return deltas;
 };
 
+const convertExactMetricUnit = (qty, fromUnitRaw, toUnitRaw) => {
+  const n = Number(qty || 0);
+  const fromU = normalizeUnidadMedida(fromUnitRaw || "und");
+  const toU = normalizeUnidadMedida(toUnitRaw || fromU);
+  if (fromU === toU) return n;
+  if (fromU === "kg" && toU === "gr") return n * 1000;
+  if (fromU === "gr" && toU === "kg") return n / 1000;
+  if (fromU === "gr" && toU === "mg") return n * 1000;
+  if (fromU === "mg" && toU === "gr") return n / 1000;
+  if (fromU === "lt" && toU === "ml") return n * 1000;
+  if (fromU === "ml" && toU === "lt") return n / 1000;
+  if (fromU === "lt" && toU === "cc") return n * 1000;
+  if (fromU === "cc" && toU === "lt") return n / 1000;
+  return n;
+};
+
+const formatCleanQty = (val) => {
+  const num = Math.round(Number(val || 0) * 100) / 100;
+  return Number.isInteger(num) ? String(num) : String(num);
+};
+
+/**
+ * Clasifica cada ingrediente de una variante respecto a la receta base y a sus deltas:
+ * - "reemplazo" (isExtra: true): reemplaza a otro insumo de la base
+ * - "extra_nuevo" (isExtra: true): insumo adicional no incluido en la base
+ * - "extra_cantidad" (isExtra: true): insumo presente en la base con cantidad superior en la variante
+ * - "reducido" (isExtra: false): cantidad menor a la receta base
+ * - "base" (isExtra: false): coincide con la receta base
+ */
+export const classifyVariantIngredientStatus = (
+  det,
+  baseDetalles = [],
+  deltas = [],
+  isDrink = false
+) => {
+  if (!det || typeof det !== "object") {
+    return {
+      kind: "base",
+      isExtra: false,
+      shortBadge: "Base",
+      badgeText: "Base",
+      diffQty: 0,
+      baseQty: null,
+      unit: "und"
+    };
+  }
+
+  const idIns = Number(det.idInsumo || det.insumo?.idInsumo || det.id || 0);
+  const varUnit = normalizeUnidadMedida(det.unidadMedida || det.insumo?.unidadMedida || "und");
+  const varQty = Number(det.cantidad || 0);
+
+  const baseList = Array.isArray(baseDetalles) ? baseDetalles : [];
+  const baseMap = new Map(
+    baseList
+      .filter((b) => b && (b.idInsumo || b.insumo?.idInsumo || b.id))
+      .map((b) => [Number(b.idInsumo || b.insumo?.idInsumo || b.id), b])
+  );
+  const deltaList = Array.isArray(deltas) ? deltas : [];
+
+  const repDelta = deltaList.find(
+    (dl) =>
+      String(dl?.tipoAccion || "").toUpperCase() === "REEMPLAZAR" &&
+      Number(dl?.idInsumo) === idIns
+  );
+
+  if (det.reemplazaA || repDelta) {
+    const repId = Number(det.reemplazaA?.idInsumo || repDelta?.idInsumoReemplazado || 0);
+    const repBaseMatch = repId ? baseMap.get(repId) : null;
+    const replacedName =
+      det.reemplazaA?.nombre ||
+      repDelta?.insumoReemplazado?.nombre ||
+      repBaseMatch?.insumo?.nombre ||
+      repBaseMatch?.nombreInsumo ||
+      repBaseMatch?.nombre ||
+      (repId ? `Insumo #${repId}` : "Insumo base");
+
+    return {
+      kind: "reemplazo",
+      isExtra: true,
+      replacedName,
+      shortBadge: `⇄ Reemplaza: ${replacedName}`,
+      badgeText: `⇄ Reemplaza: ${replacedName}`,
+      diffQty: varQty,
+      baseQty: null,
+      unit: varUnit
+    };
+  }
+
+  const baseItem = baseMap.get(idIns) || null;
+  const matchingDelta = deltaList.find(
+    (dl) => Number(dl?.idInsumo) === idIns && String(dl?.tipoAccion || "").toUpperCase() !== "QUITAR"
+  );
+  const deltaAction = String(matchingDelta?.tipoAccion || "").toUpperCase();
+
+  if (baseItem) {
+    const rawBaseQty = Number(baseItem.cantidad || 0);
+    const baseUnit = normalizeUnidadMedida(baseItem.unidadMedida || baseItem.insumo?.unidadMedida || varUnit);
+    const baseInVarUnit = convertExactMetricUnit(rawBaseQty, baseUnit, varUnit);
+    const diff = Math.round((varQty - baseInVarUnit) * 100) / 100;
+    const baseClean = formatCleanQty(baseInVarUnit);
+
+    if (diff > 0.001) {
+      const diffClean = formatCleanQty(diff);
+      return {
+        kind: "extra_cantidad",
+        isExtra: true,
+        diffQty: diff,
+        baseQty: Number(baseClean),
+        unit: varUnit,
+        shortBadge: `+ Extra (+${diffClean} ${varUnit})`,
+        badgeText: `+ Extra (+${diffClean} ${varUnit} · Base: ${baseClean} ${varUnit})`
+      };
+    }
+
+    if (diff < -0.001) {
+      return {
+        kind: "reducido",
+        isExtra: false,
+        diffQty: diff,
+        baseQty: Number(baseClean),
+        unit: varUnit,
+        shortBadge: "Reducido",
+        badgeText: `Reducido (${formatCleanQty(varQty)} ${varUnit} · Base: ${baseClean} ${varUnit})`
+      };
+    }
+
+    return {
+      kind: "base",
+      isExtra: false,
+      diffQty: 0,
+      baseQty: Number(baseClean),
+      unit: varUnit,
+      shortBadge: "Base",
+      badgeText: "Base"
+    };
+  }
+
+  // Fallback cuando no hay baseDetalles o el insumo no está en la receta base
+  if (baseMap.size > 0) {
+    return {
+      kind: "extra_nuevo",
+      isExtra: true,
+      diffQty: varQty,
+      baseQty: 0,
+      unit: varUnit,
+      shortBadge: "+ Extra Nuevo",
+      badgeText: varQty > 0 ? `+ Extra Nuevo (${formatCleanQty(varQty)} ${varUnit})` : "+ Extra Nuevo"
+    };
+  }
+
+  if (det.esBase && det.baseCantidad !== null && det.baseCantidad !== undefined) {
+    const baseNum = Number(det.baseCantidad);
+    const diff = Math.round((varQty - baseNum) * 100) / 100;
+    if (diff > 0.001) {
+      const diffClean = formatCleanQty(diff);
+      return {
+        kind: "extra_cantidad",
+        isExtra: true,
+        diffQty: diff,
+        baseQty: baseNum,
+        unit: varUnit,
+        shortBadge: `+ Extra (+${diffClean} ${varUnit})`,
+        badgeText: `+ Extra (+${diffClean} ${varUnit} · Base: ${formatCleanQty(baseNum)} ${varUnit})`
+      };
+    }
+    if (diff < -0.001) {
+      return {
+        kind: "reducido",
+        isExtra: false,
+        diffQty: diff,
+        baseQty: baseNum,
+        unit: varUnit,
+        shortBadge: "Reducido",
+        badgeText: `Reducido (Base: ${formatCleanQty(baseNum)} ${varUnit})`
+      };
+    }
+    return {
+      kind: "base",
+      isExtra: false,
+      diffQty: 0,
+      baseQty: baseNum,
+      unit: varUnit,
+      shortBadge: "Base",
+      badgeText: "Base"
+    };
+  }
+
+  if (!isDrink && (deltaAction === "AGREGAR" || det.esNuevo === true || det.esBase === false)) {
+    return {
+      kind: "extra_nuevo",
+      isExtra: true,
+      diffQty: varQty,
+      baseQty: 0,
+      unit: varUnit,
+      shortBadge: "+ Extra Nuevo",
+      badgeText: varQty > 0 ? `+ Extra Nuevo (${formatCleanQty(varQty)} ${varUnit})` : "+ Extra Nuevo"
+    };
+  }
+
+  if (!isDrink && deltaAction === "MODIFICAR_CANTIDAD") {
+    return {
+      kind: "extra_cantidad",
+      isExtra: true,
+      diffQty: varQty,
+      baseQty: null,
+      unit: varUnit,
+      shortBadge: `+ Extra (${formatCleanQty(varQty)} ${varUnit})`,
+      badgeText: `+ Extra (${formatCleanQty(varQty)} ${varUnit})`
+    };
+  }
+
+  return {
+    kind: "base",
+    isExtra: false,
+    diffQty: 0,
+    baseQty: null,
+    unit: varUnit,
+    shortBadge: "Base",
+    badgeText: "Base"
+  };
+};
+
+/**
+ * Resume todos los insumos extra, aumentados en cantidad o reemplazados de una variante.
+ */
+export const summarizeVariantExtras = (
+  varDetalles = [],
+  baseDetalles = [],
+  deltas = [],
+  isDrink = false
+) => {
+  const extraItems = [];
+  for (const det of (varDetalles || [])) {
+    const status = classifyVariantIngredientStatus(det, baseDetalles, deltas, isDrink);
+    if (!status.isExtra) continue;
+    const nombre =
+      det.insumo?.nombre ||
+      det.nombreInsumo ||
+      det.nombre ||
+      `Insumo #${det.idInsumo || det.id}`;
+    extraItems.push({
+      idInsumo: Number(det.idInsumo || det.insumo?.idInsumo || det.id || 0),
+      nombre,
+      ...status
+    });
+  }
+  return {
+    extrasCount: extraItems.length,
+    extraItems
+  };
+};
+
 /**
  * Resuelve el idInsumo por defecto de una variante o presentación de bebida comercial.
  */
