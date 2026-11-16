@@ -5,8 +5,11 @@ import {
   scaleQuantityByFactor,
   buildVariantDetallesFromBase,
   reconstructVariantDetallesFromDeltas,
-  computeInsumosModificadosDeltas
+  computeInsumosModificadosDeltas,
+  resolveDrinkInsumoId,
+  buildDefaultDrinkVariantDetalles
 } from "../features/ventas/utils/variantFichaUtils.js";
+import { resolveRecetaUnidadYCantidad } from "../features/fichas-tecnicas/utils/costoUtils.js";
 
 test("detectVariantSizeInfo detects sizes vs flavors accurately", () => {
   assert.deepEqual(detectVariantSizeInfo("Grande"), {
@@ -193,4 +196,57 @@ test("REEMPLAZAR insumo emits single REEMPLAZAR delta without duplicate QUITAR/A
   assert.equal(moz.unidadMedida, "gr");
   assert.deepEqual(moz.reemplazaA, { idInsumo: 15, nombre: "Queso Cheddar" });
 });
+
+test("resolveRecetaUnidadYCantidad respeta unidades und/Unidad aunque el nombre incluya 400ml", () => {
+  assert.deepEqual(
+    resolveRecetaUnidadYCantidad({
+      nombre: "Coca-Cola Sin Azúcar / Light 400ml",
+      unidadMedida: "und"
+    }),
+    { cantidad: 1, unidadMedida: "und" }
+  );
+
+  assert.deepEqual(
+    resolveRecetaUnidadYCantidad({
+      nombre: "Gaseosa Uva Postobón 400ml",
+      unidadMedida: "Unidad"
+    }),
+    { cantidad: 1, unidadMedida: "und" }
+  );
+
+  assert.deepEqual(
+    resolveRecetaUnidadYCantidad({
+      nombre: "Carne con carolina reapper 150g",
+      unidadMedida: "kg"
+    }),
+    { cantidad: 150, unidadMedida: "gr" }
+  );
+});
+
+test("resolveDrinkInsumoId y buildDefaultDrinkVariantDetalles mapean correctamente sabores y tamaños de gaseosas", () => {
+  assert.equal(resolveDrinkInsumoId("Sin Azúcar / Light 400ml", "Gaseosa Coca-Cola 400ml", 8), 32);
+  assert.equal(resolveDrinkInsumoId("Botella 1.5 Litros", "Gaseosa Coca-Cola 400ml", 8), 29);
+  assert.equal(resolveDrinkInsumoId("Con Azúcar 400ml", "Gaseosa Coca-Cola Sin Azúcar / Light 400ml", 16), 29);
+  assert.equal(resolveDrinkInsumoId("Botella 1.5 Litros", "Gaseosa Coca-Cola Sin Azúcar / Light 400ml", 16), 32);
+  assert.equal(resolveDrinkInsumoId("Sin Azúcar / Light 400ml", "Gaseosa Pepsi 400ml", 11), 34);
+  assert.equal(resolveDrinkInsumoId("Botella 1.5 Litros", "Gaseosa Pepsi 400ml", 11), 33);
+  assert.equal(resolveDrinkInsumoId("Sabor Uva 400ml", "Gaseosa Manzana Postobón 400ml", 9), 47);
+  assert.equal(resolveDrinkInsumoId("Botella 1.5 Litros", "Gaseosa Manzana Postobón 400ml", 9), 30);
+  assert.equal(resolveDrinkInsumoId("Sabor Colombiana 400ml", "Gaseosa Naranja Postobón 400ml", 39), 35);
+  assert.equal(resolveDrinkInsumoId("Botella 1.5 Litros", "Gaseosa Sprite 400ml", 13), 36);
+  assert.equal(resolveDrinkInsumoId("Mega Botella 2.5 Litros", "Gaseosa Quatro Toronja 400ml", 14), 37);
+  assert.equal(resolveDrinkInsumoId("Botella 1.5 Litros", "Agua Cristal sin Gas 600ml", 10), 31);
+
+  const catalog = [
+    { idInsumo: 32, nombre: "Coca-Cola Sin Azúcar / Light 400ml", unidadMedida: "und", precioUnitario: 2500, stock: 59 }
+  ];
+  const dets = buildDefaultDrinkVariantDetalles("Sin Azúcar / Light 400ml", "Gaseosa Coca-Cola 400ml", 8, catalog);
+  assert.equal(dets.length, 1);
+  assert.equal(dets[0].idInsumo, 32);
+  assert.equal(dets[0].cantidad, 1);
+  assert.equal(dets[0].unidadMedida, "und");
+  assert.equal(dets[0].precioUnitario, 2500);
+  assert.equal(dets[0].nombre, "Coca-Cola Sin Azúcar / Light 400ml");
+});
+
 

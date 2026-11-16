@@ -295,3 +295,82 @@ export const computeInsumosModificadosDeltas = (variantDetalles = [], baseList =
 
   return deltas;
 };
+
+/**
+ * Resuelve el idInsumo por defecto de una variante o presentación de bebida comercial.
+ */
+export const resolveDrinkInsumoId = (variantName = "", productName = "", productId = 0) => {
+  const vn = String(variantName || "").toLowerCase();
+  const pn = String(productName || "").toLowerCase();
+  const combined = `${vn} ${pn}`;
+  const pid = Number(productId || 0);
+
+  if (vn.includes("coca") || pid === 8 || pid === 16 || pn.includes("coca")) {
+    if (/con az[uú]car|\boriginal\b|\bcl[aá]sic/.test(vn)) return 29;
+    if (/sin az[uú]car|\blight\b|\bzero\b/.test(vn)) return 32;
+    if (pid === 16 || /sin az[uú]car|\blight\b|\bzero\b/.test(pn)) return 32;
+    return 29;
+  }
+
+  if (vn.includes("pepsi") || pid === 11 || pn.includes("pepsi")) {
+    if (/sin az[uú]car|\blight\b|\bzero\b|\bblack\b/.test(vn)) return 34;
+    if (/regular|\boriginal\b/.test(vn)) return 33;
+    return /sin az[uú]car|\blight\b|\bzero\b|\bblack\b/.test(pn) ? 34 : 33;
+  }
+
+  if (vn.includes("uva")) return 47;
+  if (vn.includes("naranja")) return 48;
+  if (vn.includes("manzana")) return 30;
+  if (vn.includes("colombiana")) return 35;
+  if (vn.includes("sprite")) return 36;
+  if (vn.includes("quatro") || vn.includes("cuatro") || vn.includes("toronja")) return 37;
+  if (vn.includes("agua")) return 31;
+
+  if (pid === 38 || pn.includes("uva")) return 47;
+  if (pid === 39 || pn.includes("naranja")) return 48;
+  if (pid === 9 || pn.includes("manzana")) return 30;
+  if (pid === 12 || pn.includes("colombiana")) return 35;
+  if (pid === 13 || pn.includes("sprite")) return 36;
+  if (pid === 14 || pn.includes("quatro") || pn.includes("cuatro") || pn.includes("toronja")) return 37;
+  if (pid === 10 || pn.includes("agua") || combined.includes("cristal")) return 31;
+
+  return null;
+};
+
+/**
+ * Construye el detalle inicial (1 unidad del insumo comercial) para variantes de bebidas.
+ */
+export const buildDefaultDrinkVariantDetalles = (
+  variantName = "",
+  productName = "",
+  productId = 0,
+  catalog = []
+) => {
+  const idInsumo = resolveDrinkInsumoId(variantName, productName, productId);
+  if (!idInsumo) return [];
+
+  const cat = (catalog || []).find((c) => Number(c.idInsumo || c.id) === Number(idInsumo)) || null;
+  return [
+    {
+      idInsumo: Number(idInsumo),
+      nombre: cat?.nombre || `Insumo #${idInsumo}`,
+      cantidad: 1,
+      baseCantidad: 1,
+      unidadMedida: "und",
+      precioUnitario: Number(cat?.precioUnitario || 0),
+      insumo: cat
+        ? {
+            idInsumo: cat.idInsumo || cat.id,
+            nombre: cat.nombre,
+            unidadMedida: cat.unidadMedida || "und",
+            precioUnitario: Number(cat.precioUnitario || 0),
+            stock: cat.stock,
+            fechaVencimiento: cat.fechaVencimiento
+          }
+        : null,
+      esBase: true,
+      esNuevo: false,
+      _manualEdit: false
+    }
+  ];
+};

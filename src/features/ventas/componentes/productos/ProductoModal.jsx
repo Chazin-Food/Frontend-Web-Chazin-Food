@@ -31,7 +31,9 @@ import {
   scaleQuantityByFactor,
   buildVariantDetallesFromBase,
   reconstructVariantDetallesFromDeltas,
-  computeInsumosModificadosDeltas
+  computeInsumosModificadosDeltas,
+  resolveDrinkInsumoId,
+  buildDefaultDrinkVariantDetalles
 } from "../../utils/variantFichaUtils";
 
 export {
@@ -40,7 +42,9 @@ export {
   scaleQuantityByFactor,
   buildVariantDetallesFromBase,
   reconstructVariantDetallesFromDeltas,
-  computeInsumosModificadosDeltas
+  computeInsumosModificadosDeltas,
+  resolveDrinkInsumoId,
+  buildDefaultDrinkVariantDetalles
 };
 
 export const getDefaultDrinkImageForSize = (sizeName = "", prodName = "") => {
@@ -391,6 +395,10 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
           : null;
         const deltas = Array.isArray(v.insumosModificados) ? v.insumosModificados : [];
 
+        const esBebidaProducto =
+          isDrinkCategory ||
+          /coca|pepsi|sprite|quatro|cuatro|postob[oó]n|agua|gaseosa|refresco|bebida/i.test(producto.nombre || "");
+
         let initDetalles = [];
         if (existingVarFicha) {
           initDetalles = existingVarFicha.detalles.map((d) => {
@@ -433,7 +441,14 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             };
           });
         } else if (deltas.length > 0) {
-          initDetalles = reconstructVariantDetallesFromDeltas(initialBaseRaw, deltas, []);
+          initDetalles = reconstructVariantDetallesFromDeltas(initialBaseRaw, deltas, todosInsumosCatalogo);
+        } else if (esBebidaProducto) {
+          initDetalles = buildDefaultDrinkVariantDetalles(
+            v.nombre,
+            producto.nombre,
+            producto.idProducto || producto.id,
+            todosInsumosCatalogo
+          );
         } else {
           initDetalles = buildVariantDetallesFromBase(initialBaseRaw, 1, []);
         }
@@ -747,7 +762,15 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     const sizeInfo = detectVariantSizeInfo(suggestedName, explicitTipo);
     const factor = sizeInfo.factor > 1 ? sizeInfo.factor : 1;
     const baseMeta = fichaTecnica || producto?.fichaTecnica || {};
-    const initDetalles = buildVariantDetallesFromBase(baseIngredients, factor, todosInsumosCatalogo);
+    let initDetalles = buildVariantDetallesFromBase(baseIngredients, factor, todosInsumosCatalogo);
+    if (initDetalles.length === 0 && isDrink) {
+      initDetalles = buildDefaultDrinkVariantDetalles(
+        suggestedName,
+        form.nombre || producto?.nombre,
+        producto?.idProducto || producto?.id,
+        todosInsumosCatalogo
+      );
+    }
     const defaultRend = factor > 1
       ? `${factor} porciones (${suggestedName || "Tamaño"})`
       : (baseMeta?.rendimiento || "1 porción");
@@ -986,29 +1009,81 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     setReplaceSearch("");
   };
 
-  // Si se agregaron insumos base en el Paso 2 después de crear variantes vacías, cargarlos automáticamente
+  // Si se agregaron insumos base en el Paso 2 o cargó el catálogo para bebidas después de montar variantes vacías, cargarlos automáticamente
   useEffect(() => {
-    if (!baseIngredients || baseIngredients.length === 0) return;
+    const hasBase = Boolean(baseIngredients && baseIngredients.length > 0);
+    if (!hasBase && (!isDrink || !todosInsumosCatalogo || todosInsumosCatalogo.length === 0)) return;
     setVariantes((prev) => {
       let changed = false;
       const next = prev.map((v) => {
         const curDetalles = v.fichaTecnica?.detalles || [];
-        if (v._userCleared || curDetalles.length > 0) return v;
-        changed = true;
-        const factor = Number(v.factorTamano || 1);
-        const initDetalles = buildVariantDetallesFromBase(baseIngredients, factor, todosInsumosCatalogo);
-        return {
-          ...v,
-          fichaTecnica: {
-            ...(v.fichaTecnica || {}),
-            detalles: initDetalles
-          },
-          insumosModificados: computeInsumosModificadosDeltas(initDetalles, baseIngredients)
-        };
+        if (hasBase) {
+          if (v._userCleared || curDetalles.length > 0) return v;
+          changed = true;
+          const factor = Number(v.factorTamano || 1);
+          const initDetalles = buildVariantDetallesFromBase(baseIngredients, factor, todosInsumosCatalogo);
+          return {
+            ...v,
+            fichaTecnica: {
+              ...(v.fichaTecnica || {}),
+              detalles: initDetalles
+            },
+            insumosModificados: computeInsumosModificadosDeltas(initDetalles, baseIngredients)
+          };
+        }
+
+        if (isDrink && todosInsumosCatalogo.length > 0) {
+          if (curDetalles.length === 0 && !v._userCleared) {
+            const drinkDetalles = buildDefaultDrinkVariantDetalles(
+              v.nombre,
+              form.nombre || producto?.nombre,
+              producto?.idProducto || producto?.id,
+              todosInsumosCatalogo
+            );
+            if (drinkDetalles.length > 0) {
+              changed = true;
+              return {
+                ...v,
+                fichaTecnica: {
+                  ...(v.fichaTecnica || {}),
+                  detalles: drinkDetalles
+                },
+                insumosModificados: computeInsumosModificadosDeltas(drinkDetalles, [])
+              };
+            }
+          } else if (curDetalles.length > 0 && curDetalles.some((d) => !d.insumo || /^Insumo #\d+$/.test(d.nombre || ""))) {
+            changed = true;
+            const enrichedDetalles = curDetalles.map((d) => {
+              const cat = todosInsumosCatalogo.find((c) => Number(c.idInsumo || c.id) === Number(d.idInsumo));
+              if (!cat) return d;
+              return {
+                ...d,
+                nombre: cat.nombre || d.nombre,
+                precioUnitario: Number(cat.precioUnitario || d.precioUnitario || 0),
+                insumo: {
+                  idInsumo: cat.idInsumo || cat.id,
+                  nombre: cat.nombre,
+                  unidadMedida: cat.unidadMedida || d.unidadMedida || "und",
+                  precioUnitario: Number(cat.precioUnitario || 0),
+                  stock: cat.stock,
+                  fechaVencimiento: cat.fechaVencimiento
+                }
+              };
+            });
+            return {
+              ...v,
+              fichaTecnica: {
+                ...(v.fichaTecnica || {}),
+                detalles: enrichedDetalles
+              }
+            };
+          }
+        }
+        return v;
       });
       return changed ? next : prev;
     });
-  }, [baseIngredients, todosInsumosCatalogo]);
+  }, [baseIngredients, todosInsumosCatalogo, isDrink, form.nombre, producto]);
 
   const handleUpdateVariantFichaMeta = (variantKey, field, value) => {
     setVariantes((prev) =>
@@ -1865,7 +1940,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     (i) => Number(i.idInsumo || i.id) === Number(newRuleInsumoId)
                   );
                   const compatibleUnits = selectedInsumo
-                    ? getUnidadesCompatibles(newRuleUnidad || selectedInsumo.unidadMedida || "und")
+                    ? getUnidadesCompatibles(selectedInsumo.unidadMedida || newRuleUnidad || "und")
                     : getUnidadesCompatibles("und");
 
                   let suggestedPortion = null;
@@ -2115,12 +2190,12 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             }));
 
           const computedDeltas =
-            tipoElaboracion === "preparado" && cleanDetalles.length > 0
+            (tipoElaboracion === "preparado" || cleanDetalles.length > 0) && cleanDetalles.length > 0
               ? computeInsumosModificadosDeltas(cleanDetalles, baseIngredients)
               : (Array.isArray(v.insumosModificados) ? v.insumosModificados : []);
 
           const varFicha =
-            tipoElaboracion === "preparado"
+            tipoElaboracion === "preparado" || cleanDetalles.length > 0
               ? {
                   idFichaTecnica: isCloning ? null : (v.fichaTecnica?.idFichaTecnica || null),
                   idVariante: isCloning ? null : (v.idVariante || null),

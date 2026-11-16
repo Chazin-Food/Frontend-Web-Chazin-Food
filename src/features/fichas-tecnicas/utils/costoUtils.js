@@ -80,21 +80,29 @@ export function resolveRecetaUnidadYCantidad(insumoItem, rendimiento = 1) {
   const nombre = String(insumoItem.nombre || insumoItem.nombreInsumo || "").toLowerCase();
   const uBase = normalizeUnidadMedida(insumoItem.unidadMedida || insumoItem.unidad);
 
+  if (uBase === "und" || uBase === "paq" || uBase === "porción") {
+    return { cantidad: 1, unidadMedida: uBase };
+  }
+
   // 1. Extraer gramaje explícito si está en el nombre (ej: "Carne 150g", "Papas (150g)", "40g", etc.)
-  const matchGram = nombre.match(/(?:^|\s|\()(\d+(?:[.,]\d+)?)\s*(?:g|gr|gramos)(?:\s|\)|\b|$)/i);
-  if (matchGram) {
-    const num = parseFloat(matchGram[1].replace(',', '.'));
-    if (!isNaN(num) && num > 0) {
-      return { cantidad: num, unidadMedida: "gr" };
+  if (uBase === "kg" || uBase === "gr" || uBase === "mg") {
+    const matchGram = nombre.match(/(?:^|\s|\()(\d+(?:[.,]\d+)?)\s*(?:g|gr|gramos)(?:\s|\)|\b|$)/i);
+    if (matchGram) {
+      const num = parseFloat(matchGram[1].replace(',', '.'));
+      if (!isNaN(num) && num > 0) {
+        return { cantidad: num, unidadMedida: "gr" };
+      }
     }
   }
 
   // 2. Extraer volumen explícito si está en el nombre (ej: "400ml", "50ml", etc.)
-  const matchMl = nombre.match(/(?:^|\s|\()(\d+(?:[.,]\d+)?)\s*(?:ml|cc|mililitros)(?:\s|\)|\b|$)/i);
-  if (matchMl) {
-    const num = parseFloat(matchMl[1].replace(',', '.'));
-    if (!isNaN(num) && num > 0) {
-      return { cantidad: num, unidadMedida: "ml" };
+  if (uBase === "lt" || uBase === "ml" || uBase === "cc") {
+    const matchMl = nombre.match(/(?:^|\s|\()(\d+(?:[.,]\d+)?)\s*(?:ml|cc|mililitros)(?:\s|\)|\b|$)/i);
+    if (matchMl) {
+      const num = parseFloat(matchMl[1].replace(',', '.'));
+      if (!isNaN(num) && num > 0) {
+        return { cantidad: num, unidadMedida: "ml" };
+      }
     }
   }
 
