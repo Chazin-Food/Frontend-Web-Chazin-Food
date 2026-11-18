@@ -751,7 +751,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/65 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-5xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92vh] transition-all">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-5xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh] transition-all">
 
         {/* ═══ 1. HEADER DE IMPACTO VISUAL ═══ */}
         <div className="bg-linear-to-r from-orange-600 via-amber-600 to-red-600 p-4 sm:p-5 text-white flex items-center justify-between shrink-0 shadow-md">
@@ -794,7 +794,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
         {/* ═══ 2. SELECTOR DE MODALIDAD (SOLO AL CREAR DESDE CERO) ═══ */}
         {!currentProducto && !isEditing && (
           <div className="px-5 pt-4 pb-1 shrink-0 bg-gray-50/80 dark:bg-gray-850 border-b border-gray-100 dark:border-gray-800">
-            <div className="grid grid-cols-2 gap-3 max-w-2xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
               <button
                 type="button"
                 onClick={() => { setModoCrearProducto(false); setActiveStep(1); }}
@@ -1675,7 +1675,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
 
                       {/* Selectores de Fechas */}
                       {isTemporal && (
-                        <div className="pt-3 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-3.5">
+                        <div className="pt-3 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                           <div>
                             <label className="block text-[11px] font-black uppercase text-gray-700 dark:text-gray-300 mb-1">
                               Fecha de Inicio *
@@ -1945,7 +1945,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
 
                       {/* Precios (Regular vs Promocional con cálculo dinámico según formato) */}
                       <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                        <div className="grid grid-cols-2 gap-3.5 items-end">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
                           <div className="flex flex-col justify-end">
                             <label className="text-[11px] font-black uppercase text-gray-700 dark:text-gray-300 mb-1.5 min-h-[2rem] flex items-end">
                               {prodTipoEvento === "COMBO_ESPECIAL" ? "Precio Combo Regular ($ COP) *" : "Precio Carta Regular ($ COP) *"}
@@ -2690,7 +2690,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                         <span>Fechas de la Edición Especial</span>
                       </p>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-gray-400 mb-1">Inicio</label>
                           <input

@@ -17,7 +17,120 @@ export function ProveedoresTable({ proveedores = [], onEdit, onDelete, onToggleE
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto focus:outline-none">
+      {/* Mobile / Tablet Cards (< lg) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron proveedores
+          </div>
+        ) : (
+          paginated.map((p) => {
+            const esJuridica = p.tipoPersona === "Jurídica" || p.idTipoDocumento === 3 || p.tipoDocumento === "NIT";
+            const docLabel = esJuridica ? "NIT" : "CC";
+            const isActivo = p.estado === "Activo" || p.estado === 1;
+
+            return (
+              <div key={p.id || p.idProveedor} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <Building className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{p.nombre}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
+                        {docLabel}: {p.nit || p.numeroDocumento || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${
+                    isActivo
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                      : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                  }`}>
+                    {isActivo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                    {p.tipoProveedor || p.tipoProveedorNombre || "Mayorista"}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    {esJuridica ? "Jurídica" : "Natural"}
+                  </span>
+                  {(p.contacto || p.nombreContacto) && (
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      · Contacto: {p.contacto || p.nombreContacto}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl p-2.5">
+                  {(p.email || p.correo) && (
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="truncate">{p.email || p.correo}</span>
+                    </div>
+                  )}
+                  {p.telefono && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span>{p.telefono}</span>
+                    </div>
+                  )}
+                  {p.direccion && (
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="truncate">{p.direccion}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-1.5 pt-1">
+                  {onView && (
+                    <button onClick={() => onView(p)} title="Visualizar proveedor" className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  )}
+                  {onToggleEstado && canEdit && (
+                    <button
+                      onClick={() => onToggleEstado(p)}
+                      title={isActivo ? "Inactivar proveedor" : "Activar proveedor"}
+                      className={`p-2 rounded-xl cursor-pointer ${
+                        isActivo ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button onClick={() => onEdit(p)} title="Editar proveedor" className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 cursor-pointer">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {onDelete && canDelete && (
+                    <button
+                      onClick={() => onDelete(p.id || p.idProveedor, p.nombre, p)}
+                      title={p.tieneCompras || (p.comprasCount && p.comprasCount > 0) ? `Tiene ${p.comprasCount} compra(s)` : "Mover a papelera"}
+                      className={`p-2 rounded-xl cursor-pointer ${
+                        p.tieneCompras || (p.comprasCount && p.comprasCount > 0)
+                          ? "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                          : "bg-red-50 dark:bg-red-900/20 text-red-500"
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (lg+) */}
+      <div className="hidden lg:block overflow-x-auto touch-scroll-x focus:outline-none">
         <table className="w-full text-left border-collapse table-auto">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

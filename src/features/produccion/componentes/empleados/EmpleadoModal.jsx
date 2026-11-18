@@ -376,7 +376,7 @@ export function EmpleadoModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl lg:max-w-5xl border border-gray-100 dark:border-gray-800 my-4 overflow-hidden flex flex-col max-h-[94vh]">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl lg:max-w-5xl border border-gray-100 dark:border-gray-800 my-4 overflow-hidden flex flex-col max-h-[94dvh]">
         
         {/* Header Compacto */}
         <div className="px-6 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/70 dark:bg-gray-800/50 shrink-0">

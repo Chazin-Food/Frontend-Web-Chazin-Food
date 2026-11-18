@@ -96,7 +96,7 @@ export default function KioskPromoCarousel({ productos = [], onSelectProduct }) 
           }
         }}
         aria-label={`${stripEmojis(activeEvent?.nombre || activeEvent?.nombreEvento || "Promoción destacada")}: ${stripEmojis(currentItem?.nombre)}. Pedir por ${formatPrice(promoPrice)} COP`}
-        className="relative w-full h-40 sm:h-48 rounded-3xl overflow-hidden bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 dark:from-[#7f1d1d] dark:via-[#881337] dark:to-[#78350f] shadow-lg dark:shadow-2xl dark:shadow-rose-950/50 text-white flex items-center justify-between p-4 sm:p-6 cursor-pointer border-2 border-amber-300/40 dark:border-amber-400/40 group active:scale-[0.99] transition-transform"
+        className="relative w-full min-h-[148px] sm:h-48 rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 dark:from-[#7f1d1d] dark:via-[#881337] dark:to-[#78350f] shadow-lg dark:shadow-2xl dark:shadow-rose-950/50 text-white flex items-center justify-between gap-2.5 sm:gap-4 p-3.5 sm:p-6 pb-7 sm:pb-6 cursor-pointer border-2 border-amber-300/40 dark:border-amber-400/40 group active:scale-[0.99] transition-transform"
       >
         {/* Ambient background particles/glow */}
         <div className="absolute top-0 right-1/4 w-48 h-48 bg-white/10 dark:bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
@@ -109,10 +109,10 @@ export default function KioskPromoCarousel({ productos = [], onSelectProduct }) 
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.35 }}
-            className="relative z-10 flex-1 flex flex-col justify-between h-full pr-4 max-w-lg"
+            className="relative z-10 flex-1 min-w-0 flex flex-col justify-between h-full pr-1 sm:pr-4 max-w-lg gap-1.5"
           >
             {/* Promo Tag */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="inline-flex items-center gap-1.5 bg-amber-400 text-neutral-950 px-3 py-1 rounded-full text-xs sm:text-sm font-black uppercase tracking-wider shadow-sm">
                 <Tag className="w-3.5 h-3.5 text-neutral-950 stroke-[2.5]" />
                 {stripEmojis(activeEvent?.nombre || activeEvent?.nombreEvento || "OFERTA DESTACADA")}
@@ -127,7 +127,7 @@ export default function KioskPromoCarousel({ productos = [], onSelectProduct }) 
 
             {/* Product Name */}
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight line-clamp-1 drop-shadow-sm">
+              <h2 className="text-lg sm:text-3xl font-black text-white leading-tight line-clamp-1 drop-shadow-sm">
                 {stripEmojis(currentItem?.nombre)}
               </h2>
               <p className="text-xs sm:text-sm text-red-100 dark:text-amber-100/90 font-medium line-clamp-1 mt-0.5 drop-shadow-xs">
@@ -138,7 +138,7 @@ export default function KioskPromoCarousel({ productos = [], onSelectProduct }) 
             {/* Price & CTA */}
             <div className="flex items-center gap-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-black text-amber-300 drop-shadow-xs">
+                <span className="text-xl sm:text-3xl font-black text-amber-300 drop-shadow-xs">
                   {formatPrice(promoPrice)}
                 </span>
                 {discountPercent > 0 && (
@@ -156,7 +156,7 @@ export default function KioskPromoCarousel({ productos = [], onSelectProduct }) 
         </AnimatePresence>
 
         {/* Product Image Right Side */}
-        <div className="relative z-10 w-28 h-28 sm:w-36 sm:h-36 shrink-0 rounded-2xl bg-black/20 dark:bg-black/40 p-1.5 backdrop-blur-xs border border-white/20 dark:border-amber-400/25 shadow-xl overflow-hidden flex items-center justify-center">
+        <div className="relative z-10 w-20 h-20 sm:w-36 sm:h-36 shrink-0 rounded-2xl bg-black/20 dark:bg-black/40 p-1 sm:p-1.5 backdrop-blur-xs border border-white/20 dark:border-amber-400/25 shadow-xl overflow-hidden flex items-center justify-center">
           {itemImage ? (
             <motion.img
               key={`img-${currentItem?.id || currentIndex}`}
@@ -165,6 +165,10 @@ export default function KioskPromoCarousel({ productos = [], onSelectProduct }) 
               transition={{ duration: 0.4 }}
               src={itemImage}
               alt={stripEmojis(currentItem?.nombre)}
+              width="144"
+              height="144"
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover rounded-xl"
             />
           ) : (

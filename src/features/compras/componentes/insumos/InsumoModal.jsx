@@ -676,7 +676,7 @@ export function InsumoModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
     /* Evitar cierre accidental al hacer clic fuera (#7) */
     >
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
           <div className="flex items-center gap-3">

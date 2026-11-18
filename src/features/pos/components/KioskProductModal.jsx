@@ -93,7 +93,7 @@ export default function KioskProductModal({
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[94vw] max-w-2xl max-h-[92vh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col justify-between overflow-hidden border-2 border-gray-150 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[94vw] max-w-2xl max-h-[92dvh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col justify-between overflow-hidden border-2 border-gray-150 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
           {/* Header */}
           <div className="flex items-start justify-between gap-4 pb-3 border-b border-gray-150">
             <div>

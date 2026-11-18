@@ -327,7 +327,7 @@ export function ClienteAuthModal({
       <div
         className={`bg-white dark:bg-gray-900 rounded-3xl w-full ${
           currentView === "register" ? "max-w-xl" : "max-w-md"
-        } shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200`}
+        } shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col max-h-[92dvh] animate-in zoom-in-95 duration-200`}
       >
         {/* Barra superior con gradiente de marca */}
         <div className="h-2 bg-gradient-to-r from-red-500 via-rose-500 to-red-500 shrink-0" />

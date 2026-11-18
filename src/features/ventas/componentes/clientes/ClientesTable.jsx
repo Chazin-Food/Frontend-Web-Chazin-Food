@@ -38,7 +38,95 @@ export function ClientesTable({ clientes = [], onViewDetail, onEdit, onDelete, c
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile / Tablet Cards (< lg) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron clientes registrados
+          </div>
+        ) : (
+          paginatedClientes.map((c, index) => {
+            const tipoCliente = c.tipo || (c.esVip ? "VIP" : "Nuevo");
+            const tieneCuenta = c.tieneCuenta !== false && !!c.idUsuario;
+            const isPendiente = c.estado === "PENDIENTE" || c.estado === "Pendiente" || c.estadoUsuario === "PENDIENTE";
+            const isActivo = tieneCuenta && !isPendiente && (c.estado === "Activo" || c.estado === 1);
+            const rawTotal = c.totalConsumido || c.totalGastado || 0;
+            const numTotal = typeof rawTotal === "string" ? Number(rawTotal.replace(/[^0-9]/g, "")) || 0 : Number(rawTotal) || 0;
+
+            return (
+              <div key={c.id || `cli-mob-${index}`} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${getAvatarBg(c.nombre)}`}>
+                      {c.nombre ? c.nombre.charAt(0).toUpperCase() : "C"}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
+                          {formatNombreCompleto(c.nombre, c.apellidos) || "Cliente General"}
+                        </p>
+                        {!tieneCuenta && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Sin cuenta asociada" />}
+                      </div>
+                      <p className="text-[11px] text-gray-400 truncate">{c.telefono || "Sin teléfono"}{c.email ? ` · ${c.email}` : ""}</p>
+                    </div>
+                  </div>
+                  {isPendiente ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 shrink-0">Pendiente</span>
+                  ) : (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                      isActivo ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400" : "text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-400"
+                    }`}>
+                      {isActivo ? "Activo" : "Inactivo"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl p-2.5 text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <FidelidadBadge tipo={tipoCliente} descuento={c.descuentoPorcentaje} enGracia={c.fidelidad?.enGracia} size="sm" />
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-extrabold text-orange-600 dark:text-orange-400">
+                      <Flame className="w-3 h-3" />
+                      {c.fidelidad?.comprasCiclo !== undefined ? c.fidelidad.comprasCiclo : ((c.compras || 0) % 3)}/3 ({c.compras || 0} comp.)
+                    </span>
+                  </div>
+                  <span className="font-black text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                    ${numTotal.toLocaleString("es-CO")} COP
+                  </span>
+                </div>
+
+                {c.direccion && (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                    Dirección: {formatDireccion(c.direccion)}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-100 dark:border-gray-800">
+                  <button onClick={() => onViewDetail && onViewDetail(c)} title="Ver detalle" className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer">
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  {canEdit && (
+                    <button onClick={() => onEdit(c)} title="Editar cliente" className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 cursor-pointer">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(c.id || c.idCliente, `${c.nombre} ${c.apellidos || ""}`.trim(), c.compras || 0)}
+                      title={c.compras > 0 ? "Cuenta con ventas asociadas" : "Eliminar cliente"}
+                      className={`p-2 rounded-xl cursor-pointer ${c.compras > 0 ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600" : "bg-red-50 dark:bg-red-900/20 text-red-500"}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (lg+) */}
+      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-[11px] font-bold text-gray-400 dark:text-gray-400 tracking-wider uppercase">

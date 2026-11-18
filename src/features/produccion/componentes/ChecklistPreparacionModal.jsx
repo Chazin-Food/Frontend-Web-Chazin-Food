@@ -202,7 +202,7 @@ export function ChecklistPreparacionModal({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-xs overflow-y-auto"
     >
-      <div className="relative bg-white dark:bg-gray-900 rounded-[28px] max-w-2xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-gray-900 rounded-[28px] max-w-2xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh] animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between bg-gradient-to-r from-gray-50 to-white dark:from-gray-800/60 dark:to-gray-900 shrink-0">
           <div className="flex items-start gap-3.5 min-w-0">

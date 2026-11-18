@@ -28,7 +28,7 @@ export default function KioskConfirmation({ orderId, orderData, onReset }) {
   const shortTicketDigits = rawOrderStr.replace(/\D/g, "").slice(-4).padStart(4, "0") || "0001";
 
   return (
-    <div className="relative min-h-screen w-full bg-linear-to-b from-emerald-50 via-white to-red-50 flex flex-col justify-between items-center p-6 sm:p-12 select-none overflow-hidden">
+    <div className="relative min-h-[100dvh] w-full bg-linear-to-b from-emerald-50 via-white to-red-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex flex-col justify-between items-center p-4 sm:p-10 select-none overflow-hidden">
       {/* Background ambient decorative shapes */}
       <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-200/40 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-red-200/30 blur-3xl pointer-events-none" />

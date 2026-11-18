@@ -2063,7 +2063,7 @@ export function FastFoodProductModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-gray-900 rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92vh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
+      <div className="bg-white dark:bg-gray-900 rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
         {/* ── Festival Drop Top Ribbon (Fast Food Industry Event Bar) ── */}
         {eventInfo && (
           <div className="bg-gradient-to-r from-[#D9383A] via-[#E03E3E] to-amber-600 text-white px-4 sm:px-6 py-2 flex items-center justify-between text-xs font-black uppercase tracking-wider shadow-md shrink-0 z-30 border-b border-orange-500/30">
@@ -2321,7 +2321,7 @@ export function FastFoodProductModal({
               </div>
 
               {/* Grid simétrico y perfectamente balanceado en altura */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/50">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/50">
                 {(() => {
                   const eventToppings = parseEventoInsumos(eventInfo);
                   const isToppingType =
@@ -2331,7 +2331,7 @@ export function FastFoodProductModal({
 
                   if (isToppingType) {
                     return (
-                      <div className="p-3 rounded-xl bg-white/90 dark:bg-gray-800/90 border border-purple-200/90 dark:border-purple-900/50 col-span-2 flex flex-col justify-center text-center shadow-2xs">
+                      <div className="p-3 rounded-xl bg-white/90 dark:bg-gray-800/90 border border-purple-200/90 dark:border-purple-900/50 sm:col-span-2 flex flex-col justify-center text-center shadow-2xs">
                         <p className="text-[10px] sm:text-[11px] text-purple-700 dark:text-purple-300 font-bold uppercase tracking-wider mb-0.5">
                           Toppings Incluidos Sin Costo
                         </p>

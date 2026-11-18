@@ -792,7 +792,7 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm">
       <div
-        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[96vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
+        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[96dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
         style={{ animation: "fadeInScale 0.22s ease-out" }}
       >
         {/* ── Header ── */}
@@ -1084,7 +1084,7 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
 
                 {/* Panel de configuración del insumo seleccionado (#78, #80, #82) */}
                 {configurando && (
-                  <div className="border-t border-[#F05454]/30 bg-[#F05454]/5 dark:bg-[#F05454]/10 p-4 shrink-0 max-h-[52vh] overflow-y-auto">
+                  <div className="border-t border-[#F05454]/30 bg-[#F05454]/5 dark:bg-[#F05454]/10 p-4 shrink-0 max-h-[52dvh] overflow-y-auto">
                     <p className="text-xs font-bold text-[#F05454] mb-2 flex items-center gap-1.5">
                       <Pencil className="w-3.5 h-3.5" />
                       Configurando:{" "}

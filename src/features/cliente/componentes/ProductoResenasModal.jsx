@@ -195,7 +195,7 @@ export function ProductoResenasModal({ isOpen, onClose, producto }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] my-auto overflow-hidden"
+        className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-3xl shadow-2xl flex flex-col max-h-[90dvh] my-auto overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}

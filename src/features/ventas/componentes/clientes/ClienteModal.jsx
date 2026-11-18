@@ -198,7 +198,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
 
   return (
     <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs`}>
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-5 border border-gray-100 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-5 border border-gray-100 dark:border-gray-800 max-h-[90dvh] overflow-y-auto">
         
         {/* Header with initial avatar & close icon */}
         <div className="flex items-center justify-between">
@@ -565,7 +565,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="cliente-tipo-fidelidad" className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">
                   Nivel Asignado

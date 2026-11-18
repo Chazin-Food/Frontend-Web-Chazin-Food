@@ -18,7 +18,74 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto focus:outline-none">
+      {/* Mobile Cards (< md) */}
+      <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron categorías de insumos
+          </div>
+        ) : (
+          paginatedCategorias.map((c, index) => (
+            <div key={c.id ?? `cat-mob-${index}`} className="p-4 space-y-2.5">
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0 overflow-hidden text-[#F05454]">
+                    {c.icon && typeof c.icon === "string" && (c.icon.startsWith("http") || c.icon.startsWith("/")) ? (
+                      <img src={c.icon} alt={c.nombre} width="40" height="40" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    ) : (
+                      <FoodIcon name={c.icon || c.nombre || "bread"} category={c.nombre} size={20} stroke={1.75} />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm text-[#1e293b] dark:text-gray-100 truncate">{c.nombre}</p>
+                    <p className="text-[11px] text-gray-400">ID #{c.id || c.idCategoriaInsumo}</p>
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+                    c.estado === "Activo" || c.estado === 1 || c.estado === "1"
+                      ? "bg-emerald-100/80 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                      : "bg-red-100/80 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                  }`}
+                >
+                  {c.estado === 1 || c.estado === "1" ? "Activo" : c.estado || "Activo"}
+                </span>
+              </div>
+              {c.descripcion && (
+                <p className="text-xs text-slate-600 dark:text-gray-300 line-clamp-2">{c.descripcion}</p>
+              )}
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100/80 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold text-xs">
+                  {c.insumosCount ?? c.cantidad ?? (c.insumos?.length || 0)} insumos
+                </span>
+                <div className="flex items-center gap-2">
+                  {canEdit && (
+                    <button
+                      onClick={() => onEdit(c)}
+                      title="Editar categoría"
+                      className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer"
+                    >
+                      <Edit className="w-4 h-4 stroke-[2]" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(c.id, c.nombre)}
+                      title="Eliminar categoría"
+                      className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 stroke-[2]" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table (md+) */}
+      <div className="hidden md:block overflow-x-auto touch-scroll-x focus:outline-none">
         <table className="w-full text-left border-collapse table-auto">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-[#1e293b] dark:text-gray-200 uppercase tracking-wider">

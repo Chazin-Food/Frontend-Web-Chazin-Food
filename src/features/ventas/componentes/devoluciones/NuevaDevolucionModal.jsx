@@ -240,7 +240,7 @@ export function NuevaDevolucionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl lg:max-w-4xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden my-4 max-h-[94vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl lg:max-w-4xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden my-4 max-h-[94dvh] flex flex-col">
         
         {/* Header Compacto */}
         <div className="px-6 py-3.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-gray-50/70 dark:bg-gray-800/50">

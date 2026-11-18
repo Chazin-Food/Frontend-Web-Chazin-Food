@@ -111,7 +111,7 @@ export function VerOrdenModal({ isOpen, onClose, orden, onOpenChecklist }) {
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
     >
-      <div className="relative bg-white dark:bg-gray-900 rounded-[28px] max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-gray-900 rounded-[28px] max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header Limpio y Estructurado */}
         <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between bg-gray-50/70 dark:bg-gray-800/40 shrink-0">

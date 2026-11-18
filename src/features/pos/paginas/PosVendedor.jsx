@@ -343,10 +343,10 @@ export default function PosVendedor() {
 
   // Step 1: Catalog & Ordering Screen (Entra de una vez a crear venta)
   return (
-    <div className="relative min-h-full w-full bg-[#FAFAFA] dark:bg-gray-950 flex flex-col justify-between select-none pb-28">
-      {/* Main Kiosk Area: Vertical Category Rail (Left) + Products Grid (Center) */}
-      <div className="w-full flex-1 flex gap-3 sm:gap-4 p-3 sm:p-5 items-start">
-        {/* Left Category Rail */}
+    <div className="relative min-h-full w-full bg-[#FAFAFA] dark:bg-gray-950 flex flex-col justify-between select-none pb-24 sm:pb-28">
+      {/* Main Kiosk Area: Horizontal Categories (< md) / Vertical Category Rail (md+) + Products Grid */}
+      <div className="w-full flex-1 flex flex-col md:flex-row gap-3 sm:gap-4 p-3 sm:p-4 lg:p-5 items-stretch md:items-start">
+        {/* Category Rail (horizontal scrollable bar on mobile, sticky left rail on md+) */}
         <KioskCategoryRail
           categorias={categorias}
           categoriaActiva={categoriaActiva}
@@ -358,7 +358,7 @@ export default function PosVendedor() {
         <section className="flex-1 min-w-0 flex flex-col">
           {/* Top Promo Carousel or Skeleton */}
           {loading ? (
-            <div className="w-full h-40 sm:h-48 rounded-3xl mb-4 bg-gray-100 dark:bg-gray-800/60 animate-pulse border-2 border-gray-200/50 dark:border-gray-700/40" />
+            <div className="w-full h-36 sm:h-48 rounded-2xl sm:rounded-3xl mb-4 bg-gray-100 dark:bg-gray-800/60 animate-pulse border-2 border-gray-200/50 dark:border-gray-700/40" />
           ) : (
             <KioskPromoCarousel
               productos={productos}
@@ -368,45 +368,45 @@ export default function PosVendedor() {
 
           {/* Products Grid */}
           <div className="flex-1">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight truncate">
                 {categoriaActiva === null
                   ? "Todos los Productos"
                   : categoriaActiva === "eventos"
                   ? "Promociones y Ofertas"
                   : stripEmojis(categorias.find((c) => (c.id || c.idCategoriaProducto) === categoriaActiva)?.nombre || "Menú")}
               </h2>
-              <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+              <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2.5 sm:px-3 py-1 rounded-full shrink-0">
                 {loading ? "Cargando..." : `${visibleProducts.length} ${visibleProducts.length === 1 ? "producto" : "productos"}`}
               </span>
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-4">
                 {[...Array(8)].map((_, i) => (
                   <div
                     key={i}
-                    className="rounded-3xl p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 animate-pulse flex flex-col justify-between min-h-[290px] sm:min-h-[310px]"
+                    className="rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 bg-white dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800 animate-pulse flex flex-col justify-between min-h-[240px] sm:min-h-[310px]"
                   >
-                    <div className="w-full h-36 sm:h-44 rounded-2xl bg-gray-100 dark:bg-gray-800" />
-                    <div className="mt-3 flex-1 flex flex-col justify-between">
-                      <div className="h-5 bg-gray-100 dark:bg-gray-800 rounded-lg w-3/4 mb-2" />
+                    <div className="w-full h-28 sm:h-44 rounded-xl sm:rounded-2xl bg-gray-100 dark:bg-gray-800" />
+                    <div className="mt-2.5 sm:mt-3 flex-1 flex flex-col justify-between">
+                      <div className="h-4 sm:h-5 bg-gray-100 dark:bg-gray-800 rounded-lg w-3/4 mb-2" />
                       <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                        <div className="h-6 bg-gray-100 dark:bg-gray-800 rounded-lg w-1/3" />
-                        <div className="h-7 w-16 bg-gray-100 dark:bg-gray-800 rounded-xl" />
+                        <div className="h-5 sm:h-6 bg-gray-100 dark:bg-gray-800 rounded-lg w-1/3" />
+                        <div className="h-7 w-14 sm:w-16 bg-gray-100 dark:bg-gray-800 rounded-xl" />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : visibleProducts.length === 0 ? (
-              <div className="w-full py-16 flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-gray-200 bg-white text-center p-6">
-                <Utensils className="w-12 h-12 text-gray-300 mb-2" />
-                <p className="text-lg font-black text-gray-700">No hay productos en esta categoría</p>
-                <p className="text-sm font-semibold text-gray-400 mt-1">Selecciona otra categoría a la izquierda</p>
+              <div className="w-full py-12 sm:py-16 flex flex-col items-center justify-center rounded-2xl sm:rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-center p-6">
+                <Utensils className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 dark:text-gray-600 mb-2" />
+                <p className="text-base sm:text-lg font-black text-gray-700 dark:text-gray-200">No hay productos en esta categoría</p>
+                <p className="text-xs sm:text-sm font-semibold text-gray-400 dark:text-gray-500 mt-1">Selecciona otra categoría para continuar</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-4">
                 {visibleProducts.map((p) => (
                   <KioskProductCard
                     key={p.id || p.idProducto}

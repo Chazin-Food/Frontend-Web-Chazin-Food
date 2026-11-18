@@ -215,7 +215,7 @@ export function InsumoPreparadoModal({
       /* Evitar cierre accidental al hacer clic fuera (#7) */
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
+        className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

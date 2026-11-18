@@ -105,14 +105,14 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
         </div>
 
         {/* Contenido en Rejilla */}
-        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-5 max-h-[70dvh] overflow-y-auto">
           
           {/* Bloque 1: Documento de Identidad y Datos Personales (DE PRIMERO) */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2.5 flex items-center gap-2">
               <User className="w-4 h-4 text-red-500" /> Identificación y Contacto
             </h3>
-            <div className="grid grid-cols-2 gap-3.5 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/60 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/60 text-sm">
               <div className="col-span-2 sm:col-span-1 p-2.5">
                 <span className="text-xs text-gray-400 block">Documento de Identidad</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200 block mt-0.5">
@@ -148,7 +148,7 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2.5 flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-red-500" /> Condiciones de Contratación y Rol
             </h3>
-            <div className="grid grid-cols-2 gap-3.5 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/60 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/60 text-sm">
               <div>
                 <span className="text-xs text-gray-400 block">Rol Asignado</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200 mt-0.5 block">

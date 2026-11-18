@@ -79,22 +79,22 @@ export default function KioskProductCard({ producto, onSelect }) {
           handleCardClick();
         }
       }}
-      className={`group relative flex flex-col justify-between rounded-3xl p-3.5 sm:p-4 transition-all cursor-pointer select-none overflow-hidden min-h-[290px] sm:min-h-[310px] ${
+      className={`group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 transition-all cursor-pointer select-none overflow-hidden min-h-[236px] sm:min-h-[300px] ${
         activeEvent
-          ? "bg-linear-to-b from-amber-50/40 via-white to-white dark:from-amber-950/40 dark:via-gray-900 dark:to-gray-900 border-3 border-amber-500 dark:border-amber-500 ring-4 ring-amber-400/40 dark:ring-amber-500/30 shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10"
+          ? "bg-linear-to-b from-amber-50/40 via-white to-white dark:from-amber-950/40 dark:via-gray-900 dark:to-gray-900 border-2 sm:border-3 border-amber-500 dark:border-amber-500 ring-2 sm:ring-4 ring-amber-400/40 dark:ring-amber-500/30 shadow-lg sm:shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10"
           : "bg-white dark:bg-gray-900 border-2 border-gray-200/90 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500/60 shadow-sm hover:shadow-xl shadow-red-500/10"
       }`}
     >
       {/* ═══ CONTORNO & BANNER DE EVENTO ACTIVO (100% SVG Vectorial, Cero Emojis) ═══ */}
       {activeEvent && (
-        <div className="w-full bg-linear-to-r from-red-600 via-rose-600 to-amber-500 dark:from-red-700 dark:via-rose-700 dark:to-amber-600 text-white font-black text-xs py-1.5 px-3 rounded-2xl flex items-center justify-between shadow-xs mb-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Tag className="w-3.5 h-3.5 text-white shrink-0 stroke-[2.2]" />
+        <div className="w-full bg-linear-to-r from-red-600 via-rose-600 to-amber-500 dark:from-red-700 dark:via-rose-700 dark:to-amber-600 text-white font-black text-[10px] sm:text-xs py-1 sm:py-1.5 px-2 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-between gap-1 shadow-xs mb-1.5 sm:mb-2">
+          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+            <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0 stroke-[2.2]" />
             <span className="truncate uppercase tracking-wider">
               {stripEmojis(activeEvent.nombre || activeEvent.nombreEvento || "Evento Activo")}
             </span>
           </div>
-          <span className="bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0">
+          <span className="bg-white/20 text-white text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full shrink-0">
             {discountPercent > 0 ? `-${discountPercent}%` : is2x1Promo ? "2X1" : "PROMO"}
           </span>
         </div>
@@ -102,20 +102,20 @@ export default function KioskProductCard({ producto, onSelect }) {
 
       {/* Promo badge floating at top right of image */}
       {is2x1Promo && !activeEvent && (
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 font-black text-xs px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
-          <Tag className="w-3.5 h-3.5 text-amber-950 stroke-[2.2]" />
-          <span>2x1 Promo</span>
+        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 font-black text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-md uppercase tracking-wider">
+          <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-950 stroke-[2.2]" />
+          <span>2x1</span>
         </div>
       )}
       {!is2x1Promo && discountPercent > 0 && !activeEvent && (
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-red-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow-md">
-          <Tag className="w-3.5 h-3.5" />
-          <span>{discountPercent}% OFF</span>
+        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1 bg-red-600 text-white font-black text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-md">
+          <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <span>-{discountPercent}%</span>
         </div>
       )}
 
       {/* Big Appetizing Photo */}
-      <div className="relative w-full h-36 sm:h-44 rounded-2xl bg-gray-50 dark:bg-gray-800/80 overflow-hidden flex items-center justify-center border border-gray-100 dark:border-gray-700/60">
+      <div className="relative w-full h-28 sm:h-40 md:h-44 rounded-xl sm:rounded-2xl bg-gray-50 dark:bg-gray-800/80 overflow-hidden flex items-center justify-center border border-gray-100 dark:border-gray-700/60">
         {producto.imagen ? (
           <img
             src={getOptimizedImageUrl(producto.imagen, 400)}
@@ -129,33 +129,33 @@ export default function KioskProductCard({ producto, onSelect }) {
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-gray-300">
-            <Sparkles className="w-10 h-10 text-amber-400/60" />
-            <span className="text-[11px] font-bold text-gray-400 mt-1">Chazin Food</span>
+            <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-amber-400/60" />
+            <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 mt-1">Chazin Food</span>
           </div>
         )}
         {isAgotado && (
           <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-2">
-            <span className="px-3 py-1.5 rounded-xl bg-red-600 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md">
-              <Ban className="w-3.5 h-3.5" />
+            <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-red-600 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 shadow-md">
+              <Ban className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>Agotado</span>
             </span>
           </div>
         )}
       </div>
 
-      {/* Product Details (Legible at 1 meter, max 2 lines title) */}
-      <div className="mt-3 flex-1 flex flex-col justify-between">
+      {/* Product Details */}
+      <div className="mt-2 sm:mt-3 flex-1 flex flex-col justify-between">
         <div>
-          <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 group-hover:text-[#A91B2E] dark:group-hover:text-red-400 transition-colors">
+          <h3 className="text-sm sm:text-lg lg:text-xl font-black text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 group-hover:text-[#A91B2E] dark:group-hover:text-red-400 transition-colors">
             {stripEmojis(producto.nombre)}
           </h3>
           {variantSummary.hasVariants && (
             <div
-              className="mt-1.5 flex items-center flex-wrap gap-1"
+              className="mt-1 sm:mt-1.5 flex items-center flex-wrap gap-1"
               title={`Variantes: ${variantSummary.names.join(", ")}`}
             >
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/70 max-w-full">
-                <Layers className="w-3 h-3 shrink-0" />
+              <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/70 max-w-full">
+                <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
                 <span className="truncate">
                   {variantSummary.count} {variantSummary.count === 1 ? "variante" : "var."}: {variantSummary.names.slice(0, 2).join(" · ")}
                   {variantSummary.count > 2 ? ` +${variantSummary.count - 2}` : ""}
@@ -165,24 +165,24 @@ export default function KioskProductCard({ producto, onSelect }) {
           )}
         </div>
 
-        {/* Pricing & CTA Button area (Tactile fast-food action button) */}
+        {/* Pricing & CTA Button area */}
         <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-end justify-between gap-1.5">
           <div className="flex flex-col justify-end min-w-0 flex-1">
             {discountPercent > 0 && (
-              <span className="text-[11px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 line-through leading-none mb-0.5 truncate">
-                {formatPrice(originalPrice)}
+              <span className="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 line-through leading-none mb-0.5 truncate">
+                ${formatPrice(originalPrice)}
               </span>
             )}
-            <span className="text-xl sm:text-2xl font-black text-[#A91B2E] dark:text-red-400 leading-tight">
-              {formatPrice(finalPrice)}
+            <span className="text-base sm:text-xl lg:text-2xl font-black text-[#A91B2E] dark:text-red-400 leading-tight truncate">
+              ${formatPrice(finalPrice)}
             </span>
           </div>
 
           <div
             aria-label={isAgotado ? `Producto agotado: ${stripEmojis(producto.nombre)}` : `Pedir ${stripEmojis(producto.nombre)} por ${formatPrice(finalPrice)} COP`}
-          role="button"
-          tabIndex={0}
-          className={`shrink-0 flex items-center justify-center gap-1.5 text-white text-xs font-black px-2.5 sm:px-3 py-1.5 rounded-xl shadow-xs transition-all whitespace-nowrap min-w-[78px] ${
+            role="button"
+            tabIndex={0}
+            className={`shrink-0 flex items-center justify-center gap-1 sm:gap-1.5 text-white text-[11px] sm:text-xs font-black px-2 sm:px-3 py-1.5 rounded-xl shadow-xs transition-all whitespace-nowrap sm:min-w-[78px] ${
               isAgotado
                 ? "bg-gray-500 dark:bg-gray-700 cursor-not-allowed opacity-90"
                 : "bg-[#A91B2E] hover:bg-[#8F1626] dark:bg-red-700 dark:hover:bg-red-600 group-hover:scale-105 active:scale-95 cursor-pointer"
@@ -190,8 +190,8 @@ export default function KioskProductCard({ producto, onSelect }) {
           >
             {isAgotado ? (
               <>
-                <Ban className="w-3.5 h-3.5 shrink-0" />
-                <span>Agotado</span>
+                <Ban className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                <span className="hidden xs:inline sm:inline">Agotado</span>
               </>
             ) : (
               <>

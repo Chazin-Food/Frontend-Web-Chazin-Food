@@ -57,20 +57,20 @@ export function BrandHeroBanner({
           }}
         />
 
-        <div className="relative z-10 p-6 sm:p-8 lg:p-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="relative z-10 p-4 sm:p-8 lg:p-10 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 items-center">
           {/* Columna Izquierda: Texto, Badges y Acciones */}
-          <div className="lg:col-span-7 space-y-5 text-center lg:text-left">
+          <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left">
             {/* Pill de Autenticidad */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 text-amber-300 text-xs sm:text-sm font-semibold tracking-wide shadow-xs transition-colors">
-              <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 text-amber-300 text-[11px] sm:text-sm font-semibold tracking-wide shadow-xs transition-colors">
+              <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-pulse shrink-0" />
               <span>Sabor Urbano 100% Artesanal</span>
-              <span className="text-white/30">•</span>
-              <span className="text-zinc-300 font-bold">Chazin Food</span>
+              <span className="text-white/30 hidden sm:inline">•</span>
+              <span className="text-zinc-300 font-bold hidden sm:inline">Chazin Food</span>
             </div>
 
             {/* Gran Título */}
             <div className="space-y-2">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white">
                 El auténtico placer de la comida rápida,{" "}
                 <span className="bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400 bg-clip-text text-transparent">
                   hecha con pasión artesanal.
@@ -147,22 +147,22 @@ export function BrandHeroBanner({
           </div>
 
           {/* Columna Derecha: Tarjetas Culinarias Destacadas con estética premium */}
-          <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
+          <div className="lg:col-span-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
             {/* Card 1: Hamburguesas */}
             <div
               onClick={() => handleSelectCategoryByKeyword("hamburguesa")}
-              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5"
+              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
             >
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-red-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <FoodIcon name="burger" size={26} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                  <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">
                       Hamburguesas Artesanales
                     </h4>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 shrink-0">
                       Favoritas
                     </span>
                   </div>
@@ -177,18 +177,18 @@ export function BrandHeroBanner({
             {/* Card 2: Salchipapas */}
             <div
               onClick={() => handleSelectCategoryByKeyword("salchipapa")}
-              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5"
+              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
             >
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <FoodIcon name="fries" size={26} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                  <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">
                       Salchipapas Gourmet
                     </h4>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
                       Populares
                     </span>
                   </div>
@@ -203,18 +203,18 @@ export function BrandHeroBanner({
             {/* Card 3: Perros Calientes */}
             <div
               onClick={() => handleSelectCategoryByKeyword("perro")}
-              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-rose-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5"
+              className="md:col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-rose-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
             >
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500/20 to-orange-500/20 border border-rose-500/30 flex items-center justify-center text-rose-300 shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <FoodIcon name="hotdog" size={26} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors">
+                  <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">
                       Perros Calientes Especiales
                     </h4>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0">
                       Clásicos
                     </span>
                   </div>

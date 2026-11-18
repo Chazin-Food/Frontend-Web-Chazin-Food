@@ -374,7 +374,7 @@ export function CancelarCompraModal({ isOpen, onClose, compra, onConfirm }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92dvh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800">
         
         {/* ── HEADER ── */}
         <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-gradient-to-r from-red-50/80 via-white to-orange-50/60 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850">

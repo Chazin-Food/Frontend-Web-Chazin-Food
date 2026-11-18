@@ -143,7 +143,7 @@ export function DevolucionDetalleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto animate-fade-in">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden my-8 max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden my-8 max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
           <div className="flex items-center gap-3">
@@ -492,8 +492,8 @@ export function DevolucionDetalleModal({
               </span>
             </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="rounded-2xl border border-gray-100 dark:border-gray-800 overflow-x-auto touch-scroll-x">
+              <table className="w-full min-w-[440px] text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800 text-gray-500 font-semibold border-b border-gray-100 dark:border-gray-800">
                     <th className="px-3.5 py-2.5">Producto</th>

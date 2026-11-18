@@ -248,7 +248,7 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div
-        className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto flex flex-col max-h-[92vh]"
+        className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto flex flex-col max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -496,7 +496,7 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
           {tab === "editar" && (
             <form onSubmit={handleSubmit} className="p-5 space-y-4" noValidate>
               {/* Nombre y Apellidos */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">
                     Nombre <span className="text-red-500">*</span>
@@ -550,8 +550,8 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
               </div>
 
               {/* Tipo + Número de Documento */}
-              <div className="grid grid-cols-5 gap-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">Tipo Doc.</label>
                   <select
                     name="tipoDocumento"
@@ -564,7 +564,7 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
                     ))}
                   </select>
                 </div>
-                <div className="col-span-3">
+                <div className="sm:col-span-3">
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">
                     N.º Documento
                     <span className="ml-1 text-gray-400 font-normal">({docConfig.helper})</span>

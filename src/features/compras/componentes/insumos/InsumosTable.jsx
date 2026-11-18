@@ -103,9 +103,176 @@ export function InsumosTable({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden w-full">
-      {/* Contenedor responsivo con cero scroll horizontal en escritorio (#ZeroScroll) */}
-      <div className="w-full overflow-x-auto lg:overflow-x-hidden scrollbar-none focus:outline-none">
-        <table className="w-full text-left border-collapse table-auto">
+      {/* Mobile / Tablet Cards (< lg) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron insumos registrados
+          </div>
+        ) : (
+          paginatedInsumos.map((i, index) => {
+            const isPreparado = i.tipo === "Preparado";
+            const isBajo = (i.stock || 0) <= (i.stockMinimo || 0) && (i.stock || 0) > 0;
+            const isAgotado = (i.stock || 0) === 0;
+            const tieneLoteVencido = (i.lotes || []).some(
+              (l) => l.estado === "VENCIDO" || (l.fechaVencimiento && l.fechaVencimiento <= todayStr)
+            );
+            const vencidoDirecto = i.fechaVencimiento && i.fechaVencimiento <= todayStr;
+            const estaVencido = tieneLoteVencido || vencidoDirecto;
+            const stockLabel = isAgotado ? "Agotado" : isBajo ? "Bajo" : "Normal";
+            const stockBadgeClass = isAgotado
+              ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+              : isBajo
+              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+              : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300";
+            const catNombre = isPreparado
+              ? i.categoriaNombre || (typeof i.categoria === "string" ? i.categoria : "Preparado Interno")
+              : typeof i.categoria === "string"
+              ? i.categoria
+              : i.categoriaNombre || i.categoria?.nombre || "Sin categoría";
+            const esAdicion = i.esAdicion === 1 || i.esAdicion === true || i.esAdicion === "1";
+            const stockNum = Number(i.stock || 0);
+            const tieneStockActivo = stockNum > 0;
+            const tieneCompras = Boolean(i.tieneCompras || (i.totalCompras && i.totalCompras > 0));
+            const noSePuedeEliminar = tieneStockActivo || tieneCompras || i.puedeEliminarse === false;
+            const motivoBloqueoEliminacion = tieneStockActivo
+              ? `No se puede eliminar: cuenta con stock activo (${stockNum} ${i.unidadMedida || 'und'}). El stock debe ser 0 para eliminarlo.`
+              : tieneCompras
+              ? "No se puede eliminar: ya fue asociado a compras registradas en el historial."
+              : "No se puede eliminar este insumo.";
+
+            return (
+              <div key={i.id || i.idInsumo || `ins-mob-${index}`} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    {renderInsumoAvatar(i, isPreparado)}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-bold text-sm text-[#1e293b] dark:text-gray-100 truncate">{i.nombre}</p>
+                        {isPreparado && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                            <ChefHat className="w-2.5 h-2.5" /> Prep
+                          </span>
+                        )}
+                        {estaVencido && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                            <AlertTriangle className="w-2.5 h-2.5" /> Vencido
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                        #{i.id || i.idInsumo || startIndex + index + 1} · {catNombre}
+                      </p>
+                      {esAdicion && (
+                        <span className="inline-flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          <Sparkles className="w-2.5 h-2.5" /> Adición (+${Number(i.precioAdicion || 0).toLocaleString("es-CO")})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${stockBadgeClass}`}>
+                      {stockLabel}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      i.estado === "Activo"
+                        ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                    }`}>
+                      {i.estado || "Activo"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl p-2.5 text-center">
+                  <div>
+                    <span className="block text-[10px] text-gray-400 uppercase font-bold">Stock</span>
+                    <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                      {i.stock ?? 0} <span className="font-normal text-gray-500">{i.unidadMedida || "und"}</span>
+                    </span>
+                  </div>
+                  <div className="border-x border-gray-200/70 dark:border-gray-700/70">
+                    <span className="block text-[10px] text-gray-400 uppercase font-bold">Mín / Máx</span>
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                      {i.stockMinimo ?? 0} / {i.stockMaximo ?? 100}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-gray-400 uppercase font-bold">Precio/Und</span>
+                    <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                      ${Number(i.precioUnitario || i.costo || 0).toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-1.5 pt-1">
+                  {(onRegistrarCompra || onReabastecer) && (estaVencido || isAgotado || isBajo) && (
+                    <button
+                      onClick={() => (onRegistrarCompra || onReabastecer)(i)}
+                      title="Registrar compra del insumo"
+                      className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 cursor-pointer"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                    </button>
+                  )}
+                  {onToggleEstado && canEdit && (
+                    <button
+                      onClick={() => onToggleEstado(i)}
+                      title={i.estado === "Activo" ? "Inactivar insumo" : "Activar insumo"}
+                      className={`p-2 rounded-xl cursor-pointer ${
+                        i.estado === "Activo"
+                          ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                  )}
+                  {onView && (
+                    <button
+                      onClick={() => onView(i)}
+                      title="Ver detalles"
+                      className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button
+                      onClick={() => onEdit(i)}
+                      title="Editar insumo"
+                      className="p-2 rounded-xl bg-red-50 dark:bg-red-950/30 text-[#F05454] cursor-pointer"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() =>
+                        noSePuedeEliminar
+                          ? onDelete(i.id || i.idInsumo, i.nombre, i.tipo, { noSePuedeEliminar, motivoBloqueoEliminacion })
+                          : onDelete(i.id || i.idInsumo, i.nombre, i.tipo)
+                      }
+                      title={noSePuedeEliminar ? motivoBloqueoEliminacion : "Eliminar insumo"}
+                      className={`p-2 rounded-xl ${
+                        noSePuedeEliminar
+                          ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                          : "bg-red-50 dark:bg-red-950/30 text-red-500 cursor-pointer"
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (lg+) */}
+      <div className="hidden lg:block w-full overflow-x-auto touch-scroll-x focus:outline-none">
+        <table className="w-full min-w-[860px] text-left border-collapse table-auto">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-[10px] sm:text-[11px] font-bold text-[#1e293b] dark:text-gray-200 tracking-wider uppercase">
               <th className="px-2 py-2.5 w-10 text-center">ID</th>

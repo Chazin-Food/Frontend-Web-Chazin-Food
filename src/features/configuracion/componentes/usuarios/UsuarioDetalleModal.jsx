@@ -84,7 +84,7 @@ export function UsuarioDetalleModal({ isOpen, onClose, usuario }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-100 dark:border-gray-800 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col border border-gray-100 dark:border-gray-800 overflow-hidden">
         {/* Header con Perfil */}
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-gray-50/80 via-white to-gray-50/50 dark:from-gray-800/40 dark:via-gray-900 dark:to-gray-800/30 flex items-start justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">

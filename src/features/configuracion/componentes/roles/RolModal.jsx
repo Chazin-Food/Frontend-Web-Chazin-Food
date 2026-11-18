@@ -86,7 +86,7 @@ export function RolModal({ isOpen, onClose, onSave, rol = null }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92vh]">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh]">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
           <div className="flex items-center gap-3.5">

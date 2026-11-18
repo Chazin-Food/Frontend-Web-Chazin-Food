@@ -36,7 +36,108 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto focus:outline-none">
+      {/* Mobile / Tablet Cards (< md) */}
+      <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron compras registradas
+          </div>
+        ) : (
+          paginated.map((c) => {
+            const estadoInfo = estadoConfig[c.estado] || {
+              cls: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
+              label: c.estado || "Desconocido",
+            };
+            const fecha = c.fechaCompra || c.fecha;
+            const estaRecibida = esEstadoRecibida(c.estado);
+            const estaCancelada = esEstadoCancelada(c.estado);
+            const numItems = c.detalles?.length || c.items?.length || 0;
+
+            return (
+              <div key={c.id || c.idCompra} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      estaCancelada
+                        ? "bg-red-50 dark:bg-red-900/30 text-red-400"
+                        : estaRecibida
+                        ? "bg-green-50 dark:bg-green-900/30 text-green-600"
+                        : "bg-red-50 dark:bg-red-900/30 text-[#F05454]"
+                    }`}>
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
+                        {c.numeroFactura || `OC-${String(c.id || c.idCompra).padStart(4, "0")}`}
+                      </p>
+                      <p className="text-[11px] text-gray-400 font-mono">ID #{c.id || c.idCompra}</p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${estadoInfo.cls}`}>
+                    {estadoInfo.label}
+                  </span>
+                </div>
+
+                <div className="bg-gray-50/70 dark:bg-gray-800/40 rounded-xl p-2.5 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-gray-500 dark:text-gray-400">Proveedor:</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                      {c.proveedorNombre && !["Sin proveedor", "Proveedor Genérico", "Proveedor Desconocido"].includes(c.proveedorNombre)
+                        ? c.proveedorNombre
+                        : "Sin proveedor"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {fecha ? new Date(fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "Sin fecha"}
+                    </span>
+                    {numItems > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                        <ShoppingCart className="w-3 h-3" />
+                        {numItems} {numItems === 1 ? "ítem" : "ítems"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Total</span>
+                    <span className="text-base font-black text-gray-900 dark:text-gray-100">
+                      ${Number(c.total || 0).toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!estaCancelada && onCancelar && (
+                      <button
+                        onClick={() => onCancelar(c.id || c.idCompra)}
+                        disabled={procesandoId === (c.id || c.idCompra)}
+                        title="Anular compra"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold disabled:opacity-40 cursor-pointer"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>Anular</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onViewDetail(c)}
+                      title="Ver Detalle"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-xs font-bold cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Ver</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (md+) */}
+      <div className="hidden md:block overflow-x-auto touch-scroll-x focus:outline-none">
         <table className="w-full text-left border-collapse table-auto">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

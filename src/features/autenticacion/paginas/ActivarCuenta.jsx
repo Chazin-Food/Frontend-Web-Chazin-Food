@@ -86,7 +86,7 @@ export function ActivarCuenta() {
 
   if (isVerifying) {
     return (
-      <div className="min-h-screen bg-neutral-900 flex flex-col justify-center items-center px-4">
+      <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4">
         <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-neutral-300 font-medium">Verificando enlace de activación...</p>
       </div>
@@ -95,7 +95,7 @@ export function ActivarCuenta() {
 
   if (tokenError) {
     return (
-      <div className="min-h-screen bg-neutral-900 flex flex-col justify-center items-center px-4">
+      <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4">
         <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-8 text-center shadow-xl">
           <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8" />
@@ -115,7 +115,7 @@ export function ActivarCuenta() {
 
   if (activationSuccess) {
     return (
-      <div className="min-h-screen bg-neutral-900 flex flex-col justify-center items-center px-4">
+      <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4">
         <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-8 text-center shadow-xl">
           <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
             <CheckCircle className="w-8 h-8" />
@@ -136,7 +136,7 @@ export function ActivarCuenta() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-900 flex flex-col justify-center items-center px-4 py-8">
+    <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4 py-8">
       <div className="mb-6">
         <Link to="/" className="inline-block transition-transform hover:scale-105">
           <img src="/logo-chazin.png" alt="Chazin Food" className="h-16 w-auto object-contain mx-auto" onError={(e) => { e.target.style.display = 'none'; }} />

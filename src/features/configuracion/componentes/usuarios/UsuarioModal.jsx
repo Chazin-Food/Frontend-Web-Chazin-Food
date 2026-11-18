@@ -233,7 +233,7 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="flex items-start justify-between p-6 pb-2 border-b border-gray-100/60 dark:border-gray-800/60">

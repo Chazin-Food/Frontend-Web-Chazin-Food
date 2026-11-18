@@ -65,7 +65,81 @@ export function CategoriaProductosTable({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
-      <div className="overflow-x-auto">
+      {/* Mobile Cards (< md) */}
+      <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+            <UtensilsCrossed className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+            <p className="font-semibold text-sm text-gray-700 dark:text-gray-300">
+              No se encontraron categorías de productos
+            </p>
+          </div>
+        ) : (
+          paginatedCategorias.map((c) => {
+            const isCustomImg = Boolean(
+              c.icon && typeof c.icon === "string" && (c.icon.startsWith("http") || c.icon.startsWith("/"))
+            );
+            const isActivo = c.estado === "Activo" || c.estado === 1 || c.estado === true;
+
+            return (
+              <div key={c.id} className="p-4 space-y-2.5">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 flex items-center justify-center shrink-0 overflow-hidden text-[#F05454]">
+                      {isCustomImg ? (
+                        <img src={c.icon} alt={c.nombre} width="40" height="40" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      ) : (
+                        <FoodIcon name={c.icon || c.nombre || "burger"} category={c.nombre} size={20} stroke={1.75} />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">{c.nombre}</p>
+                      <p className="text-[11px] text-gray-400">ID #{c.id}</p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+                    isActivo
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                      : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isActivo ? "bg-green-500" : "bg-red-500"}`} />
+                    {typeof c.estado === "boolean" ? (c.estado ? "Activo" : "Inactivo") : c.estado === 1 ? "Activo" : c.estado || "Activo"}
+                  </span>
+                </div>
+
+                {c.descripcion && (
+                  <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">{c.descripcion}</p>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-bold">
+                    {c.cantidad || c.productosCount || 0} platillos
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onEdit(c)}
+                      title="Editar categoría"
+                      className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(c.id, c.nombre)}
+                      title="Eliminar categoría"
+                      className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (md+) */}
+      <div className="hidden md:block overflow-x-auto touch-scroll-x">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

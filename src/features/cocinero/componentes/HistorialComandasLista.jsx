@@ -260,7 +260,122 @@ export function HistorialComandasLista({
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs overflow-hidden flex-1 flex flex-col">
-          <div className="overflow-x-auto flex-1">
+          {/* Mobile / Tablet Cards (< lg) */}
+          <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800 flex-1">
+            {paginatedOrders.map((ped) => {
+              const orderId = ped.id || ped.idVenta;
+              const isExpanded = Boolean(expandedOrders[orderId]);
+              const items = Array.isArray(ped.productos) ? ped.productos : [];
+              const isDomicilio = String(ped.tipoEntrega || ped.mesa || "").toLowerCase().includes("domicilio");
+              const isLlevar = String(ped.tipoEntrega || ped.mesa || "").toLowerCase().includes("llevar");
+              const badgeLabel = ped.mesa || ped.tipoEntrega || "En Local";
+              const orderDate = ped.fechaVenta ? new Date(ped.fechaVenta) : (ped.fecha ? new Date(ped.fecha) : null);
+              let timeStr = ped.horaInicio || "";
+              let dateStr = "";
+              if (orderDate && !isNaN(orderDate.getTime())) {
+                let h = orderDate.getHours();
+                const m = String(orderDate.getMinutes()).padStart(2, "0");
+                const ampm = h >= 12 ? "PM" : "AM";
+                h = h % 12 || 12;
+                timeStr = `${String(h).padStart(2, "0")}:${m} ${ampm}`;
+                dateStr = `${orderDate.getDate()}/${orderDate.getMonth() + 1}/${orderDate.getFullYear()}`;
+              }
+
+              return (
+                <div key={orderId} className="p-4 space-y-3">
+                  <div
+                    onClick={() => toggleExpand(orderId)}
+                    className="flex items-start justify-between gap-2 cursor-pointer"
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-sm text-gray-900 dark:text-gray-100 font-mono">
+                          {ped.codigo || `VEN-${orderId}`}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          isDomicilio
+                            ? "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300"
+                            : isLlevar
+                            ? "bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300"
+                            : "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300"
+                        }`}>
+                          {isDomicilio ? <Bike className="w-2.5 h-2.5" /> : isLlevar ? <ShoppingBag className="w-2.5 h-2.5" /> : <UtensilsCrossed className="w-2.5 h-2.5" />}
+                          <span>{badgeLabel}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 flex-wrap">
+                        <span className="inline-flex items-center gap-1 font-bold">
+                          <User className="w-3.5 h-3.5 text-gray-400" />
+                          {ped.cliente || ped.responsable || "Cliente Mostrador"}
+                        </span>
+                        {timeStr && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                            <Clock className="w-3 h-3 text-[#F05454]" />
+                            {timeStr}{dateStr ? ` · ${dateStr}` : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={isExpanded ? "Ocultar platillos" : "Ver platillos"}
+                      className="p-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 shrink-0"
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-[#F05454]" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.slice(0, isExpanded ? items.length : 3).map((it, idx) => (
+                      <div
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-bold max-w-full"
+                      >
+                        <span className="text-[#F05454] font-black shrink-0">{it.cantidad}x</span>
+                        <span className="truncate">{it.nombre}</span>
+                        {isExpanded && onVerReceta && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onVerReceta(ped, it);
+                            }}
+                            className="ml-1 text-[10px] text-[#F05454] underline font-black shrink-0 cursor-pointer"
+                          >
+                            Ficha
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {!isExpanded && items.length > 3 && (
+                      <span className="text-[11px] font-bold text-gray-400 self-center">+{items.length - 3} más</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <Check className="w-3 h-3" />
+                      {ped.estado || "Despachado"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReabrir(orderId);
+                      }}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-xl text-xs font-black transition cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reabrir a Cocina</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (lg+) */}
+          <div className="hidden lg:block overflow-x-auto touch-scroll-x flex-1">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 text-[11px] font-black text-gray-400 uppercase tracking-wider">

@@ -23,20 +23,20 @@ export default function KioskOrderReviewModal({
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[96vw] max-w-3xl max-h-[92vh] -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-5 sm:p-8 flex flex-col justify-between overflow-hidden border-2 border-gray-150 dark:border-gray-800 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[96vw] max-w-3xl max-h-[92dvh] -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-7 flex flex-col justify-between overflow-hidden border-2 border-gray-150 dark:border-gray-800 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-gray-150 dark:border-gray-800">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/50 text-[#A91B2E] dark:text-red-400 flex items-center justify-center">
-                <ShoppingBag className="w-6 h-6" />
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-gray-150 dark:border-gray-800">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-red-100 dark:bg-red-950/50 text-[#A91B2E] dark:text-red-400 flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <Dialog.Title className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 leading-tight">
+              <div className="min-w-0">
+                <Dialog.Title className="text-xl sm:text-3xl font-black text-gray-900 dark:text-gray-100 leading-tight truncate">
                   Mi Pedido
                 </Dialog.Title>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Modalidad:</span>
-                  <span className="text-xs font-black text-[#A91B2E] dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-lg">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-0.5">
+                  <span className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400">Modalidad:</span>
+                  <span className="text-[11px] sm:text-xs font-black text-[#A91B2E] dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-lg">
                     Consumo en Mesa
                   </span>
                 </div>
@@ -47,9 +47,9 @@ export default function KioskOrderReviewModal({
               <button
                 type="button"
                 aria-label="Cerrar resumen del pedido"
-                className="w-12 h-12 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-all cursor-pointer active:scale-95"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0"
               >
-                <X className="w-6 h-6 stroke-[2.5]" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
               </button>
             </Dialog.Close>
           </div>
@@ -144,7 +144,7 @@ export default function KioskOrderReviewModal({
                       </button>
 
                       {/* Precios Apilados: Precio Unitario y Subtotal alineados a la derecha */}
-                      <div className="flex flex-col items-end justify-center text-right min-w-[110px] sm:min-w-[130px] font-mono shrink-0 pl-1">
+                      <div className="flex flex-col items-end justify-center text-right min-w-[84px] sm:min-w-[130px] font-mono shrink-0 pl-1">
                         <div className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium tracking-tight">
                           Unit: <span className="font-bold text-gray-700 dark:text-gray-200">{formatPrice(unitPrice)}</span>
                         </div>
@@ -153,7 +153,7 @@ export default function KioskOrderReviewModal({
                             {item.cantidad} × {formatPrice(unitPrice)}
                           </div>
                         )}
-                        <div className="text-lg sm:text-xl font-black text-[#A91B2E] dark:text-red-400 tabular-nums tracking-tight">
+                        <div className="text-base sm:text-xl font-black text-[#A91B2E] dark:text-red-400 tabular-nums tracking-tight">
                           {formatPrice(itemTotal)}
                         </div>
                       </div>
@@ -165,35 +165,35 @@ export default function KioskOrderReviewModal({
           </div>
 
           {/* Totals & Proceed Controls */}
-          <div className="pt-4 border-t-2 border-gray-150 dark:border-gray-800 space-y-4">
+          <div className="pt-3 sm:pt-4 border-t-2 border-gray-150 dark:border-gray-800 space-y-3 sm:space-y-4">
             {/* Price Breakdown */}
-            <div className="bg-gray-50 dark:bg-gray-800/60 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col gap-1.5 font-mono">
-              <div className="flex items-center justify-between text-sm font-bold text-gray-600 dark:text-gray-300">
+            <div className="bg-gray-50 dark:bg-gray-800/60 p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col gap-1.5 font-mono">
+              <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-gray-600 dark:text-gray-300">
                 <span className="font-sans">Subtotal</span>
-                <span className="tabular-nums text-base">{formatPrice(subtotal)}</span>
+                <span className="tabular-nums text-sm sm:text-base">{formatPrice(subtotal)}</span>
               </div>
               {descuento > 0 && (
-                <div className="flex items-center justify-between text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
                   <span className="font-sans">Descuento aplicado</span>
-                  <span className="tabular-nums text-base">-{formatPrice(descuento)}</span>
+                  <span className="tabular-nums text-sm sm:text-base">-{formatPrice(descuento)}</span>
                 </div>
               )}
-              <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <span className="font-sans text-xl font-black text-gray-900 dark:text-gray-100">Total a Pagar</span>
-                <span className="text-3xl sm:text-4xl font-black text-[#A91B2E] dark:text-red-400 tabular-nums">
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+                <span className="font-sans text-base sm:text-xl font-black text-gray-900 dark:text-gray-100">Total a Pagar</span>
+                <span className="text-2xl sm:text-4xl font-black text-[#A91B2E] dark:text-red-400 tabular-nums">
                   {formatPrice(total)}
                 </span>
               </div>
             </div>
 
             {/* Bottom Navigation Buttons */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto min-h-[56px] px-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-base hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center gap-2 cursor-pointer active:scale-97"
+                className="w-full sm:w-auto min-h-[48px] sm:min-h-[56px] px-5 sm:px-6 rounded-2xl border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm sm:text-base hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center gap-2 cursor-pointer active:scale-97"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Seguir pidiendo</span>
               </button>
 
@@ -201,10 +201,10 @@ export default function KioskOrderReviewModal({
                 type="button"
                 onClick={onProceedToCheckout}
                 disabled={cart.length === 0}
-                className="flex-1 w-full min-h-[64px] sm:min-h-[72px] bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-xl sm:text-2xl font-black rounded-2xl shadow-xl shadow-emerald-700/25 flex items-center justify-center gap-3 transition-all active:scale-98 cursor-pointer disabled:opacity-40"
+                className="flex-1 w-full min-h-[54px] sm:min-h-[68px] bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-base sm:text-2xl font-black rounded-2xl shadow-xl shadow-emerald-700/25 flex items-center justify-center gap-2 sm:gap-3 transition-all active:scale-98 cursor-pointer disabled:opacity-40"
               >
-                <CheckCircle2 className="w-7 h-7" />
-                <span>Finalizar Pedido • {formatPrice(total)}</span>
+                <CheckCircle2 className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
+                <span className="truncate">Finalizar Pedido • {formatPrice(total)}</span>
               </button>
             </div>
           </div>

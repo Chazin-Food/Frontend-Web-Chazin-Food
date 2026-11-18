@@ -169,7 +169,7 @@ export function DatosReembolsoFields({
           <label className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
             Documento del titular <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <select
               value={value.titularTipoDocumento || "CC"}
               onChange={(e) => handleField("titularTipoDocumento", e.target.value)}

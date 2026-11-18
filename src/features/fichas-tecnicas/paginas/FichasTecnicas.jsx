@@ -269,20 +269,20 @@ export function FichasTecnicas({ readOnly = false }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-4 border-b border-gray-100 dark:border-gray-800 pb-px">
+      <div className="flex items-center gap-4 border-b border-gray-100 dark:border-gray-800 pb-px overflow-x-auto no-scrollbar touch-scroll-x">
         <button
           onClick={() => {
             setActiveTab("productos");
             setSelectedDetalle(null);
             setSelectedEdit(null);
           }}
-          className={`flex items-center gap-2 pb-3 text-sm font-semibold transition-colors relative cursor-pointer ${
+          className={`flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors relative cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === "productos"
               ? "text-[#F05454] border-b-2 border-[#F05454]"
               : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
           }`}
         >
-          <Utensils className="w-4 h-4" />
+          <Utensils className="w-4 h-4 shrink-0" />
           <span>Fichas de Productos ({productos.length})</span>
         </button>
 
@@ -292,13 +292,13 @@ export function FichasTecnicas({ readOnly = false }) {
             setSelectedDetalle(null);
             setSelectedEdit(null);
           }}
-          className={`flex items-center gap-2 pb-3 text-sm font-semibold transition-colors relative cursor-pointer ${
+          className={`flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold transition-colors relative cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === "preparados"
               ? "text-[#F05454] border-b-2 border-[#F05454]"
               : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
           }`}
         >
-          <FlaskConical className="w-4 h-4" />
+          <FlaskConical className="w-4 h-4 shrink-0" />
           <span>Fichas de Insumos Preparados ({preparados.length})</span>
         </button>
       </div>

@@ -252,7 +252,7 @@ export function AdicionesModal({ isOpen, onClose, insumos }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={handleCloseModal} />
 
-      <div className="relative bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="relative bg-white dark:bg-gray-900 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
           <div>

@@ -15,7 +15,7 @@ export function ClienteFooter() {
           <div className="space-y-4">
             <Link to="/" className="inline-flex items-center gap-3 group">
               <div className="w-12 h-12 rounded-2xl bg-white p-2 shadow-lg border border-red-500/20 group-hover:scale-105 transition-transform flex items-center justify-center">
-                <img src={logoImg} alt="Chazin Food" className="w-full h-full object-contain" />
+                <img src={logoImg} alt="Chazin Food" width="48" height="48" loading="lazy" decoding="async" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">

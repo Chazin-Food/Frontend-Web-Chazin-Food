@@ -453,7 +453,7 @@ export function CategoriaProductoModal({ isOpen, onClose, onSave, categoria = nu
 
               {/* Pestaña 1: Cuadrícula Completa de 12 Íconos (3 filas x 4 columnas) con tamaño original y SIN SCROLL */}
               {activeTab === "icons" && (
-                <div className="grid grid-cols-4 gap-2 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                   {CATEGORY_ICONS.map((opt) => {
                     const isSelected = !isCustomImage && icon === opt.slug;
                     return (

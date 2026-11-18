@@ -388,7 +388,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative bg-white dark:bg-gray-900 rounded-[28px] max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-gray-900 rounded-[28px] max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
         {/* Header con degradado Coral */}
         <div className="bg-gradient-to-r from-[#d84040] via-[#e05454] to-[#f05454] text-white p-5 sm:p-6 relative shrink-0">
           <button

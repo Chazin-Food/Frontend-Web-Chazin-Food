@@ -302,7 +302,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto" noValidate>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80dvh] overflow-y-auto" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             {/* Switch / Selector Tipo de Persona */}

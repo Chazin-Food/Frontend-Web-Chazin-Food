@@ -76,7 +76,95 @@ export function DevolucionesTable({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile / Tablet Cards (< lg) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 mx-auto mb-2">
+              <RotateCcw className="w-6 h-6" />
+            </div>
+            <p className="font-semibold text-gray-700 dark:text-gray-200 text-sm">No hay devoluciones registradas</p>
+            <p className="text-xs text-gray-400 mt-1">No se encontraron solicitudes que coincidan con los criterios seleccionados.</p>
+          </div>
+        ) : (
+          paginatedDevoluciones.map((d) => {
+            const badge = getEstadoBadge(d.estado);
+            const clienteNombre = d.cliente?.nombre || d.venta?.cliente?.nombre || "Cliente General";
+            const fechaStr = d.fecha
+              ? new Date(d.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+              : "-";
+            const prodsCount = Array.isArray(d.productosDevueltos)
+              ? d.productosDevueltos.reduce((acc, p) => acc + Number(p.cantidad || 1), 0)
+              : 0;
+
+            return (
+              <div key={d.idDevolucion} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-black text-sm text-red-600 dark:text-red-400">
+                        {d.codigoDevolucion || `DEV-${d.idDevolucion}`}
+                      </span>
+                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                        · {d.codigoVenta || (d.idVenta ? `VEN-${String(d.idVenta).padStart(4, "0")}` : "-")}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate mt-0.5">{clienteNombre}</p>
+                    <p className="text-[11px] text-gray-400">{fechaStr} · {prodsCount} {prodsCount === 1 ? "unidad" : "unidades"}</p>
+                  </div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${badge.classes}`}>
+                    {badge.label}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium ${getMotivoBadge(d.motivo)}`}>
+                    {d.motivo}
+                  </span>
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium ${getResolucionBadge(d.tipoResolucion)}`}>
+                    {d.tipoResolucion}
+                  </span>
+                  {d.codigoVentaReemplazo && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                      Reposición: {d.codigoVentaReemplazo}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Valor devuelto</span>
+                    <span className="text-sm font-black text-gray-900 dark:text-white">
+                      {Number(d.valorDevuelto || 0) > 0 ? formatCurrency(d.valorDevuelto) : "Reposición"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onViewDetail && onViewDetail(d)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-bold cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Ver</span>
+                    </button>
+                    {canManage && (d.estado === "PENDIENTE" || d.estado === "APROBADA") && (
+                      <button
+                        onClick={() => onResolve && onResolve(d)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold cursor-pointer"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>Gestionar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (lg+) */}
+      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
         <table className="w-full text-left border-collapse table-auto">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-[11px] font-bold text-gray-400 dark:text-gray-400 tracking-wider uppercase">

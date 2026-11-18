@@ -106,7 +106,7 @@ export function VerProveedorModal({ isOpen, onClose, proveedor, onEdit }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-3xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92vh] overflow-hidden"
+        className="relative w-full max-w-3xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh] overflow-hidden"
         style={{ animation: "fadeInScale 0.2s ease-out" }}
       >
         {/* Header Modal */}

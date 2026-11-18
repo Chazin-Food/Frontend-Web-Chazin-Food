@@ -208,7 +208,7 @@ export function EventosModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90dvh]">
         {/* Header */}
         <div className="p-5 sm:p-6 pb-4 flex items-start justify-between gap-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-orange-50/70 via-amber-50/50 to-red-50/50 dark:from-orange-950/30 dark:via-amber-950/20 dark:to-red-950/20">
           <div className="flex items-center gap-3.5">

@@ -265,7 +265,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] my-auto"
+        className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92dvh] my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
@@ -328,8 +328,8 @@ export function MiPerfilModal({ isOpen, onClose }) {
                   ) : null}
                 </div>
 
-                <div className="grid grid-cols-5 gap-3">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                  <div className="sm:col-span-2">
                     <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">Tipo Doc.</label>
                     <select
                       name="tipoDocumento"
@@ -347,7 +347,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
                       ))}
                     </select>
                   </div>
-                  <div className="col-span-3">
+                  <div className="sm:col-span-3">
                     <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1">
                       N.º Documento ({docConfig.helper})
                     </label>

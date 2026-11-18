@@ -86,7 +86,7 @@ export function DetalleCompraModal({ isOpen, onClose, compra, onCancelar, onEdit
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div
-        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
+        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
         style={{ animation: "fadeInScale 0.2s ease-out" }}
       >
         {/* Header */}
@@ -425,8 +425,8 @@ export function DetalleCompraModal({ isOpen, onClose, compra, onCancelar, onEdit
               Insumos Adquiridos en esta Orden ({detalles.length})
             </h3>
 
-            <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-xs">
-              <table className="w-full text-left border-collapse">
+            <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-x-auto touch-scroll-x shadow-xs">
+              <table className="w-full min-w-[480px] text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     <th className="px-4 py-3">Insumo</th>

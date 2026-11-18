@@ -1,3 +1,34 @@
+/* Global responsive & viewport guardrails */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Safe-area padding utilities for notched mobile devices (iOS/Android) */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Smooth momentum horizontal scrolling on touch devices */
+.touch-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
 /* Hide native number input spinners globally to allow clean NumberInput component arrows */
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {

@@ -12,7 +12,106 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Mobile / Tablet Cards (< md) */}
+      <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron roles registrados
+          </div>
+        ) : (
+          paginatedRoles.map((r, index) => {
+            const isActivo = r.estado === "Activo" || r.estado === 1 || r.estado === "1";
+            const isAdministrador = (r.nombre || "").toLowerCase() === "administrador" || String(r.id) === "1";
+            const privilegiosGranularesCount = (r.permisos || []).filter((p) => p.includes(":")).length;
+            const modulosBaseCount = (r.permisos || []).filter((p) => !p.includes(":") && p !== "Vendedor").length;
+
+            return (
+              <div key={r.id || index} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-gray-700">
+                      <Shield className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-[#1e293b] dark:text-gray-100 truncate">
+                        {r.nombre}
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] text-gray-400 font-medium">ID #{r.id || startIndex + index + 1}</span>
+                        {isAdministrador && (
+                          <span className="text-[10.5px] font-semibold text-[#F05454]">Rol del Sistema</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                    isActivo
+                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                  }`}>
+                    {isActivo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+
+                {r.descripcion && (
+                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {r.descripcion}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{r.usuarios || 0} usuarios</span>
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200/50 dark:border-gray-700">
+                    {modulosBaseCount} módulos
+                  </span>
+                  {privilegiosGranularesCount > 0 && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
+                      {privilegiosGranularesCount} privilegios
+                    </span>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+                  {canEdit && (
+                    <button
+                      onClick={() => onEdit(r)}
+                      title="Editar rol"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#F05454] text-xs font-bold hover:bg-red-100 transition cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Editar</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onToggleEstado(r.id)}
+                    title={isActivo ? "Desactivar rol" : "Activar rol"}
+                    disabled={isAdministrador || !canEdit}
+                    className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 disabled:opacity-30 transition cursor-pointer"
+                  >
+                    {isActivo ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5 text-gray-400" />}
+                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(r.id, r.nombre)}
+                      title="Eliminar rol"
+                      disabled={isAdministrador}
+                      className="p-2 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400 disabled:opacity-30 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (md+) */}
+      <div className="hidden md:block overflow-x-auto touch-scroll-x">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-[#1e293b] dark:text-gray-200 tracking-wider uppercase">

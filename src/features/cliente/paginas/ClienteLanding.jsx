@@ -1941,20 +1941,20 @@ export function ClienteLanding() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-950 transition-colors">
       {/* Header */}
       <header className="bg-white dark:bg-gray-900 dark:border-b dark:border-gray-800 shadow-md sticky top-0 z-40">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
+        <div className="w-full px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-2 py-3 sm:py-4">
             <div
-              className="flex items-center gap-4 cursor-pointer select-none group"
+              className="flex items-center gap-2.5 sm:gap-4 min-w-0 cursor-pointer select-none group"
               onClick={() => {
                 navigate("/");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               title="Ir al inicio - Chazin Food"
             >
-              <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
+              <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
                 <img
                   src={logoImg}
                   alt="Chazin Food"
@@ -1966,29 +1966,31 @@ export function ClienteLanding() {
                   style={{ objectPosition: "50% 56%", aspectRatio: "1 / 1" }}
                 />
               </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors">Chazin Food</h1>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <h1 className="text-base sm:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors truncate">Chazin Food</h1>
                   {isAuthenticated && (
-                    <FidelidadBadge
-                      tipo={tipoFidelidad}
-                      descuento={discountPercent}
-                      enGracia={fidelidadCliente.enGracia}
-                      size="sm"
-                    />
+                    <div className="hidden xs:inline-flex sm:inline-flex">
+                      <FidelidadBadge
+                        tipo={tipoFidelidad}
+                        descuento={discountPercent}
+                        enGracia={fidelidadCliente.enGracia}
+                        size="sm"
+                      />
+                    </div>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                   {isAuthenticated ? `¡Bienvenido, ${user?.nombre}!` : "Bienvenido a Chazin Food"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               <button
                 onClick={toggleDarkMode}
                 aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
-                className="p-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
+                className="p-2 sm:p-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
                 title="Cambiar Modo"
               >
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -1998,36 +2000,40 @@ export function ClienteLanding() {
                 <button
                   onClick={() => navigate("/perfil")}
                   aria-label="Ir a mi perfil"
-                  className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-sm font-medium cursor-pointer relative"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-xs sm:text-sm font-medium cursor-pointer relative"
                   title={isGoogleUser && googlePendingFields.length > 0 ? "Datos pendientes en tu perfil" : "Mi Perfil"}
                 >
                   <User className="w-5 h-5 text-[#f05454]" />
                   <span className="hidden sm:inline">Mi Perfil</span>
                   {isGoogleUser && googlePendingFields.length > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
-                      Datos pendientes
-                    </span>
+                    <>
+                      <span className="sm:hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-gray-900 animate-pulse" />
+                      <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                        Datos pendientes
+                      </span>
+                    </>
                   )}
                 </button>
               ) : (
                 <button
                   onClick={() => navigate("/login")}
                   aria-label="Iniciar sesión"
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors font-medium text-sm cursor-pointer"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors font-medium text-xs sm:text-sm cursor-pointer whitespace-nowrap"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span>Iniciar Sesión</span>
+                  <LogIn className="w-4 h-4 shrink-0" />
+                  <span className="sm:hidden">Ingresar</span>
+                  <span className="hidden sm:inline">Iniciar Sesión</span>
                 </button>
               )}
 
               <button
                 onClick={() => setShowCart(true)}
                 aria-label="Abrir carrito de compras"
-                className="relative flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl transition-colors shadow-md font-bold text-sm cursor-pointer"
+                className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl transition-colors shadow-md font-bold text-xs sm:text-sm cursor-pointer"
               >
                 <ShoppingCart className="w-5 h-5" />
                 {getTotalItems() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-white text-red-600 font-extrabold text-xs w-6 h-6 rounded-full flex items-center justify-center shadow-md">
+                  <span className="absolute -top-2 -right-2 bg-white text-red-600 font-extrabold text-xs w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shadow-md">
                     {getTotalItems()}
                   </span>
                 )}
@@ -2038,7 +2044,7 @@ export function ClienteLanding() {
                 <button
                   onClick={handleLogout}
                   aria-label="Cerrar sesión"
-                  className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
+                  className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                   title="Cerrar Sesión"
                 >
                   <LogOut className="w-5 h-5" />
@@ -2239,20 +2245,20 @@ export function ClienteLanding() {
       )}
 
       {/* Categorías Carousel */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-4">
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Categorías</h3>
+      <div id="menu-categorias" className="w-full px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="mb-3 sm:mb-4">
+          <h3 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Categorías</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Explora nuestro menú</p>
         </div>
 
-        {/* Carousel Wrapper with Left & Right Buttons */}
+        {/* Carousel Wrapper with Left & Right Buttons (desktop/tablet) */}
         <div className="relative flex items-center gap-2 sm:gap-3 w-full">
           {/* Left Button */}
           <button
             type="button"
             onClick={() => scrollCategories("left")}
             aria-label="Anterior categoría"
-            className="shrink-0 w-12 h-12 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center cursor-pointer z-10"
+            className="hidden sm:flex shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md hover:shadow-lg transition-all active:scale-95 items-center justify-center cursor-pointer z-10"
           >
             <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -2260,7 +2266,7 @@ export function ClienteLanding() {
           {/* Horizontal Carousel Container */}
           <div
             ref={categoryCarouselRef}
-            className="flex-1 flex items-stretch gap-3 overflow-x-auto no-scrollbar py-2 px-1"
+            className="flex-1 flex items-stretch gap-2.5 sm:gap-3 overflow-x-auto no-scrollbar touch-scroll-x py-2 px-1"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none"
@@ -2324,7 +2330,7 @@ export function ClienteLanding() {
                   onClick={() => setSelectedCategoria(cat.id || cat.idCategoriaProducto)}
                   aria-label={`Filtrar menú por categoría ${cat.nombre}`}
                   style={{ scrollSnapAlign: "start" }}
-                  className={`shrink-0 w-28 sm:w-32 p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer ${
+                  className={`shrink-0 min-w-[116px] sm:min-w-[138px] px-2.5 sm:px-3 py-3 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer ${
                     isSelected
                       ? "bg-red-700 text-white shadow-lg shadow-red-700/25 scale-105 font-bold"
                       : "bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-xs"
@@ -2338,6 +2344,8 @@ export function ClienteLanding() {
                         aria-hidden="true"
                         width="56"
                         height="56"
+                        loading="lazy"
+                        decoding="async"
                         style={{ aspectRatio: "1 / 1" }}
                         className="w-full h-full object-cover"
                       />
@@ -2350,7 +2358,7 @@ export function ClienteLanding() {
                       isSelected={isSelected}
                     />
                   )}
-                  <p className={`text-xs font-semibold leading-tight line-clamp-2 text-center w-full ${isSelected ? "text-white font-bold" : "text-gray-800 dark:text-gray-200"}`} title={cat.nombre}>
+                  <p className={`text-[11px] sm:text-xs font-semibold leading-tight line-clamp-2 break-words text-center w-full ${isSelected ? "text-white font-bold" : "text-gray-800 dark:text-gray-200"}`} title={cat.nombre}>
                     {cat.nombre}
                   </p>
                 </button>
@@ -2363,7 +2371,7 @@ export function ClienteLanding() {
             type="button"
             onClick={() => scrollCategories("right")}
             aria-label="Siguiente categoría"
-            className="shrink-0 w-12 h-12 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center cursor-pointer z-10"
+            className="hidden sm:flex shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md hover:shadow-lg transition-all active:scale-95 items-center justify-center cursor-pointer z-10"
           >
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -2371,7 +2379,7 @@ export function ClienteLanding() {
       </div>
 
       {/* Productos */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 pb-16">
+      <div className="w-full px-3 sm:px-6 lg:px-8 pb-16">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
             <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
@@ -2727,7 +2735,7 @@ export function ClienteLanding() {
           onClick={() => setShowCart(false)}
         >
           <div
-            className="bg-white dark:bg-gray-900 w-full max-w-md h-full p-5 sm:p-6 shadow-2xl flex flex-col justify-between border-l border-gray-100 dark:border-gray-800 animate-in slide-in-from-right duration-300 cursor-default"
+            className="bg-white dark:bg-gray-900 w-full max-w-md h-[100dvh] p-4 sm:p-6 pb-safe shadow-2xl flex flex-col justify-between border-l border-gray-100 dark:border-gray-800 animate-in slide-in-from-right duration-300 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -3034,20 +3042,20 @@ export function ClienteLanding() {
 
       {/* MODAL CHECKOUT — Diseño Exacto Aprobado */}
       {showCheckout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800 max-h-[94vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800 max-h-[94dvh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
 
             {/* ═══ HEADER ROJO GRADIENT CON BORDES REDONDEADOS ═══ */}
-            <div className="bg-gradient-to-r from-[#D9383A] to-[#E03E3E] px-6 py-5 flex items-center justify-between rounded-t-3xl shrink-0">
+            <div className="bg-gradient-to-r from-[#D9383A] to-[#E03E3E] px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between rounded-t-2xl sm:rounded-t-3xl shrink-0">
               <div>
-                <h3 className="text-xl font-black text-white tracking-tight">Finalizar Pedido</h3>
+                <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">Finalizar Pedido</h3>
                 <p className="text-xs text-white/90 font-medium mt-0.5">Completa los datos de entrega y pago</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCheckout(false)}
                 aria-label="Cerrar checkout"
-                className="w-9 h-9 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors cursor-pointer"
+                className="w-9 h-9 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 title="Cerrar"
               >
                 <X className="w-5 h-5" />
@@ -3055,7 +3063,7 @@ export function ClienteLanding() {
             </div>
 
             {/* ═══ CUERPO SCROLLEABLE — Flujo Lógico Reordenado (Ítem #11, #20, #26, #28, #122) ═══ */}
-            <div className="overflow-y-auto flex-1 p-6 space-y-6 scrollbar-thin">
+            <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-5 sm:space-y-6 custom-modal-scrollbar">
 
               {/* ── 1. Especificaciones del Pedido & Empaque Térmico (Ítem #11) ── */}
               <div className="space-y-3">
@@ -3321,7 +3329,7 @@ export function ClienteLanding() {
                     <p className="text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1.5">
                       Medios de pago disponibles en la pasarela:
                     </p>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-1.5">
                       <div className="bg-white dark:bg-gray-800 border border-pink-200 dark:border-pink-900/50 rounded-xl p-2 text-center text-[10px] font-bold text-pink-700 dark:text-pink-300 flex flex-col items-center justify-center gap-1 shadow-2xs">
                         <FoodIcon name="mobile" size={14} className="text-pink-600 dark:text-pink-400" />
                         <span>Nequi</span>

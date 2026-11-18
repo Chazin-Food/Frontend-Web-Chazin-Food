@@ -231,34 +231,38 @@ export function UsuariosTable({
                 </div>
               </div>
 
-              <div className="border-t border-gray-100 dark:border-gray-700/60 px-4 py-2 flex items-center justify-end gap-2">
+              <div className="border-t border-gray-100 dark:border-gray-700/60 px-4 py-2.5 flex items-center justify-end gap-2">
                 {onView && (
                   <button
                     onClick={() => onView(usuario)}
-                    className="p-1.5 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors cursor-pointer"
+                    className="p-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors cursor-pointer"
                     title="Inspeccionar usuario"
                   >
                     <Eye className="w-4 h-4 stroke-[2]" />
                   </button>
                 )}
-                <button
-                  onClick={() => onEdit(usuario)}
-                  className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                  title="Editar"
-                >
-                  <Edit className="w-4 h-4 stroke-[2]" />
-                </button>
-                <button
-                  onClick={() => onChangePassword(usuario)}
-                  className="p-1.5 text-purple-500 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                  title="Cambiar contraseña"
-                >
-                  <Lock className="w-4 h-4 stroke-[2]" />
-                </button>
-                {usuario.rolNombre !== "Administrador" && (
+                {canEdit && (
+                  <button
+                    onClick={() => onEdit(usuario)}
+                    className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors cursor-pointer"
+                    title="Editar"
+                  >
+                    <Edit className="w-4 h-4 stroke-[2]" />
+                  </button>
+                )}
+                {canEdit && (
+                  <button
+                    onClick={() => onChangePassword(usuario)}
+                    className="p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors cursor-pointer"
+                    title="Cambiar contraseña"
+                  >
+                    <Lock className="w-4 h-4 stroke-[2]" />
+                  </button>
+                )}
+                {canDelete && usuario.rolNombre !== "Administrador" && (
                   <button
                     onClick={() => onDelete(usuario.id || usuario.idUsuario, usuario.nombre)}
-                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+                    className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors cursor-pointer"
                     title="Eliminar"
                   >
                     <Trash2 className="w-4 h-4 stroke-[2]" />

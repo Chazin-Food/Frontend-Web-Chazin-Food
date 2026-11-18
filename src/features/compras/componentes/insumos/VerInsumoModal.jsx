@@ -175,7 +175,7 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40">
           <div className="flex items-center gap-3.5">
@@ -427,13 +427,13 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
                   Insumos y Cantidades Requeridas ({ingredientes.length})
                 </h4>
 
-                <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden bg-gray-50/40 dark:bg-gray-800/30">
+                <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-x-auto touch-scroll-x bg-gray-50/40 dark:bg-gray-800/30">
                   {ingredientes.length === 0 ? (
                     <div className="p-6 text-center text-xs text-gray-400">
                       No se han vinculado insumos base a esta receta.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-xs border-collapse">
+                    <table className="w-full min-w-[400px] text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-purple-50/50 dark:bg-purple-950/20 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase font-bold text-purple-900 dark:text-purple-300">
                           <th className="px-3.5 py-2.5">Insumo Base</th>
@@ -633,8 +633,8 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
                   </p>
                 </div>
               ) : (
-                <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-800/60 shadow-xs">
-                  <table className="w-full text-left text-xs border-collapse">
+                <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-x-auto touch-scroll-x bg-white dark:bg-gray-800/60 shadow-xs">
+                  <table className="w-full min-w-[500px] text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">
                         <th className="px-3.5 py-3">Número de Lote</th>

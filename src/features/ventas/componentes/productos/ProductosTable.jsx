@@ -148,7 +148,149 @@ export function ProductosTable({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
-      <div className="overflow-x-auto">
+      {/* Mobile / Tablet Cards (< lg) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+            <Utensils className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+            <p className="font-semibold text-gray-700 dark:text-gray-300">No se encontraron productos en el menú</p>
+            <p className="text-xs text-gray-400 mt-1">Prueba ajustando los filtros de búsqueda o categoría</p>
+          </div>
+        ) : (
+          paginatedProductos.map((p) => {
+            const activeEvt = getActiveEvent(p);
+            const variantSummary = getProductVariantSummary(p);
+            const stockVal = Number(p.stockDisponible !== undefined ? p.stockDisponible : (p.stock !== undefined ? p.stock : 0));
+            const isActivo = p.estado === "Activo" || p.estado === 1 || p.estado === "1";
+            const hasSalesLock = Boolean(p.tieneVentas || Number(p.ventas || 0) > 0);
+            const basePrice = Number(p.precio || 0);
+            const displayPrice = activeEvt?.nuevoPrecio && Number(activeEvt.nuevoPrecio) > 0
+              ? Number(activeEvt.nuevoPrecio)
+              : activeEvt?.descuento && Number(activeEvt.descuento) > 0
+              ? Math.round(basePrice * (1 - Number(activeEvt.descuento) / 100))
+              : basePrice;
+
+            return (
+              <div key={p.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-3 min-w-0">
+                    {p.imagen ? (
+                      <img src={p.imagen} alt={p.nombre} width="44" height="44" loading="lazy" decoding="async" className="w-11 h-11 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shrink-0" />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-900/30 text-[#F05454] flex items-center justify-center shrink-0">
+                        <Utensils className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-tight break-words">{p.nombre}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <span className="text-[11px] font-mono text-gray-400">{p.codigo || `PRD-${p.id}`}</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          <Tag className="w-2.5 h-2.5" />
+                          {p.categoria || "Sin categoría"}
+                        </span>
+                      </div>
+                      {(variantSummary.hasVariants || activeEvt) && (
+                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                          {variantSummary.hasVariants && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/70">
+                              <Layers className="w-2.5 h-2.5" />
+                              {variantSummary.count} {variantSummary.count === 1 ? "variante" : "variantes"}
+                            </span>
+                          )}
+                          {activeEvt && <EventBadge event={activeEvt} product={p} variant="pill" className="text-[10px] py-0.5" />}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${
+                    isActivo ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                  }`}>
+                    {isActivo ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl p-2.5">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Precio</span>
+                    <div className="flex items-baseline gap-1.5">
+                      {displayPrice !== basePrice && (
+                        <span className="text-xs text-gray-400 line-through">${basePrice.toLocaleString("es-CO")}</span>
+                      )}
+                      <span className="text-sm font-black text-gray-900 dark:text-gray-100">${displayPrice.toLocaleString("es-CO")}</span>
+                    </div>
+                  </div>
+                  <div>
+                    {stockVal > 0 ? (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                        stockVal <= 5 ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300" : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${stockVal <= 5 ? "bg-amber-500" : "bg-emerald-500"}`} />
+                        {stockVal} und
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300">
+                        Agotado (0)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-1.5 pt-1">
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onCreateEvento && onCreateEvento(p, activeEvt || null)}
+                      title={activeEvt ? "Editar Evento Activo" : "Crear Evento / Promoción"}
+                      className={`p-2 rounded-xl transition-colors cursor-pointer relative ${
+                        activeEvt ? "bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300" : "bg-orange-50 dark:bg-orange-900/20 text-orange-500"
+                      }`}
+                    >
+                      <Zap className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => onView && onView(p)} title="Ver detalle" className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer">
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  {canEdit && (
+                    <button type="button" onClick={() => onDuplicate && onDuplicate(p)} title="Duplicar producto" className="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 cursor-pointer">
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  )}
+                  {onToggleEstado && canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleEstado(p)}
+                      title={isActivo ? "Inactivar producto" : "Activar producto"}
+                      className={`p-2 rounded-xl cursor-pointer ${isActivo ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-gray-100 dark:bg-gray-800 text-gray-400"}`}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => onEdit && onEdit(p)}
+                      title="Editar producto"
+                      className={`p-2 rounded-xl cursor-pointer relative ${hasSalesLock ? "bg-amber-50 dark:bg-amber-900/20 text-amber-600" : "bg-green-50 dark:bg-green-900/20 text-green-600"}`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button type="button" onClick={() => onDelete && onDelete(p.id || p.idProducto, p.nombre)} title="Eliminar producto" className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 cursor-pointer">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (lg+) */}
+      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

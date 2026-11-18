@@ -38,21 +38,21 @@ export function TotalizadorCocina({
 
   return (
     <div className="bg-linear-to-r from-red-500/10 via-amber-500/10 to-orange-500/10 dark:from-red-950/40 dark:via-amber-950/30 dark:to-orange-950/40 border border-red-200/80 dark:border-red-900/40 rounded-2xl p-3 shadow-2xs transition-all">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="w-7 h-7 rounded-xl bg-red-500 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
             <Flame className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <h3 className="text-xs font-black text-gray-900 dark:text-gray-100 tracking-tight">
-                Totalizador de Cocina (Batch en Marcha)
+                Totalizador de Cocina (Batch)
               </h3>
-              <span className="px-2 py-0.5 rounded-full bg-[#F05454] text-white text-[10px] font-black">
-                {totalPlatillos} platillos en marcha
+              <span className="px-2 py-0.5 rounded-full bg-[#F05454] text-white text-[10px] font-black whitespace-nowrap">
+                {totalPlatillos} en marcha
               </span>
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium hidden sm:block">
               Suma de todos los platillos activos para cocción en lote en parrilla y freidora
             </p>
           </div>
@@ -63,10 +63,10 @@ export function TotalizadorCocina({
             <button
               type="button"
               onClick={() => onSeleccionarProducto(null)}
-              className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl text-[11px] font-black hover:bg-red-50 transition cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl text-[11px] font-black hover:bg-red-50 transition cursor-pointer max-w-[180px] sm:max-w-none"
             >
-              <X className="w-3 h-3" />
-              <span>Limpiar Filtro ({filtroProductoSeleccionado})</span>
+              <X className="w-3 h-3 shrink-0" />
+              <span className="truncate">Limpiar ({filtroProductoSeleccionado})</span>
             </button>
           )}
 
@@ -83,7 +83,7 @@ export function TotalizadorCocina({
 
       {/* Expanded Chips List */}
       {!isCollapsed && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-2.5 border-t border-red-200/50 dark:border-red-900/30">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2.5 sm:mt-3 pt-2.5 border-t border-red-200/50 dark:border-red-900/30">
           {itemsAgrupados.map((it, idx) => {
             const isSelected = filtroProductoSeleccionado === it.nombre;
             return (
@@ -91,21 +91,21 @@ export function TotalizadorCocina({
                 key={idx}
                 type="button"
                 onClick={() => onSeleccionarProducto(isSelected ? null : it.nombre)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-2 select-none shadow-2xs ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 sm:gap-2 select-none shadow-2xs max-w-full ${
                   isSelected
-                    ? "bg-[#F05454] text-white ring-2 ring-red-400 scale-105"
+                    ? "bg-[#F05454] text-white ring-2 ring-red-400 scale-[1.02]"
                     : "bg-white dark:bg-gray-800/90 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-800 hover:bg-red-50/50 dark:hover:bg-gray-750"
                 }`}
                 title={`Haz clic para ver solo las comandas con ${it.nombre}`}
               >
                 <span
-                  className={`px-1.5 py-0.5 rounded-md text-[11px] font-black ${
+                  className={`px-1.5 py-0.5 rounded-md text-[11px] font-black shrink-0 ${
                     isSelected ? "bg-white/30 text-white" : "bg-red-100 dark:bg-red-950/60 text-[#F05454]"
                   }`}
                 >
                   {it.cantidad}x
                 </span>
-                <span className="truncate max-w-[200px]">{it.nombre}</span>
+                <span className="truncate max-w-[155px] sm:max-w-[200px]">{it.nombre}</span>
               </button>
             );
           })}

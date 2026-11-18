@@ -52,7 +52,7 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92vh] border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800">
         {/* Header armonizado con los colores del proyecto (Chazin Food #1e293b) */}
         <div className="bg-gradient-to-r from-[#1e293b] via-[#243042] to-[#1e293b] p-5 sm:p-6 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center gap-3.5">

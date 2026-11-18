@@ -2099,19 +2099,19 @@ export function ClientePerfil() {
 
   return (
 
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors">
+    <div className="min-h-[100dvh] bg-slate-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors">
 
       {/* ── Top Header Navigation (Mismo navbar unificado) ── */}
 
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200/80 dark:border-gray-800 shadow-md sticky top-0 z-40">
 
-        <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-3 sm:px-6 lg:px-8">
 
-          <div className="flex items-center justify-between py-4">
+          <div className="flex items-center justify-between gap-2 py-3 sm:py-4">
 
             <div
 
-              className="flex items-center gap-4 cursor-pointer select-none group"
+              className="flex items-center gap-2.5 sm:gap-4 min-w-0 cursor-pointer select-none group"
 
               onClick={() => {
 
@@ -2125,7 +2125,7 @@ export function ClientePerfil() {
 
             >
 
-              <div className="shrink-0 w-12 h-12 rounded-full overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
+              <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
 
                 <img
 
@@ -2145,7 +2145,7 @@ export function ClientePerfil() {
 
                 <div className="flex items-center gap-2 flex-wrap">
 
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors">Chazin Food</h1>
+                  <h1 className="text-base sm:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors truncate">Chazin Food</h1>
 
                   <FidelidadBadge
 
@@ -2743,7 +2743,7 @@ export function ClientePerfil() {
 
         <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs overflow-hidden">
 
-          <div className="flex border-b border-gray-100 dark:border-gray-800 overflow-x-auto no-scrollbar">
+          <div className="flex border-b border-gray-100 dark:border-gray-800 overflow-x-auto no-scrollbar touch-scroll-x">
 
             <button
 
@@ -4754,7 +4754,7 @@ export function ClientePerfil() {
 
           <div
 
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+            className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
 
             onClick={() => setSelectedPedidoDetalle(null)}
 
@@ -4762,7 +4762,7 @@ export function ClientePerfil() {
 
             <div
 
-              className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-2xl border border-gray-150 dark:border-gray-800 space-y-5 text-left max-h-[92vh] overflow-y-auto"
+              className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl border border-gray-150 dark:border-gray-800 space-y-4 sm:space-y-5 text-left max-h-[92dvh] overflow-y-auto"
 
               onClick={(e) => e.stopPropagation()}
 
@@ -4812,7 +4812,7 @@ export function ClientePerfil() {
 
               {/* Status & Delivery Summary */}
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
 
                 <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/60">
 

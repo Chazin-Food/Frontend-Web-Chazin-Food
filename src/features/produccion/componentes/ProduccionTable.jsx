@@ -122,7 +122,159 @@ export function ProduccionTable({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
-      <div className="overflow-x-auto">
+      {/* Mobile / Tablet Cards (< lg) */}
+      <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
+        {totalRecords === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            No se encontraron órdenes de producción
+          </div>
+        ) : (
+          paginatedOrdenes.map((o) => {
+            const nextConfig = getNextStatusConfig(o.estado);
+            const timings = resolveOrderTimings(o, nowMs);
+
+            return (
+              <div key={o.id} className="p-4 space-y-3">
+                {/* Top row: Orden + Estado */}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="shrink-0 mt-0.5">
+                      <FoodIconBadge name={o.productos?.[0]?.nombre || o.nombreProducto || o.producto || "burger"} size="sm" />
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-mono font-black text-gray-500 dark:text-gray-400">{o.codigo || `OP-00${o.id}`}</span>
+                        {o.prioridad ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                            o.prioridad === 1
+                              ? "bg-red-500 text-white"
+                              : o.prioridad === 2
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                              : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                          }`}>
+                            Turno #{o.prioridad}
+                          </span>
+                        ) : null}
+                        <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-black">
+                          x{o.cantidad || 1}
+                        </span>
+                      </div>
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-snug break-words">
+                        {Array.isArray(o.productos) && o.productos.length > 2
+                          ? `${o.productos.slice(0, 2).map((p) => `${p.nombre} (x${p.cantidad})`).join(", ")} (+${o.productos.length - 2})`
+                          : o.platilloNombre}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 font-semibold">
+                        <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <span className="truncate">{o.cliente || "Cliente Mostrador"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap shrink-0 ${
+                    o.estado === "En Preparación"
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                      : o.estado === "Listo" || o.estado === "Listos"
+                      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                      : o.estado === "Despachado"
+                      ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                      : o.estado === "Entregado"
+                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                      : "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300"
+                  }`}>
+                    {o.estado}
+                  </span>
+                </div>
+
+                {/* Meta chips */}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl p-2.5">
+                  <span className="inline-flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200">
+                    <ChefHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span>{o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}</span>
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-600">•</span>
+                  <span className="inline-flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200">
+                    <Clock className="w-3.5 h-3.5 text-[#F05454] shrink-0" />
+                    <span>{timings.tiempoPreparacion}</span>
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-600">•</span>
+                  <span className="font-mono text-[11px]">Pedido: {timings.horaPedido}</span>
+                  {o.mesa && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+                      {o.mesa}
+                    </span>
+                  )}
+                  {Array.isArray(o.checklistPreparacion) && o.checklistPreparacion.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => (onOpenChecklist ? onOpenChecklist(o) : onViewDetails && onViewDetails(o))}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border cursor-pointer ${
+                        o.pedidoCompleto
+                          ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200"
+                          : "bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300"
+                      }`}
+                    >
+                      {o.pedidoCompleto ? "✅ Completo" : "⚠️ Incompleto"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Action bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex-1 min-w-[140px]">
+                    {nextConfig && canEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateEstado && onUpdateEstado(o.id, nextConfig.next, o)}
+                        className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer active:scale-95 ${nextConfig.color}`}
+                      >
+                        {nextConfig.next === "Listo" && <ClipboardCheck className="w-3.5 h-3.5" />}
+                        <span>{nextConfig.next === "Listo" ? "Verificar y Listo" : nextConfig.label}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    ) : !nextConfig ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Completado</span>
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => imprimirComanda(o)}
+                      title="Imprimir comanda"
+                      className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 cursor-pointer"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onViewDetails && onViewDetails(o)}
+                      title="Ver detalles"
+                      className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete && onDelete(o.id)}
+                        title="Eliminar orden"
+                        className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table (lg+) */}
+      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

@@ -61,7 +61,7 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-6 relative border border-gray-100 dark:border-gray-800 max-h-[92vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-6 relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto">
         
         {/* Banner: Client without user account */}
         {!tieneCuenta && (
@@ -146,7 +146,7 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
           <h3 className="text-xs font-extrabold tracking-wider text-gray-700 dark:text-gray-300 uppercase">
             Estadísticas de Compra
           </h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/40 text-center">
               <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">Total Compras</p>
               <p className="text-2xl font-black text-blue-700 dark:text-blue-300 mt-0.5">{totalComprasCount}</p>
@@ -167,7 +167,7 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
           <h3 className="text-xs font-extrabold tracking-wider text-gray-700 dark:text-gray-300 uppercase">
             Frecuencia de Consumo
           </h3>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-2xl border border-amber-100 dark:border-amber-900/40 text-center flex flex-col items-center justify-center">
               <TrendingUp className="w-4 h-4 text-amber-500 mb-1" />
               <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">Compras / mes</p>

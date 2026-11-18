@@ -138,7 +138,7 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
       }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
     >
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl flex flex-col overflow-hidden relative max-h-[94vh] border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl flex flex-col overflow-hidden relative max-h-[94dvh] border border-gray-100 dark:border-gray-800">
 
         {/* Top Showcase Header */}
         <div className="relative w-full bg-gradient-to-b from-gray-50/90 via-gray-100/40 to-white dark:from-gray-800/60 dark:via-gray-850 dark:to-gray-900 p-6 flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800 shrink-0">
