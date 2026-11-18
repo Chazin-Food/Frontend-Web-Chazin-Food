@@ -118,7 +118,9 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/shared/servicios/cloudinaryService";
 
-import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono } from "@/shared/utils/validationUtils";
+import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono, validateDireccionMedellin } from "@/shared/utils/validationUtils";
+
+import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
 
 import { ventasService } from "@/features/ventas/servicios/ventasService";
 
@@ -397,9 +399,14 @@ export function ClientePerfil() {
 
   });
 
-  const [errors, setErrors] = useState({});
-
-  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState({});
+
+  const [touched, setTouched] = useState({});
+
+  const addressValidation = useMedellinAddressValidation(
+    tab === "editar" ? form.direccion : "",
+    { required: false }
+  );
 
   // Sync user profile on mount
 
@@ -1891,12 +1898,16 @@ export function ClientePerfil() {
 
         return validateDocumento(val, extra.tipoDocumento || form.tipoDocumento).error || "";
 
-      case "telefono":
-
-        if (!val) return "";
-
-        return val.length < 7 ? "Mínimo 7 dígitos." : "";
-
+      case "telefono":
+
+        if (!val) return "";
+
+        return val.length < 7 ? "Mínimo 7 dígitos." : "";
+
+      case "direccion":
+
+        return validateDireccionMedellin(val, { required: false }).error || "";
+
       default:
 
         return "";
@@ -1991,14 +2002,21 @@ export function ClientePerfil() {
 
     }
 
-    if (form.telefono) {
-
-      const errTel = validateSingleField("telefono", form.telefono);
-
-      if (errTel) errs.telefono = errTel;
-
-    }
-
+    if (form.telefono) {
+
+      const errTel = validateSingleField("telefono", form.telefono);
+
+      if (errTel) errs.telefono = errTel;
+
+    }
+
+    const dirVal = validateDireccionMedellin(form.direccion, { required: false });
+    if (!dirVal.isValid) {
+      errs.direccion = dirVal.error;
+    } else if (form.direccion.trim() && addressValidation.status === "invalid" && addressValidation.error) {
+      errs.direccion = addressValidation.error;
+    }
+
     return errs;
 
   };
@@ -3915,27 +3933,24 @@ export function ClientePerfil() {
 
                       </label>
 
-                      <div className="relative">
-
-                        <MapPin className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-
-                        <input
-
-                          type="text"
-
-                          name="direccion"
-
-                          value={form.direccion}
-
-                          onChange={handleChange}
-
-                          placeholder="Ej: Calle 50 #30-20, Medellín"
-
-                          className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs sm:text-sm font-medium bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none transition focus:ring-2 focus:ring-red-400 focus:bg-white dark:focus:bg-gray-800"
-
-                        />
-
-                      </div>
+                      <div className="relative">
+                        <MapPin className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          name="direccion"
+                          value={form.direccion}
+                          onBlur={() => handleBlur("direccion")}
+                          onChange={handleChange}
+                          placeholder="Ej: Calle 50 # 30-20, Medellín"
+                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-medium bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none transition focus:ring-2 focus:bg-white dark:focus:bg-gray-800 ${(touched.direccion && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid") ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400" : addressValidation.status === "verified" ? "border-emerald-500/70 focus:ring-emerald-400" : "border-gray-200 dark:border-gray-700 focus:ring-red-400"}`}
+                        />
+                      </div>
+                      <MedellinAddressStatus
+                        status={addressValidation.status}
+                        error={(touched.direccion && errors.direccion) || (form.direccion.trim() ? addressValidation.error : "")}
+                        verifiedInfo={addressValidation.verifiedInfo}
+                        showError={Boolean((touched.direccion && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid"))}
+                      />
 
                       <p className="text-[11px] text-gray-400 mt-1">
 

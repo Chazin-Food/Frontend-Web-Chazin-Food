@@ -8,8 +8,10 @@ import {
   validateDocumento,
   validateTexto,
   validateEmail,
+  validateDireccionMedellin,
   formatNombreCompleto
 } from "@/shared/utils/validationUtils";
+import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
 
 export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes = [], zIndex = "z-50" }) {
   const isEditing = !!cliente;
@@ -28,6 +30,11 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
+
+  const addressValidation = useMedellinAddressValidation(
+    isOpen ? form.direccion : "",
+    { required: false }
+  );
 
   useEffect(() => {
     if (cliente) {
@@ -108,11 +115,10 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
         const telVal = validateTelefono(value);
         return telVal.isValid ? null : telVal.error;
       }
-      case "direccion":
-        if (value && value.length > 150) {
-          return "La dirección no puede superar los 150 caracteres.";
-        }
-        return null;
+      case "direccion": {
+        const res = validateDireccionMedellin(value, { required: false });
+        return res.isValid ? null : res.error;
+      }
       default:
         return null;
     }
@@ -151,6 +157,9 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
     if (errEmail) newErrors.email = errEmail;
     if (errTel) newErrors.telefono = errTel;
     if (errDir) newErrors.direccion = errDir;
+    else if (form.direccion.trim() && addressValidation.status === "invalid" && addressValidation.error) {
+      newErrors.direccion = addressValidation.error;
+    }
 
     setErrors(newErrors);
     setTouched({
@@ -513,18 +522,20 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
               onBlur={() => handleBlur("direccion")}
               onChange={(e) => handleChange("direccion", e.target.value)}
               className={`w-full px-4 py-2.5 bg-white dark:bg-gray-800 border rounded-xl text-gray-900 dark:text-gray-100 outline-none text-xs transition-colors ${
-                (touched.direccion || submitted) && errors.direccion
+                ((touched.direccion || submitted) && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid")
                   ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
+                  : addressValidation.status === "verified"
+                  ? "border-emerald-500/60 dark:border-emerald-500/40 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-400"
                   : "border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-500/50"
               }`}
-              placeholder="Calle 50 #45-30, Belén, Medellín"
+              placeholder="Calle 50 # 45-30, Belén, Medellín"
             />
-            {(touched.direccion || submitted) && errors.direccion && (
-              <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {errors.direccion}
-              </p>
-            )}
+            <MedellinAddressStatus
+              status={addressValidation.status}
+              error={((touched.direccion || submitted) && errors.direccion) || (form.direccion.trim() ? addressValidation.error : "")}
+              verifiedInfo={addressValidation.verifiedInfo}
+              showError={Boolean(((touched.direccion || submitted) && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid"))}
+            />
           </div>
 
           {/* ── ÍTEM 121: Banner Informativo de Activación por Correo ── */}

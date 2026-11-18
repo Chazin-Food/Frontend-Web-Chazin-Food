@@ -25,7 +25,8 @@ import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import { ClienteFooter } from "../componentes/ClienteFooter";
 import { isEssentialIngredient } from "@/shared/utils/ingredientUtils";
 const ClienteAuthModal = lazy(() => import("../componentes/ClienteAuthModal").then((m) => ({ default: m.ClienteAuthModal })));
-import { validateNombre, validateDocumento, sanitizeDocumento } from "@/shared/utils/validationUtils";
+import { validateNombre, validateDocumento, sanitizeDocumento, validateDireccionMedellin, verifyDireccionMedellinRealtime } from "@/shared/utils/validationUtils";
+import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
 import { formatTime12h, formatDateSafe } from "@/shared/utils/dateUtils";
 import { matchesSmartSearch } from "@/shared/utils/searchUtils";
 
@@ -352,6 +353,11 @@ export function ClienteLanding() {
   const [checkoutEmpaqueParaLlevar, setCheckoutEmpaqueParaLlevar] = useState(false);
   const [checkoutErrors, setCheckoutErrors] = useState({});
   const [isProcessingWompi, setIsProcessingWompi] = useState(false);
+
+  const checkoutAddressValidation = useMedellinAddressValidation(
+    showCheckout ? checkoutDireccion : "",
+    { required: showCheckout }
+  );
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
@@ -1678,9 +1684,17 @@ export function ClienteLanding() {
       }, 100);
       return;
     }
-    if (!checkoutDireccion.trim()) {
-      setCheckoutErrors((prev) => ({ ...prev, direccion: "Por favor ingresa la dirección de entrega." }));
-      error("Dirección requerida", "Por favor ingresa la dirección de entrega.");
+    const syncDir = validateDireccionMedellin(checkoutDireccion, { required: true });
+    if (!syncDir.isValid) {
+      setCheckoutErrors((prev) => ({ ...prev, direccion: syncDir.error }));
+      error("Dirección inválida", syncDir.error);
+      return;
+    }
+
+    const rtDir = await verifyDireccionMedellinRealtime(checkoutDireccion);
+    if (!rtDir.isValid) {
+      setCheckoutErrors((prev) => ({ ...prev, direccion: rtDir.error }));
+      error("Dirección no verificada", rtDir.error);
       return;
     }
 
@@ -3207,7 +3221,7 @@ export function ClienteLanding() {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Dirección de entrega <span className="text-red-500">*</span>
+                    Dirección de entrega (Medellín) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -3215,8 +3229,9 @@ export function ClienteLanding() {
                     onChange={(e) => {
                       const val = e.target.value;
                       setCheckoutDireccion(val);
-                      if (!val.trim()) {
-                        setCheckoutErrors((prev) => ({ ...prev, direccion: "Por favor ingresa la dirección exacta de entrega." }));
+                      const valDir = validateDireccionMedellin(val, { required: true });
+                      if (!valDir.isValid) {
+                        setCheckoutErrors((prev) => ({ ...prev, direccion: valDir.error }));
                       } else {
                         setCheckoutErrors((prev) => {
                           const n = { ...prev };
@@ -3226,18 +3241,20 @@ export function ClienteLanding() {
                       }
                     }}
                     className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border rounded-2xl text-sm font-medium text-gray-900 dark:text-gray-100 outline-none transition ${
-                      checkoutErrors.direccion
+                      checkoutErrors.direccion || (checkoutDireccion.trim() && checkoutAddressValidation.status === "invalid")
                         ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                        : checkoutAddressValidation.status === "verified"
+                        ? "border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
                         : "border-gray-200 dark:border-gray-700 focus:border-[#E03E3E]"
                     }`}
-                    placeholder="Ej: Calle 45 #12-30, Apto 201"
+                    placeholder="Ej: Calle 45 # 12-30, Apto 201, El Poblado"
                   />
-                  {checkoutErrors.direccion && (
-                    <p className="text-[11px] text-red-500 font-bold mt-1.5 flex items-center gap-1 animate-in fade-in">
-                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{checkoutErrors.direccion}</span>
-                    </p>
-                  )}
+                  <MedellinAddressStatus
+                    status={checkoutAddressValidation.status}
+                    error={checkoutErrors.direccion || (checkoutDireccion.trim() ? checkoutAddressValidation.error : "")}
+                    verifiedInfo={checkoutAddressValidation.verifiedInfo}
+                    showError={Boolean(checkoutErrors.direccion || (checkoutDireccion.trim() && checkoutAddressValidation.error))}
+                  />
                 </div>
               </div>
 

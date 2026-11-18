@@ -4,7 +4,8 @@ import {
   Mail, Phone, MapPin, CreditCard, Lock, AlertCircle, CheckCircle2, Shield
 } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
-import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono } from "@/shared/utils/validationUtils";
+import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono, validateDireccionMedellin } from "@/shared/utils/validationUtils";
+import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 
 const TIPOS_DOCUMENTO = ["C.C.", "C.E.", "T.I.", "Pasaporte", "PPT", "NIT"];
@@ -46,6 +47,11 @@ export function MiPerfilModal({ isOpen, onClose }) {
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+
+  const addressValidation = useMedellinAddressValidation(
+    isOpen && tab === "datos" ? form.direccion : "",
+    { required: false }
+  );
 
   // Inicializar formulario con datos del usuario cuando el modal se abre
   useEffect(() => {
@@ -90,6 +96,8 @@ export function MiPerfilModal({ isOpen, onClose }) {
       case "telefono":
         if (!val) return "";
         return val.length < 7 ? "El teléfono debe tener mínimo 7 dígitos." : "";
+      case "direccion":
+        return validateDireccionMedellin(val, { required: false }).error || "";
       case "passwordActual":
         if (isGoogleUser) return "";
         return !val ? "Ingresa tu contraseña actual." : "";
@@ -155,6 +163,13 @@ export function MiPerfilModal({ isOpen, onClose }) {
       errs.telefono = "El teléfono debe tener mínimo 7 dígitos.";
     }
 
+    const dirVal = validateDireccionMedellin(form.direccion, { required: false });
+    if (!dirVal.isValid) {
+      errs.direccion = dirVal.error;
+    } else if (form.direccion.trim() && addressValidation.status === "invalid" && addressValidation.error) {
+      errs.direccion = addressValidation.error;
+    }
+
     return errs;
   };
 
@@ -169,6 +184,15 @@ export function MiPerfilModal({ isOpen, onClose }) {
 
   const handleSubmitDatos = async (e) => {
     e.preventDefault();
+    setTouched((prev) => ({
+      ...prev,
+      nombre: true,
+      apellidos: true,
+      email: true,
+      numeroDocumento: true,
+      telefono: true,
+      direccion: true
+    }));
     const errs = validateDatos();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
@@ -434,18 +458,31 @@ export function MiPerfilModal({ isOpen, onClose }) {
 
               {/* Dirección */}
               <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">Dirección</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">Dirección (Medellín)</label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                   <textarea
                     name="direccion"
                     value={form.direccion}
+                    onBlur={() => handleBlur("direccion")}
                     onChange={handleChange}
                     rows={2}
-                    placeholder="Ej: Calle 50 #30-20, Medellín"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium bg-gray-50 dark:bg-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-[#f05454]/40 transition resize-none"
+                    placeholder="Ej: Calle 50 # 30-20, Medellín"
+                    className={`w-full pl-9 pr-3 py-2.5 rounded-xl border text-sm font-medium bg-gray-50 dark:bg-gray-800 dark:text-gray-100 outline-none focus:ring-2 transition resize-none ${
+                      errors.direccion || (form.direccion.trim() && addressValidation.status === "invalid")
+                        ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
+                        : addressValidation.status === "verified"
+                        ? "border-emerald-500/70 focus:ring-emerald-400"
+                        : "border-gray-200 dark:border-gray-700 focus:ring-[#f05454]/40"
+                    }`}
                   />
                 </div>
+                <MedellinAddressStatus
+                  status={addressValidation.status}
+                  error={errors.direccion || (form.direccion.trim() ? addressValidation.error : "")}
+                  verifiedInfo={addressValidation.verifiedInfo}
+                  showError={Boolean(errors.direccion || (touched.direccion && addressValidation.error) || (form.direccion.trim() && addressValidation.status === "invalid"))}
+                />
               </div>
 
               {/* Submit */}

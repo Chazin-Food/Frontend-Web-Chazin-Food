@@ -499,5 +499,228 @@ export function parseMilesCOP(displayVal = "", allowDecimals = false) {
   return digits.replace(/^0+(?=\d)/, "");
 }
 
+const MEDELLIN_ROAD_PREFIX =
+  "(?:calle|cll\\.?|cl\\.?|carrera|cra\\.?|cr\\.?|kr\\.?|k\\.?|circular|cir\\.?|cq\\.?|diagonal|diag\\.?|dg\\.?|transversal|transv\\.?|tv\\.?|tr\\.?|avenida|avda\\.?|av\\.?|autopista|loma|pasaje|kil[oó]metro|km\\.?)";
 
+const MEDELLIN_ADDRESS_REGEX = new RegExp(
+  `\\b${MEDELLIN_ROAD_PREFIX}\\s*(?:\\d{1,3}[a-zA-Z]?(?:\\s*(?:bis|sur|norte|este|oeste|[a-zA-Z]))?)(?:\\s*(?:#|no\\.?|nro\\.?|n[°º]|-|\\s)\\s*\\d{1,3}[a-zA-Z]?(?:\\s*(?:bis|sur|norte|este|oeste|[a-zA-Z]))?\\s*(?:-|a|\\s)\\s*\\d{1,3})`,
+  "i"
+);
 
+const FAKE_MEDELLIN_ADDRESS_REGEX =
+  /calle\s+falsa|carrera\s+falsa|123\s*#\s*123|0+\s*#\s*0+|asdf|qwerty|sin\s+direcci[oó]n|ninguna/i;
+
+const INVALID_ADDRESS_CHARS_REGEX = /[<>{}[\]|\\^~`]|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+
+const VALLE_ABURRA_MUNICIPALITIES_REGEX =
+  /\b(medell[ií]n|envigado|itag[uü][ií]|bello|sabaneta|la\s+estrella|copacabana|girardota|caldas|barbosa)\b/i;
+
+const ACCEPTED_ARCGIS_ADDR_TYPES = new Set([
+  "PointAddress",
+  "StreetAddress",
+  "Subaddress",
+  "StreetInt",
+  "StreetName"
+]);
+
+const medellinAddressCache = new Map();
+
+/**
+ * Valida síncronamente la nomenclatura vial colombiana de direcciones en Medellín / Valle de Aburrá.
+ */
+export function validateDireccionMedellin(val = "", options = {}) {
+  const { required = false } = options;
+  const str = String(val || "").trim();
+
+  if (!str) {
+    if (required) {
+      return {
+        isValid: false,
+        error: "Por favor ingresa la dirección exacta de entrega en Medellín."
+      };
+    }
+    return { isValid: true, error: "" };
+  }
+
+  if (str.length > 150) {
+    return {
+      isValid: false,
+      error: "La dirección no puede superar los 150 caracteres."
+    };
+  }
+
+  if (INVALID_ADDRESS_CHARS_REGEX.test(str)) {
+    return {
+      isValid: false,
+      error: "La dirección contiene caracteres o símbolos no permitidos."
+    };
+  }
+
+  if (FAKE_MEDELLIN_ADDRESS_REGEX.test(str)) {
+    return {
+      isValid: false,
+      error: "Ingresa una dirección real y verificable en Medellín (ej: Calle 50 # 45-30)."
+    };
+  }
+
+  if (str.length < 8) {
+    return {
+      isValid: false,
+      error: "Ingresa una dirección completa de Medellín (ej: Calle 50 # 45-30, Laureles)."
+    };
+  }
+
+  if (!MEDELLIN_ADDRESS_REGEX.test(str)) {
+    return {
+      isValid: false,
+      error: "Usa nomenclatura vial válida de Medellín (ej: Calle 50 # 45-30 o Cra 70 # 44B-12)."
+    };
+  }
+
+  return { isValid: true, error: "" };
+}
+
+function normalizeMedellinGeocodeQuery(rawAddress = "") {
+  const cleanedDetails = String(rawAddress || "")
+    .replace(/\b(?:apto|apartamento|int|interior|torre|bloque|blq|piso|local|oficina|of\.?|casa|manzana|mz|bodega|lote|porter[ií]a)\b[^,]*/gi, "")
+    .replace(/\s*,\s*,+/g, ",")
+    .replace(/\s+/g, " ")
+    .replace(/^[,\s-]+|[,\s-]+$/g, "")
+    .trim();
+
+  const candidate = cleanedDetails || String(rawAddress || "").trim();
+  if (VALLE_ABURRA_MUNICIPALITIES_REGEX.test(candidate)) {
+    return `${candidate}, Antioquia, Colombia`;
+  }
+  return `${candidate}, Medellín, Antioquia, Colombia`;
+}
+
+function isWithinValleDeAburra(location) {
+  if (!location) return false;
+  const x = Number(location.x);
+  const y = Number(location.y);
+  return Number.isFinite(x) && Number.isFinite(y) && x >= -75.72 && x <= -75.45 && y >= 6.05 && y <= 6.45;
+}
+
+async function fetchNominatimNeighborhood(lat, lon) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=16`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" }
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    const addr = data?.address || {};
+    return addr.suburb || addr.neighbourhood || addr.quarter || "";
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Verifica una dirección de Medellín / Valle de Aburrá en tiempo real usando
+ * ArcGIS REST Geocoder + enriquecimiento de barrio con Nominatim.
+ */
+export async function verifyDireccionMedellinRealtime(direccion = "", options = {}) {
+  const syncRes = validateDireccionMedellin(direccion, { required: true });
+  if (!syncRes.isValid) {
+    return {
+      isValid: false,
+      verified: false,
+      error: syncRes.error
+    };
+  }
+
+  const cacheKey = String(direccion || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (medellinAddressCache.has(cacheKey)) {
+    return medellinAddressCache.get(cacheKey);
+  }
+
+  const query = normalizeMedellinGeocodeQuery(direccion);
+  const url =
+    `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates` +
+    `?SingleLine=${encodeURIComponent(query)}` +
+    `&countryCode=COL&searchExtent=-75.70,6.12,-75.48,6.38&maxLocations=3` +
+    `&outFields=Addr_type,Match_addr,Nbrhd,District,City,Region,Score&f=json`;
+
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), 5000);
+  const externalSignal = options.signal;
+  const onExternalAbort = () => timeoutController.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(timeoutId);
+      const abortErr = new Error("Aborted");
+      abortErr.name = "AbortError";
+      throw abortErr;
+    }
+    externalSignal.addEventListener("abort", onExternalAbort, { once: true });
+  }
+
+  try {
+    const response = await fetch(url, { signal: timeoutController.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+
+    const validCandidates = candidates.filter((c) => {
+      const type = c?.attributes?.Addr_type || "";
+      const score = Number(c?.score || 0);
+      return ACCEPTED_ARCGIS_ADDR_TYPES.has(type) && score >= 78 && isWithinValleDeAburra(c?.location);
+    });
+
+    if (validCandidates.length === 0) {
+      const invalidRes = {
+        isValid: false,
+        verified: false,
+        error: "No encontramos esa dirección en la malla vial de Medellín / Valle de Aburrá. Verifica la vía y el número."
+      };
+      medellinAddressCache.set(cacheKey, invalidRes);
+      return invalidRes;
+    }
+
+    const best = validCandidates[0];
+    let barrio = best.attributes?.Nbrhd || best.attributes?.District || "";
+    const ciudad = best.attributes?.City || "Medellín";
+
+    if (!barrio && best.location) {
+      barrio = await fetchNominatimNeighborhood(best.location.y, best.location.x);
+    }
+
+    const verifiedRes = {
+      isValid: true,
+      verified: true,
+      error: "",
+      address: best.address || best.attributes?.Match_addr || direccion,
+      barrio,
+      ciudad,
+      score: best.score,
+      location: best.location
+    };
+    medellinAddressCache.set(cacheKey, verifiedRes);
+    return verifiedRes;
+  } catch (err) {
+    if (externalSignal?.aborted) {
+      throw err;
+    }
+    return {
+      isValid: true,
+      verified: false,
+      offlineFallback: true,
+      error: "",
+      ciudad: "Medellín"
+    };
+  } finally {
+    clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener("abort", onExternalAbort);
+    }
+  }
+}
