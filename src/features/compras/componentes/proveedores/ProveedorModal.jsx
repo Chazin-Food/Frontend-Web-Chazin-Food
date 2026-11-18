@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Building, User, AlertCircle } from "lucide-react";
+import { X, Building, User, AlertCircle, Lock } from "lucide-react";
 import { validateEmail } from "@/shared/utils/validationUtils";
 
 const TIPOS_PROVEEDOR = [
@@ -14,6 +14,9 @@ const getInputCls = (hasError) =>
       ? "border-red-500 focus:ring-red-400 bg-red-50 dark:bg-red-950/30"
       : "border-gray-200 dark:border-gray-700 focus:ring-[#F05454]"
   }`;
+
+const getImmutableCls = () =>
+  "w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-100 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 cursor-not-allowed select-none text-sm font-medium";
 
 const labelCls = "block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1";
 
@@ -44,7 +47,11 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
 
   useEffect(() => {
     if (proveedor) {
-      const isJuridica = proveedor.tipoPersona === "Jurídica" || proveedor.idTipoDocumento === 3;
+      const isJuridica =
+        proveedor.tipoPersona === "Jurídica" ||
+        proveedor.idTipoDocumento === 3 ||
+        (proveedor.tipoDocumento && String(proveedor.tipoDocumento).toUpperCase() === "NIT");
+
       let parsedTipoProv = Number(proveedor.idTipoProveedor);
       if (!parsedTipoProv || isNaN(parsedTipoProv)) {
         if (proveedor.tipoProveedor === "Distribuidor") parsedTipoProv = 2;
@@ -52,16 +59,21 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
         else parsedTipoProv = 1;
       }
 
+      // Sanitizar documento y teléfono eliminando caracteres no numéricos
+      const rawDoc = proveedor.nit || proveedor.numeroDocumento || "";
+      const cleanNit = String(rawDoc).replace(/\D/g, "");
+      const cleanTel = String(proveedor.telefono || "").replace(/\D/g, "");
+
       setForm({
         tipoPersona: isJuridica ? "Jurídica" : "Natural",
         idTipoProveedor: parsedTipoProv,
         tipoProveedor: proveedor.tipoProveedor || (parsedTipoProv === 2 ? "Distribuidor" : parsedTipoProv === 3 ? "Fabricante" : "Mayorista"),
         idTipoDocumento: proveedor.idTipoDocumento || (isJuridica ? 3 : 1),
         nombre: proveedor.nombre || "",
-        nit: proveedor.nit || proveedor.numeroDocumento || "",
+        nit: cleanNit,
         contacto: proveedor.contacto || proveedor.nombreContacto || "",
         email: proveedor.email || proveedor.correo || "",
-        telefono: proveedor.telefono || "",
+        telefono: cleanTel,
         direccion: proveedor.direccion || "",
         estado: proveedor.estado || "Activo",
       });
@@ -87,61 +99,75 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
 
   if (!isOpen) return null;
 
+  const esJuridica = form.tipoPersona === "Jurídica";
+
+  // Reglas de inmutabilidad en edición:
+  // Persona Natural: CC y Nombre inmutables; Teléfono, Tipo de Proveedor, Correo, Dirección editables.
+  // Persona Jurídica: Razón Social, NIT y Correo inmutables; Teléfono, Tipo de Proveedor, Contacto, Dirección editables.
+  const isDocInmutable = isEditing;
+  const isNombreInmutable = isEditing;
+  const isEmailInmutable = isEditing && esJuridica;
+
   // ── Validaciones individuales ───────────────────────────────────────────────
 
   const validate = (fields) => {
     const errs = {};
-    const esJuridica = fields.tipoPersona === "Jurídica";
+    const esJur = fields.tipoPersona === "Jurídica";
 
-    // Nombre requerido y sin caracteres especiales (#71)
-    if (!fields.nombre.trim()) {
-      errs.nombre = esJuridica
-        ? "El nombre / razón social es obligatorio."
-        : "El nombre completo es obligatorio.";
-    } else if (/[^a-zA-Z0-9\u00C0-\u024F\s.,&-]/.test(fields.nombre.trim())) {
-      errs.nombre = "La razón social no puede contener caracteres especiales como @, #, $, %, etc.";
+    // Nombre: si es inmutable en edición no se valida
+    if (!isNombreInmutable) {
+      if (!fields.nombre.trim()) {
+        errs.nombre = esJur
+          ? "El nombre / razón social es obligatorio."
+          : "El nombre completo es obligatorio.";
+      } else if (/[^a-zA-Z0-9\u00C0-\u024F\s.,&-]/.test(fields.nombre.trim())) {
+        errs.nombre = "La razón social no puede contener caracteres especiales como @, #, $, %, etc.";
+      }
     }
 
-    // NIT/CC: solo dígitos, sin puntos ni guiones (#72) y verificación de duplicados (#70)
-    if (!fields.nit.trim()) {
-      errs.nit = esJuridica
-        ? "El NIT es obligatorio."
-        : "El número de cédula (CC) es obligatorio.";
-    } else if (!/^\d+$/.test(fields.nit.trim())) {
-      errs.nit = esJuridica
-        ? "El NIT solo debe contener dígitos, sin puntos ni guiones."
-        : "La cédula solo debe contener números.";
-    } else {
-      // Verificación de duplicado (#70)
-      const currentId = proveedor?.id || proveedor?.idProveedor;
-      const nitLimpiado = fields.nit.trim();
-      const existeDuplicado = proveedores.some((p) => {
-        const pId = p.id || p.idProveedor;
-        if (isEditing && String(pId) === String(currentId)) return false;
-        const pDoc = String(p.nit || p.numeroDocumento || "").trim();
-        return pDoc === nitLimpiado;
-      });
-      if (existeDuplicado) {
-        errs.nit = `Ya existe otro proveedor registrado con este número de ${esJuridica ? "NIT" : "cédula (CC)"}.`;
+    // NIT/CC: si es inmutable en edición no se valida
+    if (!isDocInmutable) {
+      if (!fields.nit.trim()) {
+        errs.nit = esJur
+          ? "El NIT es obligatorio."
+          : "El número de cédula (CC) es obligatorio.";
+      } else if (!/^\d+$/.test(fields.nit.trim())) {
+        errs.nit = esJur
+          ? "El NIT solo debe contener dígitos, sin puntos ni guiones."
+          : "La cédula solo debe contener números.";
+      } else {
+        // Verificación de duplicado (#70)
+        const currentId = proveedor?.id || proveedor?.idProveedor;
+        const nitLimpiado = fields.nit.trim().replace(/\D/g, "");
+        const existeDuplicado = proveedores.some((p) => {
+          const pId = p.id || p.idProveedor;
+          if (isEditing && String(pId) === String(currentId)) return false;
+          const pDoc = String(p.nit || p.numeroDocumento || "").replace(/\D/g, "").trim();
+          return pDoc === nitLimpiado;
+        });
+        if (existeDuplicado) {
+          errs.nit = `Ya existe otro proveedor registrado con este número de ${esJur ? "NIT" : "cédula (CC)"}.`;
+        }
       }
     }
 
     // Contacto: Obligatorio para Persona Jurídica, Opcional para Persona Natural
-    if (esJuridica && !fields.contacto.trim()) {
+    if (esJur && !fields.contacto.trim()) {
       errs.contacto = "La persona de contacto es obligatoria para empresas.";
     } else if (fields.contacto.trim() && /\d/.test(fields.contacto)) {
       errs.contacto = "El nombre de contacto no puede contener números.";
     }
 
-    // Teléfono: solo dígitos
-    if (!fields.telefono.trim()) {
+    // Teléfono: solo dígitos numéricos (entre 7 y 10)
+    const telDigits = String(fields.telefono || "").replace(/\D/g, "");
+    if (!telDigits) {
       errs.telefono = "El teléfono / celular es obligatorio.";
-    } else if (!/^[\d]{7,10}$/.test(fields.telefono.trim())) {
+    } else if (!/^\d{7,10}$/.test(telDigits)) {
       errs.telefono = "El teléfono debe tener entre 7 y 10 dígitos numéricos.";
     }
 
-    // Email: validación real-time (#73) con validador estricto
-    if (fields.email && fields.email.trim()) {
+    // Email: si es inmutable en Jurídica se conserva tal cual
+    if (!isEmailInmutable && fields.email && fields.email.trim()) {
       const emailRes = validateEmail(fields.email.trim());
       if (!emailRes.isValid) {
         errs.email = emailRes.error;
@@ -152,6 +178,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
   };
 
   const handleTipoPersonaChange = (nuevoTipo) => {
+    if (isEditing) return; // Inmutable en edición
     const newForm = {
       ...form,
       tipoPersona: nuevoTipo,
@@ -171,6 +198,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
   // ── Manejadores de cambio con filtrado en tiempo real ──────────────────────
 
   const handleNitChange = (e) => {
+    if (isDocInmutable) return;
     const value = e.target.value.replace(/[^0-9]/g, "").slice(0, 20);
     const newForm = { ...form, nit: value };
     setForm(newForm);
@@ -180,6 +208,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
   };
 
   const handleNombreChange = (e) => {
+    if (isNombreInmutable) return;
     const value = e.target.value.replace(/[^a-zA-Z0-9\u00C0-\u024F\s.,&-]/g, "");
     const newForm = { ...form, nombre: value };
     setForm(newForm);
@@ -189,6 +218,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
   };
 
   const handleEmailChange = (e) => {
+    if (isEmailInmutable) return;
     const value = e.target.value;
     const newForm = { ...form, email: value };
     setForm(newForm);
@@ -238,15 +268,19 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
 
     if (Object.keys(errs).length > 0) return;
 
+    // Sanitizar antes de guardar
+    const cleanDoc = String(form.nit || "").replace(/\D/g, "");
+    const cleanTel = String(form.telefono || "").replace(/\D/g, "");
+
     onSave({
       ...form,
-      numeroDocumento: form.nit,
+      nit: cleanDoc,
+      numeroDocumento: cleanDoc,
+      telefono: cleanTel,
       nombreContacto: form.contacto,
       correo: form.email,
     });
   };
-
-  const esJuridica = form.tipoPersona === "Jurídica";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -273,28 +307,37 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
 
             {/* Switch / Selector Tipo de Persona */}
             <div className="sm:col-span-2 flex flex-col gap-1">
-              <label className={labelCls}>Tipo de Persona</label>
-              <div className="grid grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl">
+              <div className="flex items-center justify-between">
+                <label className={labelCls}>Tipo de Persona</label>
+                {isEditing && (
+                  <span className="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                    <Lock className="w-3 h-3" /> Inmutable en edición
+                  </span>
+                )}
+              </div>
+              <div className={`grid grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl ${isEditing ? "opacity-75 cursor-not-allowed" : ""}`}>
                 <button
                   type="button"
+                  disabled={isEditing}
                   onClick={() => handleTipoPersonaChange("Jurídica")}
                   className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
                     esJuridica
                       ? "bg-white dark:bg-gray-900 text-[#F05454] shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
-                  }`}
+                  } ${isEditing ? "cursor-not-allowed" : "cursor-pointer"}`}
                 >
                   <Building className="w-4 h-4" />
                   <span>Persona Jurídica (Empresa)</span>
                 </button>
                 <button
                   type="button"
+                  disabled={isEditing}
                   onClick={() => handleTipoPersonaChange("Natural")}
                   className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
                     !esJuridica
                       ? "bg-white dark:bg-gray-900 text-[#F05454] shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
-                  }`}
+                  } ${isEditing ? "cursor-not-allowed" : "cursor-pointer"}`}
                 >
                   <User className="w-4 h-4" />
                   <span>Persona Natural</span>
@@ -315,29 +358,35 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
                   </>
                 )}{" "}
                 <span className="text-red-500">*</span>
+                {isDocInmutable && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    <Lock className="w-2.5 h-2.5" /> Inmutable
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 inputMode="numeric"
                 value={form.nit}
                 onChange={handleNitChange}
+                disabled={isDocInmutable}
+                readOnly={isDocInmutable}
                 onKeyDown={(e) => {
-                  // Bloquear puntos, guiones y notación científica (#72)
                   if (['.', '-', 'e', 'E', '+', ','].includes(e.key)) {
                     e.preventDefault();
                   }
                 }}
                 onBlur={() => handleFieldBlur("nit")}
-                className={getInputCls(touched.nit && !!errors.nit)}
+                className={isDocInmutable ? getImmutableCls() : getInputCls(touched.nit && !!errors.nit)}
                 placeholder={esJuridica ? "Ej. 900123456" : "Ej. 1043673457"}
                 maxLength={15}
               />
-              {touched.nit && errors.nit && (
+              {!isDocInmutable && touched.nit && errors.nit && (
                 <p className={errorMsgCls}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {errors.nit}
                 </p>
               )}
-              {(!touched.nit || !errors.nit) && form.nit.trim() && (
+              {!isDocInmutable && (!touched.nit || !errors.nit) && form.nit.trim() && (
                 <p className="text-xs text-gray-400 mt-1">
                   {esJuridica ? "Solo dígitos, sin puntos ni guiones" : "Solo números de cédula"}
                 </p>
@@ -349,23 +398,30 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
               <label className={labelCls}>
                 {esJuridica ? "Razón Social / Nombre Empresa" : "Nombre Completo"}{" "}
                 <span className="text-red-500">*</span>
+                {isNombreInmutable && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    <Lock className="w-2.5 h-2.5" /> Inmutable
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={form.nombre}
                 onChange={handleNombreChange}
+                disabled={isNombreInmutable}
+                readOnly={isNombreInmutable}
                 onBlur={() => handleFieldBlur("nombre")}
-                className={getInputCls(touched.nombre && !!errors.nombre)}
+                className={isNombreInmutable ? getImmutableCls() : getInputCls(touched.nombre && !!errors.nombre)}
                 placeholder={esJuridica ? "Ej. Distribuidora Avícola S.A.S." : "Ej. Juan Carlos Pérez"}
               />
-              {touched.nombre && errors.nombre && (
+              {!isNombreInmutable && touched.nombre && errors.nombre && (
                 <p className={errorMsgCls}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {errors.nombre}
                 </p>
               )}
             </div>
 
-            {/* Tipo de Proveedor */}
+            {/* Tipo de Proveedor (Siempre Editable) */}
             <div>
               <label className={labelCls}>
                 Tipo de Proveedor <span className="text-red-500">*</span>
@@ -393,7 +449,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
               </select>
             </div>
 
-            {/* Teléfono / Celular */}
+            {/* Teléfono / Celular (Siempre Editable) */}
             <div>
               <label className={labelCls}>
                 Teléfono / Celular <span className="text-red-500">*</span>
@@ -405,7 +461,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
                 onChange={handleTelefonoChange}
                 onBlur={() => handleFieldBlur("telefono")}
                 className={getInputCls(touched.telefono && !!errors.telefono)}
-                placeholder="Ej. 310 987 6543"
+                placeholder="Ej. 3109876543"
               />
               {touched.telefono && errors.telefono && (
                 <p className={errorMsgCls}>
@@ -414,7 +470,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
               )}
             </div>
 
-            {/* Persona de Contacto */}
+            {/* Persona de Contacto (Siempre Editable) */}
             <div>
               <label className={labelCls}>
                 Persona de Contacto {esJuridica ? <span className="text-red-500">*</span> : <span className="text-gray-400 font-normal">(Opcional)</span>}
@@ -434,25 +490,34 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
               )}
             </div>
 
-            {/* Correo Electrónico (#73) */}
+            {/* Correo Electrónico (#73) - Inmutable en Jurídica, Editable en Natural */}
             <div>
-              <label className={labelCls}>Correo Electrónico</label>
+              <label className={labelCls}>
+                Correo Electrónico
+                {isEmailInmutable && (
+                  <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    <Lock className="w-2.5 h-2.5" /> Inmutable
+                  </span>
+                )}
+              </label>
               <input
                 type="email"
                 value={form.email}
                 onChange={handleEmailChange}
+                disabled={isEmailInmutable}
+                readOnly={isEmailInmutable}
                 onBlur={() => handleFieldBlur("email")}
-                className={getInputCls(touched.email && !!errors.email)}
+                className={isEmailInmutable ? getImmutableCls() : getInputCls(touched.email && !!errors.email)}
                 placeholder="contacto@empresa.com"
               />
-              {touched.email && errors.email && (
+              {!isEmailInmutable && touched.email && errors.email && (
                 <p className={errorMsgCls}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {errors.email}
                 </p>
               )}
             </div>
 
-            {/* Dirección */}
+            {/* Dirección (Siempre Editable) */}
             <div>
               <label className={labelCls}>Dirección</label>
               <input
@@ -464,7 +529,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
               />
             </div>
 
-            {/* Estado */}
+            {/* Estado (Siempre Editable) */}
             <div className="sm:col-span-2">
               <label className={labelCls}>Estado</label>
               <select
@@ -488,13 +553,13 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-sm font-medium text-white bg-[#F05454] hover:bg-[#d84343] rounded-xl transition-colors shadow-md"
+              className="px-5 py-2 text-sm font-medium text-white bg-[#F05454] hover:bg-[#d84343] rounded-xl transition-colors shadow-md cursor-pointer"
             >
               {isEditing ? "Guardar Cambios" : "Crear Proveedor"}
             </button>

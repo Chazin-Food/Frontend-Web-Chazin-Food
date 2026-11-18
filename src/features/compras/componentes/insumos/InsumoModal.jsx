@@ -403,28 +403,70 @@ export function InsumoModal({
 
     // ── Modo Edición: Se permite modificar Stock Mínimo, Stock Máximo, Descripción, Estado, Adición e IVA ──
     if (isEditing) {
-      const minVal = Math.max(0, form.stockMinimo === "" ? 0 : Number(form.stockMinimo));
-      const maxVal = Math.max(0, form.stockMaximo === "" ? 0 : Number(form.stockMaximo));
-      if (maxVal < minVal) {
-        notify.warning(
-          "Stock Inválido",
-          "La cantidad máxima no puede ser inferior a la cantidad mínima."
-        );
+      const editErrors = {};
+      const touchedFields = {};
+
+      if (tipo === "Base") {
+        touchedFields.stockMinimo = true;
+        touchedFields.stockMaximo = true;
+
+        if (form.stockMinimo === "" || form.stockMinimo === null || form.stockMinimo === undefined) {
+          editErrors.stockMinimo = "El stock mínimo es requerido.";
+        } else {
+          const sMin = Number(form.stockMinimo);
+          if (isNaN(sMin) || sMin < 0) {
+            editErrors.stockMinimo = "El stock mínimo debe ser un número mayor o igual a 0.";
+          }
+        }
+
+        if (form.stockMaximo === "" || form.stockMaximo === null || form.stockMaximo === undefined) {
+          editErrors.stockMaximo = "El stock máximo es requerido.";
+        } else {
+          const sMax = Number(form.stockMaximo);
+          if (isNaN(sMax) || sMax < 0) {
+            editErrors.stockMaximo = "El stock máximo debe ser un número mayor o igual a 0.";
+          } else if (!editErrors.stockMinimo && sMax < Number(form.stockMinimo)) {
+            editErrors.stockMaximo = "La cantidad máxima no puede ser inferior a la cantidad mínima.";
+          }
+        }
+      }
+
+      if (form.esAdicion) {
+        touchedFields.precioAdicion = true;
+        const esSalsa = isSalsaItem(form.nombre, form.categoria);
+        if (!esSalsa) {
+          if (form.precioAdicion === "" || form.precioAdicion === null || form.precioAdicion === undefined) {
+            editErrors.precioAdicion = "El precio de adición es requerido.";
+          } else {
+            const pAdic = Number(form.precioAdicion);
+            if (isNaN(pAdic) || pAdic <= 0) {
+              editErrors.precioAdicion = "Al habilitar este insumo como adición, debes ingresar un precio de venta mayor a $0.";
+            }
+          }
+        }
+      }
+
+      if (form.incluyeIva) {
+        touchedFields.porcentajeIva = true;
+        if (form.porcentajeIva === "" || form.porcentajeIva === null || form.porcentajeIva === undefined) {
+          editErrors.porcentajeIva = "El porcentaje de IVA es requerido.";
+        } else {
+          const pIva = Number(form.porcentajeIva);
+          if (isNaN(pIva) || pIva < 0 || pIva > 100) {
+            editErrors.porcentajeIva = "El porcentaje de IVA debe estar entre 0% y 100%.";
+          }
+        }
+      }
+
+      if (Object.keys(editErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...editErrors }));
+        setTouched((prev) => ({ ...prev, ...touchedFields }));
+        notify.warning("Datos requeridos o inválidos", Object.values(editErrors)[0]);
         return;
       }
 
-      // Validar precio de adición si está habilitada
-      if (form.esAdicion) {
-        const esSalsa = isSalsaItem(form.nombre, form.categoria);
-        const pAdic = Number(form.precioAdicion);
-        if (!esSalsa && (isNaN(pAdic) || pAdic <= 0)) {
-          notify.warning(
-            "Precio de Adición Requerido",
-            "Al habilitar este insumo como adición, debes ingresar un precio de venta mayor a $0."
-          );
-          return;
-        }
-      }
+      const minVal = tipo === "Base" ? Number(form.stockMinimo) : 0;
+      const maxVal = tipo === "Base" ? Number(form.stockMaximo) : 0;
 
       const savePayload = async () => {
         if (insumo?.estado === "Activo" && form.estado === "Inactivo") {
