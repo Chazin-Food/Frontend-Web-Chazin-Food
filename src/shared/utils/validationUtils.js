@@ -573,7 +573,7 @@ export function validateDireccionMedellin(val = "", options = {}) {
   if (!MEDELLIN_ADDRESS_REGEX.test(str)) {
     return {
       isValid: false,
-      error: "Usa nomenclatura vial válida de Medellín (ej: Calle 50 # 45-30 o Cra 70 # 44B-12)."
+      error: "Usa nomenclatura vial válida de Medellín (ej: Calle 50 # 45-30 o Cr 70 # 44B-12)."
     };
   }
 
@@ -583,6 +583,12 @@ export function validateDireccionMedellin(val = "", options = {}) {
 function normalizeMedellinGeocodeQuery(rawAddress = "") {
   const cleanedDetails = String(rawAddress || "")
     .replace(/\b(?:apto|apartamento|int|interior|torre|bloque|blq|piso|local|oficina|of\.?|casa|manzana|mz|bodega|lote|porter[ií]a)\b[^,]*/gi, "")
+    .replace(/\b(?:cr|cra|kr|k)\.?(?=\s*\d)/gi, "Carrera")
+    .replace(/\b(?:cl|cll)\.?(?=\s*\d)/gi, "Calle")
+    .replace(/\b(?:cq|cir)\.?(?=\s*\d)/gi, "Circular")
+    .replace(/\b(?:dg|diag)\.?(?=\s*\d)/gi, "Diagonal")
+    .replace(/\b(?:tv|tr|transv)\.?(?=\s*\d)/gi, "Transversal")
+    .replace(/\b(?:av|avda)\.?(?=\s+)/gi, "Avenida")
     .replace(/\s*,\s*,+/g, ",")
     .replace(/\s+/g, " ")
     .replace(/^[,\s-]+|[,\s-]+$/g, "")

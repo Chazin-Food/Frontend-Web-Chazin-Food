@@ -8,7 +8,11 @@ import {
 test("validateDireccionMedellin acepta formatos viales válidos de Medellín", () => {
   const validAddresses = [
     "Calle 10 # 43A-30, El Poblado",
+    "Cl 10 # 43A-30",
     "Cra 70 # 44B-12, Laureles",
+    "Cr 70 # 44B-12, Laureles",
+    "CR 43A # 14-50",
+    "Cr. 65 # 48-20",
     "Circular 4 # 70-18",
     "Diagonal 75B # 32-40",
     "Calle 50 #30-20, Medellín",
@@ -48,6 +52,14 @@ test("verifyDireccionMedellinRealtime verifica dirección real en ArcGIS y recha
     assert.equal(realRes.verified, true);
     assert.match(String(realRes.ciudad || ""), /medell/i);
     assert.ok(realRes.score >= 78);
+  }
+
+  const crRes = await verifyDireccionMedellinRealtime("Cr 70 # 44B-12, Laureles");
+  assert.equal(crRes.isValid, true);
+  if (!crRes.offlineFallback) {
+    assert.equal(crRes.verified, true);
+    assert.match(String(crRes.address || ""), /Carrera 70/i);
+    assert.ok(crRes.score >= 95);
   }
 
   const bogusRes = await verifyDireccionMedellinRealtime("Calle 999 # 999-999");
