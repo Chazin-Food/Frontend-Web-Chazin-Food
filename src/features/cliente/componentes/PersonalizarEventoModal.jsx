@@ -25,6 +25,9 @@ import { apiClient } from "@/shared/api/apiClient";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
 import { stripEmojis, formatTipoEvento, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
+import { getDisplayProductVariants, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
+import { buildVariantChangesSummary } from "@/features/ventas/utils/variantFichaUtils";
+import ProductVariantInspector from "@/shared/components/ui/ProductVariantInspector";
 
 const QUICK_KITCHEN_TAGS = [
   "Salsas aparte",
@@ -102,6 +105,7 @@ export function PersonalizarEventoModal({
   }, [evento, productosList, initialProducto]);
 
   const [selectedProduct, setSelectedProduct] = useState(initialProducto || null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
   const [cantidad, setCantidad] = useState(1);
   const [activeTab, setActiveTab] = useState("personalizar"); // "personalizar" | "adiciones" | "bebidas" | "resenas"
   const [selectedAdditions, setSelectedAdditions] = useState([]);
@@ -152,6 +156,54 @@ export function PersonalizarEventoModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Producto resuelto con sus variantes activas desde catálogo si no venían embebidas en eventProducts
+  const resolvedProduct = useMemo(() => {
+    if (!selectedProduct) return null;
+    const pId = selectedProduct.id || selectedProduct.idProducto;
+    const catalogMatch = (productosList || []).find((p) => Number(p.id || p.idProducto) === Number(pId));
+    if (!catalogMatch) return selectedProduct;
+    return {
+      ...catalogMatch,
+      ...selectedProduct,
+      variantes:
+        Array.isArray(selectedProduct.variantes) && selectedProduct.variantes.length > 0
+          ? selectedProduct.variantes
+          : (catalogMatch.variantes || []),
+      fichaTecnica: selectedProduct.fichaTecnica || catalogMatch.fichaTecnica || null
+    };
+  }, [selectedProduct, productosList]);
+
+  const activeFoodVariants = useMemo(
+    () => getDisplayProductVariants(resolvedProduct, { includeInactive: false }),
+    [resolvedProduct]
+  );
+
+  useEffect(() => {
+    if (!isOpen || !resolvedProduct) {
+      setSelectedVariant(null);
+      return;
+    }
+    const evtId = evento?.id || evento?.idEvento;
+    const isVariantEvent = Boolean(
+      evento && (
+        evento.tipoEvento === "Añadir Insumos" ||
+        evento.tipoEvento === "Edición Especial" ||
+        String(evento.tipoEvento || "").toLowerCase().includes("topping") ||
+        String(evento.tipoEvento || "").toLowerCase().includes("edicion") ||
+        String(evento.tipoEvento || "").toLowerCase().includes("edición")
+      )
+    );
+    const matchedEvtVariant = (evtId && isVariantEvent)
+      ? activeFoodVariants.find((v) => Number(v.idEvento) === Number(evtId))
+      : null;
+    setSelectedVariant((prev) => {
+      if (prev && activeFoodVariants.some((v) => String(v.idVariante) === String(prev.idVariante))) {
+        return activeFoodVariants.find((v) => String(v.idVariante) === String(prev.idVariante)) || null;
+      }
+      return matchedEvtVariant || null;
+    });
+  }, [isOpen, resolvedProduct?.id, resolvedProduct?.idProducto, activeFoodVariants, evento]);
+
   // Nutritional and preparation specs
   const prodId = selectedProduct?.id || selectedProduct?.idProducto;
   const [liveFicha, setLiveFicha] = useState(() => fichasMap[prodId] || selectedProduct?.ficha || null);
@@ -171,15 +223,25 @@ export function PersonalizarEventoModal({
   }, [prodId, fichasMap, selectedProduct, isOpen]);
 
   const specs = useMemo(() => {
-    if (!selectedProduct) return { peso: "350g", rendimiento: "1 porción", tiempoPrep: 8 };
-    return resolveNutritionalSpecs(selectedProduct, liveFicha);
-  }, [selectedProduct, liveFicha]);
+    if (!resolvedProduct) return { peso: "350g", rendimiento: "1 porción", tiempoPrep: 8 };
+    return resolveNutritionalSpecs(resolvedProduct, liveFicha);
+  }, [resolvedProduct, liveFicha]);
 
-  // Recipe ingredients extraction for Mise en Place
+  // Recipe ingredients extraction for Mise en Place (considera variante activa)
   const personalizables = useMemo(() => {
-    if (!selectedProduct) return [];
-    return extractPersonalizables(selectedProduct, liveFicha);
-  }, [selectedProduct, liveFicha]);
+    if (!resolvedProduct) return [];
+    return extractPersonalizables(resolvedProduct, liveFicha, selectedVariant);
+  }, [resolvedProduct, liveFicha, selectedVariant]);
+
+  const activeVariantSummary = useMemo(
+    () =>
+      buildVariantChangesSummary(
+        selectedVariant,
+        resolvedProduct ? { ...resolvedProduct, fichaTecnica: liveFicha || resolvedProduct.fichaTecnica } : null,
+        false
+      ),
+    [selectedVariant, resolvedProduct, liveFicha]
+  );
 
   const baseIngredients = useMemo(
     () => personalizables.filter((i) => i.esencial),
@@ -294,6 +356,7 @@ export function PersonalizarEventoModal({
   }, [selectedProduct, evento, liveFicha, productosList, fichasMap]);
 
   const hasRecipeTabContent =
+    activeFoodVariants.length > 0 ||
     personalizables.length > 0 ||
     comboRecipeInfo.comboItems.length > 0 ||
     comboRecipeInfo.steps.length > 0;
@@ -436,25 +499,50 @@ export function PersonalizarEventoModal({
 
   if (!isOpen || !evento) return null;
 
-  // Price Calculation
-  const basePrice = Number(selectedProduct?.precio || 0);
-  let promoPrice = basePrice;
-  let savings = 0;
+  // Price Calculation (considerando variante seleccionada + promoción del evento)
+  const resolveVariantPricing = useCallback(
+    (variantObj) => {
+      const prodBase = Number(resolvedProduct?.precio || 0);
+      const raw =
+        variantObj && Number(variantObj.precio) > 0
+          ? Number(variantObj.precio)
+          : prodBase;
+      let finalP = raw;
 
-  if (selectedProduct) {
-    if (selectedProduct.eventNuevoPrecio) {
-      promoPrice = Number(selectedProduct.eventNuevoPrecio);
-    } else if (selectedProduct.eventDescuento) {
-      promoPrice = basePrice * (1 - Number(selectedProduct.eventDescuento) / 100);
-    } else if (evento.tipoEvento === "Promoción Precio" && evento.nuevoPrecio) {
-      promoPrice = Number(evento.nuevoPrecio);
-    } else if (evento.tipoEvento === "Descuento" && evento.descuento) {
-      promoPrice = basePrice * (1 - Number(evento.descuento) / 100);
-    } else if (evento.nuevoPrecio) {
-      promoPrice = Number(evento.nuevoPrecio);
-    }
-    savings = Math.max(0, basePrice - promoPrice);
-  }
+      if (resolvedProduct && evento) {
+        const evtId = evento.id || evento.idEvento;
+        const isVariantFromThisEvent = Boolean(variantObj && evtId && Number(variantObj.idEvento) === Number(evtId));
+
+        if (isVariantFromThisEvent && Number(variantObj.precio) > 0) {
+          finalP = Number(variantObj.precio);
+        } else if (resolvedProduct.eventDescuento) {
+          finalP = Math.round(raw * (1 - Number(resolvedProduct.eventDescuento) / 100));
+        } else if (evento.tipoEvento === "Descuento" && evento.descuento) {
+          finalP = Math.round(raw * (1 - Number(evento.descuento) / 100));
+        } else if (resolvedProduct.eventNuevoPrecio) {
+          const basePromo = Number(resolvedProduct.eventNuevoPrecio);
+          const fixedDiscount = Math.max(0, prodBase - basePromo);
+          finalP = variantObj ? Math.max(0, raw - fixedDiscount) : basePromo;
+        } else if ((evento.tipoEvento === "Promoción Precio" && evento.nuevoPrecio) || evento.nuevoPrecio) {
+          const basePromo = Number(evento.nuevoPrecio);
+          const fixedDiscount = Math.max(0, prodBase - basePromo);
+          finalP = variantObj ? Math.max(0, raw - fixedDiscount) : basePromo;
+        }
+      }
+
+      return {
+        finalPrice: finalP,
+        originalPrice: raw,
+        hasPromo: finalP < raw
+      };
+    },
+    [resolvedProduct, evento]
+  );
+
+  const activePricing = resolveVariantPricing(selectedVariant);
+  const basePrice = activePricing.originalPrice;
+  const promoPrice = activePricing.finalPrice;
+  const savings = Math.max(0, basePrice - promoPrice);
 
   // Additions total
   const additionsTotal = selectedAdditions.reduce(
@@ -566,6 +654,8 @@ export function PersonalizarEventoModal({
   const handleConfirmAddToCart = () => {
     if (!selectedProduct) return;
 
+    const targetProduct = resolvedProduct || selectedProduct;
+    const isBaseSelection = !selectedVariant;
     const eventNameTag = stripEmojis(evento.nombreEvento || evento.nombre || "Evento Especial");
     const is2x1 = Boolean(
       evento.tipoEvento === "PROMOCION_2X1" ||
@@ -593,18 +683,40 @@ export function PersonalizarEventoModal({
       kitchenNotes = kitchenNotes ? `${promoTag} • ${kitchenNotes}` : promoTag;
     }
 
+    const varChangesForOrder = (!isBaseSelection && activeVariantSummary?.changes?.length > 0)
+      ? activeVariantSummary.changes.map((c) => ({
+          tipoAccion: c.kind === "quitado" ? "QUITAR" : c.kind === "reemplazo" ? "REEMPLAZAR" : c.kind === "extra_cantidad" ? "MODIFICAR_CANTIDAD" : "AGREGAR",
+          idInsumo: c.idInsumo,
+          insumoNombre: c.nombre,
+          cantidad: c.diffQty || 1,
+          unidadMedida: c.unit || "und",
+          texto: c.texto
+        }))
+      : [];
+
+    const displayName = isBaseSelection
+      ? `${targetProduct.nombre} (${eventNameTag})`
+      : `${targetProduct.nombre} - ${selectedVariant.nombre} (${eventNameTag})`;
+
     const itemToAdd = {
-      id: selectedProduct.id || selectedProduct.idProducto,
-      idProducto: selectedProduct.idProducto || selectedProduct.id,
-      nombre: `${selectedProduct.nombre} (${eventNameTag})`,
-      nombreOriginal: selectedProduct.nombre,
+      id: targetProduct.id || targetProduct.idProducto,
+      idProducto: targetProduct.idProducto || targetProduct.id,
+      idVariante: isBaseSelection ? (targetProduct.idVarianteBase || null) : selectedVariant.idVariante,
+      esVarianteBase: isBaseSelection,
+      varianteNombre: isBaseSelection ? null : selectedVariant.nombre,
+      varianteDescripcion: isBaseSelection ? null : (selectedVariant.descripcion || null),
+      varianteEspecificaciones: isBaseSelection ? null : (activeVariantSummary?.especificacionesVariante || null),
+      varianteCambios: varChangesForOrder,
+      esVarianteDeEvento: Boolean(!isBaseSelection && isVariantFromEvent(selectedVariant)),
+      nombre: displayName,
+      nombreOriginal: targetProduct.nombre,
       precio: promoPrice,
       cantidad: cantidad,
       cantidadCocina: kitchenPrepQty,
       is2x1Promo: is2x1,
       toppingsEvento: eventToppings,
-      stock: Number(selectedProduct.stock !== undefined ? selectedProduct.stock : (selectedProduct.stockActual !== undefined ? selectedProduct.stockActual : 0)),
-      imagen: selectedProduct.imagen,
+      stock: Number(targetProduct.stock !== undefined ? targetProduct.stock : (targetProduct.stockActual !== undefined ? targetProduct.stockActual : 0)),
+      imagen: (!isBaseSelection && selectedVariant?.imagen) ? selectedVariant.imagen : targetProduct.imagen,
       isEvento: true,
       eventoInfo: {
         idEvento: evento.id || evento.idEvento,
@@ -986,6 +1098,24 @@ export function PersonalizarEventoModal({
           {/* ═══ 8. TAB CONTENT PANELS (CON MIN-HEIGHT PARA CERO SALTOS VISUALES) ═══ */}
           <div className="p-4 sm:p-6 space-y-5 min-h-[300px]">
             {activeTab === "personalizar" && <EventoToppingsCard event={evento} />}
+
+            {activeTab === "personalizar" && activeFoodVariants.length > 0 && (
+              <ProductVariantInspector
+                producto={resolvedProduct ? { ...resolvedProduct, fichaTecnica: liveFicha || resolvedProduct.fichaTecnica } : null}
+                variants={activeFoodVariants}
+                selectedKey={selectedVariant ? selectedVariant.idVariante : "BASE"}
+                onSelect={(key, vObj) => {
+                  setSelectedVariant(key === "BASE" || !vObj ? null : vObj);
+                  setRemovedIngredients([]);
+                }}
+                basePrice={Number(resolvedProduct?.precio || 0)}
+                getPriceInfo={(vObj) => resolveVariantPricing(vObj)}
+                includeBaseOption={true}
+                baseOptionLabel="Original del Evento / Receta Base"
+                isDrink={false}
+                title="Variantes del producto, precios y lo que cambia"
+              />
+            )}
 
             {/* ─── TAB 1: PERSONALIZAR (MISE EN PLACE CON LÓGICA HUMANA DE COCINA) ─── */}
             {activeTab === "personalizar" && personalizables.length > 0 && (

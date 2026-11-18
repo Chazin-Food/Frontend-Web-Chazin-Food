@@ -31,5 +31,9 @@ export const productosService = {
 
   hardDeleteProducto: async (id) => {
     return await apiClient.delete(`/productos/${id}/fisico`);
+  },
+
+  toggleVarianteEstado: async (idProducto, idVariante, estado) => {
+    return await apiClient.patch(`/productos/${idProducto}/variantes/${idVariante}/estado`, { estado });
   }
 };

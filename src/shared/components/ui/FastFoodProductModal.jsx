@@ -28,7 +28,9 @@ import {
   Globe
 } from "lucide-react";
 import { getProductEmoji, getAdditionEmoji, stripEmojis, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
-import { classifyVariantCategory, classifyVariantIngredientStatus, summarizeVariantExtras } from "@/features/ventas/utils/variantFichaUtils";
+import { isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
+import { classifyVariantCategory, classifyVariantIngredientStatus, summarizeVariantExtras, buildVariantChangesSummary } from "@/features/ventas/utils/variantFichaUtils";
+import ProductVariantInspector from "@/shared/components/ui/ProductVariantInspector";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
 import { apiClient } from "@/shared/api/apiClient";
@@ -760,24 +762,36 @@ export function FastFoodProductModal({
   const [selectedDrinks, setSelectedDrinks] = useState([]); // [{ id, nombre, precio, cantidad, imagen }]
   const realVariants = useMemo(() => {
     if (Array.isArray(producto?.variantes) && producto.variantes.length > 0) {
-      return producto.variantes.map((v) => ({
-        idVariante: v.idVariante || v.id,
-        idProducto: v.idProducto || producto?.id || producto?.idProducto,
-        nombre: v.nombre,
-        descripcion: v.descripcion || null,
-        precio: Number(v.precio || producto.precio || 0),
-        imagen: v.imagen || null,
-        insumosModificados: Array.isArray(v.insumosModificados) ? v.insumosModificados : []
-      }));
+      const visible = producto.variantes.filter(
+        (v) => v && (isDummyOrBaseVariant(v.nombre, producto?.nombre) || isVariantActive(v))
+      );
+      if (visible.length > 0) {
+        return visible.map((v) => ({
+          idVariante: v.idVariante || v.id,
+          idProducto: v.idProducto || producto?.id || producto?.idProducto,
+          nombre: v.nombre,
+          descripcion: v.descripcion || null,
+          especificaciones: v.fichaTecnica?.especificaciones || v.especificaciones || null,
+          precio: Number(v.precio || producto.precio || 0),
+          imagen: v.imagen || null,
+          estado: v.estado ?? 1,
+          creadaPorEvento: isVariantFromEvent(v),
+          idEvento: v.idEvento || v.eventoOrigen?.idEvento || null,
+          eventoOrigen: v.eventoOrigen || null,
+          fichaTecnica: v.fichaTecnica || null,
+          insumosModificados: Array.isArray(v.insumosModificados) ? v.insumosModificados : []
+        }));
+      }
     }
     return [
       {
-        idVariante: producto?.id || producto?.idProducto || 1,
+        idVariante: producto?.idVarianteBase || producto?.id || producto?.idProducto || 1,
         idProducto: producto?.id || producto?.idProducto || 1,
         nombre: producto?.nombre || "Estándar",
         descripcion: null,
         precio: Number(producto?.precio || 0),
         imagen: producto?.imagen || null,
+        esVarianteBase: true,
         insumosModificados: []
       }
     ];
@@ -787,19 +801,21 @@ export function FastFoodProductModal({
   const foodVariants = useMemo(() => {
     if (isDrink) return [];
     const vars = Array.isArray(producto?.variantes) ? producto.variantes : [];
-    const nonDummy = vars.filter((v) => !isDummyOrBaseVariant(v.nombre, producto?.nombre));
+    const nonDummy = vars.filter((v) => !isDummyOrBaseVariant(v.nombre, producto?.nombre) && isVariantActive(v));
     if (nonDummy.length === 0) return [];
 
     const baseVar = vars.find((v) => isDummyOrBaseVariant(v.nombre, producto?.nombre));
     const result = [
       {
-        idVariante: baseVar?.idVariante || baseVar?.id || producto?.id || producto?.idProducto,
+        idVariante: baseVar?.idVariante || baseVar?.id || producto?.idVarianteBase || "BASE",
         idProducto: producto?.id || producto?.idProducto,
         nombre: "Preparación Clásica / Estándar",
         descripcion: baseVar?.descripcion || "Receta tradicional con los ingredientes originales",
+        especificaciones: liveFicha?.especificaciones || producto?.fichaTecnica?.especificaciones || "",
         precio: Number(baseVar?.precio || producto?.precio || 0),
         imagen: baseVar?.imagen || null,
         esOriginal: true,
+        esVarianteBase: true,
         insumosModificados: []
       }
     ];
@@ -810,16 +826,22 @@ export function FastFoodProductModal({
         idProducto: v.idProducto || producto?.id || producto?.idProducto,
         nombre: v.nombre,
         descripcion: v.descripcion || "",
+        especificaciones: v.fichaTecnica?.especificaciones || v.especificaciones || "",
         precio: Number(v.precio || producto?.precio || 0),
         imagen: v.imagen || null,
         esOriginal: false,
+        esVarianteBase: false,
+        estado: 1,
+        creadaPorEvento: isVariantFromEvent(v),
+        idEvento: v.idEvento || v.eventoOrigen?.idEvento || null,
+        eventoOrigen: v.eventoOrigen || null,
         fichaTecnica: v.fichaTecnica || null,
         insumosModificados: Array.isArray(v.insumosModificados) ? v.insumosModificados : []
       });
     });
 
     return result;
-  }, [isDrink, producto]);
+  }, [isDrink, producto, liveFicha]);
 
   // Variantes de fórmula o sabor para bebidas (excluyendo tamaños como 1.5L, 2.5L que pertenecen al selector de tamaños)
   const drinkFormulaVariants = useMemo(() => {
@@ -943,11 +965,31 @@ export function FastFoodProductModal({
   useEffect(() => {
     if (!isDrink && foodVariants.length > 0) {
       setSelectedVariant((prev) => {
-        const found = foodVariants.find(v => (v.idVariante || v.id) === (prev?.idVariante || prev?.id));
+        const found = foodVariants.find((v) =>
+          (prev?.esOriginal && v.esOriginal) ||
+          (!v.esOriginal && !prev?.esOriginal && (v.idVariante || v.id) === (prev?.idVariante || prev?.id))
+        );
         return found || foodVariants[0];
       });
+    } else if (!isDrink && foodVariants.length === 0) {
+      setSelectedVariant(realVariants[0] || null);
     }
-  }, [isDrink, foodVariants]);
+  }, [isDrink, foodVariants, realVariants]);
+
+  const activeVariantSummary = useMemo(
+    () =>
+      buildVariantChangesSummary(
+        selectedVariant && !selectedVariant.esOriginal && !selectedVariant.esVarianteBase
+          ? selectedVariant
+          : null,
+        {
+          ...producto,
+          fichaTecnica: liveFicha || producto?.fichaTecnica
+        },
+        isDrink
+      ),
+    [selectedVariant, producto, liveFicha, isDrink]
+  );
 
   const isPostobonDrink = useMemo(() => isDrink && isPostobonDrinkProduct(producto), [isDrink, producto]);
   const [selectedSizeId, setSelectedSizeId] = useState(() => detectDefaultDrinkSize(producto));
@@ -1944,6 +1986,12 @@ export function FastFoodProductModal({
         formulaTitle = selectedVariant?.nombre || producto?.nombre;
       }
     } else {
+      const isBaseFood = Boolean(
+        !selectedVariant ||
+        selectedVariant.esOriginal ||
+        selectedVariant.esVarianteBase ||
+        isDummyOrBaseVariant(selectedVariant?.nombre, producto?.nombre)
+      );
       if (selectedSizeId === "1.5L" || selectedSizeId === "2.5L") {
         const sizeMatchedVar = realVariants.find((v) => {
           const vn = (v.nombre || "").toLowerCase();
@@ -1951,13 +1999,40 @@ export function FastFoodProductModal({
           if (selectedSizeId === "2.5L") return vn.includes("2.5") || vn.includes("2,5") || vn.includes("mega");
           return false;
         });
-        chosenVarId = sizeMatchedVar?.idVariante || selectedVariant?.idVariante || producto?.id || producto?.idProducto;
-        formulaTitle = selectedVariant && !selectedVariant.esOriginal ? selectedVariant.nombre : null;
+        chosenVarId = sizeMatchedVar?.idVariante || (selectedVariant?.idVariante !== "BASE" ? selectedVariant?.idVariante : null) || producto?.idVarianteBase || null;
+        formulaTitle = selectedVariant && !isBaseFood ? selectedVariant.nombre : null;
+      } else if (isBaseFood) {
+        chosenVarId = (selectedVariant?.idVariante && selectedVariant.idVariante !== "BASE")
+          ? selectedVariant.idVariante
+          : (producto?.idVarianteBase || null);
+        formulaTitle = null;
       } else {
-        chosenVarId = selectedVariant?.idVariante || producto?.id || producto?.idProducto;
-        formulaTitle = selectedVariant && !selectedVariant.esOriginal ? selectedVariant.nombre : null;
+        chosenVarId = selectedVariant?.idVariante || selectedVariant?.id || null;
+        formulaTitle = selectedVariant.nombre;
       }
     }
+
+    const esVarianteBaseFinal = Boolean(
+      !isDrink && (
+        !selectedVariant ||
+        selectedVariant.esOriginal ||
+        selectedVariant.esVarianteBase ||
+        isDummyOrBaseVariant(selectedVariant?.nombre, producto?.nombre)
+      )
+    );
+    const resolvedVarChanges = (!esVarianteBaseFinal && activeVariantSummary?.changes?.length > 0)
+      ? activeVariantSummary.changes.map((c) => ({
+          tipoAccion: c.kind === "quitado" ? "QUITAR" : c.kind === "reemplazo" ? "REEMPLAZAR" : c.kind === "extra_cantidad" ? "MODIFICAR_CANTIDAD" : "AGREGAR",
+          idInsumo: c.idInsumo,
+          insumoNombre: c.nombre,
+          cantidad: c.diffQty || 1,
+          unidadMedida: c.unit || "und",
+          texto: c.texto
+        }))
+      : [];
+    const resolvedVarName = !esVarianteBaseFinal
+      ? (formulaTitle || (!isDummyOrBaseVariant(selectedVariant?.nombre, producto?.nombre) ? selectedVariant?.nombre : null) || null)
+      : null;
 
     const cleanBaseName = drinkHasSizes ? producto.nombre.replace(/\s*400\s*ml/gi, "").trim() : producto.nombre;
     let customName = isDrink 
@@ -2018,6 +2093,12 @@ export function FastFoodProductModal({
         ...producto,
         idVariante: chosenVarId,
         idProducto: targetProdId,
+        esVarianteBase: esVarianteBaseFinal,
+        varianteNombre: resolvedVarName,
+        varianteDescripcion: !esVarianteBaseFinal ? (selectedVariant?.descripcion || null) : null,
+        varianteEspecificaciones: !esVarianteBaseFinal ? (activeVariantSummary?.especificacionesVariante || null) : null,
+        varianteCambios: resolvedVarChanges,
+        esVarianteDeEvento: Boolean(!esVarianteBaseFinal && selectedVariant && isVariantFromEvent(selectedVariant)),
         nombrePersonalizado: customName,
         saborSeleccionado: formulaTitle || cleanBaseName,
         configuracionCombo: comboConfig,
@@ -2028,6 +2109,12 @@ export function FastFoodProductModal({
       },
       idVariante: chosenVarId,
       idProducto: targetProdId,
+      esVarianteBase: esVarianteBaseFinal,
+      varianteNombre: resolvedVarName,
+      varianteDescripcion: !esVarianteBaseFinal ? (selectedVariant?.descripcion || null) : null,
+      varianteEspecificaciones: !esVarianteBaseFinal ? (activeVariantSummary?.especificacionesVariante || null) : null,
+      varianteCambios: resolvedVarChanges,
+      esVarianteDeEvento: Boolean(!esVarianteBaseFinal && selectedVariant && isVariantFromEvent(selectedVariant)),
       cantidad: quantity,
       cantidadCocina: kitchenPrepQty,
       is2x1Promo,
@@ -2263,7 +2350,7 @@ export function FastFoodProductModal({
           </div>
 
           {/* ═══ DESCRIPCIÓN COMPLETA DEL PLATILLO (MÁXIMA LEGIBILIDAD Y ALTO CONTRASTE) ═══ */}
-          {producto.descripcion && (
+          {(producto.descripcion || activeVariantSummary?.especificaciones) && (
             <div className="mx-4 sm:mx-6 mt-3.5 mb-2.5 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-50/70 via-amber-50/30 to-transparent dark:from-amber-950/30 dark:via-amber-950/15 dark:to-transparent border border-amber-200/80 dark:border-amber-700/50 shadow-2xs flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                 <UtensilsCrossed className="w-4 h-4" />
@@ -2271,15 +2358,24 @@ export function FastFoodProductModal({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="font-extrabold text-xs text-amber-900 dark:text-amber-300 uppercase tracking-wider">
-                    Descripción & Preparación
+                    Descripción & Especificaciones
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-700/60">
-                    Receta de la Casa
+                    {selectedVariant && !selectedVariant.esOriginal && !selectedVariant.esVarianteBase
+                      ? `Variante: ${selectedVariant.nombre}`
+                      : "Receta de la Casa"}
                   </span>
                 </div>
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-relaxed">
-                  {producto.descripcion}
-                </p>
+                {producto.descripcion && (
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 leading-relaxed">
+                    {producto.descripcion}
+                  </p>
+                )}
+                {activeVariantSummary?.especificaciones && activeVariantSummary.especificaciones !== producto.descripcion && (
+                  <p className="text-xs font-semibold text-amber-900/90 dark:text-amber-200 mt-1.5 bg-white/70 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-lg border border-amber-200/70 dark:border-amber-800/50">
+                    Especificaciones técnicas: {activeVariantSummary.especificaciones}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -2381,7 +2477,7 @@ export function FastFoodProductModal({
             <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl w-full">
               {isDrink ? (
                 <>
-                  {drinkHasSizes && (
+                  {(drinkHasSizes || drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
                     <button
                       type="button"
                       onClick={() => setActiveTab("presentacion")}
@@ -2392,7 +2488,7 @@ export function FastFoodProductModal({
                       }`}
                     >
                       <Layers className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">Tamaño & Presentación</span>
+                      <span className="truncate">{drinkHasSizes ? "Tamaño & Presentación" : "Variantes & Sabor"}</span>
                       <span
                         className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black leading-none whitespace-nowrap inline-flex items-center justify-center transition-colors ${
                           activeTab === "presentacion"
@@ -2400,7 +2496,7 @@ export function FastFoodProductModal({
                             : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                         }`}
                       >
-                        {selectedSizeObj?.label || "400 ml"}
+                        {drinkHasSizes ? (selectedSizeObj?.label || "400 ml") : (selectedVariant?.nombre || "Variantes")}
                       </span>
                     </button>
                   )}
@@ -2517,6 +2613,24 @@ export function FastFoodProductModal({
 
           {/* ═══ 3. TAB CONTENT PANELS ═══ */}
           <div className="p-4 sm:p-6 space-y-5">
+            {/* ─── TAB 0: VARIANTES SIN TAMAÑO PARA BEBIDAS ─── */}
+            {!drinkHasSizes && isDrink && activeTab === "presentacion" && (drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                <ProductVariantInspector
+                  producto={{ ...producto, fichaTecnica: liveFicha || producto?.fichaTecnica }}
+                  variants={drinkFormulaVariants.length > 0 ? drinkFormulaVariants : realVariants}
+                  selectedKey={selectedVariant?.idVariante || selectedVariant?.id || "BASE"}
+                  onSelect={(key, vObj) => {
+                    if (vObj) handleSelectDrinkFormula(vObj);
+                  }}
+                  basePrice={Number(producto?.precio || 0)}
+                  includeBaseOption={false}
+                  isDrink={true}
+                  title="Presentaciones y fórmulas disponibles"
+                />
+              </div>
+            )}
+
             {/* ─── TAB 0: TAMAÑOS DE BEBIDA (ULTRA PREMIUM FAST FOOD SELECTOR) ─── */}
             {drinkHasSizes && activeTab === "presentacion" && (
               <div className="space-y-5 animate-in fade-in duration-200">
@@ -2764,130 +2878,38 @@ export function FastFoodProductModal({
                   )}
                 </div>
 
-                {/* ── SECCIÓN 0: SELECTOR DE VARIANTE PARA COMIDAS / PLATOS ── */}
-                {foodVariants.length > 0 && (
-                  <div className="p-3.5 rounded-2xl bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200/80 dark:border-orange-900/40 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-orange-500" />
-                        <h4 className="text-xs font-black uppercase tracking-wider text-orange-900 dark:text-orange-200">
-                          Variante / Preparación del Plato
-                        </h4>
-                      </div>
-                      <span className="text-[11px] font-bold text-orange-700 dark:text-orange-300">
-                        {selectedVariant?.nombre || "Estándar"}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {foodVariants.map((v) => {
-                        const isSel = (selectedVariant?.idVariante || selectedVariant?.id) === (v.idVariante || v.id) ||
-                          (v.esOriginal && (!selectedVariant || selectedVariant.esOriginal || (selectedVariant.idVariante === (producto?.id || producto?.idProducto))));
-                        const baseDetForVar = ficha?.detalles || ficha?.insumos || producto?.fichaTecnica?.detalles || [];
-                        const varExtrasInfo = !v.esOriginal
-                          ? summarizeVariantExtras(v.fichaTecnica?.detalles || [], baseDetForVar, v.insumosModificados || [], false, v.nombre)
-                          : { extrasCount: 0, extraItems: [], variantCategory: null };
-                        const vCat = !v.esOriginal
-                          ? (varExtrasInfo.variantCategory || classifyVariantCategory(v, baseDetForVar, false))
-                          : null;
-                        const isScaledFamily =
-                          varExtrasInfo.extraItems.length > 3 &&
-                          varExtrasInfo.extraItems.every((e) => e.kind === "extra_cantidad");
-                        return (
-                          <div
-                            key={v.idVariante || v.id || v.nombre}
-                            onClick={() => setSelectedVariant(v)}
-                            className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none active:scale-[0.98] ${
-                              isSel
-                                ? "border-orange-500 bg-white dark:bg-gray-800 shadow-xs ring-2 ring-orange-400/40"
-                                : "border-orange-200/60 dark:border-gray-700 bg-white/70 dark:bg-gray-850 hover:bg-white hover:border-orange-300"
-                            }`}
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                                  <span className="font-bold text-gray-900 dark:text-gray-100 truncate">
-                                    {v.nombre}
-                                  </span>
-                                  {v.esOriginal ? (
-                                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 shrink-0">
-                                      Base
-                                    </span>
-                                  ) : vCat ? (
-                                    <span
-                                      className={`text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${
-                                        vCat.id === "base_proteina"
-                                          ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-800"
-                                          : vCat.id === "sabor_salsa"
-                                            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800"
-                                            : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
-                                      }`}
-                                      title={vCat.label}
-                                    >
-                                      {vCat.shortLabel}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                {(() => {
-                                  const vPrice = Number(v.precio || producto?.precio || 0);
-                                  const pBase = Number(producto?.precio || 0);
-                                  const anyDiff = foodVariants.some((fv) => Number(fv.precio) > 0 && Number(fv.precio) !== pBase);
-                                  if (!anyDiff || vPrice <= 0) return null;
-                                  return (
-                                    <span className="text-[10.5px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded-md tabular-nums shrink-0">
-                                      ${vPrice.toLocaleString("es-CO")}
-                                    </span>
-                                  );
-                                })()}
-                              </div>
-                              {v.descripcion && (
-                                <p className="text-[10.5px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
-                                  {v.descripcion}
-                                </p>
-                              )}
-                              {varExtrasInfo.extrasCount > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                  {isScaledFamily ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800">
-                                      ▲ Porción Familiar: Doble cantidad en los {varExtrasInfo.extrasCount} insumos base
-                                    </span>
-                                  ) : (
-                                    varExtrasInfo.extraItems.map((ext) => (
-                                      <span
-                                        key={`var-ext-${ext.idInsumo}`}
-                                        className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border ${
-                                          ext.kind === "reemplazo"
-                                            ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800"
-                                            : ext.kind === "extra_nuevo"
-                                              ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800"
-                                              : "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800"
-                                        }`}
-                                        title={ext.badgeText}
-                                      >
-                                        {ext.kind === "reemplazo"
-                                          ? `⇄ ${ext.nombre} (por ${ext.replacedName})`
-                                          : ext.kind === "extra_cantidad"
-                                            ? `▲ Porción: ${ext.nombre} (+${ext.diffQty} ${ext.unit})`
-                                            : `★ Sabor/Salsa: ${ext.nombre}`}
-                                      </span>
-                                    ))
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <div
-                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                isSel
-                                  ? "border-orange-500 bg-orange-500 text-white"
-                                  : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
-                              }`}
-                            >
-                              {isSel && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                {/* ── SECCIÓN 0: SELECTOR E INSPECTOR DE VARIANTES (PRECIO, QUÉ CAMBIA Y ESPECIFICACIONES) ── */}
+                {foodVariants.filter((fv) => !fv.esOriginal).length > 0 && (
+                  <ProductVariantInspector
+                    producto={{ ...producto, fichaTecnica: liveFicha || producto?.fichaTecnica }}
+                    variants={foodVariants.filter((fv) => !fv.esOriginal)}
+                    selectedKey={selectedVariant && !selectedVariant.esOriginal && !selectedVariant.esVarianteBase ? selectedVariant.idVariante : "BASE"}
+                    onSelect={(key, vObj) => {
+                      if (key === "BASE" || !vObj) {
+                        setSelectedVariant(foodVariants.find((fv) => fv.esOriginal) || null);
+                      } else {
+                        setSelectedVariant(vObj);
+                      }
+                    }}
+                    basePrice={Number(producto?.precio || 0)}
+                    getPriceInfo={(vObj) => {
+                      const raw = vObj && Number(vObj.precio) > 0 ? Number(vObj.precio) : Number(producto?.precio || 0);
+                      let finalP = raw;
+                      if (eventInfo) {
+                        if (Number(eventInfo.nuevoPrecio) > 0) finalP = Number(eventInfo.nuevoPrecio);
+                        else if (Number(eventInfo.descuento) > 0) finalP = Math.round(raw * (1 - Number(eventInfo.descuento) / 100));
+                      }
+                      return {
+                        finalPrice: finalP,
+                        originalPrice: raw,
+                        hasPromo: Boolean(eventInfo && finalP < raw)
+                      };
+                    }}
+                    includeBaseOption={true}
+                    baseOptionLabel="Preparación Clásica / Estándar"
+                    isDrink={false}
+                    title="Variantes disponibles, precio y lo que cambia"
+                  />
                 )}
 
                 {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (PROTEGIDOS POR LÓGICA HUMANA) ── */}

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { FoodIcon, EventBadge } from "@/shared/components/ui/FoodIcon";
 import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
-import { getProductVariantSummary } from "@/shared/utils/productVariantUtils";
+import { getProductVariantSummary, isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 
 export const getActiveProductEvent = (producto) => {
@@ -159,7 +159,7 @@ export function ProductosTable({
         ) : (
           paginatedProductos.map((p) => {
             const activeEvt = getActiveEvent(p);
-            const variantSummary = getProductVariantSummary(p);
+            const variantSummary = getProductVariantSummary(p, { includeInactive: true });
             const stockVal = Number(p.stockDisponible !== undefined ? p.stockDisponible : (p.stock !== undefined ? p.stock : 0));
             const isActivo = p.estado === "Activo" || p.estado === 1 || p.estado === "1";
             const hasSalesLock = Boolean(p.tieneVentas || Number(p.ventas || 0) > 0);
@@ -340,7 +340,7 @@ export function ProductosTable({
                       <div>
                         {(() => {
                           const activeEvt = getActiveEvent(p);
-                          const variantSummary = getProductVariantSummary(p);
+                          const variantSummary = getProductVariantSummary(p, { includeInactive: true });
                           const basePrice = Number(p.precio || 0);
                           const toppings = activeEvt ? parseEventoInsumos(activeEvt) : [];
                           const isToppingEvt = Boolean(
@@ -387,13 +387,23 @@ export function ProductosTable({
                                   {variantSummary.variants.slice(0, 3).map((v, vIdx) => {
                                     const vPrice = Number(v.precio || 0);
                                     const hasCustomPrice = vPrice > 0 && vPrice !== basePrice;
+                                    const varActive = isVariantActive(v);
+                                    const varFromEvt = isVariantFromEvent(v);
                                     return (
                                       <span
                                         key={v.idVariante || v.id || `${v.nombre}-${vIdx}`}
-                                        title={hasCustomPrice ? `${v.nombre} ($${vPrice.toLocaleString("es-CO")})` : v.nombre}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold bg-indigo-50/90 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 border border-indigo-200/80 dark:border-indigo-800/60 max-w-[165px] truncate"
+                                        title={`${v.nombre}${hasCustomPrice ? ` ($${vPrice.toLocaleString("es-CO")})` : ""}${varFromEvt ? " • Creada por evento" : ""}${!varActive ? " • Inactiva en clientes" : ""}`}
+                                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold border max-w-[185px] truncate ${
+                                          !varActive
+                                            ? "bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 opacity-75"
+                                            : "bg-indigo-50/90 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 border-indigo-200/80 dark:border-indigo-800/60"
+                                        }`}
                                       >
-                                        <span className="truncate">{v.nombre}</span>
+                                        {varFromEvt && <Sparkles className="w-2.5 h-2.5 text-amber-500 shrink-0" />}
+                                        <span className={`truncate ${!varActive ? "line-through" : ""}`}>{v.nombre}</span>
+                                        {!varActive && (
+                                          <span className="text-[8.5px] font-black uppercase text-rose-500 shrink-0">Off</span>
+                                        )}
                                         {hasCustomPrice && (
                                           <span className="text-[9.5px] font-bold text-indigo-600 dark:text-indigo-300 shrink-0">
                                             ${vPrice.toLocaleString("es-CO")}

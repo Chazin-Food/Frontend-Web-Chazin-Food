@@ -69,7 +69,7 @@ export function OrdenCard({ orden, onUpdateEstado, onViewDetails }) {
                 orden.platilloNombre
               )}
             </h4>
-            {Array.isArray(orden.productos) && orden.productos.some(p => (p.adiciones && p.adiciones.length > 0) || p.observaciones) && (
+            {Array.isArray(orden.productos) && orden.productos.some(p => (p.varianteNombre && !p.esVarianteBase) || (p.adiciones && p.adiciones.length > 0) || p.observaciones || p.varianteEspecificaciones) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -78,7 +78,14 @@ export function OrdenCard({ orden, onUpdateEstado, onViewDetails }) {
                 }}
                 className="mt-1 text-xs text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 font-semibold text-left cursor-pointer"
               >
-                <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" /><span>Con adiciones / notas personalizadas</span></span>
+                <span className="inline-flex items-center gap-1 flex-wrap">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>
+                    {orden.productos.some(p => p.varianteNombre && !p.esVarianteBase)
+                      ? `Variante: ${orden.productos.filter(p => p.varianteNombre && !p.esVarianteBase).map(p => p.varianteNombre).slice(0, 2).join(", ")}`
+                      : "Con adiciones / notas personalizadas"}
+                  </span>
+                </span>
                 <span className="text-[10px] text-gray-400 font-normal">(ver detalle)</span>
               </button>
             )}

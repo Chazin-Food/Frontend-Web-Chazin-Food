@@ -223,11 +223,21 @@ export function imprimirComanda(orden) {
         const qty = Number(p.cantidad) || 1;
         const adds = Array.isArray(p.adiciones) ? p.adiciones : [];
         const obs = p.observaciones || p.nota || "";
+        const varCambios = Array.isArray(p.varianteCambios) ? p.varianteCambios : [];
+        const ings = Array.isArray(p.receta?.ingredientes) ? p.receta.ingredientes : [];
+        const specsStr = [p.varianteEspecificaciones, p.receta?.especificaciones, p.especificacionesProducto]
+          .filter((s) => s && String(s).trim())
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .join(" • ");
         return `
         <tr class="item-row">
           <td class="item-qty">x${qty}</td>
           <td>
             <div class="item-name">${p.nombre}</div>
+            ${p.varianteNombre && !p.esVarianteBase ? `<div class="item-adds">Variante: <strong>${p.varianteNombre}</strong>${p.esVarianteDeEvento ? " (Evento)" : ""}</div>` : ''}
+            ${varCambios.length > 0 ? `<div class="item-adds">Cambios: ${varCambios.map(c => c.texto || c.insumoNombre).join(', ')}</div>` : ''}
+            ${ings.length > 0 ? `<div class="item-notes">Insumos: ${ings.map(ing => `${ing.nombre} (${ing.cantidad})`).join(', ')}</div>` : ''}
+            ${specsStr ? `<div class="item-notes">Specs: ${specsStr}</div>` : ''}
             ${adds.length > 0 ? `
               <div class="item-adds">
                 + Adiciones: ${adds.map(a => typeof a === 'object' ? `${a.cantidad > 1 ? `x${a.cantidad} ` : ''}${a.nombre || a.nombreAdicion}` : a).join(', ')}

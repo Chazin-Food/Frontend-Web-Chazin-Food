@@ -10,12 +10,52 @@ import { classifyVariantIngredientStatus, summarizeVariantExtras } from "../../u
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import { formatTipoEvento, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { calculateRecipeTotals } from "@/features/fichas-tecnicas/utils/costoUtils";
+import { isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
+import { productosService } from "../../servicios/productosService";
+import { useNotifications } from "@/shared/hooks/useNotifications";
 
-export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicate }) {
+export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicate, onVariantToggled }) {
+  const notify = useNotifications();
   const [fichaTecnica, setFichaTecnica] = useState(null);
   const [loadingFicha, setLoadingFicha] = useState(false);
   const [resenasData, setResenasData] = useState({ promedio: 0, total: 0, resenas: [] });
   const [loadingResenas, setLoadingResenas] = useState(false);
+  const [localVariantStates, setLocalVariantStates] = useState({});
+  const [togglingVarId, setTogglingVarId] = useState(null);
+
+  useEffect(() => {
+    setLocalVariantStates({});
+  }, [producto?.id, producto?.idProducto, isOpen]);
+
+  const getEffectiveVarActive = (v) => {
+    const vid = v?.idVariante || v?.id;
+    if (vid && localVariantStates[vid] !== undefined) return Number(localVariantStates[vid]) !== 0;
+    return isVariantActive(v);
+  };
+
+  const handleToggleVariantActive = async (v) => {
+    const prodId = producto?.id || producto?.idProducto;
+    const varId = v?.idVariante || v?.id;
+    if (!prodId || !varId) return;
+    const currentActive = getEffectiveVarActive(v);
+    const nextEstado = currentActive ? 0 : 1;
+    try {
+      setTogglingVarId(varId);
+      await productosService.toggleVarianteEstado(prodId, varId, nextEstado);
+      setLocalVariantStates((prev) => ({ ...prev, [varId]: nextEstado }));
+      notify.success?.(
+        nextEstado === 1 ? "Variante activada" : "Variante inactivada",
+        nextEstado === 1
+          ? `"${v.nombre}" volvió a estar visible en el módulo de clientes.`
+          : `"${v.nombre}" quedó inactiva y no se mostrará en el módulo de clientes.`
+      );
+      if (typeof onVariantToggled === "function") onVariantToggled();
+    } catch (err) {
+      notify.error?.("No se pudo cambiar el estado", err?.message || "Inténtalo nuevamente.");
+    } finally {
+      setTogglingVarId(null);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -561,10 +601,18 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                     </div>
                     <div className="bg-purple-50/40 dark:bg-purple-950/20 rounded-2xl p-3 sm:p-4 border border-purple-200/70 dark:border-purple-900/40">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {flavorVariantes.map((v, i) => (
+                        {flavorVariantes.map((v, i) => {
+                          const isVarAct = getEffectiveVarActive(v);
+                          const fromEvt = isVariantFromEvent(v);
+                          const vid = v.idVariante || v.id;
+                          return (
                           <div
-                            key={v.idVariante || v.id || i}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-purple-200/80 dark:border-purple-900/40 shadow-2xs text-xs"
+                            key={vid || i}
+                            className={`flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 border shadow-2xs text-xs transition ${
+                              isVarAct
+                                ? "border-purple-200/80 dark:border-purple-900/40"
+                                : "border-gray-200 dark:border-gray-700 opacity-75"
+                            }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               {v.imagen ? (
@@ -578,27 +626,56 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                                   {i + 1}
                                 </span>
                               )}
-                              <div className="truncate">
-                                <span className="font-bold text-gray-800 dark:text-gray-200 block truncate">
-                                  {v.nombre}
-                                </span>
-                                <span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`font-bold truncate ${isVarAct ? "text-gray-800 dark:text-gray-200" : "text-gray-400 line-through"}`}>
+                                    {v.nombre}
+                                  </span>
+                                  {fromEvt && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                                      <Sparkles className="w-2.5 h-2.5" /> Hecha por evento
+                                    </span>
+                                  )}
+                                  {!isVarAct && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-100 text-rose-700 border border-rose-200">
+                                      Inactiva
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
                                   Sabor / Presentación
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
                               {Number(v.precio) > 0 && Number(v.precio) !== Number(producto?.precio || 0) && (
                                 <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md tabular-nums">
                                   ${Number(v.precio).toLocaleString("es-CO")}
                                 </span>
                               )}
-                              <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/50 px-2 py-0.5 rounded-md">
-                                Opción
-                              </span>
+                              {vid && (
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={isVarAct}
+                                  disabled={togglingVarId === vid}
+                                  onClick={() => handleToggleVariantActive(v)}
+                                  title={isVarAct ? "Desactivar variante en clientes" : "Activar variante en clientes"}
+                                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 ${
+                                    isVarAct ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                      isVarAct ? "translate-x-4.5" : "translate-x-1"
+                                    }`}
+                                  />
+                                </button>
+                              )}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -626,10 +703,17 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                         v.nombre
                       );
                       const vCat = varExtrasInfo.variantCategory;
+                      const isVarAct = getEffectiveVarActive(v);
+                      const fromEvt = isVariantFromEvent(v);
+                      const vid = v.idVariante || v.id;
                       return (
                       <div
-                        key={v.idVariante || v.id || i}
-                        className="flex flex-col gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-orange-150 dark:border-orange-900/40 shadow-2xs text-xs"
+                        key={vid || i}
+                        className={`flex flex-col gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 border shadow-2xs text-xs transition ${
+                          isVarAct
+                            ? "border-orange-150 dark:border-orange-900/40"
+                            : "border-gray-200 dark:border-gray-700 opacity-75"
+                        }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -646,9 +730,22 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                             )}
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-semibold text-gray-800 dark:text-gray-200 truncate">
+                                <span className={`font-semibold truncate ${isVarAct ? "text-gray-800 dark:text-gray-200" : "text-gray-400 line-through"}`}>
                                   {v.nombre}
                                 </span>
+                                {fromEvt && (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 shrink-0"
+                                    title={v.eventoOrigen?.nombre ? `Evento: ${v.eventoOrigen.nombre}` : "Variante generada desde evento"}
+                                  >
+                                    <Sparkles className="w-2.5 h-2.5" /> Hecha por evento
+                                  </span>
+                                )}
+                                {!isVarAct && (
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-100 text-rose-700 border border-rose-200 shrink-0">
+                                    Inactiva en clientes
+                                  </span>
+                                )}
                                 {vCat && (
                                   <span
                                     className={`text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${
@@ -686,6 +783,25 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                             <span className="text-[10px] font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/50 px-2 py-0.5 rounded-md">
                               {varDetalles.length > 0 ? `${varDetalles.length} ins.` : "Opción"}
                             </span>
+                            {vid && (
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isVarAct}
+                                disabled={togglingVarId === vid}
+                                onClick={() => handleToggleVariantActive(v)}
+                                title={isVarAct ? "Desactivar variante en módulo clientes" : "Activar variante en módulo clientes"}
+                                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 ${
+                                  isVarAct ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+                                }`}
+                              >
+                                <span
+                                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                    isVarAct ? "translate-x-4.5" : "translate-x-1"
+                                  }`}
+                                />
+                              </button>
+                            )}
                           </div>
                         </div>
                         {varExtrasInfo.extrasCount > 0 && (

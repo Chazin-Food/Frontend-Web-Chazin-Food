@@ -11,15 +11,20 @@ const CartContext = createContext(undefined);
  */
 export function generateCartItemId(item) {
   const prodId = item.id || item.idProducto;
-  const varKey = item.idVariante && String(item.idVariante) !== String(prodId) ? `_var[${item.idVariante}]` : '';
+  const varKey = item.esVarianteBase
+    ? '_var[BASE]'
+    : (item.idVariante && String(item.idVariante) !== String(prodId) ? `_var[${item.idVariante}]` : '');
   const saborKey = item.sabor ? `_sabor[${String(item.sabor).toLowerCase().trim()}]` : '';
   const evtKey = item.eventoInfo?.idEvento || (item.isEvento ? 'evt' : '');
   const adicionesKey = (item.adiciones || [])
     .map((a) => `${a.idAdicion || a.id}:${a.cantidad || 1}`)
     .sort()
     .join(",");
+  const removedKey = Array.isArray(item.ingredientesRemovidos) && item.ingredientesRemovidos.length > 0
+    ? `__sin[${[...item.ingredientesRemovidos].sort().join(",").toLowerCase()}]`
+    : '';
   const obsKey = (item.observaciones || item.instrucciones || item.observacion || "").trim().toLowerCase();
-  return `${prodId}${varKey}${saborKey}__evt[${evtKey}]__ads[${adicionesKey}]__obs[${obsKey}]`;
+  return `${prodId}${varKey}${saborKey}__evt[${evtKey}]__ads[${adicionesKey}]${removedKey}__obs[${obsKey}]`;
 }
 
 export function CartProvider({ children }) {

@@ -30,14 +30,37 @@ export const isDummyOrBaseVariant = (vName, pName) => {
 };
 
 /**
- * Retorna únicamente las variantes reales y mostrables de un producto.
- * Excluye combos, nombres vacíos, duplicados y variantes base/dummy.
+ * Determina si una variante está activa y visible para clientes.
  */
-export const getDisplayProductVariants = (producto) => {
+export const isVariantActive = (variant) => {
+  if (!variant || typeof variant !== "object") return false;
+  if (variant.activo === false) return false;
+  const est = variant.estado;
+  if (est === 0 || est === "0" || est === false) return false;
+  if (typeof est === "string" && est.trim().toLowerCase() === "inactivo") return false;
+  return true;
+};
+
+/**
+ * Determina si una variante fue generada automáticamente desde un evento/campaña.
+ */
+export const isVariantFromEvent = (variant) => {
+  if (!variant || typeof variant !== "object") return false;
+  return Boolean(variant.creadaPorEvento || variant.idEvento || variant.eventoOrigen?.idEvento);
+};
+
+/**
+ * Retorna únicamente las variantes reales y mostrables de un producto.
+ * Excluye combos, nombres vacíos, duplicados, variantes base/dummy e inactivas (por defecto).
+ * @param {object} producto
+ * @param {{ includeInactive?: boolean }} [options]
+ */
+export const getDisplayProductVariants = (producto, options = {}) => {
   if (!producto || producto.configuracionCombo?.esCombo) return [];
   const rawVars = Array.isArray(producto.variantes) ? producto.variantes : [];
   if (rawVars.length === 0) return [];
 
+  const { includeInactive = false } = options || {};
   const seen = new Set();
   const result = [];
 
@@ -47,13 +70,19 @@ export const getDisplayProductVariants = (producto) => {
     if (!rawName) continue;
     if (isDummyOrBaseVariant(rawName, producto.nombre)) continue;
 
+    const active = isVariantActive(v);
+    if (!includeInactive && !active) continue;
+
     const normKey = rawName.toLowerCase();
     if (seen.has(normKey)) continue;
     seen.add(normKey);
 
     result.push({
       ...v,
-      nombre: rawName
+      nombre: rawName,
+      estado: active ? 1 : 0,
+      creadaPorEvento: isVariantFromEvent(v),
+      idEvento: v.idEvento || v.eventoOrigen?.idEvento || null
     });
   }
 
@@ -63,9 +92,11 @@ export const getDisplayProductVariants = (producto) => {
 /**
  * Resume la información de variantes de un producto para mostrar en listados
  * (conteo, nombres visibles y rango de precios si difieren del precio base).
+ * @param {object} producto
+ * @param {{ includeInactive?: boolean }} [options]
  */
-export const getProductVariantSummary = (producto) => {
-  const variants = getDisplayProductVariants(producto);
+export const getProductVariantSummary = (producto, options = {}) => {
+  const variants = getDisplayProductVariants(producto, options);
   const count = variants.length;
   const hasVariants = count > 0;
   const basePriceNum = Number(producto?.precio || 0);

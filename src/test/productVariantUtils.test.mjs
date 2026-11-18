@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   isDummyOrBaseVariant,
+  isVariantActive,
+  isVariantFromEvent,
   getDisplayProductVariants,
   getProductVariantSummary
 } from "../shared/utils/productVariantUtils.js";
@@ -83,5 +85,38 @@ test("getProductVariantSummary summarizes variant count, names, and custom price
   const noVariants = getProductVariantSummary({ nombre: "Papas", precio: 7000, variantes: [] });
   assert.equal(noVariants.hasVariants, false);
   assert.equal(noVariants.count, 0);
+});
+
+test("isVariantActive & isVariantFromEvent filter inactive variants for customers unless includeInactive is true", () => {
+  assert.equal(isVariantActive({ estado: 1 }), true);
+  assert.equal(isVariantActive({ estado: 0 }), false);
+  assert.equal(isVariantActive({ estado: "Inactivo" }), false);
+  assert.equal(isVariantActive({ activo: false }), false);
+
+  assert.equal(isVariantFromEvent({ creadaPorEvento: true }), true);
+  assert.equal(isVariantFromEvent({ idEvento: 14 }), true);
+  assert.equal(isVariantFromEvent({ creadaPorEvento: false }), false);
+
+  const burger = {
+    nombre: "Hamburguesa Clásica",
+    precio: 19000,
+    variantes: [
+      { idVariante: 101, nombre: "Edición Tocineta", precio: 22000, estado: 1, creadaPorEvento: 1, idEvento: 9 },
+      { idVariante: 102, nombre: "Edición Pausada", precio: 23000, estado: 0, creadaPorEvento: 1, idEvento: 10 }
+    ]
+  };
+
+  const clientVisible = getDisplayProductVariants(burger);
+  assert.equal(clientVisible.length, 1);
+  assert.equal(clientVisible[0].nombre, "Edición Tocineta");
+  assert.equal(clientVisible[0].creadaPorEvento, true);
+
+  const adminVisible = getDisplayProductVariants(burger, { includeInactive: true });
+  assert.equal(adminVisible.length, 2);
+  assert.equal(adminVisible[1].estado, 0);
+
+  const clientSummary = getProductVariantSummary(burger);
+  assert.equal(clientSummary.count, 1);
+  assert.deepEqual(clientSummary.names, ["Edición Tocineta"]);
 });
 

@@ -4,7 +4,7 @@ import {
   Utensils, CupSoda, Plus, Minus, Check, Flame, Crown, ChevronRight, ChevronLeft,
   Image as ImageIcon, Clock, Gift, CheckCircle2, Percent, Rocket, Link,
   AlertCircle, Calendar, ArrowRight, ExternalLink, Eye, HelpCircle, Layers,
-  ChevronDown, Info, ShieldCheck
+  ChevronDown, Info, ShieldCheck, RotateCcw
 } from "lucide-react";
 import { eventosService } from "../../servicios/eventosService";
 import { categoriaProductosService } from "../../servicios/categoriaProductosService";
@@ -113,6 +113,9 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
   const [showProductoDropdown, setShowProductoDropdown] = useState(false);
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
   const [selectedCategoriaFilter, setSelectedCategoriaFilter] = useState("TODAS");
+  const [fichasBaseByProdMap, setFichasBaseByProdMap] = useState({});
+  const [variantesEventoPorProd, setVariantesEventoPorProd] = useState({});
+  const [variantExtraInsumoSearch, setVariantExtraInsumoSearch] = useState({});
 
   // Estados para Crear Producto Nuevo de Evento
   const [prodNombre, setProdNombre] = useState("");
@@ -162,6 +165,8 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
     setFormErrors({});
     setTouched({});
     setSubmitted(false);
+    setVariantesEventoPorProd({});
+    setVariantExtraInsumoSearch({});
 
     const now = new Date();
     const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -263,6 +268,298 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
       setTodasBebidas([]);
     });
   }, [isOpen, eventoToEdit, currentProducto]);
+
+  // Cargar fichas técnicas base e inicializar editor de variantes de evento por producto
+  useEffect(() => {
+    if (!isOpen || modoCrearProducto || productosSeleccionados.length === 0) return;
+
+    const extractDetallesFromFicha = (ft) => {
+      const dets = Array.isArray(ft?.detalles) ? ft.detalles : (Array.isArray(ft?.insumos) ? ft.insumos : []);
+      return dets
+        .map((d) => {
+          const insId = Number(d.idInsumo || d.insumo?.idInsumo || d.id || 0);
+          if (!insId) return null;
+          return {
+            idInsumo: insId,
+            nombre: d.insumo?.nombre || d.nombre || `Insumo #${insId}`,
+            cantidad: Number(d.cantidad || 1),
+            unidadMedida: normalizeUnidadMedida(d.unidadMedida || d.insumo?.unidadMedida || "und"),
+            esBase: true
+          };
+        })
+        .filter(Boolean);
+    };
+
+    const seedProductVariantState = (pid, baseDets) => {
+      setVariantesEventoPorProd((prev) => {
+        if (prev[pid] && (prev[pid]._hydratedBase || baseDets.length === 0)) return prev;
+
+        const existingEventVar = Array.isArray(eventoToEdit?.variantesCreadas)
+          ? eventoToEdit.variantesCreadas.find((v) => Number(v.idProducto) === Number(pid))
+          : null;
+
+        let initialBase = baseDets.map((b) => ({ ...b }));
+        let initialExtras = (insumosSeleccionados || []).map((t) => ({
+          idInsumo: Number(t.idInsumo || t.id),
+          nombre: t.nombre,
+          cantidad: Number(t.cantidad || 1),
+          unidadMedida: normalizeUnidadMedida(t.unidadMedida || t.unidad || "und"),
+          esExtraTopping: true
+        }));
+
+        if (existingEventVar) {
+          const varDeltas = Array.isArray(existingEventVar.insumosModificados) ? existingEventVar.insumosModificados : [];
+          const addedDeltaMap = new Map();
+          const replacedBaseIds = new Set();
+          for (const vd of varDeltas) {
+            const acc = String(vd.tipoAccion || "AGREGAR").toUpperCase();
+            if (acc === "AGREGAR") {
+              addedDeltaMap.set(Number(vd.idInsumo), vd);
+            } else if (acc === "REEMPLAZAR" && vd.idInsumoReemplazado) {
+              replacedBaseIds.add(Number(vd.idInsumoReemplazado));
+            }
+          }
+
+          const varDetalles = Array.isArray(existingEventVar.fichaTecnica?.detalles)
+            ? existingEventVar.fichaTecnica.detalles
+            : [];
+
+          if (varDetalles.length > 0) {
+            const baseList = [];
+            const extrasList = [];
+            const baseIdSet = new Set(baseDets.map((b) => Number(b.idInsumo)));
+
+            for (const vd of varDetalles) {
+              const idIns = Number(vd.idInsumo || vd.insumo?.idInsumo || 0);
+              if (!idIns) continue;
+              const nombreIns = vd.insumo?.nombre || `Insumo #${idIns}`;
+              const unitIns = normalizeUnidadMedida(vd.unidadMedida || vd.insumo?.unidadMedida || "und");
+              const qtyIns = Number(vd.cantidad || 1);
+              const deltaMatch = addedDeltaMap.get(idIns);
+
+              if (deltaMatch) {
+                const extraQty = Number(deltaMatch.cantidad || 1);
+                if (baseIdSet.has(idIns) && qtyIns > extraQty) {
+                  baseList.push({
+                    idInsumo: idIns,
+                    nombre: nombreIns,
+                    cantidad: Number((qtyIns - extraQty).toFixed(4)),
+                    unidadMedida: unitIns,
+                    esBase: true
+                  });
+                }
+                extrasList.push({
+                  idInsumo: idIns,
+                  nombre: nombreIns,
+                  cantidad: extraQty,
+                  unidadMedida: unitIns,
+                  esExtraTopping: true
+                });
+              } else if (!baseIdSet.has(idIns) && baseDets.length > 0 && !replacedBaseIds.has(idIns)) {
+                extrasList.push({
+                  idInsumo: idIns,
+                  nombre: nombreIns,
+                  cantidad: qtyIns,
+                  unidadMedida: unitIns,
+                  esExtraTopping: true
+                });
+              } else {
+                baseList.push({
+                  idInsumo: idIns,
+                  nombre: nombreIns,
+                  cantidad: qtyIns,
+                  unidadMedida: unitIns,
+                  esBase: true
+                });
+              }
+            }
+            initialBase = baseList;
+            if (extrasList.length > 0) initialExtras = extrasList;
+          }
+        }
+
+        const existingEntry = prev[pid];
+        return {
+          ...prev,
+          [pid]: {
+            nombre: existingEntry?.nombre ?? existingEventVar?.nombre ?? "",
+            precio: existingEntry?.precio ?? (existingEventVar?.precio != null ? String(existingEventVar.precio) : ""),
+            especificaciones: existingEntry?.especificaciones ?? existingEventVar?.fichaTecnica?.especificaciones ?? existingEventVar?.descripcion ?? "",
+            estado: existingEntry?.estado !== undefined
+              ? existingEntry.estado
+              : (existingEventVar ? (Number(existingEventVar.estado ?? 1) === 0 ? 0 : 1) : 1),
+            insumosBase: initialBase,
+            toppingsExtra: existingEntry?.toppingsExtra?.length > 0 ? existingEntry.toppingsExtra : initialExtras,
+            _hydratedBase: baseDets.length > 0
+          }
+        };
+      });
+    };
+
+    productosSeleccionados.forEach((item) => {
+      const pid = Number(item.id || item.idProducto || 0);
+      if (!pid) return;
+
+      if (fichasBaseByProdMap[pid]) {
+        seedProductVariantState(pid, fichasBaseByProdMap[pid]);
+        return;
+      }
+
+      const cachedProd =
+        (currentProducto && Number(currentProducto.id || currentProducto.idProducto) === pid ? currentProducto : null) ||
+        (productosBD || []).find((p) => Number(p.id || p.idProducto) === pid);
+      const cachedDets = extractDetallesFromFicha(cachedProd?.fichaTecnica || cachedProd?.ficha);
+
+      if (cachedDets.length > 0) {
+        setFichasBaseByProdMap((prev) => ({ ...prev, [pid]: cachedDets }));
+        seedProductVariantState(pid, cachedDets);
+      } else {
+        seedProductVariantState(pid, []);
+        fichasTecnicasService
+          .getFichaByProducto(pid)
+          .then((ftData) => {
+            const fetchedDets = extractDetallesFromFicha(ftData);
+            setFichasBaseByProdMap((prev) => ({ ...prev, [pid]: fetchedDets }));
+            if (fetchedDets.length > 0) {
+              seedProductVariantState(pid, fetchedDets);
+            }
+          })
+          .catch(() => {
+            setFichasBaseByProdMap((prev) => ({ ...prev, [pid]: [] }));
+          });
+      }
+    });
+  }, [isOpen, modoCrearProducto, productosSeleccionados, productosBD, currentProducto, eventoToEdit, fichasBaseByProdMap]);
+
+  const updateVariantField = (pid, field, value) => {
+    setVariantesEventoPorProd((prev) => ({
+      ...prev,
+      [pid]: {
+        ...(prev[pid] || { nombre: "", precio: "", especificaciones: "", estado: 1, insumosBase: [], toppingsExtra: [] }),
+        [field]: value
+      }
+    }));
+  };
+
+  const updateVariantBaseQty = (pid, idInsumo, nextQty) => {
+    const val = Math.max(0.01, Number(nextQty) || 1);
+    setVariantesEventoPorProd((prev) => {
+      const cur = prev[pid];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [pid]: {
+          ...cur,
+          insumosBase: (cur.insumosBase || []).map((b) =>
+            Number(b.idInsumo) === Number(idInsumo) ? { ...b, cantidad: val } : b
+          )
+        }
+      };
+    });
+  };
+
+  const removeVariantBaseInsumo = (pid, idInsumo) => {
+    setVariantesEventoPorProd((prev) => {
+      const cur = prev[pid];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [pid]: {
+          ...cur,
+          insumosBase: (cur.insumosBase || []).filter((b) => Number(b.idInsumo) !== Number(idInsumo))
+        }
+      };
+    });
+  };
+
+  const restoreVariantBaseInsumos = (pid) => {
+    const originalBase = fichasBaseByProdMap[pid] || [];
+    setVariantesEventoPorProd((prev) => ({
+      ...prev,
+      [pid]: {
+        ...(prev[pid] || { nombre: "", precio: "", especificaciones: "", estado: 1, toppingsExtra: [] }),
+        insumosBase: originalBase.map((b) => ({ ...b }))
+      }
+    }));
+  };
+
+  const addToppingToAllEventVariants = (insObj) => {
+    const insId = Number(insObj.id || insObj.idInsumo);
+    const resolvedMedida = resolveRecetaUnidadYCantidad(insObj);
+    const unitVal = normalizeUnidadMedida(resolvedMedida.unidadMedida || insObj.unidadMedida || "und");
+    const cantVal = resolvedMedida.cantidad || 1;
+    setVariantesEventoPorProd((prev) => {
+      const next = { ...prev };
+      for (const p of productosSeleccionados) {
+        const pid = Number(p.id || p.idProducto);
+        if (!pid) continue;
+        const cur = next[pid] || { nombre: "", precio: "", especificaciones: "", estado: 1, insumosBase: fichasBaseByProdMap[pid] || [], toppingsExtra: [] };
+        if (!(cur.toppingsExtra || []).some((t) => Number(t.idInsumo) === insId)) {
+          next[pid] = {
+            ...cur,
+            toppingsExtra: [
+              ...(cur.toppingsExtra || []),
+              { idInsumo: insId, nombre: insObj.nombre, cantidad: cantVal, unidadMedida: unitVal, esExtraTopping: true }
+            ]
+          };
+        }
+      }
+      return next;
+    });
+  };
+
+  const addVariantExtraTopping = (pid, insObj) => {
+    const insId = Number(insObj.id || insObj.idInsumo);
+    const resolvedMedida = resolveRecetaUnidadYCantidad(insObj);
+    const unitVal = normalizeUnidadMedida(resolvedMedida.unidadMedida || insObj.unidadMedida || "und");
+    const cantVal = resolvedMedida.cantidad || 1;
+    setVariantesEventoPorProd((prev) => {
+      const cur = prev[pid] || { nombre: "", precio: "", especificaciones: "", estado: 1, insumosBase: fichasBaseByProdMap[pid] || [], toppingsExtra: [] };
+      if ((cur.toppingsExtra || []).some((t) => Number(t.idInsumo) === insId)) return prev;
+      return {
+        ...prev,
+        [pid]: {
+          ...cur,
+          toppingsExtra: [
+            ...(cur.toppingsExtra || []),
+            { idInsumo: insId, nombre: insObj.nombre, cantidad: cantVal, unidadMedida: unitVal, esExtraTopping: true }
+          ]
+        }
+      };
+    });
+    setVariantExtraInsumoSearch((prev) => ({ ...prev, [pid]: "" }));
+  };
+
+  const updateVariantExtraToppingQty = (pid, idInsumo, nextQty) => {
+    const val = Math.max(0.01, Number(nextQty) || 1);
+    setVariantesEventoPorProd((prev) => {
+      const cur = prev[pid];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [pid]: {
+          ...cur,
+          toppingsExtra: (cur.toppingsExtra || []).map((t) =>
+            Number(t.idInsumo) === Number(idInsumo) ? { ...t, cantidad: val } : t
+          )
+        }
+      };
+    });
+  };
+
+  const removeVariantExtraTopping = (pid, idInsumo) => {
+    setVariantesEventoPorProd((prev) => {
+      const cur = prev[pid];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [pid]: {
+          ...cur,
+          toppingsExtra: (cur.toppingsExtra || []).filter((t) => Number(t.idInsumo) !== Number(idInsumo))
+        }
+      };
+    });
+  };
 
   // Manejo de Subida de Imagen
   const handleImageSelected = async (e) => {
@@ -514,33 +811,30 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
         setActiveStep(3);
       }
     } else {
-      // Modo A: Vincular a Producto(s) Existente(s)
+      // Modo A: 1. Producto -> 2. Tipo de Evento -> 3. Especificaciones
       if (activeStep === 1) {
-        if (!tipoEvento) {
-          notifyWarning("Selecciona Dinámica", "Por favor elige el tipo de beneficio de la promoción.");
-          return;
-        }
-        if (!nombreEvento.trim()) {
-          notifyWarning("Título Requerido", "Por favor ingresa el título de la campaña.");
-          return;
-        }
-        if (tipoEvento === "Descuento" && (!descuento || Number(descuento) <= 0 || Number(descuento) > 100)) {
-          notifyWarning("Descuento Inválido", "Por favor especifica un porcentaje de descuento válido (entre 1% y 100%).");
-          return;
-        }
-        if (tipoEvento === "Promoción Precio" && currentProducto && (!nuevoPrecio || Number(nuevoPrecio) <= 0)) {
-          notifyWarning("Precio Promocional Inválido", "Por favor ingresa un precio promocional válido.");
-          return;
-        }
-        if (tipoEvento === "Añadir Insumos" && insumosSeleccionados.length === 0) {
-          notifyWarning("Topping Requerido", "Por favor selecciona el insumo o topping de cortesía.");
+        if (productosSeleccionados.length === 0) {
+          notifyWarning("Selecciona Productos", "Primero debes elegir al menos un producto para el evento.");
           return;
         }
         setActiveStep(2);
       } else if (activeStep === 2) {
-        if (productosSeleccionados.length === 0) {
-          notifyWarning("Selecciona Productos", "Debes incluir al menos un producto en la campaña.");
+        if (!tipoEvento) {
+          notifyWarning("Selecciona Tipo de Evento", "Por favor elige cuál es el tipo de evento o promoción.");
           return;
+        }
+        if (!nombreEvento.trim() && productosSeleccionados.length > 0) {
+          const pFirst = productosSeleccionados[0]?.nombre || "Especial";
+          const prefix = tipoEvento === "Añadir Insumos"
+            ? "Topping Extra"
+            : tipoEvento === "Edición Especial"
+            ? "Edición Especial"
+            : tipoEvento === "2x1 / Combo Especial"
+            ? "2x1"
+            : tipoEvento === "Descuento"
+            ? "Promo Descuento"
+            : "Especial";
+          setNombreEvento(`${prefix}: ${pFirst}`);
         }
         setActiveStep(3);
       }
@@ -662,15 +956,39 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
       return;
     }
 
-    // Modo A: Vincular a Producto(s) Existente(s)
-    if (!nombreEvento.trim()) {
+    // Modo A: 1. Producto -> 2. Tipo de Evento -> 3. Especificaciones
+    if (productosSeleccionados.length === 0) {
       setActiveStep(1);
+      notifyWarning("Sin Productos", "Debes seleccionar al menos un producto para aplicar la promoción.");
+      return;
+    }
+    if (!tipoEvento) {
+      setActiveStep(2);
+      notifyWarning("Tipo de Evento Requerido", "Selecciona cuál es el tipo de evento.");
+      return;
+    }
+    if (!nombreEvento.trim()) {
+      setActiveStep(3);
       notifyWarning("Título Requerido", "El título de la campaña es obligatorio.");
       return;
     }
-    if (productosSeleccionados.length === 0) {
-      setActiveStep(2);
-      notifyWarning("Sin Productos", "Debes seleccionar al menos un producto para aplicar la promoción.");
+    if (tipoEvento === "Descuento" && (!descuento || Number(descuento) <= 0 || Number(descuento) > 100)) {
+      setActiveStep(3);
+      notifyWarning("Descuento Inválido", "Por favor especifica un porcentaje de descuento válido (entre 1% y 100%).");
+      return;
+    }
+    if (tipoEvento === "Promoción Precio" && currentProducto && (!nuevoPrecio || Number(nuevoPrecio) <= 0)) {
+      setActiveStep(3);
+      notifyWarning("Precio Promocional Inválido", "Por favor ingresa un precio promocional válido.");
+      return;
+    }
+    const isVariantCreatingEvent = tipoEvento === "Añadir Insumos" || tipoEvento === "Edición Especial";
+    const anyVariantToppings = productosSeleccionados.some(
+      (p) => (variantesEventoPorProd[Number(p.id || p.idProducto)]?.toppingsExtra || []).length > 0
+    );
+    if (tipoEvento === "Añadir Insumos" && insumosSeleccionados.length === 0 && !anyVariantToppings) {
+      setActiveStep(3);
+      notifyWarning("Topping Requerido", "Por favor selecciona al menos un topping o insumo extra para la variante del producto.");
       return;
     }
     if (isTemporal && fechaFin && fechaInicio && new Date(fechaFin) < new Date(fechaInicio)) {
@@ -682,6 +1000,23 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
     setSaving(true);
     try {
       const primaryProdId = producto?.id || producto?.idProducto || (productosSeleccionados.length > 0 ? (productosSeleccionados[0].id || productosSeleccionados[0].idProducto) : null) || eventoToEdit?.idProducto || null;
+
+      const mergedToppingsMap = new Map();
+      for (const ins of (insumosSeleccionados || [])) {
+        const insId = Number(ins.idInsumo || ins.id);
+        if (insId && !mergedToppingsMap.has(insId)) mergedToppingsMap.set(insId, ins);
+      }
+      if (isVariantCreatingEvent) {
+        for (const p of productosSeleccionados) {
+          const pid = Number(p.id || p.idProducto);
+          const cfg = variantesEventoPorProd[pid];
+          for (const tp of (cfg?.toppingsExtra || [])) {
+            const tpId = Number(tp.idInsumo || tp.id);
+            if (tpId && !mergedToppingsMap.has(tpId)) mergedToppingsMap.set(tpId, tp);
+          }
+        }
+      }
+      const combinedEventInsumos = Array.from(mergedToppingsMap.values());
 
       const payload = {
         productoId: primaryProdId,
@@ -705,8 +1040,14 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
 
       if (tipoEvento === "Añadir Insumos") {
         payload.accion = accion || "Añadir";
-        payload.insumos = insumosSeleccionados;
+        payload.insumos = combinedEventInsumos;
         if (nuevoPrecio) payload.nuevoPrecio = Number(nuevoPrecio);
+      } else if (tipoEvento === "Edición Especial") {
+        if (combinedEventInsumos.length > 0) {
+          payload.insumos = combinedEventInsumos;
+        }
+        if (nuevoPrecio) payload.nuevoPrecio = Number(nuevoPrecio);
+        if (descuento) payload.descuento = Number(descuento);
       }
 
       if (tipoEvento === "Descuento") {
@@ -716,6 +1057,9 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
       } else if (tipoEvento === "2x1 / Combo Especial") {
         payload.descuento = 50;
         if (nuevoPrecio) payload.nuevoPrecio = Number(nuevoPrecio);
+      } else if (tipoEvento === "Hora Feliz / Oferta Relámpago") {
+        if (nuevoPrecio) payload.nuevoPrecio = Number(nuevoPrecio);
+        if (descuento) payload.descuento = Number(descuento);
       }
 
       if (productosSeleccionados.length > 0) {
@@ -726,6 +1070,43 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
           nuevoPrecio: tipoEvento === "Promoción Precio" ? Number(p.nuevoPrecio || nuevoPrecio) : null,
           descuento: tipoEvento === "Descuento" ? Number(p.descuento || descuento) : (tipoEvento === "2x1 / Combo Especial" ? 50 : null)
         }));
+      }
+
+      if (isVariantCreatingEvent && productosSeleccionados.length > 0) {
+        payload.variantesEventoPorProducto = productosSeleccionados.map((p) => {
+          const pid = Number(p.id || p.idProducto);
+          const cfg = variantesEventoPorProd[pid] || {};
+          const varToppings = (Array.isArray(cfg.toppingsExtra) && cfg.toppingsExtra.length > 0)
+            ? cfg.toppingsExtra
+            : (insumosSeleccionados || []);
+          const baseList = Array.isArray(cfg.insumosBase) ? cfg.insumosBase : (fichasBaseByProdMap[pid] || []);
+          const mergedDetalles = [
+            ...baseList.map((b) => ({
+              idInsumo: Number(b.idInsumo),
+              nombre: b.nombre,
+              cantidad: Number(b.cantidad || 1),
+              unidadMedida: b.unidadMedida || "und",
+              esExtraTopping: false
+            })),
+            ...varToppings.map((t) => ({
+              idInsumo: Number(t.idInsumo || t.id),
+              nombre: t.nombre,
+              cantidad: Number(t.cantidad || 1),
+              unidadMedida: t.unidadMedida || t.unidad || "und",
+              esExtraTopping: true
+            }))
+          ];
+          return {
+            idProducto: pid,
+            nombre: (cfg.nombre || "").trim() || `${stripEmojis(nombreEvento.trim())}`,
+            precio: cfg.precio !== undefined && cfg.precio !== "" ? Number(cfg.precio) : undefined,
+            descripcion: stripEmojis((cfg.especificaciones || descripcion || "").trim()),
+            especificaciones: stripEmojis((cfg.especificaciones || descripcion || "").trim()),
+            estado: cfg.estado !== undefined ? Number(cfg.estado) : 1,
+            toppingsExtra: varToppings,
+            detalles: mergedDetalles
+          };
+        });
       }
 
       if (isEditing) {
@@ -839,9 +1220,9 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
           <div className="flex items-center justify-center gap-2 sm:gap-6 max-w-3xl mx-auto">
             {(!modoCrearProducto
               ? [
-                  { num: 1, label: "1. Dinámica & Beneficio", desc: "Tipo de oferta y título" },
-                  { num: 2, label: `2. Productos (${productosSeleccionados.length})`, desc: "Productos participantes" },
-                  { num: 3, label: "3. Banner & Vigencia", desc: "Fechas y vista previa" }
+                  { num: 1, label: `1. Producto (${productosSeleccionados.length})`, desc: "Elige el o los platillos" },
+                  { num: 2, label: "2. Tipo de Evento", desc: "Selecciona la dinámica" },
+                  { num: 3, label: "3. Especificaciones", desc: "Detalles, variante y vigencia" }
                 ]
               : [
                   { num: 1, label: prodTipoEvento === "COMBO_ESPECIAL" || configCombo.esCombo ? "1. Combo & Precio" : "1. Platillo & Oferta", desc: prodTipoEvento === "COMBO_ESPECIAL" || configCombo.esCombo ? "Nombre y precio del paquete" : "Nombre, categoría y precios" },
@@ -889,525 +1270,21 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/50 dark:bg-gray-900/50 space-y-6">
 
           {/* ═══════════════════════════════════════════════════════════════════════
-              MODALIDAD A: VINCULAR PRODUCTOS EXISTENTES A EVENTO / PROMOCIÓN
+              MODALIDAD A: 1. PRODUCTO -> 2. TIPO DE EVENTO -> 3. ESPECIFICACIONES
           ═══════════════════════════════════════════════════════════════════════════ */}
           {!modoCrearProducto && (
             <>
-              {/* ── PASO 1: DINÁMICA & BENEFICIO ── */}
+              {/* ── PASO 1: SELECCIONAR PRODUCTO(S) ── */}
               {activeStep === 1 && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-200">
-                  {/* Columna Izquierda: Formulario de Dinámica (7 columnas) */}
-                  <div className="lg:col-span-7 space-y-5">
-                    {/* Tarjetas de Dinámica */}
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-2">
-                        ¿Qué beneficio o dinámica ofrecerá la campaña? *
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                        {TIPO_EVENTO_OPTIONS.map((opt) => {
-                          const isSel = tipoEvento === opt.value;
-                          const Icon = opt.icon;
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setTipoEvento(opt.value);
-                                if (opt.defaultIcon) setIcono(opt.defaultIcon);
-                              }}
-                              className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between select-none ${
-                                isSel
-                                  ? "border-orange-500 bg-white dark:bg-gray-800 shadow-md ring-2 ring-orange-400/40 text-orange-950 dark:text-orange-200"
-                                  : "border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800/70 hover:border-gray-300 hover:bg-white text-gray-700 dark:text-gray-300"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className={`w-8 h-8 rounded-xl flex items-center justify-center text-white bg-linear-to-br ${opt.color} shadow-xs`}>
-                                  <Icon size={16} stroke={2} />
-                                </span>
-                                {isSel && <CheckCircle2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
-                              </div>
-                              <span className="text-xs font-black truncate">{opt.label}</span>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{opt.desc}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Parámetros Específicos del Beneficio */}
-                    <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 space-y-4 shadow-xs">
-                      {tipoEvento === "Descuento" && (
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                              Porcentaje de Descuento General *
-                            </label>
-                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                              {descuento ? `${descuento}% OFF` : "Define un porcentaje"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mb-2.5">
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={descuento}
-                              onChange={(e) => setDescuento(e.target.value)}
-                              placeholder="Ej. 15"
-                              className="w-28 px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
-                            />
-                            <span className="text-sm font-black text-gray-500">% de descuento</span>
-                          </div>
-                          {/* Badges Rápidos de Descuento */}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">Rápidos:</span>
-                            {QUICK_DISCOUNTS.map((d) => (
-                              <button
-                                key={d}
-                                type="button"
-                                onClick={() => setDescuento(String(d))}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                                  Number(descuento) === d
-                                    ? "bg-emerald-600 text-white shadow-xs"
-                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-emerald-50"
-                                }`}
-                              >
-                                {d}% OFF
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {tipoEvento === "Promoción Precio" && (
-                        <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
-                            Precio Especial Rebajado ($ COP) *
-                          </label>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-                            {currentProducto
-                              ? `Precio actual en carta: $${Number(currentProducto.precio || 0).toLocaleString("es-CO")}. Define el nuevo precio de oferta.`
-                              : "Define el precio promocional que se aplicará a los productos asignados."}
-                          </p>
-                          <div className="relative max-w-xs">
-                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold z-10">$</span>
-                            <NumberInput
-                              formatThousands={true}
-                              step={1000}
-                              value={nuevoPrecio}
-                              onChange={(e) => setNuevoPrecio(e.target.value)}
-                              placeholder="Ej. 18.000"
-                              className="w-full pl-8 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {tipoEvento === "Añadir Insumos" && (
-                        <div>
-                          <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
-                            Topping o Insumo de Cortesía *
-                          </label>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2.5">
-                            El comensal recibirá este ingrediente adicional de forma gratuita con el platillo.
-                          </p>
-                          <div className="relative">
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                              type="text"
-                              value={insumoSearch}
-                              onChange={(e) => setInsumoSearch(e.target.value)}
-                              placeholder="Buscar insumo (ej. Tocineta, Queso Mozzarella)..."
-                              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500"
-                            />
-                            {showInsumoDropdown && (
-                              <div className="absolute z-20 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-                                {filteredInsumos.map((ins) => (
-                                  <button
-                                    key={ins.id || ins.idInsumo}
-                                    type="button"
-                                    onClick={() => {
-                                      const resolvedMedida = resolveRecetaUnidadYCantidad(ins);
-                                      const idInsumoVal = ins.id || ins.idInsumo;
-                                      const unitVal = resolvedMedida.unidadMedida || ins.unidadMedida || "und";
-                                      const cantVal = resolvedMedida.cantidad || 1;
-                                      setInsumosSeleccionados(prev => {
-                                        const exists = prev.some(s => String(s.idInsumo || s.id) === String(idInsumoVal));
-                                        if (exists) return prev;
-                                        return [
-                                          ...prev,
-                                          {
-                                            id: idInsumoVal,
-                                            idInsumo: idInsumoVal,
-                                            nombre: ins.nombre,
-                                            cantidad: cantVal,
-                                            unidad: unitVal,
-                                            unidadMedida: unitVal
-                                          }
-                                        ];
-                                      });
-                                      setInsumoSearch("");
-                                      setShowInsumoDropdown(false);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-xs hover:bg-orange-50 dark:hover:bg-gray-700 flex items-center justify-between cursor-pointer"
-                                  >
-                                    <span className="font-bold text-gray-800 dark:text-gray-200">{ins.nombre}</span>
-                                    <span className="text-[10px] text-gray-400">Stock: {ins.stock || 0} {ins.unidadMedida}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {insumosSeleccionados.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                              {insumosSeleccionados.map((insSel, idx) => {
-                                const selId = insSel.idInsumo || insSel.id || idx;
-                                const unitVal = insSel.unidadMedida || insSel.unidad || "porción";
-                                return (
-                                  <div
-                                    key={selId}
-                                    className="p-3.5 bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-600 flex items-center justify-center shrink-0">
-                                        <Gift className="w-5 h-5" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-black text-purple-950 dark:text-purple-200 truncate">
-                                          {insSel.nombre}
-                                        </p>
-                                        <p className="text-[10.5px] text-purple-700 dark:text-purple-300 font-medium">
-                                          Topping adicional incluido sin costo ({insSel.cantidad || 1} {unitVal})
-                                        </p>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
-                                      <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">Cantidad:</span>
-                                      <div className="flex items-center gap-1 bg-white dark:bg-gray-800 rounded-xl border border-purple-300 dark:border-purple-700 p-0.5 shadow-2xs">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setInsumosSeleccionados(prev => prev.map((item, i) => i === idx ? {
-                                              ...item,
-                                              cantidad: Math.max(1, (Number(item.cantidad) || 1) - 1)
-                                            } : item));
-                                          }}
-                                          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-black cursor-pointer transition"
-                                        >
-                                          -
-                                        </button>
-                                        <input
-                                          type="number"
-                                          min="0.1"
-                                          step="any"
-                                          max="5000"
-                                          value={insSel.cantidad || 1}
-                                          onChange={(e) => {
-                                            const parsed = Number(e.target.value);
-                                            const val = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
-                                            setInsumosSeleccionados(prev => prev.map((item, i) => i === idx ? {
-                                              ...item,
-                                              cantidad: val
-                                            } : item));
-                                          }}
-                                          className="w-11 text-center text-xs font-black bg-transparent border-0 p-0 text-purple-950 dark:text-purple-200 focus:ring-0"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setInsumosSeleccionados(prev => prev.map((item, i) => i === idx ? {
-                                              ...item,
-                                              cantidad: (Number(item.cantidad) || 1) + 1
-                                            } : item));
-                                          }}
-                                          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-black cursor-pointer transition"
-                                        >
-                                          +
-                                        </button>
-                                      </div>
-                                      <span className="text-xs font-bold text-purple-800 dark:text-purple-300">
-                                        {unitVal}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setInsumosSeleccionados(prev => prev.filter((_, i) => i !== idx))}
-                                        className="ml-2 text-xs text-red-500 hover:text-red-700 font-bold underline cursor-pointer"
-                                      >
-                                        Quitar
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {tipoEvento === "2x1 / Combo Especial" && (
-                        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 flex items-center gap-3">
-                          <StreamlineDoubleBurger size={24} stroke={2} className="text-rose-600 shrink-0" />
-                          <div>
-                            <p className="text-xs font-black text-rose-950 dark:text-rose-200">Dinámica 2x1 Activada</p>
-                            <p className="text-[11px] text-rose-800 dark:text-rose-300 leading-tight">
-                              El sistema calculará automáticamente 2 unidades al precio de 1 tanto en el Punto de Venta (POS) como en el Menú Web del Comensal.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Campos Dinámicos para Edición Especial en Menú Existente */}
-                      {tipoEvento === "Edición Especial" && (
-                        <div className="space-y-3">
-                          <div className="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 flex items-start gap-2.5">
-                            <Crown className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-black text-orange-900 dark:text-orange-200">Campaña de Festival / Edición Especial</p>
-                              <p className="text-[11px] text-orange-800/80 dark:text-orange-300/80 leading-relaxed">
-                                Asigna este platillo existente a una campaña oficial (ej. Burger Fest) con precio conmemorativo o descuento exclusivo.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
-                            <div className="flex flex-col justify-end">
-                              <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5 min-h-[2.25rem] flex items-end">
-                                Precio Especial de Festival ($ COP)
-                              </label>
-                              <input
-                                type="number"
-                                value={nuevoPrecio}
-                                onChange={(e) => setNuevoPrecio(e.target.value)}
-                                placeholder="Ej. 24000"
-                                className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black text-amber-600 focus:ring-2 focus:ring-orange-500"
-                              />
-                            </div>
-                            <div className="flex flex-col justify-end">
-                              <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5 min-h-[2.25rem] flex items-end">
-                                O Descuento de Campaña (%)
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={descuento}
-                                onChange={(e) => setDescuento(e.target.value)}
-                                placeholder="Ej. 15"
-                                className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Campos Dinámicos para Oferta Relámpago en Menú Existente */}
-                      {tipoEvento === "Hora Feliz / Oferta Relámpago" && (
-                        <div className="space-y-3">
-                          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-start gap-2.5">
-                            <Zap className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-black text-amber-900 dark:text-amber-200">Oferta Relámpago / Venta Flash</p>
-                              <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 leading-relaxed">
-                                Define un precio relámpago con descuento agresivo por tiempo muy limitado para acelerar ventas.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
-                            <div className="flex flex-col justify-end">
-                              <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5 min-h-[2.25rem] flex items-end">
-                                Precio Flash Relámpago ($ COP)
-                              </label>
-                              <input
-                                type="number"
-                                value={nuevoPrecio}
-                                onChange={(e) => setNuevoPrecio(e.target.value)}
-                                placeholder="Ej. 17500"
-                                className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black text-red-600 focus:ring-2 focus:ring-orange-500"
-                              />
-                            </div>
-                            <div className="flex flex-col justify-end">
-                              <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5 min-h-[2.25rem] flex items-end">
-                                O Descuento Flash (%)
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={descuento}
-                                onChange={(e) => setDescuento(e.target.value)}
-                                placeholder="Ej. 25"
-                                className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                            <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">Descuentos Flash:</span>
-                            {[20, 25, 30, 40, 50].map((pct) => (
-                              <button
-                                key={pct}
-                                type="button"
-                                onClick={() => setDescuento(String(pct))}
-                                className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 transition cursor-pointer"
-                              >
-                                -{pct}% FLASH
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Título y Descripción de la Campaña */}
-                    <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 space-y-3.5 shadow-xs">
-                      <div>
-                        <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1">
-                          Título de la Campaña / Promoción *
-                        </label>
-                        <input
-                          type="text"
-                          value={nombreEvento}
-                          onChange={(e) => setNombreEvento(e.target.value)}
-                          placeholder="Ej. Jueves 2x1 de Burger Artesanal, Super Fin de Semana..."
-                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold focus:ring-2 focus:ring-orange-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1">
-                          Descripción o Gancho Promocional (Opcional)
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={descripcion}
-                          onChange={(e) => setDescripcion(e.target.value)}
-                          placeholder="Describe brevemente la oferta para cautivar a tus comensales..."
-                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-orange-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Columna Derecha: Live Preview de la Tarjeta Promocional (5 columnas) */}
-                  <div className="lg:col-span-5 space-y-4">
-                    <div className="bg-slate-50 dark:bg-linear-to-br dark:from-gray-900 dark:to-gray-950 p-5 rounded-3xl text-gray-900 dark:text-white shadow-xl border border-gray-200 dark:border-gray-800 sticky top-2">
-                      <div className="flex items-center justify-between mb-3.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Vista Previa en Vivo (Menú & POS)</span>
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-orange-600 text-white shadow-xs">
-                          Campaña Activa
-                        </span>
-                      </div>
-
-                      {/* Tarjeta Visual de Promoción */}
-                      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-md text-gray-900 dark:text-gray-100">
-                        {/* Banner o Foto */}
-                        <div className="relative h-32 bg-gray-200 dark:bg-gray-800 overflow-hidden">
-                          {imagePreviewUrl || eventoImagen || currentProducto?.imagen ? (
-                            <img
-                              src={imagePreviewUrl || eventoImagen || currentProducto?.imagen}
-                              alt="Vista previa"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                              <Utensils className="w-8 h-8 opacity-40 mb-1" />
-                              <span className="text-[10px] font-bold">Sin banner de campaña</span>
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
-                          <div className="absolute top-2.5 left-2.5">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white shadow-md border border-white/25 flex items-center gap-1">
-                              <Flame className="w-3 h-3" />
-                              <span>
-                                {tipoEvento === "Descuento"
-                                  ? `${descuento || 15}% OFF`
-                                  : tipoEvento === "2x1 / Combo Especial"
-                                  ? "2X1"
-                                  : tipoEvento === "Añadir Insumos"
-                                  ? "+ TOPPING GRATIS"
-                                  : "OFERTA"}
-                              </span>
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Contenido de la Tarjeta */}
-                        <div className="p-4 space-y-2">
-                          <p className="text-xs font-black text-orange-600 dark:text-orange-400 uppercase tracking-wider">
-                            {nombreEvento || "Título de la Campaña"}
-                          </p>
-                          <p className="text-sm font-bold truncate">
-                            {currentProducto ? currentProducto.nombre : productosSeleccionados[0]?.nombre || "Platillos seleccionados"}
-                          </p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2">
-                            {descripcion || "Aprovecha esta promoción especial válida por tiempo limitado en Chazin Food."}
-                          </p>
-
-                          {insumosSeleccionados.length > 0 && (
-                            <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex items-center gap-2 text-[11px]">
-                              <Gift className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
-                              <span className="font-bold text-purple-900 dark:text-purple-200 truncate">
-                                Incluye Gratis: {formatEventoToppingsText({ insumosAsociados: insumosSeleccionados })}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                            <div>
-                              <p className="text-[10px] text-gray-400 uppercase font-bold">Precio Promoción</p>
-                              <div className="flex items-center gap-1.5">
-                                {currentProducto && (tipoEvento === "Promoción Precio" || tipoEvento === "Descuento") && (
-                                  <span className="text-xs text-gray-400 line-through">
-                                    ${Number(currentProducto.precio || 0).toLocaleString("es-CO")}
-                                  </span>
-                                )}
-                                <span className="text-sm font-black text-red-600 dark:text-red-400">
-                                  {tipoEvento === "Promoción Precio" && nuevoPrecio
-                                    ? `$${Number(nuevoPrecio).toLocaleString("es-CO")}`
-                                    : tipoEvento === "Descuento" && currentProducto
-                                    ? `$${Math.round(Number(currentProducto.precio || 0) * (1 - Number(descuento || 0) / 100)).toLocaleString("es-CO")}`
-                                    : insumosSeleccionados.length > 0 && currentProducto
-                                    ? `$${Number(currentProducto.precio || 0).toLocaleString("es-CO")} (+ Topping Gratis)`
-                                    : insumosSeleccionados.length > 0
-                                    ? "+ Topping Extra Gratis"
-                                    : "Beneficio Activo"}
-                                </span>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-gray-500">
-                              {productosSeleccionados.length} {productosSeleccionados.length === 1 ? "platillo" : "platillos"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 p-3 bg-amber-50/80 dark:bg-white/5 rounded-xl border border-amber-200/70 dark:border-white/10 flex items-center gap-2.5 text-xs text-amber-950 dark:text-gray-300">
-                        <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                        <span>En el siguiente paso podrás revisar y asignar los platillos participantes.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── PASO 2: PRODUCTOS PARTICIPANTES ── */}
-              {activeStep === 2 && (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/80 dark:border-gray-700/80">
                     <div>
                       <h3 className="text-sm font-black uppercase tracking-wider text-gray-900 dark:text-gray-100 flex items-center gap-2">
                         <Utensils className="w-4 h-4 text-orange-600" />
-                        <span>Productos que participan en el Evento</span>
+                        <span>Paso 1: Selecciona el o los Productos del Evento *</span>
                       </h3>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        Agrega o retira productos del catálogo que participarán en este evento o promoción.
+                        Elige primero los platillos participantes; luego definirás el tipo de evento y sus especificaciones.
                       </p>
                     </div>
 
@@ -1428,7 +1305,6 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                     )}
                   </div>
 
-                  {/* Buscador de Productos */}
                   {!producto && (
                     <div className="relative">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1476,110 +1352,664 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                     </div>
                   )}
 
-                  {/* Lista de Productos Seleccionados */}
                   {productosSeleccionados.length === 0 ? (
                     <div className="p-8 text-center bg-white dark:bg-gray-850 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700">
                       <Utensils className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
                       <p className="text-sm font-black text-gray-700 dark:text-gray-300">No hay productos seleccionados todavía</p>
                       <p className="text-xs text-gray-400 max-w-md mx-auto mt-1">
-                        Utiliza el buscador superior o los botones rápidos de categorías para añadir los platillos que tendrán este beneficio.
+                        Busca arriba el platillo o añade una categoría para continuar al tipo de evento.
                       </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                      {productosSeleccionados.map((item, idx) => {
-                        const calculatedPromoPrice = tipoEvento === "Descuento"
-                          ? Math.round(Number(item.precioBase || 0) * (1 - Number(item.descuento || descuento || 0) / 100))
-                          : tipoEvento === "Promoción Precio"
-                          ? Number(item.nuevoPrecio || nuevoPrecio || item.precioBase)
-                          : item.precioBase;
-
-                        return (
-                          <div
-                            key={item.id || idx}
-                            className="p-3.5 bg-white dark:bg-gray-850 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 flex items-center justify-between gap-3 shadow-xs hover:border-orange-300 transition-all"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              {item.imagen ? (
-                                <img src={item.imagen} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-xs" />
-                              ) : (
-                                <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 shrink-0">
-                                  {String(item?.categoria || item?.nombre || '').toLowerCase().includes('bebida') || String(item?.nombre || '').toLowerCase().includes('pola') ? (
-                                    <CupSoda className="w-5 h-5 text-amber-500" />
-                                  ) : (
-                                    <Utensils className="w-5 h-5" />
-                                  )}
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <p className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">{item.nombre}</p>
-                                <span className="text-[10px] font-bold text-gray-400 uppercase">{item.categoria?.nombre || item.categoriaNombre || (typeof item.categoria === "string" ? item.categoria : "") || "Producto"}</span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-xs text-gray-400 line-through">
-                                    ${Number(item.precioBase || 0).toLocaleString("es-CO")}
-                                  </span>
-                                  <span className="text-xs font-black text-red-600 dark:text-red-400">
-                                    ${Number(calculatedPromoPrice).toLocaleString("es-CO")}
-                                  </span>
-                                </div>
-
-                                {/* Requerimiento 37: Variantes de los productos que participan en el evento */}
-                                {Array.isArray(item.variantes) && item.variantes.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                                    <span className="text-[9.5px] font-bold text-gray-400">Variantes:</span>
-                                    {item.variantes.map((v, vIdx) => (
-                                      <span
-                                        key={v.id || v.idVariante || vIdx}
-                                        className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-[9.5px] font-semibold border border-gray-200/60 dark:border-gray-700/60"
-                                      >
-                                        {v.nombre}
-                                      </span>
-                                    ))}
-                                  </div>
+                      {productosSeleccionados.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          className="p-3.5 bg-white dark:bg-gray-850 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 flex items-center justify-between gap-3 shadow-xs hover:border-orange-300 transition-all"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {item.imagen ? (
+                              <img src={item.imagen} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-xs" />
+                            ) : (
+                              <div className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-600 shrink-0">
+                                {String(item?.categoria || item?.nombre || '').toLowerCase().includes('bebida') || String(item?.nombre || '').toLowerCase().includes('pola') ? (
+                                  <CupSoda className="w-5 h-5 text-amber-500" />
+                                ) : (
+                                  <Utensils className="w-5 h-5" />
                                 )}
                               </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              {/* Ajuste individual si aplica */}
-                              {tipoEvento === "Descuento" && (
-                                <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-900 px-2 py-1 rounded-xl border border-gray-200 dark:border-gray-700">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={item.descuento || descuento}
-                                    onChange={(e) => handleUpdateProductoBenefit(idx, "descuento", e.target.value)}
-                                    className="w-10 bg-transparent text-xs font-black text-center focus:outline-none"
-                                  />
-                                  <span className="text-[10px] font-bold text-gray-400">%</span>
-                                </div>
-                              )}
-
-                              {!producto && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveProducto(idx)}
-                                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer"
-                                  title="Remover producto"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">{item.nombre}</p>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase">{item.categoria?.nombre || item.categoriaNombre || (typeof item.categoria === "string" ? item.categoria : "") || "Producto"}</span>
+                              <p className="text-xs font-black text-orange-600 dark:text-orange-400 mt-0.5">
+                                Precio carta: ${Number(item.precioBase || item.precio || 0).toLocaleString("es-CO")}
+                              </p>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          {!producto && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveProducto(idx)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg cursor-pointer shrink-0"
+                              title="Remover producto"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* ── PASO 3: BANNER & VIGENCIA ── */}
+              {/* ── PASO 2: TIPO DE EVENTO ── */}
+              {activeStep === 2 && (
+                <div className="space-y-5 animate-in fade-in duration-200">
+                  <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                          Paso 2: ¿Qué tipo de evento deseas crear? *
+                        </label>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                          Aplicará sobre {productosSeleccionados.length} {productosSeleccionados.length === 1 ? "producto seleccionado" : "productos seleccionados"}: {productosSeleccionados.map(p => p.nombre).slice(0, 3).join(", ")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {TIPO_EVENTO_OPTIONS.map((opt) => {
+                        const isSel = tipoEvento === opt.value;
+                        const Icon = opt.icon;
+                        const createsVar = opt.value === "Añadir Insumos" || opt.value === "Edición Especial";
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setTipoEvento(opt.value);
+                              if (opt.defaultIcon) setIcono(opt.defaultIcon);
+                            }}
+                            className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between select-none ${
+                              isSel
+                                ? "border-orange-500 bg-orange-50/40 dark:bg-gray-800 shadow-md ring-2 ring-orange-400/40 text-orange-950 dark:text-orange-200"
+                                : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/70 hover:border-gray-300 text-gray-700 dark:text-gray-300"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className={`w-9 h-9 rounded-xl flex items-center justify-center text-white bg-linear-to-br ${opt.color} shadow-xs`}>
+                                <Icon size={18} stroke={2} />
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {createsVar && (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                    Crea Variante
+                                  </span>
+                                )}
+                                {isSel && <CheckCircle2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />}
+                              </div>
+                            </div>
+                            <span className="text-xs font-black">{opt.label}</span>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{opt.desc}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {(tipoEvento === "Añadir Insumos" || tipoEvento === "Edición Especial") && (
+                      <div className="p-3.5 rounded-2xl bg-purple-50/90 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200">
+                        <Layers className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-black">Generación Automática de Variante del Producto</p>
+                          <p className="text-[11px] opacity-90 mt-0.5">
+                            En el siguiente paso podrás editar los insumos base del producto, añadir los toppings/insumos extra y definir sus especificaciones. La variante quedará marcada como hecha por evento con interruptor Activa/Inactiva.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── PASO 3: ESPECIFICACIONES, VARIANTE DE EVENTO, BANNER & VIGENCIA ── */}
               {activeStep === 3 && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-200">
-                  {/* Columna Izquierda: Banner & Fechas (7 columnas) */}
                   <div className="lg:col-span-7 space-y-5">
+                    {/* Título y Descripción */}
+                    <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 space-y-3.5 shadow-xs">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-orange-600" />
+                        <span>Paso 3: Especificaciones de la Campaña y Variante</span>
+                      </h3>
+                      <div>
+                        <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1">
+                          Título del Evento / Promoción *
+                        </label>
+                        <input
+                          type="text"
+                          value={nombreEvento}
+                          onChange={(e) => setNombreEvento(e.target.value)}
+                          placeholder="Ej. Edición Especial Doble Tocineta, Festival Burger..."
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1">
+                          Especificaciones / Descripción Promocional
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={descripcion}
+                          onChange={(e) => setDescripcion(e.target.value)}
+                          placeholder="Describe los ingredientes especiales, condiciones o notas para cliente y cocina..."
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-orange-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Parámetros Específicos del Tipo de Evento */}
+                    <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 space-y-4 shadow-xs">
+                      {tipoEvento === "Descuento" && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                              Porcentaje de Descuento General *
+                            </label>
+                            <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                              {descuento ? `${descuento}% OFF` : "Define un porcentaje"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-2.5">
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={descuento}
+                              onChange={(e) => setDescuento(e.target.value)}
+                              placeholder="Ej. 15"
+                              className="w-28 px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
+                            />
+                            <span className="text-sm font-black text-gray-500">% de descuento</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase mr-1">Rápidos:</span>
+                            {QUICK_DISCOUNTS.map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setDescuento(String(d))}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                                  Number(descuento) === d
+                                    ? "bg-emerald-600 text-white shadow-xs"
+                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-emerald-50"
+                                }`}
+                              >
+                                {d}% OFF
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {tipoEvento === "Promoción Precio" && (
+                        <div>
+                          <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
+                            Precio Especial Rebajado ($ COP) *
+                          </label>
+                          <div className="relative max-w-xs">
+                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold z-10">$</span>
+                            <NumberInput
+                              formatThousands={true}
+                              step={1000}
+                              value={nuevoPrecio}
+                              onChange={(e) => setNuevoPrecio(e.target.value)}
+                              placeholder="Ej. 18.000"
+                              className="w-full pl-8 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {(tipoEvento === "Añadir Insumos" || tipoEvento === "Edición Especial") && (
+                        <div className="space-y-4">
+                          {tipoEvento === "Edición Especial" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+                              <div className="flex flex-col justify-end">
+                                <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
+                                  Precio Especial de Festival ($ COP)
+                                </label>
+                                <input
+                                  type="number"
+                                  value={nuevoPrecio}
+                                  onChange={(e) => setNuevoPrecio(e.target.value)}
+                                  placeholder="Ej. 24000"
+                                  className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black text-amber-600 focus:ring-2 focus:ring-orange-500"
+                                />
+                              </div>
+                              <div className="flex flex-col justify-end">
+                                <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
+                                  O Descuento de Campaña (%)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="100"
+                                  value={descuento}
+                                  onChange={(e) => setDescuento(e.target.value)}
+                                  placeholder="Ej. 15"
+                                  className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Selector rápido de Toppings / Insumos Extra del Evento */}
+                          <div>
+                            <label className="block text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1">
+                              {tipoEvento === "Añadir Insumos"
+                                ? "Topping(s) o Insumo(s) Extra del Evento *"
+                                : "Toppings / Insumos Extra para esta Edición Especial (Opcional)"}
+                            </label>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                              Al agregar toppings aquí se reflejan automáticamente en la variante generada para cada producto seleccionado.
+                            </p>
+                            <div className="relative">
+                              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="text"
+                                value={insumoSearch}
+                                onChange={(e) => setInsumoSearch(e.target.value)}
+                                placeholder="Buscar insumo o topping extra (ej. Tocineta, Queso Cheddar, Jalapeños)..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500"
+                              />
+                              {showInsumoDropdown && (
+                                <div className="absolute z-20 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                                  {filteredInsumos.map((ins) => (
+                                    <button
+                                      key={ins.id || ins.idInsumo}
+                                      type="button"
+                                      onClick={() => {
+                                        const resolvedMedida = resolveRecetaUnidadYCantidad(ins);
+                                        const idInsumoVal = ins.id || ins.idInsumo;
+                                        const unitVal = resolvedMedida.unidadMedida || ins.unidadMedida || "und";
+                                        const cantVal = resolvedMedida.cantidad || 1;
+                                        setInsumosSeleccionados(prev => {
+                                          const exists = prev.some(s => String(s.idInsumo || s.id) === String(idInsumoVal));
+                                          if (exists) return prev;
+                                          return [
+                                            ...prev,
+                                            { id: idInsumoVal, idInsumo: idInsumoVal, nombre: ins.nombre, cantidad: cantVal, unidad: unitVal, unidadMedida: unitVal }
+                                          ];
+                                        });
+                                        addToppingToAllEventVariants(ins);
+                                        setInsumoSearch("");
+                                        setShowInsumoDropdown(false);
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-xs hover:bg-orange-50 dark:hover:bg-gray-700 flex items-center justify-between cursor-pointer"
+                                    >
+                                      <span className="font-bold text-gray-800 dark:text-gray-200">{ins.nombre}</span>
+                                      <span className="text-[10px] text-gray-400">Stock: {ins.stock || 0} {ins.unidadMedida}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {insumosSeleccionados.length > 0 && (
+                              <div className="mt-2.5 flex flex-wrap gap-2">
+                                {insumosSeleccionados.map((insSel, idx) => {
+                                  const selId = insSel.idInsumo || insSel.id || idx;
+                                  const unitVal = insSel.unidadMedida || insSel.unidad || "und";
+                                  return (
+                                    <span
+                                      key={selId}
+                                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-xs font-bold text-purple-900 dark:text-purple-200"
+                                    >
+                                      <Gift className="w-3.5 h-3.5 text-purple-600" />
+                                      <span>+ {insSel.nombre} ({insSel.cantidad || 1} {unitVal})</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setInsumosSeleccionados(prev => prev.filter((_, i) => i !== idx))}
+                                        className="text-red-500 hover:text-red-700 font-black ml-1 cursor-pointer"
+                                        title="Quitar topping"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {tipoEvento === "2x1 / Combo Especial" && (
+                        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 flex items-center gap-3">
+                          <StreamlineDoubleBurger size={24} stroke={2} className="text-rose-600 shrink-0" />
+                          <div>
+                            <p className="text-xs font-black text-rose-950 dark:text-rose-200">Dinámica 2x1 Activada</p>
+                            <p className="text-[11px] text-rose-800 dark:text-rose-300 leading-tight">
+                              El sistema calculará automáticamente 2 unidades al precio de 1 tanto en el Punto de Venta (POS) como en el Menú Web del Comensal.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {tipoEvento === "Hora Feliz / Oferta Relámpago" && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+                            <div className="flex flex-col justify-end">
+                              <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
+                                Precio Flash Relámpago ($ COP)
+                              </label>
+                              <input
+                                type="number"
+                                value={nuevoPrecio}
+                                onChange={(e) => setNuevoPrecio(e.target.value)}
+                                placeholder="Ej. 17500"
+                                className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black text-red-600 focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+                            <div className="flex flex-col justify-end">
+                              <label className="text-xs font-black uppercase tracking-wider text-gray-800 dark:text-gray-200 mb-1.5">
+                                O Descuento Flash (%)
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={descuento}
+                                onChange={(e) => setDescuento(e.target.value)}
+                                placeholder="Ej. 25"
+                                className="w-full h-11 px-3.5 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black focus:ring-2 focus:ring-orange-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── SECCIÓN VARIANTE DE EVENTO (TOPING EXTRA / EDICIÓN ESPECIAL) ── */}
+                    {(tipoEvento === "Añadir Insumos" || tipoEvento === "Edición Especial") && productosSeleccionados.length > 0 && (
+                      <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border-2 border-purple-200 dark:border-purple-800/70 space-y-4 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/50 pb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
+                              <Layers className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                <span>Variante generada en Producto</span>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                                  <Sparkles className="w-2.5 h-2.5" /> Hecha por evento
+                                </span>
+                              </h4>
+                              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                Edita los insumos base de cada producto y los topping(s) extra que se están añadiendo.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {productosSeleccionados.map((prodItem) => {
+                            const pid = Number(prodItem.id || prodItem.idProducto);
+                            const cfg = variantesEventoPorProd[pid] || {
+                              nombre: "",
+                              precio: "",
+                              especificaciones: "",
+                              estado: 1,
+                              insumosBase: fichasBaseByProdMap[pid] || [],
+                              toppingsExtra: insumosSeleccionados || []
+                            };
+                            const originalBase = fichasBaseByProdMap[pid] || [];
+                            const prodBasePrice = Number(prodItem.precioBase || prodItem.precio || 0);
+                            const isVarActive = Number(cfg.estado ?? 1) !== 0;
+                            const extraQuery = (variantExtraInsumoSearch[pid] || "").trim();
+                            const matchedExtraInsumos = extraQuery
+                              ? (insumosBD || []).filter((ins) =>
+                                  String(ins.nombre || "").toLowerCase().includes(extraQuery.toLowerCase()) &&
+                                  !(cfg.toppingsExtra || []).some((t) => Number(t.idInsumo) === Number(ins.id || ins.idInsumo))
+                                ).slice(0, 6)
+                              : [];
+
+                            return (
+                              <div key={pid} className="p-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/50 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-xs font-black text-gray-900 dark:text-gray-100">{prodItem.nombre}</p>
+                                    <p className="text-[10.5px] text-gray-500">Precio base carta: ${prodBasePrice.toLocaleString("es-CO")}</p>
+                                  </div>
+
+                                  {/* Switch Activar/Inactivar Variante */}
+                                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                                    <span className={`text-[11px] font-bold ${isVarActive ? "text-emerald-700 dark:text-emerald-400" : "text-gray-400"}`}>
+                                      {isVarActive ? "Variante Activa (visible en clientes)" : "Variante Inactiva (oculta)"}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      role="switch"
+                                      aria-checked={isVarActive}
+                                      onClick={() => updateVariantField(pid, "estado", isVarActive ? 0 : 1)}
+                                      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                                        isVarActive ? "bg-emerald-600" : "bg-gray-300 dark:bg-gray-700"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                          isVarActive ? "translate-x-4.5" : "translate-x-1"
+                                        }`}
+                                      />
+                                    </button>
+                                  </label>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  <div>
+                                    <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-gray-400 mb-1">
+                                      Nombre de la variante
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={cfg.nombre}
+                                      onChange={(e) => updateVariantField(pid, "nombre", e.target.value)}
+                                      placeholder={nombreEvento.trim() || `${prodItem.nombre} (${tipoEvento})`}
+                                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-gray-400 mb-1">
+                                      Precio de la variante ($ COP)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      value={cfg.precio}
+                                      onChange={(e) => updateVariantField(pid, "precio", e.target.value)}
+                                      placeholder={nuevoPrecio ? String(nuevoPrecio) : String(prodBasePrice)}
+                                      className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-gray-400 mb-1">
+                                    Especificaciones para cocina y cliente (de esta variante)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={cfg.especificaciones}
+                                    onChange={(e) => updateVariantField(pid, "especificaciones", e.target.value)}
+                                    placeholder={descripcion.trim() || "Ej. Preparación especial de evento, dorado extra..."}
+                                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                                  />
+                                </div>
+
+                                {/* Insumos base editables */}
+                                <div className="space-y-1.5 pt-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10.5px] font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                                      Insumos base del producto ({(cfg.insumosBase || []).length}) — Editables
+                                    </span>
+                                    {originalBase.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => restoreVariantBaseInsumos(pid)}
+                                        className="text-[10px] font-bold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer"
+                                      >
+                                        <RotateCcw className="w-3 h-3" /> Restaurar base
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {(!cfg.insumosBase || cfg.insumosBase.length === 0) ? (
+                                    <p className="text-[11px] text-gray-400 italic bg-white dark:bg-gray-800 px-3 py-2 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                      Sin insumos base en Ficha Técnica (o fueron removidos). Usa &quot;Restaurar base&quot; si deseas recargarlos.
+                                    </p>
+                                  ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                      {cfg.insumosBase.map((baseIns) => (
+                                        <div
+                                          key={baseIns.idInsumo}
+                                          className="flex items-center justify-between gap-2 bg-white dark:bg-gray-800 px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs"
+                                        >
+                                          <div className="min-w-0 flex-1">
+                                            <span className="font-bold text-gray-800 dark:text-gray-200 truncate block">{baseIns.nombre}</span>
+                                            <span className="text-[9.5px] font-bold text-slate-400 uppercase">Base editable</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={() => updateVariantBaseQty(pid, baseIns.idInsumo, Math.max(0.1, Number((Number(baseIns.cantidad) - 0.5).toFixed(2))))}
+                                              className="w-5 h-5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black cursor-pointer"
+                                            >
+                                              -
+                                            </button>
+                                            <input
+                                              type="number"
+                                              min="0.01"
+                                              step="any"
+                                              value={baseIns.cantidad}
+                                              onChange={(e) => updateVariantBaseQty(pid, baseIns.idInsumo, e.target.value)}
+                                              className="w-12 text-center text-xs font-black bg-transparent border border-gray-200 dark:border-gray-600 rounded px-1 py-0.5"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => updateVariantBaseQty(pid, baseIns.idInsumo, Number((Number(baseIns.cantidad) + 0.5).toFixed(2)))}
+                                              className="w-5 h-5 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-black cursor-pointer"
+                                            >
+                                              +
+                                            </button>
+                                            <span className="text-[10px] text-gray-500 ml-0.5">{baseIns.unidadMedida}</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => removeVariantBaseInsumo(pid, baseIns.idInsumo)}
+                                              className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
+                                              title="Quitar de esta variante"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Toppings / Insumos extra añadidos al producto */}
+                                <div className="space-y-1.5 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                  <span className="text-[10.5px] font-black uppercase tracking-wider text-purple-700 dark:text-purple-300 block">
+                                    Topping(s) / Insumo(s) Extra Añadidos al Producto ({(cfg.toppingsExtra || []).length})
+                                  </span>
+
+                                  {(cfg.toppingsExtra || []).length > 0 && (
+                                    <div className="space-y-1.5">
+                                      {cfg.toppingsExtra.map((tp) => (
+                                        <div
+                                          key={tp.idInsumo}
+                                          className="flex items-center justify-between gap-2 bg-purple-50/90 dark:bg-purple-950/40 px-3 py-2 rounded-xl border border-purple-200 dark:border-purple-800 text-xs"
+                                        >
+                                          <div className="min-w-0 flex-1 flex items-center gap-2">
+                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase shrink-0">
+                                              + Topping Extra
+                                            </span>
+                                            <span className="font-black text-purple-950 dark:text-purple-100 truncate">{tp.nombre}</span>
+                                          </div>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                              type="button"
+                                              onClick={() => updateVariantExtraToppingQty(pid, tp.idInsumo, Math.max(0.1, Number((Number(tp.cantidad) - 1).toFixed(2))))}
+                                              className="w-5 h-5 rounded bg-white dark:bg-gray-800 border border-purple-300 text-purple-800 font-black cursor-pointer"
+                                            >
+                                              -
+                                            </button>
+                                            <input
+                                              type="number"
+                                              min="0.01"
+                                              step="any"
+                                              value={tp.cantidad}
+                                              onChange={(e) => updateVariantExtraToppingQty(pid, tp.idInsumo, e.target.value)}
+                                              className="w-12 text-center text-xs font-black bg-white dark:bg-gray-800 border border-purple-300 rounded px-1 py-0.5"
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => updateVariantExtraToppingQty(pid, tp.idInsumo, Number((Number(tp.cantidad) + 1).toFixed(2)))}
+                                              className="w-5 h-5 rounded bg-white dark:bg-gray-800 border border-purple-300 text-purple-800 font-black cursor-pointer"
+                                            >
+                                              +
+                                            </button>
+                                            <span className="text-[10px] font-bold text-purple-800 dark:text-purple-300 ml-0.5">{tp.unidadMedida}</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => removeVariantExtraTopping(pid, tp.idInsumo)}
+                                              className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer"
+                                              title="Quitar topping"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  <div className="relative">
+                                    <Plus className="w-3.5 h-3.5 text-purple-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <input
+                                      type="text"
+                                      value={variantExtraInsumoSearch[pid] || ""}
+                                      onChange={(e) => setVariantExtraInsumoSearch((prev) => ({ ...prev, [pid]: e.target.value }))}
+                                      placeholder="Añadir topping/insumo extra a esta variante..."
+                                      className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800 rounded-xl text-xs"
+                                    />
+                                    {matchedExtraInsumos.length > 0 && (
+                                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                                        {matchedExtraInsumos.map((ins) => (
+                                          <button
+                                            key={ins.id || ins.idInsumo}
+                                            type="button"
+                                            onClick={() => addVariantExtraTopping(pid, ins)}
+                                            className="w-full px-3 py-1.5 text-left text-xs hover:bg-purple-50 dark:hover:bg-gray-700 flex items-center justify-between cursor-pointer"
+                                          >
+                                            <span className="font-bold text-gray-800 dark:text-gray-200">+ {ins.nombre}</span>
+                                            <span className="text-[10px] text-gray-400">{ins.unidadMedida}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Subida de Banner Promocional */}
                     <div className="bg-white dark:bg-gray-850 p-4 sm:p-5 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 space-y-3.5 shadow-xs">
                       <div className="flex items-center justify-between">
@@ -1590,7 +2020,6 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                         <span className="text-[10px] text-gray-400 font-bold">Panorámico (carrusel & catálogo)</span>
                       </div>
 
-                      {/* Vista previa y botón subir */}
                       <div className="flex flex-col sm:flex-row items-center gap-4">
                         <div className="w-full sm:w-44 h-24 rounded-2xl bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 overflow-hidden flex items-center justify-center shrink-0">
                           {imagePreviewUrl || eventoImagen ? (
@@ -1673,7 +2102,6 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                         </label>
                       </div>
 
-                      {/* Selectores de Fechas */}
                       {isTemporal && (
                         <div className="pt-3 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                           <div>
@@ -1711,31 +2139,49 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                     </div>
                   </div>
 
-                  {/* Columna Derecha: Resumen Final y Banner Hero (5 columnas) - Adaptable Modo Claro/Oscuro */}
+                  {/* Columna Derecha: Resumen Final y Vista Previa */}
                   <div className="lg:col-span-5 space-y-4">
-                    <div className="bg-white dark:bg-linear-to-br dark:from-gray-900 dark:to-gray-950 p-5 rounded-3xl text-gray-900 dark:text-white shadow-xl border border-gray-200 dark:border-gray-800 sticky top-2">
-                      <div className="flex items-center justify-between mb-3.5">
+                    <div className="bg-white dark:bg-linear-to-br dark:from-gray-900 dark:to-gray-950 p-5 rounded-3xl text-gray-900 dark:text-white shadow-xl border border-gray-200 dark:border-gray-800 sticky top-2 space-y-3.5">
+                      <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Resumen Final de Publicación</span>
+                          <span>Vista Previa & Resumen Final</span>
                         </span>
                         <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-xs">
-                          Listo para Crear
+                          Listo para Publicar
                         </span>
                       </div>
 
-                      <div className="space-y-3 text-xs">
-                        <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200/80 dark:border-white/10 space-y-1">
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-black">Campaña</p>
-                          <p className="text-sm font-black text-amber-600 dark:text-amber-300">{nombreEvento || "Sin título"}</p>
-                          <p className="text-gray-600 dark:text-gray-300 text-[11px] line-clamp-2">{descripcion || "Sin descripción"}</p>
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
+                        <div className="relative h-28 bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                          {imagePreviewUrl || eventoImagen || currentProducto?.imagen || productosSeleccionados[0]?.imagen ? (
+                            <img
+                              src={imagePreviewUrl || eventoImagen || currentProducto?.imagen || productosSeleccionados[0]?.imagen}
+                              alt="Vista previa"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                              <Utensils className="w-7 h-7 opacity-40 mb-1" />
+                              <span className="text-[10px] font-bold">Sin banner de campaña</span>
+                            </div>
+                          )}
                         </div>
+                        <div className="p-3.5 space-y-1.5 text-xs">
+                          <p className="font-black text-orange-600 dark:text-orange-400 uppercase">{nombreEvento || "Título de la Campaña"}</p>
+                          <p className="font-bold text-gray-900 dark:text-white truncate">
+                            {productosSeleccionados.map(p => p.nombre).join(", ") || "Platillos seleccionados"}
+                          </p>
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2">{descripcion || "Sin especificaciones adicionales"}</p>
+                        </div>
+                      </div>
 
+                      <div className="space-y-2 text-xs">
                         <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200/80 dark:border-white/10 flex items-center justify-between">
                           <div>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-black">Dinámica</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-black">Tipo de Evento</p>
                             <p className="font-bold text-gray-900 dark:text-white">
-                              {tipoEvento === "Añadir Insumos" ? "Topping Extra Gratis" : tipoEvento}
+                              {tipoEvento === "Añadir Insumos" ? "Topping Extra (Crea Variante)" : tipoEvento}
                             </p>
                           </div>
                           <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-red-600 text-white shadow-xs">
@@ -1744,32 +2190,26 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                               : tipoEvento === "2x1 / Combo Especial"
                               ? "2X1"
                               : tipoEvento === "Añadir Insumos"
-                              ? "+ TOPPING"
+                              ? "+ VARIANTE"
+                              : tipoEvento === "Edición Especial"
+                              ? "EDICIÓN"
                               : "OFERTA"}
                           </span>
                         </div>
 
-                        {insumosSeleccionados.length > 0 && (
+                        {(tipoEvento === "Añadir Insumos" || tipoEvento === "Edición Especial") && (
                           <div className="p-3 bg-purple-50 dark:bg-purple-950/40 rounded-2xl border border-purple-200 dark:border-purple-800/60 flex items-start gap-2.5">
-                            <Gift className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                            <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                             <div className="min-w-0">
                               <p className="text-[10px] text-purple-700 dark:text-purple-300 uppercase font-black">
-                                Topping(s) Extra Incluido(s) Sin Costo
+                                Variante Creada por Evento ({productosSeleccionados.length})
                               </p>
-                              <p className="font-bold text-purple-950 dark:text-purple-100 text-xs mt-0.5 break-words">
-                                {formatEventoToppingsText({ insumosAsociados: insumosSeleccionados })}
+                              <p className="font-bold text-purple-950 dark:text-purple-100 text-[11px] mt-0.5">
+                                Guardará insumos base editables y toppings extra con interruptor Activo/Inactivo.
                               </p>
                             </div>
                           </div>
                         )}
-
-                        <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200/80 dark:border-white/10 flex items-center justify-between">
-                          <div>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-black">Productos Participantes</p>
-                            <p className="font-bold text-gray-900 dark:text-white">{productosSeleccionados.length} platillos asignados</p>
-                          </div>
-                          <Utensils className="w-4 h-4 text-orange-500" />
-                        </div>
 
                         <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200/80 dark:border-white/10 flex items-center justify-between">
                           <div>

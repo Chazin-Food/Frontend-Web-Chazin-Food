@@ -577,64 +577,85 @@ export function CocineroDashboard() {
     }
   };
 
-  // Open recipe modal
+  // Open recipe modal (soporta ficha por variante y fallback a producto)
   const verReceta = async (pedido, producto) => {
     setProductoSeleccionado(producto);
     setLoadingReceta(true);
 
-    if (producto.receta) {
+    if (producto.receta && Array.isArray(producto.receta.ingredientes) && producto.receta.ingredientes.length > 0) {
       setModalRecetaData(producto.receta);
       setLoadingReceta(false);
       return;
     }
 
     try {
+      let ft = null;
+      if (producto.idVariante && !producto.esVarianteBase) {
+        ft = await fichasTecnicasService.getFichaByVariante(producto.idVariante).catch(() => null);
+      }
       const prodId = producto.idProducto || producto.idVariante || producto.id;
-      if (prodId) {
-        const ft = await fichasTecnicasService.getFichaByProducto(prodId);
-        if (ft && (ft.detalles || ft.procedimiento || ft.idFichaTecnica)) {
-          const rawPasos = ft.procedimiento || ft.descripcion || "";
-          const pasos = rawPasos
-            ? rawPasos.split("\n").map((p) => p.trim()).filter(Boolean)
-            : ["Preparar los ingredientes según porciones", "Cocinar y servir caliente"];
+      if ((!ft || (!ft.detalles && !ft.procedimiento && !ft.idFichaTecnica)) && prodId) {
+        ft = await fichasTecnicasService.getFichaByProducto(prodId);
+      }
 
-          setModalRecetaData({
-            idFichaTecnica: ft.idFichaTecnica,
-            idProducto: ft.idProducto,
-            tiempoPreparacion: ft.tiempoPreparacion ? `${ft.tiempoPreparacion} min` : "12 min",
-            rendimiento: ft.rendimiento || "1 porción",
-            especificaciones: ft.especificaciones || "",
-            caracteristicas: ft.caracteristicas || "",
-            informacionNutricional: ft.informacionNutricional || "",
-            condicionesAlmacenamiento: ft.condicionesAlmacenamiento || "",
-            vidaUtil: ft.vidaUtil || "",
-            ingredientes: (ft.detalles || []).map((d) => ({
-              idInsumo: d.idInsumo,
-              nombre: d.insumo?.nombre || d.nombreInsumo || `Insumo #${d.idInsumo}`,
-              cantidad: `${d.cantidad || 1} ${d.unidadMedida || d.insumo?.unidadMedida || "und"}`
-            })),
-            pasos
-          });
-          return;
-        }
+      if (ft && (ft.detalles || ft.procedimiento || ft.idFichaTecnica)) {
+        const rawPasos = ft.procedimiento || ft.descripcion || "";
+        const pasos = rawPasos
+          ? rawPasos.split("\n").map((p) => p.trim()).filter(Boolean)
+          : (producto.receta?.pasos?.length ? producto.receta.pasos : ["Preparar los ingredientes según porciones", "Cocinar y servir caliente"]);
+
+        const combinedSpecs = [
+          producto.varianteEspecificaciones,
+          ft.especificaciones,
+          producto.especificacionesProducto,
+          producto.receta?.especificaciones
+        ]
+          .filter((s) => s && String(s).trim())
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .join(" • ");
+
+        setModalRecetaData({
+          idFichaTecnica: ft.idFichaTecnica,
+          idProducto: ft.idProducto,
+          idVariante: !producto.esVarianteBase ? (producto.idVariante || null) : null,
+          tiempoPreparacion: ft.tiempoPreparacion ? `${ft.tiempoPreparacion} min` : (producto.receta?.tiempoPreparacion || "12 min"),
+          rendimiento: ft.rendimiento || producto.receta?.rendimiento || "1 porción",
+          especificaciones: combinedSpecs || "",
+          caracteristicas: ft.caracteristicas || "",
+          informacionNutricional: ft.informacionNutricional || "",
+          condicionesAlmacenamiento: ft.condicionesAlmacenamiento || "",
+          vidaUtil: ft.vidaUtil || "",
+          ingredientes: (ft.detalles || []).map((d) => ({
+            idInsumo: d.idInsumo,
+            nombre: d.insumo?.nombre || d.nombreInsumo || `Insumo #${d.idInsumo}`,
+            cantidad: `${d.cantidad || 1} ${d.unidadMedida || d.insumo?.unidadMedida || "und"}`,
+            tipo: "BASE"
+          })),
+          pasos
+        });
+        return;
       }
 
       // Fallback
-      setModalRecetaData({
-        tiempoPreparacion: "10-15 min",
-        rendimiento: "1 unidad",
-        especificaciones: "Preparación estándar de la casa",
-        ingredientes: [{ nombre: "Ingredientes del platillo", cantidad: "1 porción estándar" }],
-        pasos: ["Revisar ingredientes y adiciones", "Preparar en cocina según comanda", "Emplatar caliente y servir"]
-      });
+      setModalRecetaData(
+        producto.receta || {
+          tiempoPreparacion: "10-15 min",
+          rendimiento: "1 unidad",
+          especificaciones: [producto.varianteEspecificaciones, producto.especificacionesProducto].filter(Boolean).join(" • ") || "Preparación estándar de la casa",
+          ingredientes: [{ nombre: "Ingredientes del platillo", cantidad: "1 porción estándar" }],
+          pasos: ["Revisar ingredientes y adiciones", "Preparar en cocina según comanda", "Emplatar caliente y servir"]
+        }
+      );
     } catch (err) {
       console.warn("No se pudo cargar ficha técnica del producto:", err);
-      setModalRecetaData({
-        tiempoPreparacion: "10-15 min",
-        rendimiento: "1 unidad",
-        ingredientes: [{ nombre: "Ingredientes estándar", cantidad: "1 porción" }],
-        pasos: ["Preparar en cocina según orden de comanda"]
-      });
+      setModalRecetaData(
+        producto.receta || {
+          tiempoPreparacion: "10-15 min",
+          rendimiento: "1 unidad",
+          ingredientes: [{ nombre: "Ingredientes estándar", cantidad: "1 porción" }],
+          pasos: ["Preparar en cocina según orden de comanda"]
+        }
+      );
     } finally {
       setLoadingReceta(false);
     }
@@ -1295,14 +1316,29 @@ export function CocineroDashboard() {
                             className="p-3 rounded-2xl border transition-all text-xs bg-gray-50/80 dark:bg-gray-800/50 border-gray-200/80 dark:border-gray-800/80 hover:border-gray-300 dark:hover:border-gray-700"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              {/* Left: Quantity & Name */}
+                              {/* Left: Quantity, Name & Variante Badge */}
                               <div className="flex items-start gap-2 flex-1 min-w-0">
                                 <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-[#F05454]/10 text-[#F05454] text-xs font-black shrink-0 mt-0.5">
                                   {prod.cantidad}x
                                 </span>
-                                <p className="font-black text-sm text-gray-900 dark:text-gray-100 leading-snug break-words">
-                                  {prod.nombre}
-                                </p>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-black text-sm text-gray-900 dark:text-gray-100 leading-snug break-words">
+                                    {prod.nombre}
+                                  </p>
+                                  {prod.varianteNombre && !prod.esVarianteBase && (
+                                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800 text-[10px] font-black">
+                                        <Layers className="w-2.5 h-2.5" />
+                                        Variante: {prod.varianteNombre}
+                                      </span>
+                                      {prod.esVarianteDeEvento && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-200 text-[9.5px] font-black">
+                                          <Sparkles className="w-2.5 h-2.5" /> Evento
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Right: Receta Button */}
@@ -1319,6 +1355,60 @@ export function CocineroDashboard() {
                                 <span>Ficha Técnica</span>
                               </button>
                             </div>
+
+                            {/* Cambios de variante + Insumos + Especificaciones directamente en la comanda */}
+                            {Array.isArray(prod.varianteCambios) && prod.varianteCambios.length > 0 && (
+                              <div className="mt-2 pl-2 flex flex-wrap gap-1">
+                                {prod.varianteCambios.map((c, cIdx) => (
+                                  <span
+                                    key={cIdx}
+                                    className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-[10px] font-bold"
+                                  >
+                                    {c.texto || c.insumoNombre}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {Array.isArray(prod.receta?.ingredientes) && prod.receta.ingredientes.length > 0 && (
+                              <div className="mt-2 pl-2 space-y-1">
+                                <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider block">
+                                  Insumos ({prod.receta.ingredientes.length}):
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {prod.receta.ingredientes.map((ing, iIdx) => {
+                                    const isExtra = ing.tipo === "AGREGADO_VARIANTE" || ing.tipo === "REEMPLAZO_VARIANTE" || ing.tipo === "MODIFICADO_VARIANTE";
+                                    const isOmitted = ing.tipo === "REMOVIDO_CLIENTE" || ing.omitido;
+                                    return (
+                                      <span
+                                        key={iIdx}
+                                        className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${
+                                          isOmitted
+                                            ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 line-through"
+                                            : isExtra
+                                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800 font-bold"
+                                              : "bg-white dark:bg-gray-900/60 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                                        }`}
+                                      >
+                                        {ing.nombre}: <strong>{ing.cantidad}</strong>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {(prod.varianteEspecificaciones || prod.receta?.especificaciones || prod.especificacionesProducto) && (
+                              <div className="mt-2 ml-2 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/50 p-2 rounded-xl text-[11px] text-blue-900 dark:text-blue-200">
+                                <span className="font-black text-blue-700 dark:text-blue-300">Especificaciones: </span>
+                                <span>
+                                  {[prod.varianteEspecificaciones, prod.receta?.especificaciones, prod.especificacionesProducto]
+                                    .filter((s) => s && String(s).trim())
+                                    .filter((v, i, a) => a.indexOf(v) === i)
+                                    .join(" • ")}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Extra Additions Pills */}
                             {Array.isArray(prod.adiciones) && prod.adiciones.length > 0 && (
@@ -1479,11 +1569,23 @@ export function CocineroDashboard() {
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-black text-gray-900 dark:text-gray-100 text-sm sm:text-base truncate">
-                    {productoSeleccionado.nombre}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-black text-gray-900 dark:text-gray-100 text-sm sm:text-base truncate">
+                      {productoSeleccionado.nombre}
+                    </h3>
+                    {productoSeleccionado.varianteNombre && !productoSeleccionado.esVarianteBase && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 border border-purple-200 shrink-0">
+                        Variante: {productoSeleccionado.varianteNombre}
+                      </span>
+                    )}
+                    {productoSeleccionado.esVarianteDeEvento && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1 shrink-0">
+                        <Sparkles className="w-2.5 h-2.5" /> Hecha por evento
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium">
-                    Tiempo estimado: {modalRecetaData?.tiempoPreparacion || "12 min"} • Rendimiento:{" "}
+                    ⏱️ Tiempo estimado: {modalRecetaData?.tiempoPreparacion || "12 min"} • Rendimiento:{" "}
                     {modalRecetaData?.rendimiento || "1 porción"}
                   </p>
                 </div>
@@ -1510,6 +1612,22 @@ export function CocineroDashboard() {
                 </div>
               ) : (
                 <>
+                  {/* Variantes cambios si existen */}
+                  {Array.isArray(productoSeleccionado.varianteCambios) && productoSeleccionado.varianteCambios.length > 0 && (
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/40 rounded-xl space-y-1.5">
+                      <span className="text-[10.5px] font-black uppercase tracking-wider text-indigo-800 dark:text-indigo-200 block">
+                        Cambios de la Variante Seleccionada:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {productoSeleccionado.varianteCambios.map((c, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded-lg bg-white dark:bg-gray-900 border border-indigo-200 text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                            {c.texto || c.insumoNombre}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Ingredients List */}
                   <div>
                     <h4 className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
@@ -1518,17 +1636,27 @@ export function CocineroDashboard() {
                     </h4>
                     {modalRecetaData?.ingredientes && modalRecetaData.ingredientes.length > 0 ? (
                       <div className="space-y-1.5">
-                        {modalRecetaData.ingredientes.map((ing, i) => (
-                          <div
-                            key={i}
-                            className="text-xs sm:text-sm flex justify-between items-center p-2.5 bg-gray-50 dark:bg-gray-800 rounded-xl text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700/50"
-                          >
-                            <span className="font-semibold">{ing.nombre}</span>
-                            <span className="font-black text-[#F05454] dark:text-red-400 bg-white dark:bg-gray-900 px-2 py-0.5 rounded-lg text-xs shadow-2xs border border-gray-100 dark:border-gray-800">
-                              {ing.cantidad}
-                            </span>
-                          </div>
-                        ))}
+                        {modalRecetaData.ingredientes.map((ing, i) => {
+                          const isExtra = ing.tipo === "AGREGADO_VARIANTE" || ing.tipo === "REEMPLAZO_VARIANTE" || ing.tipo === "MODIFICADO_VARIANTE";
+                          const isOmitted = ing.tipo === "REMOVIDO_CLIENTE" || ing.omitido;
+                          return (
+                            <div
+                              key={i}
+                              className={`text-xs sm:text-sm flex justify-between items-center p-2.5 rounded-xl border ${
+                                isOmitted
+                                  ? "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200 line-through"
+                                  : isExtra
+                                    ? "bg-emerald-50/90 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800"
+                                    : "bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-100 dark:border-gray-700/50"
+                              }`}
+                            >
+                              <span className="font-semibold">{ing.nombre}</span>
+                              <span className="font-black text-[#F05454] dark:text-red-400 bg-white dark:bg-gray-900 px-2 py-0.5 rounded-lg text-xs shadow-2xs border border-gray-100 dark:border-gray-800">
+                                {ing.cantidad}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-xs text-gray-400 italic">No hay ingredientes desglosados en esta ficha técnica.</p>

@@ -20,7 +20,7 @@ import { EventosCarousel, THEMES } from "../componentes/EventosCarousel";
 import { BrandHeroBanner } from "../componentes/BrandHeroBanner";
 import { FoodIcon, FoodIconBadge, EventBadge, getEventBadgeConfig, stripEmojis } from "@/shared/components/ui/FoodIcon";
 import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
-import { getProductVariantSummary } from "@/shared/utils/productVariantUtils";
+import { getProductVariantSummary, isVariantActive } from "@/shared/utils/productVariantUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import { ClienteFooter } from "../componentes/ClienteFooter";
 import { isEssentialIngredient } from "@/shared/utils/ingredientUtils";
@@ -572,11 +572,15 @@ export function ClienteLanding() {
                 idCategoriaProducto: p.idCategoriaProducto,
                 descripcion: p.descripcion,
                 imagen: p.imagen,
-                variantes: p.variantes || [],
+                variantes: Array.isArray(p.variantes) ? p.variantes.filter((v) => isVariantActive(v)) : [],
+                idVarianteBase: p.idVarianteBase || null,
+                idVariantePrincipal: p.idVariantePrincipal || null,
+                fichaTecnica: p.fichaTecnica || null,
                 esCombo: Boolean(p.esCombo),
                 configuracionCombo: p.configuracionCombo || null,
                 itemsCombo: Array.isArray(p.itemsCombo) ? p.itemsCombo : [],
                 adiciones: Array.isArray(p.adiciones) ? p.adiciones : [],
+                adicionesDisponibles: Array.isArray(p.adicionesDisponibles) ? p.adicionesDisponibles : [],
                 eventos: p.eventos || []
               };
             });
@@ -1414,7 +1418,13 @@ export function ClienteLanding() {
     personalizaciones,
     ingredientesRemovidos,
     observacion,
-    sabor
+    sabor,
+    esVarianteBase,
+    varianteNombre,
+    varianteDescripcion,
+    varianteEspecificaciones,
+    varianteCambios,
+    esVarianteDeEvento
   }) => {
     // Ítem #16: Evitar doble descuento si el modal ya calculó el precio final
     let basePrice = Number(producto.precioFinal !== undefined ? producto.precioFinal : (producto.precioCalculado !== undefined ? producto.precioCalculado : producto.precio || 0));
@@ -1430,12 +1440,20 @@ export function ClienteLanding() {
     }
 
     const isDrink = isDrinkProduct(producto);
+    const resolvedIsBase = Boolean(esVarianteBase ?? producto.esVarianteBase);
+    const resolvedVarName = resolvedIsBase ? null : (varianteNombre || producto.varianteNombre || null);
     const finalProdName = producto.nombrePersonalizado || (sabor ? `${producto.nombre} (${sabor})` : (producto.saborSeleccionado ? `${producto.nombre} (${producto.saborSeleccionado})` : producto.nombre));
 
     const itemToAdd = {
       id: producto.id || producto.idProducto,
       idProducto: producto.idProducto || producto.id,
-      idVariante: producto.idVariante || producto.id || producto.idProducto,
+      idVariante: resolvedIsBase ? (producto.idVarianteBase || producto.idVariante || null) : (producto.idVariante || producto.id || producto.idProducto),
+      esVarianteBase: resolvedIsBase,
+      varianteNombre: resolvedVarName,
+      varianteDescripcion: resolvedIsBase ? null : (varianteDescripcion || producto.varianteDescripcion || null),
+      varianteEspecificaciones: resolvedIsBase ? null : (varianteEspecificaciones || producto.varianteEspecificaciones || null),
+      varianteCambios: (!resolvedIsBase && Array.isArray(varianteCambios || producto.varianteCambios)) ? (varianteCambios || producto.varianteCambios) : [],
+      esVarianteDeEvento: Boolean(!resolvedIsBase && (esVarianteDeEvento || producto.esVarianteDeEvento)),
       sabor: sabor || producto.saborSeleccionado || null,
       nombre: finalProdName,
       precio: basePrice,
@@ -1748,9 +1766,17 @@ export function ClienteLanding() {
             return {
               id: item.id,
               idProducto: item.idProducto || item.id,
-              idVariante: item.idVariante || item.id,
+              idVariante: item.esVarianteBase ? null : (item.idVariante || item.id),
+              esVarianteBase: Boolean(item.esVarianteBase),
+              varianteNombre: item.esVarianteBase ? null : (item.varianteNombre || null),
+              varianteDescripcion: item.esVarianteBase ? null : (item.varianteDescripcion || null),
+              varianteEspecificaciones: item.esVarianteBase ? null : (item.varianteEspecificaciones || null),
+              varianteCambios: (!item.esVarianteBase && Array.isArray(item.varianteCambios)) ? item.varianteCambios : [],
+              esVarianteDeEvento: Boolean(!item.esVarianteBase && item.esVarianteDeEvento),
               nombre: item.nombre,
               cantidad: item.cantidad,
+              cantidadCocina: item.cantidadCocina || undefined,
+              is2x1Promo: Boolean(item.is2x1Promo),
               precioUnitario: Number(item.precio) || 0,
               total: lineTotal,
               observaciones: item.observacion || item.observaciones || item.especificaciones || "",
@@ -1771,7 +1797,13 @@ export function ClienteLanding() {
           const customNote = (item.observacion || item.observaciones || "").trim();
           return {
             idProducto: item.idProducto || item.id,
-            idVariante: item.idVariante || item.id || 1,
+            idVariante: item.esVarianteBase ? null : (item.idVariante || item.id || 1),
+            esVarianteBase: Boolean(item.esVarianteBase),
+            varianteNombre: item.esVarianteBase ? null : (item.varianteNombre || null),
+            varianteDescripcion: item.esVarianteBase ? null : (item.varianteDescripcion || null),
+            varianteEspecificaciones: item.esVarianteBase ? null : (item.varianteEspecificaciones || null),
+            varianteCambios: (!item.esVarianteBase && Array.isArray(item.varianteCambios)) ? item.varianteCambios : [],
+            esVarianteDeEvento: Boolean(!item.esVarianteBase && item.esVarianteDeEvento),
             nombre: item.nombre,
             cantidad: item.cantidad,
             precioUnitario: Number(item.precio) || 0,

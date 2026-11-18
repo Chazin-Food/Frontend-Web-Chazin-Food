@@ -16,7 +16,8 @@ import {
   ClipboardCheck,
   CheckCircle2,
   AlertTriangle,
-  Printer
+  Printer,
+  Sparkles
 } from "lucide-react";
 import { parseKitchenOrderNotes } from "@/shared/utils/orderUtils";
 import { FoodIconBadge } from "@/shared/components/ui/FoodIcon";
@@ -370,8 +371,8 @@ export function VerOrdenModal({ isOpen, onClose, orden, onOpenChecklist }) {
                           x{qty}
                         </span>
 
-                        {/* Nombre del Platillo */}
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        {/* Nombre del Platillo & Variante */}
+                        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                           <span className={`font-bold text-sm truncate ${
                             isListo
                               ? "line-through text-gray-400 dark:text-gray-500"
@@ -379,6 +380,17 @@ export function VerOrdenModal({ isOpen, onClose, orden, onOpenChecklist }) {
                           }`}>
                             {prod.nombre}
                           </span>
+                          {prod.varianteNombre && !prod.esVarianteBase && (
+                            <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800">
+                              <Layers className="w-2.5 h-2.5" />
+                              {prod.varianteNombre}
+                            </span>
+                          )}
+                          {prod.esVarianteDeEvento && (
+                            <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                              <Sparkles className="w-2.5 h-2.5" /> Evento
+                            </span>
+                          )}
                           {(prod.isPromo2x1 || prod.nombre?.includes("2x1") || itemObs?.includes("2x1")) && (
                             <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-2xs">
                               <Tag className="w-3 h-3 stroke-[2.5]" /><span>2x1 (Preparar {qty})</span>
@@ -473,6 +485,30 @@ export function VerOrdenModal({ isOpen, onClose, orden, onOpenChecklist }) {
                           </div>
                         )}
 
+                        {/* Cambios de variante y Especificaciones */}
+                        {((Array.isArray(prod.varianteCambios) && prod.varianteCambios.length > 0) || prod.varianteEspecificaciones || prod.receta?.especificaciones || prod.especificacionesProducto) && (
+                          <div className="bg-purple-50/70 dark:bg-purple-950/25 border border-purple-200/80 dark:border-purple-900/40 p-3 rounded-xl space-y-1.5 text-xs">
+                            {Array.isArray(prod.varianteCambios) && prod.varianteCambios.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {prod.varianteCambios.map((c, cIdx) => (
+                                  <span key={cIdx} className="px-2 py-0.5 rounded-md bg-white dark:bg-gray-800 border border-purple-200 text-purple-900 dark:text-purple-200 text-[11px] font-bold">
+                                    {c.texto || c.insumoNombre}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {(prod.varianteEspecificaciones || prod.receta?.especificaciones || prod.especificacionesProducto) && (
+                              <p className="text-[11px] text-purple-950 dark:text-purple-200">
+                                <strong>Especificaciones:</strong>{" "}
+                                {[prod.varianteEspecificaciones, prod.receta?.especificaciones, prod.especificacionesProducto]
+                                  .filter((s) => s && String(s).trim())
+                                  .filter((v, i, a) => a.indexOf(v) === i)
+                                  .join(" • ")}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {/* Ingredientes / Ficha Técnica */}
                         {recetaIngredientes.length > 0 && (
                           <div className="space-y-1.5 pt-1">
@@ -488,19 +524,29 @@ export function VerOrdenModal({ isOpen, onClose, orden, onOpenChecklist }) {
                               )}
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                              {recetaIngredientes.map((ing, ingIdx) => (
-                                <div
-                                  key={ingIdx}
-                                  className="p-2.5 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-between text-xs border border-gray-150 dark:border-gray-700/80 shadow-2xs"
-                                >
-                                  <span className="text-gray-800 dark:text-gray-200 font-medium truncate pr-2">
-                                    {ing.nombre}
-                                  </span>
-                                  <span className="text-gray-500 dark:text-gray-400 font-mono text-[11px] font-bold bg-gray-50 dark:bg-gray-700/50 px-2 py-0.5 rounded-md shrink-0 border border-gray-200/50 dark:border-gray-600/50">
-                                    {ing.cantidad}
-                                  </span>
-                                </div>
-                              ))}
+                              {recetaIngredientes.map((ing, ingIdx) => {
+                                const isExtra = ing.tipo === "AGREGADO_VARIANTE" || ing.tipo === "REEMPLAZO_VARIANTE" || ing.tipo === "MODIFICADO_VARIANTE";
+                                const isOmitted = ing.tipo === "REMOVIDO_CLIENTE" || ing.omitido;
+                                return (
+                                  <div
+                                    key={ingIdx}
+                                    className={`p-2.5 rounded-xl flex items-center justify-between text-xs border shadow-2xs ${
+                                      isOmitted
+                                        ? "bg-rose-50 dark:bg-rose-950/30 border-rose-200 text-rose-700 line-through"
+                                        : isExtra
+                                          ? "bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
+                                          : "bg-white dark:bg-gray-800 border-gray-150 dark:border-gray-700/80"
+                                    }`}
+                                  >
+                                    <span className="text-gray-800 dark:text-gray-200 font-medium truncate pr-2">
+                                      {ing.nombre}
+                                    </span>
+                                    <span className="text-gray-500 dark:text-gray-400 font-mono text-[11px] font-bold bg-gray-50 dark:bg-gray-700/50 px-2 py-0.5 rounded-md shrink-0 border border-gray-200/50 dark:border-gray-600/50">
+                                      {ing.cantidad}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

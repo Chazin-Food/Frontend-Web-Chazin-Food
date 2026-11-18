@@ -19,6 +19,7 @@ import { productosService } from "@/features/ventas/servicios/productosService";
 import { insumosService } from "@/features/compras/servicios/insumosService";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { getAdditionEmoji, isDummyOrBaseVariant } from "@/shared/utils/foodEmojiUtils";
+import { isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import { uploadImageToCloudinary } from "@/shared/servicios/cloudinaryService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
@@ -104,8 +105,9 @@ export const getDefaultDrinkImageForFlavor = (flavorName = "", prodName = "") =>
 const inputCls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors text-xs sm:text-sm";
 const labelCls = "block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5";
 
-export function ProductoModal({ isOpen, onClose, onSave, producto = null, categorias = [], isDuplicate = false }) {
+export function ProductoModal({ isOpen, onClose, onSave, producto = null, categorias = [], isDuplicate = false, onVariantToggled = null }) {
   const notify = useNotifications();
+  const [togglingVarKey, setTogglingVarKey] = useState(null);
   const isCloning = Boolean(isDuplicate || producto?.isDuplicate);
   const isEditing = Boolean(producto && !isCloning);
   const tieneVentasProtegido = Boolean(isEditing && (producto?.tieneVentas || Number(producto?.ventas || 0) > 0));
@@ -508,6 +510,10 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
           descripcion: v.descripcion || existingVarFicha?.descripcion || "",
           precio: customVarPrecio,
           imagen: v.imagen || "",
+          estado: v.estado !== undefined && v.estado !== null ? (Number(v.estado) === 0 ? 0 : 1) : 1,
+          creadaPorEvento: isVariantFromEvent(v),
+          idEvento: isCloning ? null : (v.idEvento || v.eventoOrigen?.idEvento || null),
+          eventoOrigen: isCloning ? null : (v.eventoOrigen || null),
           tipo: sizeInfo.isSize ? "tamano" : "sabor",
           esTamano: sizeInfo.isSize,
           factorTamano: existingVarFicha || deltas.length > 0 ? inferredFactor : 1,
@@ -517,6 +523,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
           fichaTecnica: {
             idFichaTecnica: existingVarFicha?.idFichaTecnica || null,
             descripcion: existingVarFicha?.descripcion || v.descripcion || baseMeta?.descripcion || "",
+            especificaciones: existingVarFicha?.especificaciones || baseMeta?.especificaciones || "",
             procedimiento: rawVarProc.trim() || serializarPasos(initPasosVar),
             _pasosProceso: initPasosVar,
             tiempoPreparacion: existingVarFicha?.tiempoPreparacion ?? baseMeta?.tiempoPreparacion ?? 0,
@@ -819,6 +826,10 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       descripcion: "",
       precio: "",
       imagen: suggestedImg || "",
+      estado: 1,
+      creadaPorEvento: false,
+      idEvento: null,
+      eventoOrigen: null,
       tipo: explicitTipo === "tamano" || sizeInfo.isSize ? "tamano" : explicitTipo,
       esTamano: sizeInfo.isSize,
       factorTamano: factor,
@@ -828,6 +839,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       fichaTecnica: {
         idFichaTecnica: null,
         descripcion: "",
+        especificaciones: baseMeta?.especificaciones || "",
         procedimiento: rawNewProc.trim() || serializarPasos(initPasosNew),
         _pasosProceso: initPasosNew,
         tiempoPreparacion: baseMeta?.tiempoPreparacion ?? 0,
@@ -839,6 +851,36 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       },
       insumosModificados: computeInsumosModificadosDeltas(initDetalles, baseIngredients)
     };
+  };
+
+  const handleToggleVariantEstadoByKey = async (v) => {
+    if (!v) return;
+    const currentlyActive = isVariantActive(v);
+    const nextEstado = currentlyActive ? 0 : 1;
+    setVariantes((prev) =>
+      prev.map((item) => (item._key === v._key ? { ...item, estado: nextEstado, activo: nextEstado === 1 } : item))
+    );
+    const prodId = producto?.id || producto?.idProducto;
+    if (isEditing && prodId && v.idVariante) {
+      try {
+        setTogglingVarKey(v._key);
+        await productosService.toggleVarianteEstado(prodId, v.idVariante, nextEstado);
+        notify.success?.(
+          nextEstado === 1 ? "Variante activada" : "Variante inactivada",
+          nextEstado === 1
+            ? `"${v.nombre || "La variante"}" se mostrará nuevamente en clientes.`
+            : `"${v.nombre || "La variante"}" quedó oculta del módulo de clientes.`
+        );
+        if (typeof onVariantToggled === "function") onVariantToggled();
+      } catch (err) {
+        setVariantes((prev) =>
+          prev.map((item) => (item._key === v._key ? { ...item, estado: currentlyActive ? 1 : 0, activo: currentlyActive } : item))
+        );
+        notify.error?.("No se pudo actualizar estado", err?.message || "Inténtalo nuevamente.");
+      } finally {
+        setTogglingVarKey(null);
+      }
+    }
   };
 
   const selectAndResetVariantWorkspace = (key) => {
@@ -1513,6 +1555,20 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                 />
               </div>
               <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5 flex-wrap">
+                {isVariantFromEvent(v) && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-800"
+                    title={v.eventoOrigen?.nombre ? `Creada por evento: ${v.eventoOrigen.nombre}` : "Variante generada desde evento"}
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Hecha por evento
+                  </span>
+                )}
+                {!isVariantActive(v) && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800">
+                    Inactiva (oculta en clientes)
+                  </span>
+                )}
                 {vCategory && (
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -1544,7 +1600,28 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+            <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-pointer select-none" title={isVariantActive(v) ? "Visible en el módulo de clientes" : "Oculta del módulo de clientes"}>
+              <span className={`text-[10px] font-black uppercase ${isVariantActive(v) ? "text-emerald-700 dark:text-emerald-400" : "text-gray-400"}`}>
+                {isVariantActive(v) ? "Activa" : "Inactiva"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isVariantActive(v)}
+                disabled={togglingVarKey === v._key}
+                onClick={() => handleToggleVariantEstadoByKey(v)}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 ${
+                  isVariantActive(v) ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    isVariantActive(v) ? "translate-x-4.5" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </label>
             <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mr-0.5">Precio</span>
               <span className="text-xs font-bold text-emerald-600">$</span>
@@ -1684,6 +1761,19 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                   min="0"
                   value={v.fichaTecnica?.tiempoPreparacion ?? 0}
                   onChange={(e) => handleUpdateVariantFichaMeta(v._key, "tiempoPreparacion", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 dark:text-gray-100 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#F05454]/20 focus:border-[#F05454] outline-none transition"
+                />
+              </div>
+
+              <div className="sm:col-span-12">
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1.5">
+                  Especificaciones técnicas y de cocina para esta variante
+                </label>
+                <input
+                  type="text"
+                  value={v.fichaTecnica?.especificaciones || ""}
+                  onChange={(e) => handleUpdateVariantFichaMeta(v._key, "especificaciones", e.target.value)}
+                  placeholder="Ej. Dorado extra, servir salsas aparte, cocción 3/4..."
                   className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 dark:text-gray-100 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#F05454]/20 focus:border-[#F05454] outline-none transition"
                 />
               </div>
@@ -2458,6 +2548,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                   descripcion:
                     (v.fichaTecnica?.descripcion || v.descripcion || "").trim() ||
                     `${form.nombre.trim() || "Producto"} — ${varName}`,
+                  especificaciones: (v.fichaTecnica?.especificaciones || "").trim(),
                   rendimiento:
                     (v.fichaTecnica?.rendimiento || "").trim() ||
                     (v.esTamano ? `1 porción (${varName})` : "1 porción"),
@@ -2482,6 +2573,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
             descripcion: (v.descripcion || v.fichaTecnica?.descripcion || "").trim() || null,
             precio: resolvedVarPrecio,
             imagen: varImg || null,
+            estado: v.estado !== undefined ? Number(v.estado) : 1,
+            idEvento: isCloning ? null : (v.idEvento || null),
+            creadaPorEvento: isCloning ? false : Boolean(v.creadaPorEvento || v.idEvento),
             esTamano: Boolean(v.esTamano),
             factorTamano: Number(v.factorTamano) || 1,
             insumosModificados: computedDeltas,
@@ -4233,10 +4327,29 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className={`text-xs font-bold truncate ${isSelected ? "text-gray-900 dark:text-gray-100" : "text-gray-700 dark:text-gray-200"}`}>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className={`text-xs font-bold truncate ${
+                            !isVariantActive(v)
+                              ? "text-gray-400 line-through"
+                              : isSelected
+                                ? "text-gray-900 dark:text-gray-100"
+                                : "text-gray-700 dark:text-gray-200"
+                          }`}>
                             {v.nombre?.trim() || "Sin nombre"}
                           </p>
+                          {isVariantFromEvent(v) && (
+                            <span
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 shrink-0"
+                              title={v.eventoOrigen?.nombre ? `Evento: ${v.eventoOrigen.nombre}` : "Hecha por evento"}
+                            >
+                              <Sparkles className="w-2.5 h-2.5" /> Evento
+                            </span>
+                          )}
+                          {!isVariantActive(v) && (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-100 text-rose-700 border border-rose-200 shrink-0">
+                              Off
+                            </span>
+                          )}
                           {hasExpired && (
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" title="Contiene insumos vencidos" />
                           )}

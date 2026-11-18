@@ -389,6 +389,15 @@ export function EventosModal({
                             Topping Extra Gratis: {formatEventoToppingsText(evt)}
                           </span>
                         )}
+
+                        {Array.isArray(evt.variantesCreadas) && evt.variantesCreadas.length > 0 && (
+                          <span className="font-black text-amber-800 dark:text-amber-200 text-[11px] bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/50 flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
+                            {evt.variantesCreadas.length === 1
+                              ? `Variante de evento: ${evt.variantesCreadas[0].nombre}`
+                              : `${evt.variantesCreadas.length} variantes creadas por evento`}
+                          </span>
+                        )}
                       </div>
 
                       {/* Real-time Vigencia Pill */}

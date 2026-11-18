@@ -388,6 +388,10 @@ export function Productos() {
           producto={editingProducto}
           categorias={categorias}
           isDuplicate={isDuplicateMode}
+          onVariantToggled={() => {
+            refetch();
+            fetchEventos();
+          }}
         />
       )}
 
@@ -402,6 +406,10 @@ export function Productos() {
           producto={editingProducto}
           onEdit={canEdit ? (prod) => handleOpenEdit(prod) : undefined}
           onDuplicate={canEdit ? handleOpenDuplicate : undefined}
+          onVariantToggled={() => {
+            refetch();
+            fetchEventos();
+          }}
         />
       )}
 
