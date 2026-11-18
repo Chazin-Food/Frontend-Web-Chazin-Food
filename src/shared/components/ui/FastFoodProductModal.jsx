@@ -710,6 +710,8 @@ export function FastFoodProductModal({
   onClose,
   producto,
   ficha = null,
+  productosList = [],
+  fichasMap = null,
   allAdiciones = [],
   allBebidas = [],
   ratingsInfo = null,
@@ -1256,6 +1258,197 @@ export function FastFoodProductModal({
     return extraCost;
   }, [selectedDrinks, isComboWithDrinks, requiredDrinkCount]);
 
+  // Composición del combo, ingredientes de los productos incluidos y pasos de preparación
+  const comboRecipeInfo = useMemo(() => {
+    if (!producto) {
+      return { parsedCfg: null, isComboProd: false, comboItems: [], steps: [], includedDrinksCount: 0 };
+    }
+    let parsedCfg = producto?.configuracionCombo || null;
+    if (typeof parsedCfg === "string") {
+      try { parsedCfg = JSON.parse(parsedCfg); } catch { parsedCfg = null; }
+    }
+    const prodLower = String(producto?.nombre || "").toLowerCase();
+    const catLower = String(producto?.categoria || producto?.categoriaNombre || "").toLowerCase();
+    const isComboProd = Boolean(
+      producto?.esCombo || comboConfig?.esCombo || parsedCfg?.esCombo || catLower.includes("combo") || prodLower.includes("combo")
+    );
+
+    const normalizeText = (txt) =>
+      String(txt || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/\b([a-z]{3,}[bcdfghjklmnñpqrstvwxyz])es\b/g, "$1")
+        .replace(/\b([a-z]{3,}[aeiou])s\b/g, "$1")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const findChildIngredients = (itemId, rawName) => {
+      const rawLower = String(rawName || "").toLowerCase();
+      if (
+        rawLower.includes("gaseosa") ||
+        rawLower.includes("bebida") ||
+        rawLower.includes("coca-cola") ||
+        rawLower.includes("coca cola") ||
+        rawLower.includes("postob") ||
+        rawLower.includes("pepsi") ||
+        rawLower.includes("sprite") ||
+        rawLower.includes("quatro") ||
+        rawLower.includes("agua")
+      ) {
+        return [];
+      }
+
+      const stripped = String(rawName || "")
+        .replace(/^\s*\d+\s*x?\s+/i, "")
+        .replace(/\b(a elecci[oó]n|en combo|promocional(?:es)?|individual(?:es)?|grandes?|pequeñ[oa]s?|median[oa]s?|dobles?|crujientes?)\b/gi, "")
+        .trim();
+      const normTarget = normalizeText(stripped);
+
+      if (Array.isArray(productosList) && productosList.length > 0) {
+        const child = productosList.find((p) => {
+          const pid = p.id || p.idProducto;
+          if (itemId && String(pid) === String(itemId)) return true;
+          if (p.esCombo || p.configuracionCombo?.esCombo || String(p.nombre || "").toLowerCase().includes("+ bebida")) return false;
+          const normProd = normalizeText(p.nombre);
+          if (!normProd || !normTarget || normTarget.length < 4) return false;
+          if (normProd === normTarget || normProd.includes(normTarget) || normTarget.includes(normProd)) return true;
+          if (normTarget.includes("papa") && normTarget.includes("chili") && normProd.includes("papa") && normProd.includes("chili")) return true;
+          if (normTarget.includes("papa") && normTarget.includes("tocineta") && normProd.includes("papa") && normProd.includes("tocineta")) return true;
+          if (normTarget.includes("papa") && (normTarget.includes("francesa") || normTarget.includes("porcion")) && normProd.includes("papa") && normProd.includes("francesa")) return true;
+          return false;
+        });
+
+        if (child) {
+          const cid = child.id || child.idProducto;
+          const childFicha = fichasMap?.[cid] || child.fichaTecnica || child.ficha || null;
+          const extracted = extractPersonalizables(child, childFicha)
+            .map((i) => i.nombre)
+            .filter(Boolean)
+            .slice(0, 6);
+          if (extracted.length > 0) return extracted;
+        }
+      }
+
+      // Respaldo garantizado para productos compuestos del menú estándar
+      if (normTarget.includes("hamburguesa")) {
+        return [
+          "Pan Brioche Artesanal",
+          "Carne de Res Molida 80/20",
+          "Queso Cheddar en Lonchas",
+          "Tocineta Ahumada en Tiras",
+          "Lechuga Batavia Fresca",
+          "Tomate Chonto Maduro"
+        ];
+      }
+      if (normTarget.includes("perro")) {
+        return [
+          "Pan Perro Americano Suave",
+          "Salchicha Americana Premium",
+          "Tocineta Ahumada en Tiras",
+          "Queso Mozzarella Rallado",
+          "Papas Ripio Crocantes",
+          "Salsa Tártara Casera Especial"
+        ];
+      }
+      if (normTarget.includes("papa") && normTarget.includes("chili")) {
+        return [
+          "Papas a la Francesa Corte Delgado",
+          "Chili con Carne de Res Artesanal",
+          "Guacamole Fresco Artesanal",
+          "Queso Cheddar Fundido"
+        ];
+      }
+      if (normTarget.includes("papa") && normTarget.includes("tocineta")) {
+        return [
+          "Papas a la Francesa Corte Delgado",
+          "Tocineta Ahumada en Tiras",
+          "Suero Costeño Cremoso Artesanal",
+          "Queso Cheddar Fundido"
+        ];
+      }
+      if (normTarget.includes("papa")) {
+        return ["Papas a la Francesa Corte Delgado"];
+      }
+      return [];
+    };
+
+    const rawItemsCombo = Array.isArray(producto?.itemsCombo) && producto.itemsCombo.length > 0
+      ? producto.itemsCombo
+      : Array.isArray(parsedCfg?.itemsCombo) && parsedCfg.itemsCombo.length > 0
+      ? parsedCfg.itemsCombo
+      : Array.isArray(parsedCfg?.productosAsociados) && parsedCfg.productosAsociados.length > 0
+      ? parsedCfg.productosAsociados
+      : Array.isArray(producto?.productosAsociados) && producto.productosAsociados.length > 0
+      ? producto.productosAsociados
+      : [];
+
+    let comboItems = [];
+    if (rawItemsCombo.length > 0) {
+      comboItems = rawItemsCombo.map((it, idx) => {
+        const baseName = it.producto?.nombre || it.nombre || "Producto incluido";
+        const qty = Number(it.cantidad || 1);
+        return {
+          id: it.idDetalleCombo || it.idProducto || it.id || idx,
+          nombre: `${qty > 1 ? `${qty}x ` : ""}${baseName}`,
+          tag: it.esOpcional ? "Opcional" : "Incluido",
+          ingredientes: findChildIngredients(it.idProducto || it.producto?.id || it.id, baseName)
+        };
+      });
+    } else if (isComboProd) {
+      const descSource = String(producto?.descripcion || "").includes("+")
+        ? String(producto.descripcion)
+        : "";
+      if (descSource) {
+        const afterColon = descSource.includes(":") && descSource.indexOf(":") < descSource.indexOf("+")
+          ? descSource.slice(descSource.indexOf(":") + 1)
+          : descSource;
+        comboItems = afterColon
+          .replace(/\s+(a\s+un\s+precio|por\s+solo|ahorras|con\s+descuento)\b.*$/i, "")
+          .replace(/\s*\(ahorras\b.*$/i, "")
+          .replace(/\.$/, "")
+          .split("+")
+          .map((part, idx) => {
+            const rawPart = part.trim();
+            const ingredientes = findChildIngredients(null, rawPart);
+            let cleanTitle = rawPart;
+            if (ingredientes.length > 0) {
+              cleanTitle = cleanTitle
+                .replace(/\s*\([^)]*,[^)]*\)/g, "")
+                .replace(/\s+con\s+(?:queso|tocineta|chili)\b.*$/i, "")
+                .trim();
+            }
+            cleanTitle = cleanTitle.replace(/^(\d+)\s+(?!x\b)/i, "$1x ");
+            return {
+              id: "desc-" + idx,
+              nombre: cleanTitle,
+              tag: "Incluido",
+              ingredientes
+            };
+          })
+          .filter((it) => Boolean(it.nombre));
+      }
+    }
+
+    const steps = String(liveFicha?.procedimiento || producto?.fichaTecnica?.procedimiento || "")
+      .split(/\r?\n/)
+      .map((s) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
+      .filter(Boolean);
+
+    const includedDrinksCount = requiredDrinkCount || Number(parsedCfg?.cantidadBebidas || 0) ||
+      (isComboProd ? (prodLower.includes("pareja") || prodLower.includes("amigos") || prodLower.includes("2 ") ? 2 : prodLower.includes("familiar") || prodLower.includes("4 ") ? 4 : 1) : 0);
+
+    return { parsedCfg, isComboProd, comboItems, steps, includedDrinksCount };
+  }, [producto, comboConfig, liveFicha, productosList, fichasMap, requiredDrinkCount]);
+
+  const hasRecipeTabContent =
+    personalizables.length > 0 ||
+    foodVariants.length > 0 ||
+    comboRecipeInfo.comboItems.length > 0 ||
+    comboRecipeInfo.steps.length > 0;
+
   // Reseñas dinámicas del producto
   const [reviewsData, setReviewsData] = useState({ promedio: 0, total: 0, resenas: [] });
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -1402,11 +1595,11 @@ export function FastFoodProductModal({
     if (isDrink || (initialTab && initialTab !== "personalizar")) return;
     const key = `${producto.id || producto.idProducto}`;
     if (fichaInitKeyRef.current === key) return;
-    if (personalizables.length > 0 || foodVariants.length > 0) {
+    if (hasRecipeTabContent) {
       fichaInitKeyRef.current = key;
       setActiveTab("personalizar");
     }
-  }, [isOpen, producto, isDrink, initialTab, personalizables.length, foodVariants.length]);
+  }, [isOpen, producto, isDrink, initialTab, hasRecipeTabContent]);
 
   // Re-initialize state only once when a new product is opened or modal opens
   useEffect(() => {
@@ -1431,7 +1624,7 @@ export function FastFoodProductModal({
         }
       } else {
         const canPersonalize = extractPersonalizables(producto, liveFicha).length > 0;
-        const hasVarsOrIngs = canPersonalize || foodVariants.length > 0;
+        const hasVarsOrIngs = canPersonalize || foodVariants.length > 0 || hasRecipeTabContent;
         const fallbackTab = isComboWithDrinks && availableBebidas.length > 0 ? "bebidas" : "adiciones";
         setActiveTab(initialTab && initialTab !== "personalizar" ? initialTab : (hasVarsOrIngs ? "personalizar" : fallbackTab));
       }
@@ -2521,19 +2714,23 @@ export function FastFoodProductModal({
                 </>
               ) : (
                 <>
-                  {(personalizables.length > 0 || foodVariants.length > 0) && (
+                  {hasRecipeTabContent && (
                     <button
                       type="button"
                       onClick={() => setActiveTab("personalizar")}
-                      className={`flex-1 min-w-0 py-2 px-1 sm:px-2 rounded-xl text-[11px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                      className={`flex-1 py-2 px-2 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-black transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
                         activeTab === "personalizar"
                           ? "bg-white dark:bg-gray-900 text-[#f05454] dark:text-red-400 shadow-sm"
                           : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                       }`}
                     >
                       <ChefHat className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">
-                        {customizableIngredients.length > 0 ? `Personalizar (${customizableIngredients.length})` : "Mise & Place"}
+                      <span>
+                        {comboRecipeInfo.isComboProd && comboRecipeInfo.comboItems.length > 0
+                          ? (eventInfo ? "Composición del Combo Promocional" : "Composición del Combo")
+                          : customizableIngredients.length > 0
+                            ? `Personalizar (${customizableIngredients.length})`
+                            : "Mise & Place"}
                       </span>
                       {removedIngredients.length > 0 && (
                         <span className="shrink-0 min-w-[16px] px-1 py-0.5 rounded-full bg-[#f05454] text-white text-[9.5px] flex items-center justify-center font-black leading-none whitespace-nowrap">
@@ -2855,7 +3052,7 @@ export function FastFoodProductModal({
 
             {/* ─── TAB 1: PERSONALIZAR INGREDIENTES (MISE EN PLACE CON LÓGICA HUMANA DE COCINA) ─── */}
             {!isDrink && activeTab === "personalizar" && eventInfo && <EventoToppingsCard event={eventInfo} />}
-            {!isDrink && activeTab === "personalizar" && (personalizables.length > 0 || foodVariants.length > 0) && (
+            {!isDrink && activeTab === "personalizar" && !(comboRecipeInfo.isComboProd && comboRecipeInfo.comboItems.length > 0) && (personalizables.length > 0 || foodVariants.length > 0) && (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -3049,6 +3246,116 @@ export function FastFoodProductModal({
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ─── TAB 1B: COMPOSICIÓN DEL COMBO (ESTÁNDAR O PROMOCIONAL) ─── */}
+            {!isDrink && activeTab === "personalizar" && (comboRecipeInfo.comboItems.length > 0 || (!personalizables.length && comboRecipeInfo.steps.length > 0)) && (
+              <div className="space-y-4 animate-in fade-in duration-150">
+                {comboRecipeInfo.comboItems.length > 0 && (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                          <ChefHat className="w-4 h-4 text-red-500 shrink-0" />
+                          <span>
+                            {comboRecipeInfo.isComboProd
+                              ? (eventInfo ? "Composición del Combo Promocional" : "Composición del Combo")
+                              : (eventInfo ? "Componentes de la Promoción" : "Composición del Plato")}
+                          </span>
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {eventInfo
+                            ? "Productos y acompañamientos incluidos en esta oferta:"
+                            : "Productos y acompañamientos incluidos en este combo:"}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 shrink-0">
+                        {comboRecipeInfo.comboItems.length} {comboRecipeInfo.comboItems.length === 1 ? "producto" : "productos"}
+                      </span>
+                    </div>
+
+                    <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl p-3 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 dark:text-amber-300">
+                        <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span>{eventInfo ? "Qué incluye esta promoción" : "Qué incluye este combo"}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {comboRecipeInfo.comboItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="w-full p-3 rounded-xl bg-white/95 dark:bg-gray-800/90 border border-amber-200/70 dark:border-amber-900/50 shadow-2xs transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-2.5 min-w-0 flex-1 text-xs sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 leading-snug">
+                                <span className="w-8 h-8 rounded-xl bg-amber-100/90 dark:bg-amber-950/70 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-300">
+                                  <FoodIcon name={item.nombre} size={16} stroke={1.75} />
+                                </span>
+                                <span>{item.nombre}</span>
+                              </span>
+                              <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-1">
+                                <Check className="w-3 h-3 stroke-[3]" /> {item.tag}
+                              </span>
+                            </div>
+                            {Array.isArray(item.ingredientes) && item.ingredientes.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-amber-100/80 dark:border-gray-700/60 pl-10 flex flex-wrap gap-1.5">
+                                {item.ingredientes.map((ing, iIdx) => (
+                                  <span
+                                    key={iIdx}
+                                    className="inline-flex items-center text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-amber-50/70 dark:bg-gray-700/80 border border-amber-200/50 dark:border-gray-600/40 text-gray-700 dark:text-gray-200"
+                                  >
+                                    {ing}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {comboRecipeInfo.comboItems.length === 0 && comboRecipeInfo.steps.length > 0 && (
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 space-y-2">
+                    <p className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      Preparación al momento en cocina
+                    </p>
+                    <ol className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 list-decimal list-inside">
+                      {comboRecipeInfo.steps.map((step, idx) => (
+                        <li key={idx} className="leading-relaxed">{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {comboRecipeInfo.isComboProd && comboRecipeInfo.includedDrinksCount > 0 && availableBebidas.length > 0 && (
+                  <div className="p-3 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center shrink-0">
+                        <FoodIcon name="drink" size={16} />
+                      </span>
+                      <p className="text-blue-900 dark:text-blue-200 font-semibold">
+                        Elige tus bebidas ({comboRecipeInfo.includedDrinksCount} {comboRecipeInfo.includedDrinksCount === 1 ? "incluida" : "incluidas"}) en la pestaña <strong className="font-black">Bebidas</strong>.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("bebidas")}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] shrink-0 transition cursor-pointer"
+                    >
+                      Ir a Bebidas
+                    </button>
+                  </div>
+                )}
+
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-700/80 flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
+                  <Info className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
+                  <p>
+                    Si necesitas retirar o ajustar algún ingrediente puntual (ej. <em>“sin cebolla”</em> o <em>“salsas aparte”</em>), indícalo en <strong>Instrucciones o Notas Especiales</strong> abajo o agrega complementos en <strong>Adiciones</strong>.
+                  </p>
+                </div>
               </div>
             )}
 

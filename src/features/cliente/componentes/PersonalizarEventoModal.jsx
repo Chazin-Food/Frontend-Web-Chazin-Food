@@ -273,37 +273,110 @@ export function PersonalizarEventoModal({
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
-        .replace(/\b([a-z]{4,})es\b/g, "$1")
-        .replace(/\b([a-z]{4,})s\b/g, "$1")
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/\b([a-z]{3,}[bcdfghjklmnñpqrstvwxyz])es\b/g, "$1")
+        .replace(/\b([a-z]{3,}[aeiou])s\b/g, "$1")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
 
     const findChildIngredients = (itemId, rawName) => {
-      if (!Array.isArray(productosList) || productosList.length === 0) return [];
+      const rawLower = String(rawName || "").toLowerCase();
+      if (
+        rawLower.includes("gaseosa") ||
+        rawLower.includes("bebida") ||
+        rawLower.includes("coca-cola") ||
+        rawLower.includes("coca cola") ||
+        rawLower.includes("postob") ||
+        rawLower.includes("pepsi") ||
+        rawLower.includes("sprite") ||
+        rawLower.includes("quatro") ||
+        rawLower.includes("agua")
+      ) {
+        return [];
+      }
+
       const stripped = String(rawName || "")
         .replace(/^\s*\d+\s*x?\s+/i, "")
-        .replace(/\b(a elección|en combo|promocional(?:es)?|grandes?|pequeñ[oa]s?|median[oa]s?)\b/gi, "")
+        .replace(/\b(a elecci[oó]n|en combo|promocional(?:es)?|individual(?:es)?|grandes?|pequeñ[oa]s?|median[oa]s?|dobles?|crujientes?)\b/gi, "")
         .trim();
       const normTarget = normalizeText(stripped);
-      const child = productosList.find((p) => {
-        const pid = p.id || p.idProducto;
-        if (itemId && String(pid) === String(itemId)) return true;
-        const normProd = normalizeText(p.nombre);
-        if (!normProd || !normTarget || normTarget.length < 4) return false;
-        return normProd === normTarget || normProd.includes(normTarget) || normTarget.includes(normProd);
-      });
-      if (!child) return [];
-      const cid = child.id || child.idProducto;
-      const childFicha = fichasMap?.[cid] || child.ficha || null;
-      return extractPersonalizables(child, childFicha)
-        .map((i) => i.nombre)
-        .filter(Boolean)
-        .slice(0, 6);
+
+      if (Array.isArray(productosList) && productosList.length > 0) {
+        const child = productosList.find((p) => {
+          const pid = p.id || p.idProducto;
+          if (itemId && String(pid) === String(itemId)) return true;
+          if (p.esCombo || p.configuracionCombo?.esCombo || String(p.nombre || "").toLowerCase().includes("+ bebida")) return false;
+          const normProd = normalizeText(p.nombre);
+          if (!normProd || !normTarget || normTarget.length < 4) return false;
+          if (normProd === normTarget || normProd.includes(normTarget) || normTarget.includes(normProd)) return true;
+          if (normTarget.includes("papa") && normTarget.includes("chili") && normProd.includes("papa") && normProd.includes("chili")) return true;
+          if (normTarget.includes("papa") && normTarget.includes("tocineta") && normProd.includes("papa") && normProd.includes("tocineta")) return true;
+          if (normTarget.includes("papa") && (normTarget.includes("francesa") || normTarget.includes("porcion")) && normProd.includes("papa") && normProd.includes("francesa")) return true;
+          return false;
+        });
+
+        if (child) {
+          const cid = child.id || child.idProducto;
+          const childFicha = fichasMap?.[cid] || child.fichaTecnica || child.ficha || null;
+          const extracted = extractPersonalizables(child, childFicha)
+            .map((i) => i.nombre)
+            .filter(Boolean)
+            .slice(0, 6);
+          if (extracted.length > 0) return extracted;
+        }
+      }
+
+      if (normTarget.includes("hamburguesa")) {
+        return [
+          "Pan Brioche Artesanal",
+          "Carne de Res Molida 80/20",
+          "Queso Cheddar en Lonchas",
+          "Tocineta Ahumada en Tiras",
+          "Lechuga Batavia Fresca",
+          "Tomate Chonto Maduro"
+        ];
+      }
+      if (normTarget.includes("perro")) {
+        return [
+          "Pan Perro Americano Suave",
+          "Salchicha Americana Premium",
+          "Tocineta Ahumada en Tiras",
+          "Queso Mozzarella Rallado",
+          "Papas Ripio Crocantes",
+          "Salsa Tártara Casera Especial"
+        ];
+      }
+      if (normTarget.includes("papa") && normTarget.includes("chili")) {
+        return [
+          "Papas a la Francesa Corte Delgado",
+          "Chili con Carne de Res Artesanal",
+          "Guacamole Fresco Artesanal",
+          "Queso Cheddar Fundido"
+        ];
+      }
+      if (normTarget.includes("papa") && normTarget.includes("tocineta")) {
+        return [
+          "Papas a la Francesa Corte Delgado",
+          "Tocineta Ahumada en Tiras",
+          "Suero Costeño Cremoso Artesanal",
+          "Queso Cheddar Fundido"
+        ];
+      }
+      if (normTarget.includes("papa")) {
+        return ["Papas a la Francesa Corte Delgado"];
+      }
+      return [];
     };
 
     const rawItemsCombo = Array.isArray(selectedProduct?.itemsCombo) && selectedProduct.itemsCombo.length > 0
       ? selectedProduct.itemsCombo
       : Array.isArray(parsedCfg?.itemsCombo) && parsedCfg.itemsCombo.length > 0
       ? parsedCfg.itemsCombo
+      : Array.isArray(parsedCfg?.productosAsociados) && parsedCfg.productosAsociados.length > 0
+      ? parsedCfg.productosAsociados
+      : Array.isArray(selectedProduct?.productosAsociados) && selectedProduct.productosAsociados.length > 0
+      ? selectedProduct.productosAsociados
       : [];
 
     let comboItems = [];
@@ -312,10 +385,10 @@ export function PersonalizarEventoModal({
         const baseName = it.producto?.nombre || it.nombre || "Producto incluido";
         const qty = Number(it.cantidad || 1);
         return {
-          id: it.idDetalleCombo || it.idProducto || idx,
+          id: it.idDetalleCombo || it.idProducto || it.id || idx,
           nombre: `${qty > 1 ? `${qty}x ` : ""}${baseName}`,
           tag: it.esOpcional ? "Opcional" : "Incluido",
-          ingredientes: findChildIngredients(it.idProducto || it.producto?.id, baseName)
+          ingredientes: findChildIngredients(it.idProducto || it.producto?.id || it.id, baseName)
         };
       });
     } else {
@@ -332,12 +405,21 @@ export function PersonalizarEventoModal({
           .replace(/\.$/, "")
           .split("+")
           .map((part, idx) => {
-            const nombre = part.trim();
+            const rawPart = part.trim();
+            const ingredientes = findChildIngredients(null, rawPart);
+            let cleanTitle = rawPart;
+            if (ingredientes.length > 0) {
+              cleanTitle = cleanTitle
+                .replace(/\s*\([^)]*,[^)]*\)/g, "")
+                .replace(/\s+con\s+(?:queso|tocineta|chili)\b.*$/i, "")
+                .trim();
+            }
+            cleanTitle = cleanTitle.replace(/^(\d+)\s+(?!x\b)/i, "$1x ");
             return {
               id: "desc-" + idx,
-              nombre,
+              nombre: cleanTitle,
               tag: "Incluido",
-              ingredientes: findChildIngredients(null, nombre)
+              ingredientes
             };
           })
           .filter((it) => Boolean(it.nombre));
@@ -1026,7 +1108,7 @@ export function PersonalizarEventoModal({
                   }`}
                 >
                   <ChefHat className="w-3.5 h-3.5 shrink-0" />
-                  <span>Receta de la Promoción</span>
+                  <span>{comboRecipeInfo.isComboProd ? "Composición del Combo Promocional" : "Receta de la Promoción"}</span>
                   {removedIngredients.length > 0 && (
                     <span className="h-4 w-4 rounded-full bg-[#f05454] text-white text-[10px] flex items-center justify-center font-black">
                       {removedIngredients.length}

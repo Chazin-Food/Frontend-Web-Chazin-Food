@@ -2740,6 +2740,8 @@ export function ClienteLanding() {
                   fichasMap[productoSeleccionado.producto.idProducto] ||
                   fichasTecnicasDefault[productoSeleccionado.producto.id]))
             }
+            productosList={activeProductos}
+            fichasMap={fichasMap}
             allAdiciones={foodAdiciones.length > 0 ? foodAdiciones : activeAdiciones}
             allBebidas={bebidasDisponibles}
             ratingsInfo={

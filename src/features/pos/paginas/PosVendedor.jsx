@@ -441,6 +441,8 @@ export default function PosVendedor() {
             }}
             producto={customizingProduct}
             ficha={customizingFicha}
+            productosList={productos}
+            fichasMap={fichasCache}
             allAdiciones={allAdiciones}
             allBebidas={allBebidas}
             onConfirm={handleModalConfirm}
