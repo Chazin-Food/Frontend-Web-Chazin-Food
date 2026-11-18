@@ -643,7 +643,7 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
         </div>
 
         {/* Footer (Ítem #27: Acceso directo a Ver mis pedidos) */}
-        <div className="p-4 bg-gray-50/80 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shrink-0 flex items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-4 bg-gray-50/80 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
           <button
             type="button"
             onClick={() => {

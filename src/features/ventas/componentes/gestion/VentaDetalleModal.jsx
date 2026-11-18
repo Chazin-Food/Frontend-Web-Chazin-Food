@@ -437,9 +437,9 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
         {/* Scrollable Body */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 text-gray-900 dark:text-gray-100">
           {/* 2x2 Grid Info Cards */}
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* Responsable de la Venta */}
-            <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-3 flex items-center justify-between text-xs col-span-2 shadow-2xs">
+            <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-3 flex items-center justify-between text-xs sm:col-span-2 shadow-2xs">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shrink-0">
                   <UserCheck className="w-4 h-4" />
@@ -523,7 +523,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
             </div>
 
             {/* Control y Seguimiento del Tiempo Estimado (Switch Híbrido: Automático Inteligente vs Manual Exacto) */}
-            <div className="bg-gradient-to-br from-indigo-50/80 to-blue-50/70 dark:from-indigo-950/40 dark:to-blue-950/30 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl p-4 col-span-2 space-y-3.5 shadow-2xs">
+            <div className="bg-gradient-to-br from-indigo-50/80 to-blue-50/70 dark:from-indigo-950/40 dark:to-blue-950/30 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl p-4 sm:col-span-2 space-y-3.5 shadow-2xs">
               <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
                 <div className="space-y-0.5">
                   <div className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 flex-wrap">
@@ -557,7 +557,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
               </div>
 
               {/* Switch Principal: Automático vs Manual */}
-              <div className="bg-white/90 dark:bg-gray-900/80 p-1 rounded-xl border border-indigo-200/80 dark:border-indigo-800/60 grid grid-cols-2 gap-1 shadow-2xs">
+              <div className="bg-white/90 dark:bg-gray-900/80 p-1 rounded-xl border border-indigo-200/80 dark:border-indigo-800/60 grid grid-cols-1 sm:grid-cols-2 gap-1 shadow-2xs">
                 <button
                   type="button"
                   disabled={isUpdatingTiempo}
@@ -745,7 +745,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
               obsMeta.transferenciaReferencia ||
               obsMeta.transferBanco ||
               obsMeta.tarjetaNumero) && (
-              <div className="bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-2xl p-3 col-span-2 text-xs space-y-1 text-blue-900 dark:text-blue-200">
+              <div className="bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-2xl p-3 sm:col-span-2 text-xs space-y-1 text-blue-900 dark:text-blue-200">
                 <div className="font-bold flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                   <span>Detalles de Transacción</span>
@@ -783,7 +783,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
 
             {/* Dirección de Entrega */}
             {direccionEntrega && (
-              <div className="bg-[#f8fafc] dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-3 space-y-0.5 col-span-2 shadow-2xs">
+              <div className="bg-[#f8fafc] dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 rounded-2xl p-3 space-y-0.5 sm:col-span-2 shadow-2xs">
                 <div className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-[#F05454]" />
                   <span>Dirección / Punto de Entrega</span>
@@ -997,8 +997,8 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="p-3.5 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handlePrintComprobante}

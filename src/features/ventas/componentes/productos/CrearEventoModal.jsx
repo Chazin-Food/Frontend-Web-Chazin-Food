@@ -1701,7 +1701,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                           </div>
 
                           {diasVigenciaCampaña !== null && (
-                            <div className="col-span-2 p-2.5 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-800 text-xs font-bold text-orange-900 dark:text-orange-200 flex items-center gap-2">
+                            <div className="sm:col-span-2 p-2.5 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-800 text-xs font-bold text-orange-900 dark:text-orange-200 flex items-center gap-2">
                               <Calendar className="w-4 h-4 text-orange-600" />
                               <span>Duración calculada: <strong>{diasVigenciaCampaña} días</strong> (del {fechaInicio} al {fechaFin}).</span>
                             </div>
@@ -2764,7 +2764,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
         </div>
 
         {/* ═══ 5. FOOTER FIJO ERGONÓMICO ═══ */}
-        <div className="p-4 sm:p-5 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between shrink-0 shadow-lg">
+        <div className="p-3.5 sm:p-5 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex flex-wrap items-center justify-between gap-2.5 shrink-0 shadow-lg">
           <button
             type="button"
             onClick={onClose}

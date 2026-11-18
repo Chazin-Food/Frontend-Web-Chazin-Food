@@ -27,7 +27,7 @@ const CustomChartTooltip = ({ active, payload, label, unit = "Ingresos", isCurre
     const porcentaje = payloadData?.porcentaje !== undefined ? Number(payloadData.porcentaje) : 0;
 
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 p-3.5 rounded-2xl shadow-xl text-xs space-y-1 animate-in fade-in duration-150 min-w-[210px]">
+      <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 p-3.5 rounded-2xl shadow-xl text-xs space-y-1 animate-in fade-in duration-150 min-w-[180px] max-w-[260px]">
         <p className="font-extrabold text-gray-900 dark:text-gray-100 text-sm leading-snug">
           {titleLabel}
         </p>
@@ -423,45 +423,45 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto w-full md:w-auto">
           {/* Selector de Vista: Histórico Mensual | Semanal | Fechas */}
-          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 border border-gray-200/80 dark:border-gray-700/80 shadow-2xs">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 border border-gray-200/80 dark:border-gray-700/80 shadow-2xs w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar touch-scroll-x">
             <button
               type="button"
               onClick={() => setVistaTemporal("historico")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 vistaTemporal === "historico"
                   ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
-              <TrendingUp className="w-3.5 h-3.5" />
+              <TrendingUp className="w-3.5 h-3.5 shrink-0" />
               <span>Histórico Mensual</span>
             </button>
 
             <button
               type="button"
               onClick={() => setVistaTemporal("semanal")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 vistaTemporal === "semanal"
                   ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
-              <Calendar className="w-3.5 h-3.5" />
+              <Calendar className="w-3.5 h-3.5 shrink-0" />
               <span>Días de Semana</span>
             </button>
 
             <button
               type="button"
               onClick={() => setVistaTemporal("fechas")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 vistaTemporal === "fechas"
                   ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
-              <History className="w-3.5 h-3.5" />
+              <History className="w-3.5 h-3.5 shrink-0" />
               <span>Histórico Fechas</span>
             </button>
           </div>
@@ -478,7 +478,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
 
       {/* CHART 1: Ingresos (Mensual / Semanal / Cronológico) */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               {chartConfig.barTitle}
@@ -507,7 +507,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
 
       {/* CHART 2: Número de ventas (Mensual / Semanal / Cronológico) */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               {chartConfig.lineTitle}
@@ -545,7 +545,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Productos más vendidos */}
         <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               Productos más vendidos
             </p>
@@ -557,7 +557,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
             <BarChart
               layout="vertical"
               data={reportData.productosMasVendidos}
-              margin={{ top: 5, right: 25, left: 20, bottom: 25 }}
+              margin={{ top: 5, right: 12, left: 0, bottom: 22 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.2} horizontal={false} />
               <XAxis
@@ -576,18 +576,9 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
                 dataKey="nombreLimpio"
                 type="category"
                 tick={{ fontSize: 11, fill: "#9CA3AF" }}
-                width={195}
+                width={112}
                 tickLine={false}
-                tickFormatter={(val) => (val && val.length > 28 ? `${val.substring(0, 26)}...` : val)}
-                label={{
-                  value: "Productos",
-                  angle: -90,
-                  position: "insideLeft",
-                  offset: -5,
-                  fill: "#9CA3AF",
-                  fontSize: 11,
-                  fontWeight: 600
-                }}
+                tickFormatter={(val) => (val && val.length > 17 ? `${val.substring(0, 15)}...` : val)}
               />
               <Tooltip
                 content={<CustomChartTooltip unit="Unidades" isCurrency={false} />}
@@ -606,7 +597,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
 
         {/* Métodos de pago */}
         <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               Métodos de pago
             </p>
@@ -615,7 +606,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
             </span>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="w-[60%] min-w-[180px] h-[190px] relative flex items-center justify-center">
+            <div className="w-full sm:w-[55%] max-w-[240px] mx-auto h-[190px] relative flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -687,7 +678,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
 
       {/* SUMMARY TABLE CON INDICADORES HISTÓRICOS */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-2xs">
-        <div className="bg-gray-100/80 dark:bg-gray-800/80 px-4 py-3 flex items-center justify-between">
+        <div className="bg-gray-100/80 dark:bg-gray-800/80 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
             Resumen ejecutivo del período e histórico
           </p>
@@ -697,7 +688,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-750 bg-white dark:bg-gray-900">
           {reportData.resumen.map((item) => (
-            <div key={item.label} className="flex items-center justify-between px-4 py-3 text-xs sm:text-sm">
+            <div key={item.label} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 px-4 py-3 text-xs sm:text-sm">
               <span className="text-gray-600 dark:text-gray-400 font-medium">{item.label}</span>
               <span className="font-bold text-gray-900 dark:text-gray-100">{item.value}</span>
             </div>

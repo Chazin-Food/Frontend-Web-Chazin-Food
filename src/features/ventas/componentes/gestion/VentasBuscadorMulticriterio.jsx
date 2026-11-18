@@ -255,7 +255,7 @@ export function VentasBuscadorMulticriterio({
                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
                 <span>Rango de Fechas (Desde - Hasta)</span>
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input
                   type="date"
                   value={filterFechaInicio}
@@ -369,7 +369,7 @@ export function VentasBuscadorMulticriterio({
                 <DollarSign className="w-3.5 h-3.5 text-gray-400" />
                 <span>Rango de Monto COP ($ Min - $ Max)</span>
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input
                   type="number"
                   placeholder="Min COP ej: 20000"

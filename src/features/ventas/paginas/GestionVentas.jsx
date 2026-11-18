@@ -268,11 +268,11 @@ export function GestionVentas() {
       <div className="bg-white dark:bg-gray-900 rounded-3xl p-3 sm:p-4 lg:p-5 border border-gray-100 dark:border-gray-800 shadow-xs space-y-5">
         {/* Tabs Header con Selector de Período Integrado */}
         <div className="border-b border-gray-100 dark:border-gray-800 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-6 sm:gap-8 -mb-px overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-6 sm:gap-8 -mb-px overflow-x-auto no-scrollbar touch-scroll-x">
 
             <button
               onClick={() => setActiveTab("pedidos_pagados")}
-              className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer ${
+              className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "pedidos_pagados"
                   ? "text-[#F05454] border-b-2 border-[#F05454]"
                   : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -288,7 +288,7 @@ export function GestionVentas() {
 
             <button
               onClick={() => setActiveTab("historial")}
-              className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer ${
+              className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "historial"
                   ? "text-[#F05454] border-b-2 border-[#F05454]"
                   : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -304,7 +304,7 @@ export function GestionVentas() {
 
             <button
               onClick={() => setActiveTab("reportes")}
-              className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer ${
+              className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "reportes"
                   ? "text-[#F05454] border-b-2 border-[#F05454]"
                   : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -320,7 +320,7 @@ export function GestionVentas() {
           </div>
 
           {/* Selector de Período Global (Afecta las Ventas, Historial y los Reportes) */}
-          <div className="flex items-center gap-1 bg-gray-100/90 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs shrink-0 self-start md:self-auto">
+          <div className="flex items-center gap-1 bg-gray-100/90 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs shrink-0 w-full md:w-auto max-w-full overflow-x-auto no-scrollbar touch-scroll-x self-start md:self-auto">
             {[
               { id: "hoy", label: "Hoy" },
               { id: "7_dias", label: "7 días" },
@@ -334,7 +334,7 @@ export function GestionVentas() {
                   key={p.id}
                   type="button"
                   onClick={() => setSelectedPeriod(p.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                     isSelected
                       ? "bg-[#F05454] text-white shadow-xs"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-white/80 dark:hover:bg-gray-700/60"

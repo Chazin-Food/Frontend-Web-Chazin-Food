@@ -188,7 +188,7 @@ export function DatosReembolsoFields({
               onChange={(e) => handleField("titularDocumento", e.target.value)}
               disabled={disabled}
               placeholder="Número de documento del titular"
-              className={`col-span-2 text-xs px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none ${
+              className={`sm:col-span-2 text-xs px-3 py-2 rounded-xl border bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none ${
                 errors.titularDocumento ? "border-red-500" : "border-gray-200 dark:border-gray-700 focus:border-emerald-500"
               }`}
             />

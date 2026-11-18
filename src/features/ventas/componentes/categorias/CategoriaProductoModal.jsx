@@ -245,13 +245,13 @@ export function CategoriaProductoModal({ isOpen, onClose, onSave, categoria = nu
       onClick={(e) => {
         if (e.target === e.currentTarget) handleCancelOrClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm"
     >
       {/* Contenedor Modal: Amplio Horizontalmente, Altura Baja Cómoda y Esquinas Bien Redondeadas (rounded-[32px]) */}
-      <div className="bg-white dark:bg-gray-900 rounded-[32px] shadow-2xl shadow-black/30 w-full max-w-4xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col transition-all">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-[32px] shadow-2xl shadow-black/30 w-full max-w-4xl max-h-[94dvh] overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col transition-all">
         
         {/* Header Modal */}
-        <div className="flex items-center justify-between px-7 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50/50 dark:bg-gray-850/50">
+        <div className="flex items-center justify-between px-4 sm:px-7 py-3.5 sm:py-4 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50/50 dark:bg-gray-850/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-950/60 text-[#F05454] flex items-center justify-center border border-red-100 dark:border-red-900/40 shadow-xs">
               <UtensilsCrossed className="w-5 h-5" />
@@ -275,9 +275,9 @@ export function CategoriaProductoModal({ isOpen, onClose, onSave, categoria = nu
           </button>
         </div>
 
-        {/* Formulario en 2 Columnas Horizontales Equilibradas (CERO SCROLL) */}
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="p-7 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+        {/* Formulario en 2 Columnas Horizontales Equilibradas con scroll responsivo */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0" noValidate>
+          <div className="p-4 sm:p-7 grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-8 items-start flex-1 overflow-y-auto custom-modal-scrollbar">
             
             {/* COLUMNA IZQUIERDA (5 columnas): Datos de la Categoría y Vista Previa */}
             <div className="md:col-span-5 space-y-4">
@@ -428,25 +428,25 @@ export function CategoriaProductoModal({ isOpen, onClose, onSave, categoria = nu
                       setPreviewIcon(icon && !icon.includes("/") ? icon : "burger");
                     }
                   }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 py-2 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
                     activeTab === "icons"
                       ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
                   <span>Íconos Gastronómicos</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("image")}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`flex-1 py-2 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
                     activeTab === "image"
                       ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                   }`}
                 >
-                  <ImageIcon className="w-3.5 h-3.5" />
+                  <ImageIcon className="w-3.5 h-3.5 shrink-0" />
                   <span>Subir Foto del Menú</span>
                 </button>
               </div>
@@ -551,7 +551,7 @@ export function CategoriaProductoModal({ isOpen, onClose, onSave, categoria = nu
           </div>
 
           {/* Footer Acciones con Bordes Redondeados */}
-          <div className="flex justify-end gap-3 px-7 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-850/40 shrink-0">
+          <div className="flex flex-wrap justify-end gap-2.5 sm:gap-3 px-4 sm:px-7 py-3.5 sm:py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-850/40 shrink-0">
             <button
               type="button"
               onClick={handleCancelOrClose}

@@ -128,7 +128,7 @@ export function EmpleadosTable({
 
   if (!empleados || empleados.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xs p-16 text-center border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xs p-8 sm:p-16 text-center border border-gray-100 dark:border-gray-800">
         <div className="w-16 h-16 mx-auto rounded-3xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 text-gray-400">
           <Briefcase className="w-8 h-8" />
         </div>

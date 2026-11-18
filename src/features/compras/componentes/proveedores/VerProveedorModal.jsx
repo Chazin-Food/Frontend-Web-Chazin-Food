@@ -538,7 +538,7 @@ export function VerProveedorModal({ isOpen, onClose, proveedor, onEdit }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
           <span className="text-[11px] text-gray-400 font-medium">
             ID de Registro: #{data.idProveedor || data.id}
           </span>

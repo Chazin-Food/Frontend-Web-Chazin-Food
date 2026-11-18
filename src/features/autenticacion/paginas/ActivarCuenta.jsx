@@ -96,7 +96,7 @@ export function ActivarCuenta() {
   if (tokenError) {
     return (
       <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4">
-        <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-8 text-center shadow-xl">
+        <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-5 sm:p-8 text-center shadow-xl">
           <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8" />
           </div>
@@ -116,7 +116,7 @@ export function ActivarCuenta() {
   if (activationSuccess) {
     return (
       <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4">
-        <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-8 text-center shadow-xl">
+        <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-5 sm:p-8 text-center shadow-xl">
           <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
             <CheckCircle className="w-8 h-8" />
           </div>
@@ -143,7 +143,7 @@ export function ActivarCuenta() {
         </Link>
       </div>
 
-      <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
+      <div className="max-w-md w-full bg-neutral-800/80 border border-neutral-700/60 rounded-2xl p-5 sm:p-8 shadow-2xl backdrop-blur-sm">
         <div className="text-center mb-6">
           <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-3">
             <ShieldCheck className="w-6 h-6" />

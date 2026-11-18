@@ -51,10 +51,10 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800">
         {/* Header armonizado con los colores del proyecto (Chazin Food #1e293b) */}
-        <div className="bg-gradient-to-r from-[#1e293b] via-[#243042] to-[#1e293b] p-5 sm:p-6 flex items-center justify-between text-white shrink-0">
+        <div className="bg-gradient-to-r from-[#1e293b] via-[#243042] to-[#1e293b] p-4 sm:p-6 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shrink-0 border border-white/15">
               <Shield className="w-6 h-6 stroke-[2] text-[#F05454]" />
@@ -80,7 +80,7 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 flex-1 overflow-y-auto custom-modal-scrollbar space-y-4">
+          <div className="p-4 sm:p-6 flex-1 overflow-y-auto custom-modal-scrollbar space-y-4">
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-2xl text-xs font-semibold text-red-600 dark:text-red-400 animate-fadeIn">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
@@ -95,7 +95,7 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
           </div>
 
           {/* Footer */}
-          <div className="p-4 sm:p-5 bg-gray-50/60 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3 shrink-0">
+          <div className="p-3.5 sm:p-5 bg-gray-50/60 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {editingPermisos.length > 0 ? (
                 <span className="font-medium text-emerald-600 dark:text-emerald-400">
@@ -107,7 +107,7 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={onClose}

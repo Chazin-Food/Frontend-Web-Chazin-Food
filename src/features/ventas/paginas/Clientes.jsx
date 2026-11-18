@@ -140,7 +140,7 @@ export function Clientes() {
       {loading ? (
         <ChazinLoader text="CARGANDO CLIENTES" size="md" />
       ) : filteredClientes.length === 0 ? (
-        <div className="bg-white dark:bg-gray-900 rounded-3xl p-12 border border-gray-100 dark:border-gray-800 shadow-xs text-center flex flex-col items-center justify-center space-y-3">
+        <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 sm:p-12 border border-gray-100 dark:border-gray-800 shadow-xs text-center flex flex-col items-center justify-center space-y-3">
           <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center mb-1">
             <UserX className="w-7 h-7 stroke-[1.5]" />
           </div>

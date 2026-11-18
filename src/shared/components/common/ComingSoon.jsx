@@ -2,8 +2,8 @@ import { Construction } from "lucide-react";
 
 export function ComingSoon({ title, description }) {
   return (
-    <div className="p-6 lg:p-8">
-      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-10 text-center">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 sm:p-10 text-center">
         <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
           <Construction className="w-8 h-8 text-red-600 dark:text-red-400" />
         </div>

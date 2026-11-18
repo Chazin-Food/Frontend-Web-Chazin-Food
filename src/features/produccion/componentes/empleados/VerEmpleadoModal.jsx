@@ -50,11 +50,11 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-xl border border-gray-100 dark:border-gray-700 my-8 overflow-hidden transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-xl max-h-[92dvh] flex flex-col border border-gray-100 dark:border-gray-700 my-auto overflow-hidden transition-all">
         
         {/* Banner de Cabecera con Avatar y Rol */}
-        <div className="relative bg-gradient-to-r from-red-600 to-rose-700 p-6 text-white">
+        <div className="relative bg-gradient-to-r from-red-600 to-rose-700 p-4 sm:p-6 text-white shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 text-white/80 hover:text-white rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
@@ -75,7 +75,7 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm uppercase tracking-wider">
                   ID #{empleado.idEmpleado}
                 </span>
@@ -105,7 +105,7 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
         </div>
 
         {/* Contenido en Rejilla */}
-        <div className="p-6 space-y-5 max-h-[70dvh] overflow-y-auto">
+        <div className="p-4 sm:p-6 space-y-5 flex-1 overflow-y-auto custom-modal-scrollbar">
           
           {/* Bloque 1: Documento de Identidad y Datos Personales (DE PRIMERO) */}
           <div>
@@ -113,27 +113,27 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
               <User className="w-4 h-4 text-red-500" /> Identificación y Contacto
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700/60 text-sm">
-              <div className="col-span-2 sm:col-span-1 p-2.5">
+              <div className="p-2.5">
                 <span className="text-xs text-gray-400 block">Documento de Identidad</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200 block mt-0.5">
                   {empleado.tipoDocumento || "C.C."} {empleado.numeroDocumento}
                 </span>
               </div>
-              <div className="col-span-2 sm:col-span-1 p-2.5">
+              <div className="p-2.5">
                 <span className="text-xs text-gray-400 block">Teléfono de Contacto</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1 mt-0.5">
                   <Phone className="w-3.5 h-3.5 text-gray-400" />
                   {empleado.telefono || "No registrado"}
                 </span>
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <span className="text-xs text-gray-400 block">Correo Electrónico</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1 truncate mt-0.5">
                   <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   {empleado.correo || "No registrado"}
                 </span>
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <span className="text-xs text-gray-400 block">Dirección de Residencia</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1 mt-0.5">
                   <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -189,7 +189,7 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
                 </span>
               </div>
               {empleado.contratoVencido && (
-                <div className="col-span-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-1.5 font-medium">
+                <div className="sm:col-span-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-1.5 font-medium">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>Este empleado tiene su fecha de contrato vencida.</span>
                 </div>
@@ -200,7 +200,7 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors cursor-pointer"

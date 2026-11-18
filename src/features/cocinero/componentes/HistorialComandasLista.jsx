@@ -242,12 +242,12 @@ export function HistorialComandasLista({
 
       {/* ── Table / List View of Orders ── */}
       {isLoading ? (
-        <div className="p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs flex-1 flex flex-col items-center justify-center">
+        <div className="p-8 sm:p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs flex-1 flex flex-col items-center justify-center">
           <div className="w-8 h-8 border-3 border-[#F05454] border-t-transparent rounded-full animate-spin mb-3" />
           <p className="text-xs text-gray-400 font-bold">Cargando historial...</p>
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 shadow-xs flex-1 flex flex-col items-center justify-center">
+        <div className="p-8 sm:p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 shadow-xs flex-1 flex flex-col items-center justify-center">
           <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-950/30 text-green-600 flex items-center justify-center mx-auto mb-4">
             <CheckCheck className="w-8 h-8" />
           </div>

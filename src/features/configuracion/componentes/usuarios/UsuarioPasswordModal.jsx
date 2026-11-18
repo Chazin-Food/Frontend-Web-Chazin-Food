@@ -102,11 +102,11 @@ export function UsuarioPasswordModal({ isOpen, onClose, onSave, usuario }) {
   const userEmail = usuario.email || usuario.correo || "usuario@chazinfood.com";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/40 backdrop-blur-xs">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[92dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header with Purple Lock Icon */}
-        <div className="flex items-start justify-between p-6 pb-2">
+        <div className="flex items-start justify-between p-4 sm:p-6 pb-2 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-[#8B5CF6] dark:text-purple-400 flex items-center justify-center shrink-0">
               <Lock className="w-5 h-5" />
@@ -129,7 +129,7 @@ export function UsuarioPasswordModal({ isOpen, onClose, onSave, usuario }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 pt-3 space-y-4" noValidate autoComplete="off">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 pt-3 space-y-4 flex-1 overflow-y-auto custom-modal-scrollbar" noValidate autoComplete="off">
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-semibold border border-rose-200 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />

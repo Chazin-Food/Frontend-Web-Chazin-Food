@@ -922,7 +922,7 @@ export function CancelarCompraModal({ isOpen, onClose, compra, onConfirm }) {
         </div>
 
         {/* ── FOOTER RESUMEN Y BOTONES ── */}
-        <div className="p-4 px-6 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4 shrink-0 bg-gray-50/70 dark:bg-gray-900">
+        <div className="p-3.5 sm:p-4 sm:px-6 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shrink-0 bg-gray-50/70 dark:bg-gray-900">
           <div className="flex items-center gap-4 text-xs flex-wrap">
             <div>
               <span className="text-gray-400 block text-[10px] uppercase font-bold">Total a Revertir:</span>
@@ -946,7 +946,7 @@ export function CancelarCompraModal({ isOpen, onClose, compra, onConfirm }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               type="button"
               onClick={onClose}

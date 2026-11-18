@@ -381,7 +381,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
               </div>
 
               {/* Nombre */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">
                     Nombre <span className="text-red-500">*</span>

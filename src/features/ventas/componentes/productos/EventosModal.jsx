@@ -474,14 +474,14 @@ export function EventosModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 px-6 flex items-center justify-between border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+        <div className="p-3.5 sm:p-4 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
           <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-orange-500" />
+            <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
             <span>Los días y horas restantes se descuentan en vivo en todo el sistema.</span>
           </div>
           <button
             onClick={onClose}
-            className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-2xl text-xs transition cursor-pointer"
+            className="px-6 py-2.5 w-full sm:w-auto shrink-0 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-2xl text-xs transition cursor-pointer"
           >
             Cerrar
           </button>

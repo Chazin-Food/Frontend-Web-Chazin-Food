@@ -253,39 +253,39 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
         </div>
 
         {/* Tabs de Navegación si es Preparado o tiene Lotes */}
-        <div className="flex border-b border-gray-100 dark:border-gray-800 px-6 bg-gray-50/30 dark:bg-gray-800/20">
+        <div className="flex border-b border-gray-100 dark:border-gray-800 px-3 sm:px-6 bg-gray-50/30 dark:bg-gray-800/20 overflow-x-auto no-scrollbar touch-scroll-x shrink-0">
           <button
             onClick={() => setActiveTab("general")}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === "general"
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${activeTab === "general"
                 ? "border-[#F05454] text-[#F05454]"
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
           >
-            <Info className="w-3.5 h-3.5" />
+            <Info className="w-3.5 h-3.5 shrink-0" />
             Datos Principales
           </button>
 
           {esPreparado && (
             <button
               onClick={() => setActiveTab("receta")}
-              className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === "receta"
+              className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${activeTab === "receta"
                   ? "border-[#F05454] text-[#F05454]"
                   : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 }`}
             >
-              <ChefHat className="w-3.5 h-3.5" />
+              <ChefHat className="w-3.5 h-3.5 shrink-0" />
               Ficha Técnica e Insumos ({ingredientes.length})
             </button>
           )}
 
           <button
             onClick={() => setActiveTab("lotes")}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === "lotes"
+            className={`py-3 px-3 sm:px-4 text-xs font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${activeTab === "lotes"
                 ? "border-[#F05454] text-[#F05454]"
                 : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
           >
-            <Layers className="w-3.5 h-3.5" />
+            <Layers className="w-3.5 h-3.5 shrink-0" />
             Lotes y Vencimientos ({lotes.length})
             {expiredLotes.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
@@ -296,7 +296,7 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-5 text-sm">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5 text-sm custom-modal-scrollbar">
           {/* ═══════════════════════════════════════════════════════════════
               TAB 1: DATOS PRINCIPALES
           ═══════════════════════════════════════════════════════════════ */}

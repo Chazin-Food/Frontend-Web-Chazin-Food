@@ -79,7 +79,7 @@ export function ForgotPassword() {
         </button>
 
         {/* Card */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-gray-100">
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-5 sm:p-8 border border-gray-100">
           {!emailSent ? (
             <>
               {/* Icon */}

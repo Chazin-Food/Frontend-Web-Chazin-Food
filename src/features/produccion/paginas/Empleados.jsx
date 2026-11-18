@@ -229,7 +229,7 @@ export function Empleados() {
       </div>
 
       {/* Tarjetas de Estadísticas (KPIs) con Incapacitados */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
         
         {/* Total Empleados */}
         <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm">
@@ -322,13 +322,13 @@ export function Empleados() {
         <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap sm:flex-nowrap justify-between lg:justify-end shrink-0">
           
           {/* Pastillas de Estado: Todos, Activo, Inactivo, Incapacitado */}
-          <div className="flex items-center gap-1.5 text-xs bg-gray-100/70 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200/60 dark:border-gray-700">
-            <span className="text-gray-400 font-semibold px-2">Estado:</span>
+          <div className="flex items-center gap-1.5 text-xs bg-gray-100/70 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200/60 dark:border-gray-700 w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar touch-scroll-x">
+            <span className="text-gray-400 font-semibold px-2 whitespace-nowrap shrink-0">Estado:</span>
             {["Todos", "Activo", "Inactivo", "Incapacitado"].map((st) => (
               <button
                 key={st}
                 onClick={() => setFilterEstado(st)}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-all text-xs cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl font-bold transition-all text-xs cursor-pointer whitespace-nowrap shrink-0 ${
                   filterEstado === st
                     ? "bg-red-600 text-white shadow-xs"
                     : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"

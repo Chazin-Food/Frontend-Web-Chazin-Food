@@ -762,7 +762,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                   </div>
 
                   {/* Footer de la diapositiva con Botón CTA directo */}
-                  <div className="relative z-10 px-8 sm:px-14 lg:px-16 pb-5 sm:pb-6 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/10 bg-black/25 backdrop-blur-md">
+                  <div className="relative z-10 px-4 sm:px-10 lg:px-16 pb-5 sm:pb-6 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/10 bg-black/25 backdrop-blur-md">
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                       <button
                         type="button"
@@ -813,7 +813,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
             type="button"
             onClick={prevSlide}
             aria-label="Slide anterior"
-            className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md border border-white/25 text-white flex items-center justify-center transition-all duration-200 shadow-2xl hover:scale-110 active:scale-95 cursor-pointer group"
+            className="hidden sm:flex absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md border border-white/25 text-white items-center justify-center transition-all duration-200 shadow-2xl hover:scale-110 active:scale-95 cursor-pointer group"
           >
             <ChevronLeft className="w-6 h-6 transition-transform group-hover:-translate-x-0.5" />
           </button>
@@ -823,7 +823,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
             type="button"
             onClick={nextSlide}
             aria-label="Siguiente slide"
-            className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md border border-white/25 text-white flex items-center justify-center transition-all duration-200 shadow-2xl hover:scale-110 active:scale-95 cursor-pointer group"
+            className="hidden sm:flex absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/50 hover:bg-black/85 backdrop-blur-md border border-white/25 text-white items-center justify-center transition-all duration-200 shadow-2xl hover:scale-110 active:scale-95 cursor-pointer group"
           >
             <ChevronRight className="w-6 h-6 transition-transform group-hover:translate-x-0.5" />
           </button>
@@ -837,7 +837,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
         onMouseMove={handlePillsMouseMove}
         onMouseUp={handlePillsMouseUp}
         onMouseLeave={handlePillsMouseLeave}
-        className={`mt-4 flex items-center gap-3 overflow-x-auto no-scrollbar py-2.5 px-4 sm:px-6 select-none ${
+        className={`mt-4 flex items-center gap-3 overflow-x-auto no-scrollbar touch-scroll-x py-2.5 px-4 sm:px-6 select-none ${
           isPillsDragging ? "cursor-grabbing" : "cursor-grab"
         }`}
         style={{ scrollBehavior: isPillsDragging ? "auto" : "smooth" }}

@@ -395,7 +395,7 @@ export function PermisosSelector({ value = [], onChange, scrollable = false }) {
                             </div>
 
                             {/* Privilegios granulares: Ver, Crear, Editar, Eliminar */}
-                            <div className="flex items-center gap-1.5 pl-7 sm:pl-0 shrink-0">
+                            <div className="flex flex-wrap items-center gap-1.5 pl-7 sm:pl-0 shrink-0">
                               {ACCIONES_PRIVILEGIOS.map((acc) => {
                                 const isAllowedForModule = sub.accionesDisponibles.includes(acc.id);
                                 if (!isAllowedForModule) return null;

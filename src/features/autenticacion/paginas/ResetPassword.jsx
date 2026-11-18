@@ -123,7 +123,7 @@ export function ResetPassword() {
       {/* Main content */}
       <div className="relative z-10 w-full max-w-md">
         {/* Card */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-gray-100">
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-5 sm:p-8 border border-gray-100">
           {!resetSuccess ? (
             <>
               {/* Icon */}

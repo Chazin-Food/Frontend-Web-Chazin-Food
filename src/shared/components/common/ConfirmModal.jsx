@@ -61,7 +61,7 @@ export function ConfirmModal({
   return (
     <div
       className={`
-        fixed inset-0 z-[9998] flex items-center justify-center p-4
+        fixed inset-0 z-[9998] flex items-center justify-center p-3 sm:p-4
         transition-all duration-300
         ${isVisible ? "opacity-100" : "opacity-0"}
       `}
@@ -72,7 +72,7 @@ export function ConfirmModal({
       <div
         className={`
           relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl
-          max-w-md w-full
+          max-w-md w-full max-h-[92dvh] overflow-y-auto custom-modal-scrollbar
           transform transition-all duration-300
           ${isVisible ? "scale-100 translate-y-0" : "scale-95 translate-y-4"}
         `}

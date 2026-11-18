@@ -641,7 +641,7 @@ export function DevolucionDetalleModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2.5 shrink-0 bg-gray-50/50 dark:bg-gray-800/50">
           <button
             type="button"
             onClick={onClose}
@@ -651,7 +651,7 @@ export function DevolucionDetalleModal({
           </button>
 
           {canManage && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {estado === "PENDIENTE" && !showRechazoInput && !showCompletarInput && (
                 <>
                   <button

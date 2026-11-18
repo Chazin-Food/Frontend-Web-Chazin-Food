@@ -13,7 +13,7 @@ export default function KioskCancelConfirmModal({
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center overflow-hidden border-2 border-gray-150 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center max-h-[92dvh] overflow-y-auto border-2 border-gray-150 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
           <div className="w-20 h-20 rounded-3xl bg-red-100 text-[#A91B2E] flex items-center justify-center mb-4 shadow-md">
             <Trash2 className="w-10 h-10" />
           </div>

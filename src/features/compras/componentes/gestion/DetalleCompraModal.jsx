@@ -504,7 +504,7 @@ export function DetalleCompraModal({ isOpen, onClose, compra, onCancelar, onEdit
 
           {/* Total Summary con IVA (#83) */}
           <div className="flex justify-end">
-            <div className="bg-gray-50 dark:bg-gray-800/80 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 min-w-[260px] space-y-2">
+            <div className="bg-gray-50 dark:bg-gray-800/80 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 w-full sm:w-auto sm:min-w-[260px] space-y-2">
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span>Subtotal:</span>
                 <span className="font-semibold text-gray-800 dark:text-gray-200">

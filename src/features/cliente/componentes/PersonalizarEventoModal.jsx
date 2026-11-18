@@ -652,10 +652,10 @@ export function PersonalizarEventoModal({
       {/* 
         ESTRUCTURA DE TAMAÑO ESTABLE Y FLUIDA:
         - max-w-2xl w-full: espacio amplio y estilizado idéntico a FastFoodProductModal.
-        - max-h-[92dvh] sm:h-[90vh] sm:max-h-[860px]: fija la altura total de forma consistente y fluida en móvil y escritorio.
+        - max-h-[92dvh] sm:h-[90dvh] sm:max-h-[860px]: fija la altura total de forma consistente y fluida en móvil y escritorio.
         - flex flex-col: el modal no cambia ni salta de tamaño al pasar a "Mise & place" o a otra pestaña.
       */}
-      <div className="bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl w-full shadow-2xl flex flex-col max-h-[94dvh] sm:h-[90vh] sm:max-h-[860px] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl w-full shadow-2xl flex flex-col max-h-[94dvh] sm:h-[90dvh] sm:max-h-[860px] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
         
         {/* ── 1. Festival Drop Top Ribbon (Evento Activo) ── */}
         <div className="bg-gradient-to-r from-[#D9383A] via-[#E03E3E] to-amber-600 text-white px-4 sm:px-6 py-2 flex items-center justify-between text-xs font-black uppercase tracking-wider shadow-md shrink-0 z-30">

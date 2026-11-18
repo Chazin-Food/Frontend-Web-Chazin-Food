@@ -283,10 +283,10 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92dvh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 shrink-0">
           <div className="flex items-center gap-2">
             <Building className="w-5 h-5 text-[#F05454]" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
@@ -302,7 +302,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80dvh] overflow-y-auto" noValidate>
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto custom-modal-scrollbar" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             {/* Switch / Selector Tipo de Persona */}
@@ -315,7 +315,7 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
                   </span>
                 )}
               </div>
-              <div className={`grid grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl ${isEditing ? "opacity-75 cursor-not-allowed" : ""}`}>
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl ${isEditing ? "opacity-75 cursor-not-allowed" : ""}`}>
                 <button
                   type="button"
                   disabled={isEditing}
