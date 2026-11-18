@@ -2942,24 +2942,24 @@ export function FastFoodProductModal({
                             <span className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/70 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-300">
                               <FoodIcon name={baseIng.icono || baseIng.nombre} size={15} stroke={1.75} />
                             </span>
-                            <span className="truncate">{baseIng.nombre}</span>
-                          </span>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {baseIng.variantStatus?.isExtra && (
-                              <span
-                                className={`text-[9.5px] font-black px-1.5 py-0.5 rounded-md border ${
-                                  baseIng.variantStatus.kind === "reemplazo"
-                                    ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/70 dark:text-purple-200 dark:border-purple-700"
-                                    : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700"
-                                }`}
-                              >
-                                {baseIng.variantStatus.shortBadge}
-                              </span>
-                            )}
-                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/40 px-1.5 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1">
-                              <Check className="w-3 h-3 stroke-[3]" /> Obligatorio
+                            <span className="min-w-0 flex-1 text-left">
+                              <span className="block truncate">{baseIng.nombre}</span>
+                              {baseIng.variantStatus?.isExtra && (
+                                <span
+                                  className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-black px-1.5 py-0.5 rounded-md border ${
+                                    baseIng.variantStatus.kind === "reemplazo"
+                                      ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/70 dark:text-purple-200 dark:border-purple-700"
+                                      : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700"
+                                  }`}
+                                >
+                                  {baseIng.variantStatus.shortBadge}
+                                </span>
+                              )}
                             </span>
-                          </div>
+                          </span>
+                          <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/40 px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-1">
+                            <Check className="w-3 h-3 stroke-[3]" /> Obligatorio
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -3006,7 +3006,7 @@ export function FastFoodProductModal({
                                 </span>
                                 {ing.variantStatus?.isExtra && (
                                   <span
-                                    className={`inline-block mt-0.5 text-[9.5px] font-black px-1.5 py-0.2 rounded ${
+                                    className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-black px-1.5 py-0.2 rounded ${
                                       ing.variantStatus.kind === "reemplazo"
                                         ? "bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200"
                                         : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"

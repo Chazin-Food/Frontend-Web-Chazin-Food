@@ -65,7 +65,7 @@ export function FidelidadBadge({
       <span
         className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-black tracking-tight ${config.bgCls} ${config.glowCls} ${className}`}
       >
-        <IconComp size={12} stroke={2} className="shrink-0" />
+        <IconComp size={12} strokeWidth={2.25} className="shrink-0" />
         <span>{config.shortLabel}</span>
         {showDiscount && finalDesc > 0 && (
           <span className={`px-1 py-0.2 rounded text-[9px] font-black ${config.pillCls}`}>
@@ -82,23 +82,23 @@ export function FidelidadBadge({
   if (size === "lg") {
     return (
       <div
-        className={`inline-flex items-center justify-between gap-3 px-3.5 py-2 rounded-2xl border ${config.bgCls} ${config.glowCls} ${className}`}
+        className={`flex sm:inline-flex items-center justify-between gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-2 rounded-2xl border w-full sm:w-auto max-w-full ${config.bgCls} ${config.glowCls} ${className}`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center shadow-2xs border border-white/50 dark:border-gray-700 shrink-0">
-            <IconComp size={18} stroke={2} className="shrink-0" />
+            <IconComp size={18} strokeWidth={2.25} className="shrink-0" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black tracking-tight leading-tight">{config.label}</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-black tracking-tight leading-tight truncate">{config.label}</span>
               {enGracia && (
-                <span className="px-1.5 py-0.2 bg-amber-500 text-white text-[9px] font-black rounded-md flex items-center gap-0.5 shadow-2xs">
+                <span className="px-1.5 py-0.2 bg-amber-500 text-white text-[9px] font-black rounded-md flex items-center gap-0.5 shadow-2xs shrink-0">
                   <Clock className="w-2.5 h-2.5" />
                   <span>En Gracia</span>
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate">
               {finalDesc > 0 ? `Beneficio activo de ${finalDesc}% OFF en pedidos` : "Realiza compras para subir de nivel"}
             </p>
           </div>
@@ -118,7 +118,7 @@ export function FidelidadBadge({
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-bold ${config.bgCls} ${config.glowCls} ${className}`}
     >
-      <IconComp size={15} stroke={2} className="shrink-0" />
+      <IconComp size={15} strokeWidth={2.25} className="shrink-0" />
       <span className="font-extrabold">{config.label}</span>
       {showDiscount && finalDesc > 0 && (
         <span className={`px-1.5 py-0.5 rounded-lg text-[10px] font-black ${config.pillCls}`}>

@@ -2211,12 +2211,12 @@ export function ClienteLanding() {
       {/* Banner de Fidelidad del Cliente */}
       {isAuthenticated && (
         <div className="w-full px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 dark:from-amber-950/20 dark:via-orange-950/20 dark:to-red-950/20 border border-amber-200 dark:border-amber-900/40 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="shrink-0">
+          <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 dark:from-amber-950/20 dark:via-orange-950/20 dark:to-red-950/20 border border-amber-200 dark:border-amber-900/40 rounded-3xl p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 sm:gap-4 shadow-xs overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 w-full lg:w-auto">
+              <div className="w-full sm:w-auto sm:shrink-0">
                 <FidelidadBadge tipo={tipoFidelidad} size="lg" />
               </div>
-              <div>
+              <div className="min-w-0 w-full sm:flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-black uppercase tracking-wider text-orange-900 dark:text-orange-300">
                     Membresía {tipoFidelidad}

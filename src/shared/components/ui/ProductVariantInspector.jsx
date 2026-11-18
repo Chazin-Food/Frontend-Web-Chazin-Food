@@ -112,7 +112,7 @@ export default function ProductVariantInspector({
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-extrabold text-slate-900 truncate">
                       {baseOptionLabel}
