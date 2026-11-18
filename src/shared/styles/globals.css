@@ -89,10 +89,16 @@ input[type='number'] {
   contain-intrinsic-size: 0 600px;
 }
 
-/* Custom smooth modal scrollbar */
+/* Custom smooth modal scrollbar & horizontal overflow lock inside vertical modal scrollers */
 .custom-modal-scrollbar {
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+
+[role="dialog"] .overflow-y-auto:not(.overflow-x-auto),
+.fixed.inset-0 .overflow-y-auto:not(.overflow-x-auto) {
+  overflow-x: hidden;
 }
 
 .dark .custom-modal-scrollbar {

@@ -191,15 +191,15 @@ export function ProductoResenasModal({ isOpen, onClose, producto }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-3xl shadow-2xl flex flex-col max-h-[90dvh] my-auto overflow-hidden"
+        className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90dvh] my-auto overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white relative flex items-center gap-4 shrink-0">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-4 sm:p-5 text-white relative flex items-center gap-3.5 sm:gap-4 shrink-0">
           <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden shrink-0">
             {imagenProducto ? (
               <img src={imagenProducto.startsWith("http") ? imagenProducto : `http://localhost:5000${imagenProducto}`} alt={nombreProducto} className="w-full h-full object-cover" />
@@ -228,7 +228,7 @@ export function ProductoResenasModal({ isOpen, onClose, producto }) {
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto overflow-x-hidden flex-1">
           {/* ── Resumen de ratings ── */}
           {totalResenas > 0 && (
             <div className="p-5 border-b border-gray-100 dark:border-gray-800">

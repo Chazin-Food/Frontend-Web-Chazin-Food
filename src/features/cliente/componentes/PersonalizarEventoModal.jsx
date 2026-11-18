@@ -788,14 +788,14 @@ export function PersonalizarEventoModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3.5 right-3.5 z-40 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow-lg active:scale-95"
+          className="absolute top-11 right-3.5 z-40 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow-lg active:scale-95"
           title="Cerrar modal (Esc)"
         >
           <X className="w-5 h-5 stroke-[2.5]" />
         </button>
 
         {/* ── Scrollable Body Area (Con altura flexible estable) ── */}
-        <div className="overflow-y-auto flex-1 no-scrollbar">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 no-scrollbar">
           
           {/* ═══ 2. LUXURY DUAL-STAGE HERO PHOTO (ENCUADRE IMPECABLE) ═══ */}
           <div className="relative w-full h-52 sm:h-64 bg-gray-950 flex items-center justify-center overflow-hidden border-b border-gray-150 dark:border-gray-800">
@@ -838,7 +838,7 @@ export function PersonalizarEventoModal({
             </div>
 
             {/* Top-Left Badges */}
-            <div className="absolute top-3.5 left-4 z-20 flex flex-wrap items-center gap-2">
+            <div className="absolute top-3.5 left-3.5 right-14 z-20 flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md">
                 <FoodIcon name={selectedProduct?.nombre} category={selectedProduct?.categoria} size={15} stroke={2} className="text-amber-400" />
                 <span>{selectedProduct?.categoria || selectedProduct?.categoriaNombre || "Plato del Evento"}</span>
@@ -854,9 +854,9 @@ export function PersonalizarEventoModal({
             </div>
 
             {/* Bottom Overlay Title & Promo Price */}
-            <div className="absolute bottom-3 left-4 right-4 z-20 flex items-end justify-between gap-3 text-white">
+            <div className="absolute bottom-3 left-3.5 right-3.5 sm:left-4 sm:right-4 z-20 flex items-end justify-between gap-2.5 sm:gap-3 text-white">
               <div className="min-w-0 flex-1">
-                <h2 className="text-xl sm:text-2xl font-black leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] text-white tracking-tight">
+                <h2 className="text-lg sm:text-2xl font-black leading-tight line-clamp-2 break-words drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] text-white tracking-tight">
                   {selectedProduct?.nombre}
                 </h2>
               </div>
@@ -914,16 +914,16 @@ export function PersonalizarEventoModal({
           )}
 
           {/* ═══ 4. RATINGS & QUICK SPECS SUB-BAR ═══ */}
-          <div className="px-4 sm:px-6 py-2.5 bg-gray-50 dark:bg-gray-850/70 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+          <div className="px-3.5 sm:px-6 py-2.5 bg-gray-50 dark:bg-gray-850/70 border-b border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
             <button
               type="button"
               onClick={() => setActiveTab("resenas")}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-bold hover:bg-amber-200/80 dark:hover:bg-amber-900/60 transition cursor-pointer border border-amber-300/40 dark:border-amber-800/60 shadow-2xs group"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-bold hover:bg-amber-200/80 dark:hover:bg-amber-900/60 transition cursor-pointer border border-amber-300/40 dark:border-amber-800/60 shadow-2xs group shrink-0 whitespace-nowrap"
               title="Ver calificaciones de este plato"
             >
               {effectiveRating.total > 0 ? (
                 <>
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 group-hover:scale-110 transition-transform shrink-0" />
                   <span>{Number(effectiveRating.promedio || 5).toFixed(1)}</span>
                   <span className="opacity-80 font-semibold">
                     ({effectiveRating.total} {effectiveRating.total === 1 ? "opinión" : "opiniones"})
@@ -931,7 +931,7 @@ export function PersonalizarEventoModal({
                 </>
               ) : (
                 <>
-                  <Star className="w-3.5 h-3.5 text-gray-400" />
+                  <Star className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <span className="opacity-80 font-semibold">Sin opiniones aún</span>
                 </>
               )}
@@ -940,19 +940,19 @@ export function PersonalizarEventoModal({
               </span>
             </button>
 
-            <div className="flex items-center gap-3 text-[11.5px] font-bold text-gray-700 dark:text-gray-300">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-red-500" />
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] font-bold text-gray-700 dark:text-gray-300">
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <Clock className="w-3.5 h-3.5 text-red-500 shrink-0" />
                 {specs?.tiempoPrep ? `${specs.tiempoPrep} min` : "8 min"}
               </span>
               <span>•</span>
-              <span className="flex items-center gap-1">
-                <Utensils className="w-3.5 h-3.5 text-amber-500" />
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <Utensils className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 {specs?.rendimiento || "1 porción"}
               </span>
               <span>•</span>
-              <span className="flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 {remainingStock > 0 ? `${remainingStock} disp.` : "Agotado"}
               </span>
             </div>
@@ -965,7 +965,7 @@ export function PersonalizarEventoModal({
                 <UtensilsCrossed className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <span className="font-black text-xs text-amber-800 dark:text-amber-400 uppercase tracking-wider">
                     Descripción & Preparación:
                   </span>
@@ -1014,18 +1014,18 @@ export function PersonalizarEventoModal({
 
           {/* ═══ 7. SEGMENTED TABS NAVIGATION (PRODUCCIÓN & RECETA PROMOCIONAL) ═══ */}
           <div className="px-4 sm:px-6 pt-3 pb-2 sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md z-10 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl w-full max-w-full overflow-x-auto no-scrollbar touch-scroll-x">
               {hasRecipeTabContent && (
                 <button
                   type="button"
                   onClick={() => setActiveTab("personalizar")}
-                  className={`flex-1 min-w-[120px] py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none ${
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
                     activeTab === "personalizar"
                       ? "bg-white dark:bg-gray-900 text-[#f05454] dark:text-red-400 shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                   }`}
                 >
-                  <ChefHat className="w-3.5 h-3.5" />
+                  <ChefHat className="w-3.5 h-3.5 shrink-0" />
                   <span>Receta de la Promoción</span>
                   {removedIngredients.length > 0 && (
                     <span className="h-4 w-4 rounded-full bg-[#f05454] text-white text-[10px] flex items-center justify-center font-black">
@@ -1039,13 +1039,13 @@ export function PersonalizarEventoModal({
                 <button
                   type="button"
                   onClick={() => setActiveTab("adiciones")}
-                  className={`flex-1 min-w-[110px] py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none ${
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
                     activeTab === "adiciones"
                       ? "bg-white dark:bg-gray-900 text-amber-600 dark:text-amber-400 shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                   }`}
                 >
-                  <Flame className="w-3.5 h-3.5 text-amber-500" />
+                  <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   <span>Toppings & Extras</span>
                   {selectedAdditions.length > 0 && (
                     <span className="h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-black">
@@ -1059,7 +1059,7 @@ export function PersonalizarEventoModal({
                 <button
                   type="button"
                   onClick={() => setActiveTab("bebidas")}
-                  className={`flex-1 min-w-[95px] py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none ${
+                  className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
                     activeTab === "bebidas"
                       ? "bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
@@ -1078,13 +1078,13 @@ export function PersonalizarEventoModal({
               <button
                 type="button"
                 onClick={() => setActiveTab("resenas")}
-                className={`flex-1 min-w-[95px] py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none ${
+                className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
                   activeTab === "resenas"
                     ? "bg-white dark:bg-gray-900 text-amber-600 dark:text-amber-400 shadow-sm"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
               >
-                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 shrink-0" />
                 <span>Reseñas</span>
                 {effectiveRating.total > 0 && (
                   <span className="h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] flex items-center justify-center font-black">
@@ -1120,7 +1120,7 @@ export function PersonalizarEventoModal({
             {/* ─── TAB 1: PERSONALIZAR (MISE EN PLACE CON LÓGICA HUMANA DE COCINA) ─── */}
             {activeTab === "personalizar" && personalizables.length > 0 && (
               <div className="space-y-4 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                       <ChefHat className="w-4 h-4 text-red-500" />
@@ -1144,7 +1144,7 @@ export function PersonalizarEventoModal({
                 {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (PROTEGIDOS POR LÓGICA HUMANA) ── */}
                 {baseIngredients.length > 0 && (
                   <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 dark:text-amber-300">
                         <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                         <span>Base Indispensable del Plato</span>
@@ -1179,7 +1179,7 @@ export function PersonalizarEventoModal({
                 {/* ── SECCIÓN 2: INGREDIENTES DE LA OFERTA CERRADA (Ítems #8 y #17) ── */}
                 {customizableIngredients.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
                       <p className="text-xs font-extrabold text-gray-700 dark:text-gray-300">
                         Ingredientes y complementos incluidos en la oferta:
                       </p>
@@ -1324,7 +1324,7 @@ export function PersonalizarEventoModal({
                 )}
 
                 {comboRecipeInfo.isComboProd && comboRecipeInfo.includedDrinksCount > 0 && allBebidas.length > 0 && (
-                  <div className="p-3 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between gap-3 text-xs">
+                  <div className="p-3 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center shrink-0">
                         <FoodIcon name="drink" size={16} />
@@ -1357,7 +1357,7 @@ export function PersonalizarEventoModal({
             {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS Y EXTRAS) ─── */}
             {activeTab === "adiciones" && (
               <div className="space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                       <Flame className="w-4 h-4 text-amber-500" />
@@ -1372,7 +1372,7 @@ export function PersonalizarEventoModal({
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
                   {adicionesList.map((ad) => {
                     const adId = ad.idAdicion || ad.id;
                     const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
@@ -1451,7 +1451,7 @@ export function PersonalizarEventoModal({
             {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES ─── */}
             {activeTab === "bebidas" && (
               <div className="space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       <FoodIcon name="drink" size={16} className="shrink-0" />
@@ -1466,7 +1466,7 @@ export function PersonalizarEventoModal({
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
                   {allBebidas.map((drink) => {
                     const dId = drink.id || drink.idProducto;
                     const selectedObj = selectedDrinks.find((d) => (d.id || d.idProducto) === dId);
@@ -1562,7 +1562,7 @@ export function PersonalizarEventoModal({
             {activeTab === "resenas" && (
               <div className="space-y-4 animate-in fade-in duration-150">
                 {/* Header Score Card */}
-                <div className="p-4 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent dark:from-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/40 flex items-center justify-between gap-4">
+                <div className="p-4 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent dark:from-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3.5">
                     <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex flex-col items-center justify-center font-black shadow-md shrink-0">
                       <span className="text-base leading-none">
@@ -1712,7 +1712,7 @@ export function PersonalizarEventoModal({
                 )}
 
                 {/* Lista de Opiniones */}
-                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                <div className="space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1">
                   {loadingReviews ? (
                     <div className="py-8 text-center text-xs text-gray-400">
                       Cargando opiniones de clientes...

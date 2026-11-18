@@ -2150,7 +2150,7 @@ export function FastFoodProductModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white dark:bg-gray-900 rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
         {/* ── Festival Drop Top Ribbon (Fast Food Industry Event Bar) ── */}
         {eventInfo && (
           <div className="bg-gradient-to-r from-[#D9383A] via-[#E03E3E] to-amber-600 text-white px-4 sm:px-6 py-2 flex items-center justify-between text-xs font-black uppercase tracking-wider shadow-md shrink-0 z-30 border-b border-orange-500/30">
@@ -2184,14 +2184,14 @@ export function FastFoodProductModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3.5 right-3.5 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow-lg active:scale-95"
+          className={`absolute ${eventInfo ? "top-11" : "top-3.5"} right-3.5 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow-lg active:scale-95`}
           title="Cerrar modal (Esc)"
         >
           <X className="w-5 h-5 stroke-[2.5]" />
         </button>
 
         {/* ── Scrollable Body Area ── */}
-        <div className="overflow-y-auto flex-1 no-scrollbar">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 no-scrollbar">
           {/* ═══ 1. LUXURY DUAL-STAGE HERO PHOTO (ENCUADRE PERFECTO & WOW EFFECT) ═══ */}
           <div className="relative w-full h-52 sm:h-64 bg-gray-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80">
             {/* Background Ambient Layer (Glow difuminado con los colores reales de la comida o refresco) */}
@@ -2245,7 +2245,7 @@ export function FastFoodProductModal({
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
 
             {/* Top-Left Category Badge */}
-            <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2">
+            <div className="absolute top-3.5 left-3.5 right-14 z-20 flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md">
                 <FoodIcon name={producto.nombre} category={producto.categoria} size={15} stroke={2} className="text-amber-400" />
                 <span>{producto.categoria || "Plato Especial"}</span>
@@ -2259,9 +2259,9 @@ export function FastFoodProductModal({
             </div>
 
             {/* Bottom Overlay Info (Name & Price) */}
-            <div className="absolute bottom-3 left-4 right-4 z-20 flex items-end justify-between gap-3 text-white">
+            <div className="absolute bottom-3 left-3.5 right-3.5 sm:left-4 sm:right-4 z-20 flex items-end justify-between gap-2.5 sm:gap-3 text-white">
               <div className="min-w-0 flex-1">
-                <h2 className="text-xl sm:text-2xl font-black leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] text-white tracking-tight">
+                <h2 className="text-lg sm:text-2xl font-black leading-tight line-clamp-2 break-words drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] text-white tracking-tight">
                   {isDrink
                     ? displayDrinkTitle
                     : (drinkHasSizes
@@ -2305,7 +2305,7 @@ export function FastFoodProductModal({
                 setActiveTab("resenas");
                 setShowWriteReview(isReadOnlyReviews ? false : true);
               }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/50 transition cursor-pointer border border-amber-200/80 dark:border-amber-800/60 shadow-2xs group shrink-0"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/50 transition cursor-pointer border border-amber-200/80 dark:border-amber-800/60 shadow-2xs group shrink-0 whitespace-nowrap"
               title={isReadOnlyReviews ? "Ver calificaciones y opiniones de clientes en la web" : "Ver calificaciones y escribir una reseña"}
             >
               {hasRealRatings ? (
@@ -2330,17 +2330,17 @@ export function FastFoodProductModal({
 
             {/* Chips de especificaciones con diseño armónico y alineación perfecta */}
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs" title="Tiempo de preparación artesanal en cocina">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs whitespace-nowrap" title="Tiempo de preparación artesanal en cocina">
                 <Clock className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                 <span>{isDrink ? "Servido frío inmediato" : ficha?.tiempoPreparacion ? `Prep: ${ficha.tiempoPreparacion}-${ficha.tiempoPreparacion + 3} min` : "Prep: 12-15 min"}</span>
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs" title="Rendimiento y porción">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs whitespace-nowrap" title="Rendimiento y porción">
                 <Utensils className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <span>{isDrink ? selectedSizeObj.porciones : (ficha?.rendimiento || "1 unidad")}</span>
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs" title="Disponibilidad actual en cocina">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs whitespace-nowrap" title="Disponibilidad actual en cocina">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 <span className={stockMax > 0 ? "text-emerald-700 dark:text-emerald-400 font-bold" : "text-rose-500 font-bold"}>
                   {stockMax > 0 ? `${stockMax} disp.` : "Agotado"}
@@ -2474,7 +2474,7 @@ export function FastFoodProductModal({
 
           {/* ═══ 2. TABS NAVIGATION (CONDICIONADO: BEBIDAS TIENEN SABORES; COMIDA TIENE PERSONALIZAR Y ADICIONES) ═══ */}
           <div className="px-3 sm:px-4 pt-2.5 pb-2 sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md z-10 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl w-full">
+            <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl w-full max-w-full overflow-x-auto no-scrollbar touch-scroll-x">
               {isDrink ? (
                 <>
                   {(drinkHasSizes || drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
@@ -2636,7 +2636,7 @@ export function FastFoodProductModal({
               <div className="space-y-5 animate-in fade-in duration-200">
                 {/* 1. SECCIÓN: TAMAÑO & PRESENTACIÓN (400 ml, 1.5 Litros, 2.5 Litros) */}
                 <div>
-                  <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                     <div>
                       <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5 uppercase tracking-wide">
                         <Layers className="w-4 h-4 text-[#f05454]" />
@@ -2857,7 +2857,7 @@ export function FastFoodProductModal({
             {!isDrink && activeTab === "personalizar" && eventInfo && <EventoToppingsCard event={eventInfo} />}
             {!isDrink && activeTab === "personalizar" && (personalizables.length > 0 || foodVariants.length > 0) && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                       <ChefHat className="w-4 h-4 text-red-500" />
@@ -2915,7 +2915,7 @@ export function FastFoodProductModal({
                 {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (PROTEGIDOS POR LÓGICA HUMANA) ── */}
                 {baseIngredients.length > 0 && (
                   <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 dark:text-amber-300">
                         <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                         <span>Base Indispensable del Plato</span>
@@ -2969,7 +2969,7 @@ export function FastFoodProductModal({
                 {/* ── SECCIÓN 2: INGREDIENTES PERSONALIZABLES (EXCLUSIONES A PETICIÓN) ── */}
                 {customizableIngredients.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
                       <p className="text-xs font-extrabold text-gray-700 dark:text-gray-300">
                         ¿Deseas retirar algún ingrediente de tu pedido?
                       </p>
@@ -2978,7 +2978,7 @@ export function FastFoodProductModal({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {customizableIngredients.map((ing) => {
                         const isRemoved = removedIngredients.includes(ing.nombre);
                         return (
@@ -3055,7 +3055,7 @@ export function FastFoodProductModal({
             {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS & EXTRAS) ─── */}
             {!isDrink && activeTab === "adiciones" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                       <Flame className="w-4 h-4 text-amber-500" />
@@ -3070,7 +3070,7 @@ export function FastFoodProductModal({
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
                   {filteredAdiciones.map((ad) => {
                     const adId = ad.idAdicion || ad.id;
                     const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
@@ -3150,7 +3150,7 @@ export function FastFoodProductModal({
             {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES ─── */}
             {!isDrink && activeTab === "bebidas" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       <FoodIcon name="drink" size={18} className="shrink-0" />
@@ -3173,7 +3173,7 @@ export function FastFoodProductModal({
 
                 {/* Banner de estado del combo */}
                 {isComboWithDrinks && (
-                  <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                  <div className={`p-3 rounded-2xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 ${
                     isComboDrinkComplete
                       ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-850 text-emerald-800 dark:text-emerald-200"
                       : "bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-850 text-blue-800 dark:text-blue-200"
@@ -3201,7 +3201,7 @@ export function FastFoodProductModal({
                   </div>
                 )}
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
                   {availableBebidas.map((drink) => {
                     const dId = drink.id || drink.idProducto;
                     const selectedObj = selectedDrinks.find((d) => (d.id || d.idProducto) === dId);
@@ -3308,7 +3308,7 @@ export function FastFoodProductModal({
             {/* ─── TAB 5: RESEÑAS Y OPINIONES DE COMENSALES (ESPACIO DEDICADO) ─── */}
             {activeTab === "resenas" && (
               <div className="space-y-4 animate-in fade-in duration-200">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                       <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
@@ -3398,7 +3398,7 @@ export function FastFoodProductModal({
                     onSubmit={handleSubmitReview}
                     className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border-2 border-dashed border-amber-300 dark:border-amber-800/80 space-y-3.5 animate-in fade-in zoom-in-95 duration-200"
                   >
-                    <div className="flex items-center justify-between border-b border-amber-200/60 dark:border-amber-800/40 pb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/60 dark:border-amber-800/40 pb-2">
                       <span className="text-xs font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                         <ChefHat className="w-4 h-4 text-amber-500" />
                         Deja tu Calificación Gastronómica
@@ -3536,7 +3536,7 @@ export function FastFoodProductModal({
                 )}
 
                 {/* Lista de Reseñas */}
-                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                <div className="space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1">
                   {loadingReviews ? (
                     <div className="py-8 text-center text-xs text-gray-400">
                       Cargando opiniones de clientes...

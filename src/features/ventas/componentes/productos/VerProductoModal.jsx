@@ -176,12 +176,12 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm"
     >
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl flex flex-col overflow-hidden relative max-h-[94dvh] border border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl flex flex-col overflow-hidden relative max-h-[94dvh] border border-gray-100 dark:border-gray-800">
 
         {/* Top Showcase Header */}
-        <div className="relative w-full bg-gradient-to-b from-gray-50/90 via-gray-100/40 to-white dark:from-gray-800/60 dark:via-gray-850 dark:to-gray-900 p-6 flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800 shrink-0">
+        <div className="relative w-full bg-gradient-to-b from-gray-50/90 via-gray-100/40 to-white dark:from-gray-800/60 dark:via-gray-850 dark:to-gray-900 p-4 sm:p-6 flex flex-col items-center justify-center border-b border-gray-100 dark:border-gray-800 shrink-0">
 
           {/* Badge Disponible */}
           <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
@@ -226,11 +226,11 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
         </div>
 
         {/* Body Section */}
-        <div className="p-6 sm:p-8 overflow-y-auto flex-1 space-y-6">
+        <div className="p-4 sm:p-8 overflow-y-auto overflow-x-hidden flex-1 space-y-5 sm:space-y-6 custom-modal-scrollbar">
 
           {/* Product Title & Category */}
           <div className="border-b border-gray-100 dark:border-gray-800 pb-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
               <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100">
                 {producto.nombre}
               </h2>
@@ -904,7 +904,7 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
 
           {/* Sección de Reseñas del Producto */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
@@ -947,7 +947,7 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
           </div>
 
           {/* Footer Action */}
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3 pt-2">
             {onDuplicate && (
               <button
                 type="button"

@@ -93,7 +93,7 @@ export default function KioskProductModal({
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[94vw] max-w-2xl max-h-[92dvh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl p-6 sm:p-8 flex flex-col justify-between overflow-hidden border-2 border-gray-150 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[94vw] max-w-2xl max-h-[92dvh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl shadow-2xl p-4 sm:p-8 flex flex-col justify-between overflow-hidden border-2 border-gray-150 animate-in zoom-in-95 duration-200 focus:outline-hidden select-none">
           {/* Header */}
           <div className="flex items-start justify-between gap-4 pb-3 border-b border-gray-150">
             <div>
@@ -119,7 +119,7 @@ export default function KioskProductModal({
           </div>
 
           {/* Body: Scrollable area */}
-          <div className="my-4 flex-1 overflow-y-auto pr-1 no-scrollbar space-y-6">
+          <div className="my-4 flex-1 overflow-y-auto overflow-x-hidden pr-1 no-scrollbar space-y-6">
             {/* Image + short description */}
             <div className="flex flex-col sm:flex-row items-center gap-4 bg-amber-50/50 p-4 rounded-2xl border border-amber-200/60">
               <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-white overflow-hidden shrink-0 shadow-md border border-gray-200 flex items-center justify-center">

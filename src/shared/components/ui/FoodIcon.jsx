@@ -1483,7 +1483,7 @@ export function EventoToppingsCard({ event, className = "" }) {
 
   return (
     <div className={`p-3.5 rounded-2xl bg-purple-50/90 dark:bg-purple-950/35 border border-purple-200 dark:border-purple-800/60 space-y-2 animate-in fade-in duration-150 ${className}`}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-xs font-black text-purple-900 dark:text-purple-200">
           <IconBaconStrip size={16} stroke={2} className="text-purple-600 dark:text-purple-400 shrink-0" />
           <span>Topping(s) Extra de Cortesía en esta Promoción</span>

@@ -143,8 +143,8 @@ export function FichaTecnicaDetalleModal({
   const versionesAnteriores = Array.isArray(ficha?.versionesAnteriores) ? ficha.versionesAnteriores : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl space-y-6 relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl max-w-3xl w-full p-4 sm:p-7 shadow-2xl space-y-6 relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto overflow-x-hidden">
         {/* Close Button */}
         <button
           onClick={onClose}

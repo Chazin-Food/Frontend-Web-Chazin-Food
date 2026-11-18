@@ -211,7 +211,7 @@ export default function ProductVariantInspector({
 
       {/* Panel detalle de cambios y especificaciones de la selección actual */}
       <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2.5">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
             <ChefHat className="w-3.5 h-3.5 text-[#EA2457]" />
             {selectedVariantObj
