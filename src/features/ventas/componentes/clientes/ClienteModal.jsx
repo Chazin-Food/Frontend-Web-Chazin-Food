@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, AlertTriangle, Clock, Lightbulb, Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, AlertTriangle, Clock, Lightbulb, Mail, CheckCircle2, AlertCircle, Lock } from "lucide-react";
 import {
   sanitizeTelefono,
   sanitizeDocumento,
@@ -15,6 +15,7 @@ import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/co
 
 export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes = [], zIndex = "z-50" }) {
   const isEditing = !!cliente;
+  const isIdentificationLocked = isEditing;
   const [form, setForm] = useState({
     nombre: "",
     apellidos: "",
@@ -74,15 +75,16 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
 
   const docConfig = getDocConfig(form.tipoDocumento);
 
-  // Verificación en tiempo real de documento duplicado (Ítem 120)
+  // Verificación en tiempo real de documento duplicado (Ítem 120) — solo aplica al registrar cliente nuevo
   const cleanDocCurrent = sanitizeDocumento(form.documento, form.tipoDocumento);
-  const existingClient = (clientes || []).find((c) => {
-    if (isEditing && (c.id === cliente?.id || c.idCliente === cliente?.idCliente)) return false;
-    if (!cleanDocCurrent || cleanDocCurrent.trim().length < 5) return false;
-    const docClean = cleanDocCurrent.trim();
-    const cDoc = sanitizeDocumento(c.documento || c.numeroDocumento || "", c.tipoDocumento || form.tipoDocumento);
-    return docClean === cDoc;
-  });
+  const existingClient = isIdentificationLocked
+    ? null
+    : (clientes || []).find((c) => {
+        if (!cleanDocCurrent || cleanDocCurrent.trim().length < 5) return false;
+        const docClean = cleanDocCurrent.trim();
+        const cDoc = sanitizeDocumento(c.documento || c.numeroDocumento || "", c.tipoDocumento || form.tipoDocumento);
+        return docClean === cDoc;
+      });
 
   const validateField = (name, value, currentForm = form) => {
     switch (name) {
@@ -143,7 +145,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
     setSubmitted(true);
     setErrorMsg("");
 
-    const errDoc = validateField("documento", form.documento);
+    const errDoc = isIdentificationLocked ? null : validateField("documento", form.documento);
     const errNom = validateField("nombre", form.nombre);
     const errApe = validateField("apellidos", form.apellidos);
     const errEmail = validateField("email", form.email);
@@ -176,14 +178,21 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
       return;
     }
 
-    onSave({
+    const payload = {
       ...form,
       nombre: form.nombre.trim(),
       apellidos: form.apellidos.trim(),
       email: form.email.trim().toLowerCase(),
-      telefono: sanitizeTelefono(form.telefono),
-      documento: sanitizeDocumento(form.documento, form.tipoDocumento)
-    });
+      telefono: sanitizeTelefono(form.telefono)
+    };
+    if (isIdentificationLocked) {
+      delete payload.documento;
+      delete payload.tipoDocumento;
+    } else {
+      payload.documento = sanitizeDocumento(form.documento, form.tipoDocumento);
+    }
+
+    onSave(payload);
   };
 
   const handleTipoChange = (newTipo) => {
@@ -249,11 +258,18 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
 
           {/* ── ÍTEM 120: Número y Tipo de Documento en Primer Lugar ── */}
           <div className="bg-gray-50/70 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2.5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 Identificación del Cliente
               </span>
-              <span className="text-[11px] text-gray-400 font-medium">Paso 1: Verificación</span>
+              {isIdentificationLocked ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 text-[10.5px] font-bold text-emerald-700 dark:text-emerald-300">
+                  <Lock className="w-3 h-3 shrink-0" />
+                  <span>Dato verificado (inmutable)</span>
+                </span>
+              ) : (
+                <span className="text-[11px] text-gray-400 font-medium">Paso 1: Verificación</span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -264,8 +280,10 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                 <select
                   id="cliente-tipo-doc"
                   value={form.tipoDocumento}
-                  aria-required="true"
+                  disabled={isIdentificationLocked}
+                  aria-required={!isIdentificationLocked}
                   onChange={(e) => {
+                    if (isIdentificationLocked) return;
                     const newTipo = e.target.value;
                     const cleanDoc = sanitizeDocumento(form.documento, newTipo);
                     setForm({
@@ -277,8 +295,12 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                     const err = validateField("documento", cleanDoc, { ...form, tipoDocumento: newTipo, documento: cleanDoc });
                     setErrors((prev) => ({ ...prev, documento: err }));
                   }}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-red-500/50 text-xs cursor-pointer font-medium"
-                  required
+                  className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-medium transition-colors ${
+                    isIdentificationLocked
+                      ? "bg-gray-100 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500/50 cursor-pointer"
+                  }`}
+                  required={!isIdentificationLocked}
                 >
                   <option value="C.C.">Cédula de Ciudadanía (C.C.)</option>
                   <option value="T.I.">Tarjeta de Identidad (T.I.)</option>
@@ -298,46 +320,69 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                     {docConfig.helper}
                   </span>
                 </div>
-                <input
-                  id="cliente-documento"
-                  type="text"
-                  required
-                  aria-required="true"
-                  aria-invalid={!!existingClient || (!!(touched.documento || submitted) && !!errors.documento)}
-                  value={form.documento}
-                  maxLength={docConfig.max}
-                  onBlur={() => handleBlur("documento")}
-                  onChange={(e) => {
-                    const clean = sanitizeDocumento(e.target.value, form.tipoDocumento);
-                    handleChange("documento", clean);
-                  }}
-                  className={`w-full px-4 py-2.5 bg-white dark:bg-gray-800 border rounded-xl text-gray-900 dark:text-gray-100 outline-none text-xs transition-colors ${
-                    (touched.documento || submitted) && errors.documento
-                      ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                      : existingClient
-                      ? "border-amber-400 dark:border-amber-500 focus:ring-2 focus:ring-amber-400 bg-amber-50/20"
-                      : touched.documento && form.documento && !errors.documento
-                      ? "border-emerald-500/60 dark:border-emerald-500/40 bg-emerald-50/10 focus:ring-2 focus:ring-emerald-400"
-                      : "border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-500/50"
-                  }`}
-                  placeholder={docConfig.helper}
-                />
-                {(touched.documento || submitted) && errors.documento ? (
-                  <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {errors.documento}
-                  </p>
-                ) : touched.documento && form.documento && !errors.documento && !existingClient ? (
-                  <p className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                    Documento válido
-                  </p>
-                ) : null}
+                <div className="relative">
+                  <input
+                    id="cliente-documento"
+                    type="text"
+                    required={!isIdentificationLocked}
+                    disabled={isIdentificationLocked}
+                    readOnly={isIdentificationLocked}
+                    aria-required={!isIdentificationLocked}
+                    aria-invalid={!isIdentificationLocked && (!!existingClient || (!!(touched.documento || submitted) && !!errors.documento))}
+                    value={form.documento}
+                    maxLength={docConfig.max}
+                    onBlur={() => {
+                      if (!isIdentificationLocked) handleBlur("documento");
+                    }}
+                    onChange={(e) => {
+                      if (isIdentificationLocked) return;
+                      const clean = sanitizeDocumento(e.target.value, form.tipoDocumento);
+                      handleChange("documento", clean);
+                    }}
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs transition-colors ${
+                      isIdentificationLocked
+                        ? "pr-9 bg-gray-100 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed select-none font-medium"
+                        : (touched.documento || submitted) && errors.documento
+                        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500 text-red-900 focus:ring-red-400"
+                        : existingClient
+                        ? "bg-amber-50/20 border-amber-400 dark:border-amber-500 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-amber-400"
+                        : touched.documento && form.documento && !errors.documento
+                        ? "bg-emerald-50/10 border-emerald-500/60 dark:border-emerald-500/40 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-400"
+                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500/50"
+                    }`}
+                    placeholder={isIdentificationLocked ? "Sin documento registrado" : docConfig.helper}
+                  />
+                  {isIdentificationLocked && (
+                    <Lock
+                      className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+                {!isIdentificationLocked && (
+                  (touched.documento || submitted) && errors.documento ? (
+                    <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {errors.documento}
+                    </p>
+                  ) : touched.documento && form.documento && !errors.documento && !existingClient ? (
+                    <p className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      Documento válido
+                    </p>
+                  ) : null
+                )}
               </div>
             </div>
 
+            {isIdentificationLocked && (
+              <p className="text-[10.5px] text-gray-500 dark:text-gray-400 italic">
+                Por seguridad y validación fiscal, el tipo y número de documento del cliente no se pueden modificar una vez registrados.
+              </p>
+            )}
+
             {/* Alerta de Documento Duplicado Inmediata (Ítem 120) */}
-            {existingClient && (
+            {!isIdentificationLocked && existingClient && (
               <div
                 role="alert"
                 className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2 animate-fadeIn"
