@@ -395,65 +395,69 @@ export function Insumos() {
             </div>
 
             {/* Filter Dropdowns, Trazabilidad & Primary Action Button */}
-            <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap sm:flex-nowrap">
-              <select
-                value={filterEstado}
-                onChange={(e) => setFilterEstado(e.target.value)}
-                className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium"
-              >
-                <option value="Todos">Todos los estados</option>
-                <option value="Activo">Activos</option>
-                <option value="Inactivo">Inactivos</option>
-              </select>
-
-              <select
-                value={filterCategoria}
-                onChange={(e) => setFilterCategoria(e.target.value)}
-                className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium"
-              >
-                <option value="Todas">Todas las categorías</option>
-                {categorias.map((c) => (
-                  <option key={c.id || c.nombre} value={c.nombre}>
-                    {c.nombre}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={filterTipo}
-                onChange={(e) => setFilterTipo(e.target.value)}
-                className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium"
-              >
-                <option value="Todos los tipos">Todos los tipos</option>
-                <option value="Base">Insumo Base</option>
-                <option value="Preparado">Insumo Preparado</option>
-              </select>
-
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={handleOpenTrazabilidad}
-                  className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-slate-700 dark:text-gray-200 font-medium text-xs sm:text-sm shadow-xs flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer shrink-0"
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto sm:flex-wrap lg:flex-nowrap">
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                <select
+                  value={filterEstado}
+                  onChange={(e) => setFilterEstado(e.target.value)}
+                  className="px-3 sm:px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium min-w-0"
                 >
-                  <Bell className="w-4 h-4 text-slate-600 dark:text-gray-300" />
-                  <span>Trazabilidad</span>
-                </button>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-[#F05454] text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shadow-xs animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
+                  <option value="Todos">Todos los estados</option>
+                  <option value="Activo">Activos</option>
+                  <option value="Inactivo">Inactivos</option>
+                </select>
+
+                <select
+                  value={filterTipo}
+                  onChange={(e) => setFilterTipo(e.target.value)}
+                  className="px-3 sm:px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium min-w-0"
+                >
+                  <option value="Todos los tipos">Todos los tipos</option>
+                  <option value="Base">Insumo Base</option>
+                  <option value="Preparado">Insumo Preparado</option>
+                </select>
+
+                <select
+                  value={filterCategoria}
+                  onChange={(e) => setFilterCategoria(e.target.value)}
+                  className="col-span-2 sm:col-span-1 px-3 sm:px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium min-w-0"
+                >
+                  <option value="Todas">Todas las categorías</option>
+                  {categorias.map((c) => (
+                    <option key={c.id || c.nombre} value={c.nombre}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {canCreate && (
-                <button
-                  onClick={handleOpenCreate}
-                  className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-xs transition-colors flex items-center justify-center gap-2 w-full sm:w-auto shrink-0 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>Nuevo Insumo</span>
-                </button>
-              )}
+              <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
+                <div className="relative w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleOpenTrazabilidad}
+                    className="w-full sm:w-auto px-3.5 sm:px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-slate-700 dark:text-gray-200 font-medium text-xs sm:text-sm shadow-xs flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Bell className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
+                    <span>Trazabilidad</span>
+                  </button>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#F05454] text-white font-bold text-xs w-5 h-5 rounded-full flex items-center justify-center shadow-xs animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+
+                {canCreate && (
+                  <button
+                    onClick={handleOpenCreate}
+                    className="w-full sm:w-auto px-3.5 sm:px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-xs transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 stroke-[3] shrink-0" />
+                    <span>Nuevo Insumo</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

@@ -85,19 +85,19 @@ export function RolModal({ isOpen, onClose, onSave, rol = null }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[94dvh] sm:max-h-[92dvh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-[#F05454] flex items-center justify-center border border-rose-100/80 dark:border-rose-900/40 shrink-0">
-              <Shield className="w-5 h-5 text-[#F05454] stroke-[2.2]" />
+        <div className="flex items-center justify-between gap-2 px-4 py-3.5 sm:px-6 sm:py-5 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-[#F05454] flex items-center justify-center border border-rose-100/80 dark:border-rose-900/40 shrink-0">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#F05454] stroke-[2.2]" />
             </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight truncate">
                 {isEditing ? `Editar Rol: ${rol.nombre}` : "Nuevo Rol"}
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
                 {isEditing
                   ? "Actualiza la información, permisos y privilegios asignados"
                   : "Define el nombre del rol y asigna sus módulos y privilegios de acceso"}
@@ -107,7 +107,7 @@ export function RolModal({ isOpen, onClose, onSave, rol = null }) {
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 sm:p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0"
             title="Cerrar"
           >
             <X className="w-5 h-5 stroke-[2.5]" />
@@ -116,7 +116,7 @@ export function RolModal({ isOpen, onClose, onSave, rol = null }) {
 
         {/* Modal Scrollable Body */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 overflow-y-auto custom-modal-scrollbar space-y-6 flex-1">
+          <div className="p-4 sm:p-6 overflow-y-auto overflow-x-hidden custom-modal-scrollbar space-y-5 sm:space-y-6 flex-1">
             {/* Mensaje de validación si existe */}
             {validationError && (
               <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 flex items-center gap-2.5 text-xs font-semibold text-red-700 dark:text-red-300">
@@ -176,7 +176,7 @@ export function RolModal({ isOpen, onClose, onSave, rol = null }) {
 
             {/* SECCIÓN 2: ASIGNACIÓN DE PERMISOS Y PRIVILEGIOS */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex flex-wrap items-center justify-between gap-1 pb-1 border-b border-gray-100 dark:border-gray-800">
                 <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   2. Asignación de Permisos y Privilegios <span className="text-red-500 font-bold ml-0.5">*</span>
                 </span>
@@ -202,18 +202,18 @@ export function RolModal({ isOpen, onClose, onSave, rol = null }) {
           </div>
 
           {/* Modal Footer */}
-          <div className="p-4 sm:p-5 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-3 bg-gray-50/60 dark:bg-gray-900 shrink-0">
+          <div className="p-3.5 sm:p-5 border-t border-gray-100 dark:border-gray-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 bg-gray-50/60 dark:bg-gray-900 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs sm:text-sm font-semibold transition-colors cursor-pointer text-center"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting || (touched.nombre && Boolean(errors.nombre))}
-              className={`px-6 py-2.5 rounded-2xl text-white text-xs sm:text-sm font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer ${
+              className={`px-6 py-2.5 rounded-2xl text-white text-xs sm:text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
                 isSubmitting || (touched.nombre && Boolean(errors.nombre))
                   ? "bg-[#F05454]/60 cursor-not-allowed shadow-none"
                   : "bg-[#F05454] hover:bg-[#d94444]"

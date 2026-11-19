@@ -19,7 +19,7 @@ const MODULOS_PERMISOS_VALIDOS = [
 
 export function RolesGrid({ roles = [], onEdit, onToggleEstado, onDelete, canEdit = true, canDelete = true }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
       {roles.map((rol) => {
         // Filtrar módulos válidos
         const modulosAsignados = (rol.permisos || []).filter((p) => MODULOS_PERMISOS_VALIDOS.includes(p));
@@ -31,7 +31,7 @@ export function RolesGrid({ roles = [], onEdit, onToggleEstado, onDelete, canEdi
         return (
           <div
             key={rol.id}
-            className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+            className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-gray-100 dark:border-gray-800 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between min-w-0"
           >
             <div>
               {/* Header de la tarjeta: Limpio, luminoso y con los colores oficiales del proyecto */}

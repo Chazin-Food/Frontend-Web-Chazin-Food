@@ -7,11 +7,12 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
 
   const totalRecords = roles.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
   const paginatedRoles = roles.slice(startIndex, startIndex + pageSize);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
       {/* Mobile / Tablet Cards (< md) */}
       <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
         {totalRecords === 0 ? (
@@ -26,11 +27,11 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
             const modulosBaseCount = (r.permisos || []).filter((p) => !p.includes(":") && p !== "Vendedor").length;
 
             return (
-              <div key={r.id || index} className="p-4 space-y-3">
+              <div key={r.id || index} className="p-3.5 sm:p-4 space-y-2.5">
                 <div className="flex items-start justify-between gap-2.5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-gray-700">
-                      <Shield className="w-5 h-5" />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-gray-700">
+                      <Shield className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-sm text-[#1e293b] dark:text-gray-100 truncate">
@@ -44,7 +45,7 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                       </div>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${
                     isActivo
                       ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
@@ -54,29 +55,30 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                 </div>
 
                 {r.descripcion && (
-                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2">
                     {r.descripcion}
                   </p>
                 )}
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">
-                    <Users className="w-3.5 h-3.5" />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300">
+                    <Users className="w-3 h-3" />
                     <span>{r.usuarios || 0} usuarios</span>
                   </span>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200/50 dark:border-gray-700">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200/50 dark:border-gray-700">
                     {modulosBaseCount} módulos
                   </span>
                   {privilegiosGranularesCount > 0 && (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
                       {privilegiosGranularesCount} privilegios
                     </span>
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
-                  {canEdit && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2">
+                  {canEdit ? (
                     <button
+                      type="button"
                       onClick={() => onEdit(r)}
                       title="Editar rol"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#F05454] text-xs font-bold hover:bg-red-100 transition cursor-pointer"
@@ -84,25 +86,35 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                       <Edit className="w-3.5 h-3.5" />
                       <span>Editar</span>
                     </button>
-                  )}
-                  <button
-                    onClick={() => onToggleEstado(r.id)}
-                    title={isActivo ? "Desactivar rol" : "Activar rol"}
-                    disabled={isAdministrador || !canEdit}
-                    className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 disabled:opacity-30 transition cursor-pointer"
-                  >
-                    {isActivo ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5 text-gray-400" />}
-                  </button>
-                  {canDelete && (
-                    <button
-                      onClick={() => onDelete(r.id, r.nombre)}
-                      title="Eliminar rol"
-                      disabled={isAdministrador}
-                      className="p-2 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400 disabled:opacity-30 transition cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  ) : <div />}
+
+                  <div className="flex items-center gap-1.5">
+                    {!isAdministrador && canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleEstado(r.id)}
+                        title={isActivo ? "Desactivar rol" : "Activar rol"}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                          isActivo
+                            ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+                            : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300"
+                        }`}
+                      >
+                        {isActivo ? <ToggleRight className="w-4 h-4 text-amber-500" /> : <ToggleLeft className="w-4 h-4 text-emerald-500" />}
+                        <span>{isActivo ? "Desactivar" : "Activar"}</span>
+                      </button>
+                    )}
+                    {canDelete && !isAdministrador && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete(r.id, r.nombre)}
+                        title="Eliminar rol"
+                        className="p-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 text-red-500 dark:text-red-400 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -259,31 +271,31 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
+            disabled={safePage === 1}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => Math.max(Math.min(p, totalPages) - 1, 1))}
+            disabled={safePage === 1}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="w-8 h-8 rounded-full bg-[#F05454] text-white flex items-center justify-center font-bold text-xs mx-1">
-            {currentPage}
+            {safePage}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(Math.min(p, totalPages) + 1, totalPages))}
+            disabled={safePage === totalPages}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
+            disabled={safePage === totalPages}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronsRight className="w-4 h-4" />

@@ -177,44 +177,44 @@ export function PermisosSelector({ value = [], onChange, scrollable = false }) {
         </div>
       </div>
 
-      {/* Botones de plantillas rápidas */}
-      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-        <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mr-1 flex items-center gap-1">
+      {/* Botones de plantillas rápidas: una fila deslizable en móvil, wrap en escritorio */}
+      <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto sm:flex-wrap no-scrollbar touch-scroll-x pb-0.5">
+        <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mr-0.5 flex items-center gap-1 shrink-0 whitespace-nowrap">
           <Sparkles className="w-3 h-3 text-amber-500" />
           Plantillas:
         </span>
         <button
           type="button"
           onClick={() => aplicarPlantilla("admin")}
-          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-colors shrink-0 whitespace-nowrap cursor-pointer"
         >
           Administrador
         </button>
         <button
           type="button"
           onClick={() => aplicarPlantilla("cocinero")}
-          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors shrink-0 whitespace-nowrap cursor-pointer"
         >
           Cocinero
         </button>
         <button
           type="button"
           onClick={() => aplicarPlantilla("vendedor")}
-          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors shrink-0 whitespace-nowrap cursor-pointer"
         >
           Vendedor
         </button>
         <button
           type="button"
           onClick={() => aplicarPlantilla("cliente")}
-          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors shrink-0 whitespace-nowrap cursor-pointer"
         >
           Cliente
         </button>
         <button
           type="button"
           onClick={() => updateStateAndEmit(parsePermisosYPrivilegios([]))}
-          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 transition-colors flex items-center gap-1 ml-auto"
+          className="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 transition-colors flex items-center gap-1 sm:ml-auto shrink-0 whitespace-nowrap cursor-pointer"
           title="Deseleccionar todos"
         >
           <RotateCcw className="w-3 h-3" />
@@ -324,12 +324,12 @@ export function PermisosSelector({ value = [], onChange, scrollable = false }) {
                       <IconComponent className="w-4 h-4 stroke-[2]" />
                     </div>
 
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="font-bold text-sm text-gray-900 dark:text-gray-100">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
                         {grupo.nombre}
                       </span>
                       {activeSubCount > 0 && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full text-white ${isAllGroupSelected ? "bg-emerald-500" : "bg-amber-500"}`}>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full text-white shrink-0 ${isAllGroupSelected ? "bg-emerald-500" : "bg-amber-500"}`}>
                           {activeSubCount}/{subIds.length}
                         </span>
                       )}
@@ -395,7 +395,7 @@ export function PermisosSelector({ value = [], onChange, scrollable = false }) {
                             </div>
 
                             {/* Privilegios granulares: Ver, Crear, Editar, Eliminar */}
-                            <div className="flex flex-wrap items-center gap-1.5 pl-7 sm:pl-0 shrink-0">
+                            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 shrink-0">
                               {ACCIONES_PRIVILEGIOS.map((acc) => {
                                 const isAllowedForModule = sub.accionesDisponibles.includes(acc.id);
                                 if (!isAllowedForModule) return null;
@@ -407,14 +407,14 @@ export function PermisosSelector({ value = [], onChange, scrollable = false }) {
                                     key={acc.id}
                                     type="button"
                                     onClick={() => togglePrivilegio(sub.id, acc.id)}
-                                    className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border transition-all cursor-pointer ${
+                                    className={`px-2 py-1.5 sm:py-1 rounded-lg text-xs font-semibold flex items-center justify-center sm:justify-start gap-1 border transition-all cursor-pointer ${
                                       isPrivActive
                                         ? acc.bgActive
                                         : "bg-gray-100 dark:bg-gray-700/60 text-gray-400 border-gray-200/80 dark:border-gray-700 hover:text-gray-600"
                                     }`}
                                     title={`Privilegio: ${acc.label} en ${sub.nombre}`}
                                   >
-                                    <AccIcon className="w-3 h-3 stroke-[2.2]" />
+                                    <AccIcon className="w-3 h-3 stroke-[2.2] shrink-0" />
                                     <span>{acc.label}</span>
                                   </button>
                                 );

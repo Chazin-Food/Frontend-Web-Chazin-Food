@@ -54,16 +54,16 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800">
         {/* Header armonizado con los colores del proyecto (Chazin Food #1e293b) */}
-        <div className="bg-gradient-to-r from-[#1e293b] via-[#243042] to-[#1e293b] p-4 sm:p-6 flex items-center justify-between text-white shrink-0">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shrink-0 border border-white/15">
-              <Shield className="w-6 h-6 stroke-[2] text-[#F05454]" />
+        <div className="bg-gradient-to-r from-[#1e293b] via-[#243042] to-[#1e293b] p-3.5 sm:p-6 flex items-center justify-between gap-2 text-white shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white/10 backdrop-blur-md rounded-xl sm:rounded-2xl flex items-center justify-center text-white shrink-0 border border-white/15">
+              <Shield className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2] text-[#F05454]" />
             </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-xl font-bold text-white leading-tight truncate">
                 Permisos y Privilegios: {rol.nombre}
               </h2>
-              <p className="text-xs text-gray-300 mt-0.5 font-medium">
+              <p className="text-[11px] sm:text-xs text-gray-300 mt-0.5 font-medium line-clamp-1">
                 Gestiona el acceso a módulos y las acciones específicas (Ver, Crear, Editar, Eliminar)
               </p>
             </div>
@@ -71,7 +71,7 @@ export function PermisosModal({ isOpen, onClose, onSave, rol }) {
           <button
             type="button"
             onClick={onClose}
-            className="text-white/80 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+            className="text-white/80 hover:text-white p-1.5 sm:p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer shrink-0"
             title="Cerrar"
           >
             <X className="w-5 h-5 stroke-[2.5]" />

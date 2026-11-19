@@ -208,44 +208,44 @@ export function EventosModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[90dvh]">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 flex flex-col max-h-[92dvh] sm:max-h-[90dvh]">
         {/* Header */}
-        <div className="p-5 sm:p-6 pb-4 flex items-start justify-between gap-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-orange-50/70 via-amber-50/50 to-red-50/50 dark:from-orange-950/30 dark:via-amber-950/20 dark:to-red-950/20">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-red-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
-              <Sparkles className="w-6 h-6 text-amber-200" />
+        <div className="p-3.5 sm:p-6 pb-3 sm:pb-4 flex items-start justify-between gap-2.5 sm:gap-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-orange-50/70 via-amber-50/50 to-red-50/50 dark:from-orange-950/30 dark:via-amber-950/20 dark:to-red-950/20 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-red-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-amber-200" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-gray-100">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-xl font-black text-gray-900 dark:text-gray-100 leading-tight">
                   Gestión de Eventos & Ediciones Especiales
                 </h2>
-                <span className="bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-orange-200/80 dark:border-orange-900/60">
+                <span className="hidden sm:inline-flex bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-orange-200/80 dark:border-orange-900/60">
                   LTO Fast Food
                 </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
                 <span>{totalActivos} activos en catálogo</span>
                 <span>•</span>
-                <span>{eventos.length} registrados en total</span>
+                <span>{eventos.length} en total</span>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Action & Filter Bar */}
-        <div className="px-5 sm:px-6 py-3 bg-gray-50/80 dark:bg-gray-850/60 border-b border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-3">
-          {/* Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs">
+        <div className="px-3.5 sm:px-6 py-2.5 sm:py-3 bg-gray-50/80 dark:bg-gray-850/60 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 shrink-0">
+          {/* Tabs: una sola fila deslizable en móvil */}
+          <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs overflow-x-auto no-scrollbar max-w-full">
             <button
               onClick={() => setActiveTab("todos")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "todos"
                   ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
@@ -255,7 +255,7 @@ export function EventosModal({
             </button>
             <button
               onClick={() => setActiveTab("activos")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "activos"
                   ? "bg-emerald-600 text-white shadow-2xs"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-900"

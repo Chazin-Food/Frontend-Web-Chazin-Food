@@ -68,24 +68,24 @@ export function CategoriaProductos() {
       {/* Separator */}
       <hr className="border-gray-200 dark:border-gray-700" />
 
-      {/* Stat Cards - Centered numbers & text */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Stat Cards - 3 columnas compactas desde móvil */}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
         {/* Total Categorías */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
-          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">Total Categorías</p>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-6 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 font-medium">Total</p>
         </div>
 
         {/* Activas */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
-          <p className="text-3xl font-bold text-emerald-500">{stats.activas}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">Activas</p>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-6 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
+          <p className="text-2xl sm:text-3xl font-bold text-emerald-500">{stats.activas}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 font-medium">Activas</p>
         </div>
 
         {/* Inactivas */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
-          <p className="text-3xl font-bold text-slate-600 dark:text-slate-400">{stats.inactivas}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">Inactivas</p>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-6 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
+          <p className="text-2xl sm:text-3xl font-bold text-slate-600 dark:text-slate-400">{stats.inactivas}</p>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 sm:mt-2 font-medium">Inactivas</p>
         </div>
       </div>
 

@@ -84,12 +84,12 @@ export default function Devoluciones() {
         </div>
 
         {/* Filter Dropdowns */}
-        <div className="flex items-center gap-2.5 w-full lg:w-auto flex-wrap sm:flex-nowrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-2.5 w-full lg:w-auto sm:flex-wrap lg:flex-nowrap">
           {/* Estado */}
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            className="px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium"
+            className="px-3 sm:px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium min-w-0"
           >
             <option value="Todos">Todos los estados</option>
             <option value="PENDIENTE">Pendientes</option>
@@ -102,7 +102,7 @@ export default function Devoluciones() {
           <select
             value={filtroMotivo}
             onChange={(e) => setFiltroMotivo(e.target.value)}
-            className="px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium"
+            className="px-3 sm:px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium min-w-0"
           >
             <option value="Todos">Todos los motivos</option>
             <option value="Comida en mal estado">Comida en mal estado</option>
@@ -113,7 +113,7 @@ export default function Devoluciones() {
           <select
             value={filtroResolucion}
             onChange={(e) => setFiltroResolucion(e.target.value)}
-            className="px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium"
+            className="col-span-2 sm:col-span-1 px-3 sm:px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-red-500/50 cursor-pointer w-full sm:w-auto outline-none font-medium min-w-0"
           >
             <option value="Todos">Todas las resoluciones</option>
             <option value="Cambio de producto">Cambio de producto</option>

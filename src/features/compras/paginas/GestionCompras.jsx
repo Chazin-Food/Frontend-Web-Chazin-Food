@@ -172,28 +172,28 @@ export function GestionCompras() {
         </p>
       </div>
 
-      {/* 4 Stat Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 4 Stat Cards Grid: 2x2 compacto en móvil */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {statCards.map((card) => {
           const IconComponent = card.icon;
           return (
             <div
               key={card.id}
-              className="bg-white dark:bg-gray-900 rounded-3xl p-5 border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm"
+              className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0"
             >
-              <div className={`w-12 h-12 rounded-2xl ${card.bgColor} ${card.iconColor} flex items-center justify-center shrink-0`}>
-                <IconComponent className="w-6 h-6" />
+              <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${card.bgColor} ${card.iconColor} flex items-center justify-center shrink-0`}>
+                <IconComponent className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">
+                <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5 truncate">
                   {card.title}
                 </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+                  <span className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                     {card.value}
                   </span>
-                  <span className={`text-xs font-medium ${card.subtextColor} shrink-0`}>
+                  <span className={`text-[10.5px] sm:text-xs font-medium ${card.subtextColor} shrink-0`}>
                     {card.subtext}
                   </span>
                 </div>

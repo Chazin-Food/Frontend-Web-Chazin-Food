@@ -188,53 +188,53 @@ export function Productos() {
       {/* Separator */}
       <hr className="border-gray-200 dark:border-gray-700" />
 
-      {/* Stat Cards - Grid Balanceado de 4 Columnas (Ítem 113) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stat Cards - Grid Balanceado 2x2 en móvil, 4 Columnas en escritorio */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Card 1: Total Productos */}
-        <div className="flex items-center gap-4 bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-            <Package className="w-6 h-6 text-blue-500" />
+        <div className="flex items-center gap-2.5 sm:gap-4 bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4 sm:w-6 sm:h-6 text-blue-500" />
           </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total Productos</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
-            <p className="text-xs text-green-500 font-medium">en catálogo</p>
+          <div className="min-w-0">
+            <p className="text-[10.5px] sm:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide truncate">Total Productos</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">{stats.total}</p>
+            <p className="text-[11px] sm:text-xs text-green-500 font-medium truncate">en catálogo</p>
           </div>
         </div>
 
         {/* Card 2: Más Vendido */}
-        <div className="flex items-center gap-4 bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center shrink-0">
-            <Star className="w-6 h-6 text-yellow-500" />
+        <div className="flex items-center gap-2.5 sm:gap-4 bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center shrink-0">
+            <Star className="w-4 h-4 sm:w-6 sm:h-6 text-yellow-500" />
           </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Más Vendido</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-1">{stats.masVendidoNombre}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">{stats.masVendidoVentas} unidades {stats.masVendidoMonto > 0 ? `• ${stats.masVendidoMonto.toLocaleString("es-CO")} COP` : ""}</p>
+          <div className="min-w-0">
+            <p className="text-[10.5px] sm:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide truncate">Más Vendido</p>
+            <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-1">{stats.masVendidoNombre}</p>
+            <p className="text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 truncate">{stats.masVendidoVentas} und {stats.masVendidoMonto > 0 ? `• $${stats.masVendidoMonto.toLocaleString("es-CO")}` : ""}</p>
           </div>
         </div>
 
         {/* Card 3: Total Vendidos */}
-        <div className="flex items-center gap-4 bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
-          <div className="w-12 h-12 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0">
-            <TrendingUp className="w-6 h-6 text-green-500" />
+        <div className="flex items-center gap-2.5 sm:gap-4 bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0">
+            <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 text-green-500" />
           </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total Vendidos</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalVendidos}</p>
-            <p className="text-xs text-green-500 font-medium">unidades</p>
+          <div className="min-w-0">
+            <p className="text-[10.5px] sm:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide truncate">Total Vendidos</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">{stats.totalVendidos}</p>
+            <p className="text-[11px] sm:text-xs text-green-500 font-medium truncate">unidades</p>
           </div>
         </div>
 
         {/* Card 4: Eventos Activos */}
-        <div className="flex items-center gap-4 bg-white dark:bg-gray-900 rounded-2xl p-5 border border-orange-200/80 dark:border-orange-900/40 shadow-sm shadow-orange-500/5">
-          <div className="w-12 h-12 rounded-full bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center shrink-0">
-            <Sparkles className="w-6 h-6 text-orange-500 dark:text-orange-400" />
+        <div className="flex items-center gap-2.5 sm:gap-4 bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-5 border border-orange-200/80 dark:border-orange-900/40 shadow-sm shadow-orange-500/5 min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 sm:w-6 sm:h-6 text-orange-500 dark:text-orange-400" />
           </div>
-          <div>
-            <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">Productos con Evento</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.eventosActivos}</p>
-            <p className="text-xs text-orange-600 dark:text-orange-400 font-bold">promociones activas</p>
+          <div className="min-w-0">
+            <p className="text-[10.5px] sm:text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide truncate">Con Evento</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">{stats.eventosActivos}</p>
+            <p className="text-[11px] sm:text-xs text-orange-600 dark:text-orange-400 font-bold truncate">promociones</p>
           </div>
         </div>
       </div>
@@ -292,17 +292,17 @@ export function Productos() {
           )}
 
           {/* Search + Filter + Actions Bar */}
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-3.5 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2.5 sm:gap-3">
               {/* Search Input */}
-              <div className="relative flex-1">
-                <Search className="w-5 h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar producto..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors"
                 />
               </div>
 
@@ -310,7 +310,7 @@ export function Productos() {
               <select
                 value={filterCategoria}
                 onChange={(e) => setFilterCategoria(e.target.value)}
-                className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors shrink-0 cursor-pointer"
+                className="px-3.5 sm:px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors shrink-0 cursor-pointer"
               >
                 <option value="Todas">Todas las categorías</option>
                 {categorias.map((c) => (
@@ -320,36 +320,38 @@ export function Productos() {
                 ))}
               </select>
 
-              {/* Papelera Button */}
-              <button
-                type="button"
-                onClick={() => setViewMode("papelera")}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200 font-semibold text-sm rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
-                title="Ver productos eliminados y recuperarlos"
-              >
-                <Trash2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                <span>Papelera ({papeleraProductos.length})</span>
-              </button>
-
-              {/* Eventos Button (Coordinado con el contorno de productos con evento) */}
-              <button
-                onClick={() => setEventosModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:via-amber-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30 transition-all active:scale-95 cursor-pointer shrink-0"
-              >
-                <Sparkles className="w-5 h-5 text-amber-100" />
-                <span>Eventos</span>
-              </button>
-
-              {/* Nuevo Producto Button */}
-              {canCreate && (
+              <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 shrink-0">
+                {/* Papelera Button */}
                 <button
-                  onClick={handleOpenCreate}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#F05454] hover:bg-[#d84343] text-white font-medium rounded-xl shadow-md transition-colors shrink-0"
+                  type="button"
+                  onClick={() => setViewMode("papelera")}
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-200 font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+                  title="Ver productos eliminados y recuperarlos"
                 >
-                  <Plus className="w-5 h-5" />
-                  <span>Nuevo Producto</span>
+                  <Trash2 className="w-4 h-4 text-gray-500 dark:text-gray-400 shrink-0" />
+                  <span>Papelera ({papeleraProductos.length})</span>
                 </button>
-              )}
+
+                {/* Eventos Button */}
+                <button
+                  onClick={() => setEventosModalOpen(true)}
+                  className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2.5 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:from-orange-600 hover:via-amber-600 hover:to-orange-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30 transition-all active:scale-95 cursor-pointer shrink-0"
+                >
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-100 shrink-0" />
+                  <span>Eventos</span>
+                </button>
+
+                {/* Nuevo Producto Button */}
+                {canCreate && (
+                  <button
+                    onClick={handleOpenCreate}
+                    className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-[#F05454] hover:bg-[#d84343] text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-colors shrink-0 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    <span>Nuevo Producto</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

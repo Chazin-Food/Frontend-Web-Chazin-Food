@@ -229,65 +229,65 @@ export function Empleados() {
       </div>
 
       {/* Tarjetas de Estadísticas (KPIs) con Incapacitados */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-2.5 sm:gap-4">
         
         {/* Total Empleados */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400 flex items-center justify-center font-bold shrink-0">
-            <Users className="w-6 h-6" />
+        <div className="bg-white dark:bg-gray-900 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400 flex items-center justify-center font-bold shrink-0">
+            <Users className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider">Total</span>
-            <span className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.total}</span>
-            <span className="text-[11px] text-gray-400 block">en nómina</span>
+          <div className="min-w-0">
+            <span className="text-[10.5px] sm:text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider truncate">Total</span>
+            <span className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">{stats.total}</span>
+            <span className="text-[10.5px] sm:text-[11px] text-gray-400 block truncate">en nómina</span>
           </div>
         </div>
 
         {/* Empleados Activos */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
+        <div className="bg-white dark:bg-gray-900 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center font-bold shrink-0">
+            <CheckCircle2 className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider">Activos</span>
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-tight">{stats.activos}</span>
-            <span className="text-[11px] text-emerald-500 font-medium block">operando</span>
+          <div className="min-w-0">
+            <span className="text-[10.5px] sm:text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider truncate">Activos</span>
+            <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-tight">{stats.activos}</span>
+            <span className="text-[10.5px] sm:text-[11px] text-emerald-500 font-medium block truncate">operando</span>
           </div>
         </div>
 
         {/* Empleados Incapacitados (NUEVO KPI) */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 flex items-center justify-center font-bold shrink-0">
-            <Activity className="w-6 h-6" />
+        <div className="bg-white dark:bg-gray-900 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 flex items-center justify-center font-bold shrink-0">
+            <Activity className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider">Incapacitados</span>
-            <span className="text-2xl font-black text-purple-700 dark:text-purple-300 leading-tight">{stats.incapacitados}</span>
-            <span className="text-[11px] text-purple-500 font-medium block">licencia médica</span>
+          <div className="min-w-0">
+            <span className="text-[10.5px] sm:text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider truncate">Incapacitados</span>
+            <span className="text-xl sm:text-2xl font-black text-purple-700 dark:text-purple-300 leading-tight">{stats.incapacitados}</span>
+            <span className="text-[10.5px] sm:text-[11px] text-purple-500 font-medium block truncate">licencia médica</span>
           </div>
         </div>
 
         {/* Empleados Inactivos */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 flex items-center justify-center font-bold shrink-0">
-            <XCircle className="w-6 h-6" />
+        <div className="bg-white dark:bg-gray-900 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 flex items-center justify-center font-bold shrink-0">
+            <XCircle className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider">Inactivos</span>
-            <span className="text-2xl font-black text-gray-700 dark:text-gray-300 leading-tight">{stats.inactivos}</span>
-            <span className="text-[11px] text-gray-400 block">pausados / finalizados</span>
+          <div className="min-w-0">
+            <span className="text-[10.5px] sm:text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider truncate">Inactivos</span>
+            <span className="text-xl sm:text-2xl font-black text-gray-700 dark:text-gray-300 leading-tight">{stats.inactivos}</span>
+            <span className="text-[10.5px] sm:text-[11px] text-gray-400 block truncate">pausados</span>
           </div>
         </div>
 
         {/* Papelera de Reciclaje */}
-        <div className="bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-4 transition-all hover:shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 flex items-center justify-center font-bold shrink-0">
-            <Briefcase className="w-6 h-6" />
+        <div className="col-span-2 sm:col-span-1 bg-white dark:bg-gray-900 p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 flex items-center justify-center font-bold shrink-0">
+            <Briefcase className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider">Papelera</span>
-            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 leading-tight">{stats.papelera}</span>
-            <span className="text-[11px] text-amber-500 font-medium block">recuperables</span>
+          <div className="min-w-0">
+            <span className="text-[10.5px] sm:text-xs text-gray-400 dark:text-gray-500 block font-medium uppercase tracking-wider truncate">Papelera</span>
+            <span className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 leading-tight">{stats.papelera}</span>
+            <span className="text-[10.5px] sm:text-[11px] text-amber-500 font-medium block truncate">recuperables</span>
           </div>
         </div>
 

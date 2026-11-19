@@ -222,79 +222,79 @@ export function Usuarios() {
         <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm font-medium">Administra los usuarios del sistema</p>
       </div>
 
-      {/* KPI Cards matching exact reference screenshot (4 cards grid) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/20 rounded-xl flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5 text-[#F05454]" />
+      {/* KPI Cards: 2x2 compacto en móvil, 4 columnas en escritorio */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-5 sm:mb-6">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-3 sm:p-4 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-rose-50 dark:bg-rose-900/20 rounded-xl flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#F05454]" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Total Usuarios</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{usuarios.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center shrink-0">
-              <UserCheck className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Activos</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalActivos}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium truncate">Total Usuarios</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{usuarios.length}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center shrink-0">
-              <UserX className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-3 sm:p-4 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center shrink-0">
+              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Inactivos</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalInactivos}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium truncate">Activos</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{totalActivos}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-3 sm:p-4 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center shrink-0">
+              <UserX className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 dark:text-slate-400" />
             </div>
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Roles en Uso</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalRolesEnUso}</p>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium truncate">Inactivos</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{totalInactivos}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-3 sm:p-4 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center shrink-0">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium truncate">Roles en Uso</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{totalRolesEnUso}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search & Actions Bar */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-4 mb-4">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-          <div className="relative flex-1">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 p-3.5 sm:p-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-2.5 sm:gap-3 items-stretch md:items-center">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
               placeholder="Buscar por documento, nombre, apellido, correo, teléfono o rol..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors text-sm"
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-[#F05454] focus:border-transparent transition-colors text-xs sm:text-sm"
               autoComplete="off"
             />
           </div>
-          <div className="flex gap-2">
-            <button onClick={exportarExcel} className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium whitespace-nowrap">
-              <Download className="w-4 h-4" />
+          <div className="grid grid-cols-2 sm:flex gap-2 shrink-0">
+            <button onClick={exportarExcel} className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap cursor-pointer">
+              <Download className="w-4 h-4 shrink-0" />
               <span>Exportar Excel</span>
             </button>
             {canCreate && (
-              <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-[#F05454] text-white rounded-xl hover:bg-[#c0392b] transition-colors text-sm font-medium shadow-sm whitespace-nowrap">
-                <Plus className="w-4 h-4" />
+              <button onClick={handleOpenCreate} className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-[#F05454] text-white rounded-xl hover:bg-[#c0392b] transition-colors text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap cursor-pointer">
+                <Plus className="w-4 h-4 shrink-0" />
                 <span>Nuevo Usuario</span>
               </button>
             )}
