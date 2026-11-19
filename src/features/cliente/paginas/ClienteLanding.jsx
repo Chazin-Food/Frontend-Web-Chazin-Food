@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers } from "lucide-react";
+import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers, Lock } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
@@ -366,11 +366,12 @@ export function ClienteLanding() {
     const trimmed = String(raw || "").trim();
     return trimmed.length >= 6 ? trimmed : "";
   }, [user?.numeroDocumento, user?.documento]);
+  const isCheckoutDocLocked = Boolean(isAuthenticated && ownUserDocClean);
 
   // Sincroniza automáticamente tipo de documento, cédula, nombre y dirección de la cuenta al abrir o refrescar perfil
   useEffect(() => {
     if (!showCheckout || !isAuthenticated || !user) return;
-    if (!checkoutUserEditedDocRef.current && ownUserDocClean) {
+    if (ownUserDocClean) {
       setCheckoutTipoDoc(user?.tipoDocumento || "C.C.");
       setCheckoutDocumento(ownUserDocClean);
     }
@@ -3360,13 +3361,19 @@ export function ClienteLanding() {
                     </label>
                     <select
                       value={checkoutTipoDoc}
+                      disabled={isCheckoutDocLocked}
                       onChange={(e) => {
+                        if (isCheckoutDocLocked) return;
                         checkoutUserEditedDocRef.current = true;
                         const newT = e.target.value;
                         setCheckoutTipoDoc(newT);
                         setCheckoutDocumento((prev) => sanitizeDocumento(prev, newT));
                       }}
-                      className="w-full px-3 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-xs font-bold text-gray-900 dark:text-gray-100 outline-none focus:border-[#E03E3E] transition cursor-pointer"
+                      className={`w-full px-3 py-3 border rounded-2xl text-xs font-bold outline-none transition ${
+                        isCheckoutDocLocked
+                          ? "bg-gray-100 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:border-[#E03E3E] cursor-pointer"
+                      }`}
                     >
                       <option value="C.C.">C.C.</option>
                       <option value="C.E.">C.E.</option>
@@ -3380,82 +3387,84 @@ export function ClienteLanding() {
                     <label className="flex items-center justify-between gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 flex-wrap">
                       <span>
                         N.° de Cédula / Documento <span className="text-red-500">*</span>
-                        <span className="ml-1 text-[11px] text-gray-400 font-normal">(6 a 10 dígitos)</span>
+                        {!isCheckoutDocLocked && (
+                          <span className="ml-1 text-[11px] text-gray-400 font-normal">(6 a 10 dígitos)</span>
+                        )}
                       </span>
-                      {checkoutDocCheck.status === "own" && (
+                      {isCheckoutDocLocked && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
                           <ShieldCheck className="w-3 h-3" />
-                          De tu cuenta
+                          Dato verificado (Inmutable)
                         </span>
                       )}
-                      {checkoutDocCheck.status === "checking" && (
+                      {!isCheckoutDocLocked && checkoutDocCheck.status === "checking" && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400">
                           <Loader2 className="w-3 h-3 animate-spin" />
                           Verificando...
                         </span>
                       )}
                     </label>
-                    <input
-                      id="checkout-documento-input"
-                      type="text"
-                      inputMode="numeric"
-                      value={checkoutDocumento}
-                      onChange={(e) => {
-                        checkoutUserEditedDocRef.current = true;
-                        const val = sanitizeDocumento(e.target.value, checkoutTipoDoc);
-                        setCheckoutDocumento(val);
-                        const valRes = validateDocumento(val, checkoutTipoDoc);
-                        if (!valRes.isValid) {
-                          setCheckoutErrors((prev) => ({ ...prev, documento: valRes.error }));
-                        } else {
-                          setCheckoutErrors((prev) => {
-                            const n = { ...prev };
-                            delete n.documento;
-                            return n;
-                          });
-                        }
-                      }}
-                      className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border rounded-2xl text-sm font-medium text-gray-900 dark:text-gray-100 outline-none transition ${
-                        checkoutErrors.documento || checkoutDocCheck.status === "conflict"
-                          ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500 bg-red-50/40 dark:bg-red-950/20"
-                          : checkoutDocCheck.status === "own" || checkoutDocCheck.status === "available"
-                          ? "border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
-                          : "border-gray-200 dark:border-gray-700 focus:border-[#E03E3E]"
-                      }`}
-                      placeholder="Ej: 1020304050"
-                    />
-                    {(checkoutErrors.documento || checkoutDocCheck.status === "conflict") && (
-                      <div className="mt-1.5 space-y-1.5 animate-in fade-in">
-                        <p className="text-[11px] text-red-600 dark:text-red-400 font-bold flex items-start gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                          <span>{checkoutErrors.documento || checkoutDocCheck.message}</span>
-                        </p>
-                        {checkoutDocCheck.status === "conflict" && ownUserDocClean && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              checkoutUserEditedDocRef.current = false;
-                              setCheckoutTipoDoc(user?.tipoDocumento || "C.C.");
-                              setCheckoutDocumento(ownUserDocClean);
-                              setCheckoutErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.documento;
-                                return next;
-                              });
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold transition cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                            <span>Usar mi documento ({ownUserDocClean})</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {!checkoutErrors.documento && checkoutDocCheck.status === "own" && (
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                        <span>Documento verificado de tu cuenta ({checkoutTipoDoc}).</span>
+                    <div className="relative">
+                      <input
+                        id="checkout-documento-input"
+                        type="text"
+                        inputMode="numeric"
+                        value={checkoutDocumento}
+                        readOnly={isCheckoutDocLocked}
+                        disabled={isCheckoutDocLocked}
+                        onChange={(e) => {
+                          if (isCheckoutDocLocked) return;
+                          checkoutUserEditedDocRef.current = true;
+                          const val = sanitizeDocumento(e.target.value, checkoutTipoDoc);
+                          setCheckoutDocumento(val);
+                          const valRes = validateDocumento(val, checkoutTipoDoc);
+                          if (!valRes.isValid) {
+                            setCheckoutErrors((prev) => ({ ...prev, documento: valRes.error }));
+                          } else {
+                            setCheckoutErrors((prev) => {
+                              const n = { ...prev };
+                              delete n.documento;
+                              return n;
+                            });
+                          }
+                        }}
+                        className={`w-full px-4 py-3 border rounded-2xl text-sm font-medium outline-none transition ${
+                          isCheckoutDocLocked
+                            ? "pr-10 bg-gray-100 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+                            : checkoutErrors.documento || checkoutDocCheck.status === "conflict"
+                            ? "bg-red-50/40 dark:bg-red-950/20 border-red-500 text-gray-900 dark:text-gray-100 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                            : checkoutDocCheck.status === "available"
+                            ? "bg-white dark:bg-gray-800 border-emerald-500 text-gray-900 dark:text-gray-100 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                            : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:border-[#E03E3E]"
+                        }`}
+                        placeholder="Ej: 1020304050"
+                      />
+                      {isCheckoutDocLocked && (
+                        <Lock
+                          className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                    {isCheckoutDocLocked ? (
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 italic mt-1">
+                        Por seguridad y validación fiscal, se usa el documento registrado en tu cuenta.
                       </p>
+                    ) : (
+                      <>
+                        {(checkoutErrors.documento || checkoutDocCheck.status === "conflict") && (
+                          <p className="text-[11px] text-red-600 dark:text-red-400 font-bold mt-1.5 flex items-start gap-1 animate-in fade-in">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span>{checkoutErrors.documento || checkoutDocCheck.message}</span>
+                          </p>
+                        )}
+                        {!checkoutErrors.documento && checkoutDocCheck.status === "available" && (
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>Documento disponible — se vinculará a tu cuenta al confirmar.</span>
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
