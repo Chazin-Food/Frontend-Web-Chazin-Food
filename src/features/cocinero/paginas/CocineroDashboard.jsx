@@ -337,6 +337,7 @@ export function CocineroDashboard() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncError, setSyncError] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -406,8 +407,9 @@ export function CocineroDashboard() {
     setShowConfigFade(false);
   };
 
-  // Fetch orders from API (con protección anti-solapamiento y ahorro cuando la pestaña está oculta)
+  // Fetch orders from API (con protección anti-solapamiento, backoff ante errores y pausa en pestaña oculta)
   const isFetchingPedidosRef = useRef(false);
+  const consecutiveFailuresRef = useRef(0);
   const fetchPedidos = useCallback(
     async (isSilent = false) => {
       if (isSilent && (isFetchingPedidosRef.current || (typeof document !== "undefined" && document.hidden))) {
@@ -421,11 +423,15 @@ export function CocineroDashboard() {
         const data = await produccionService.getOrdenes();
         const list = Array.isArray(data) ? data : data?.data || [];
         setPedidos(list);
+        consecutiveFailuresRef.current = 0;
+        setSyncError(false);
       } catch (err) {
+        consecutiveFailuresRef.current = Math.min(consecutiveFailuresRef.current + 1, 3);
+        setSyncError(true);
         if (!isSilent) {
           console.error("Error al cargar pedidos en CocineroDashboard:", err);
           notifyError("Error", "No se pudieron sincronizar los pedidos con el servidor");
-        } else {
+        } else if (consecutiveFailuresRef.current === 1) {
           console.warn("Sincronización en segundo plano diferida:", err.message);
         }
       } finally {
@@ -438,11 +444,27 @@ export function CocineroDashboard() {
   );
 
   useEffect(() => {
-    fetchPedidos();
-    const interval = setInterval(() => {
-      fetchPedidos(true);
-    }, 20000);
-    return () => clearInterval(interval);
+    let active = true;
+    let timerId = null;
+
+    const scheduleNext = () => {
+      if (!active) return;
+      const delayMs = 20000 * Math.min(3, 1 + consecutiveFailuresRef.current);
+      timerId = setTimeout(async () => {
+        if (!active) return;
+        await fetchPedidos(true);
+        scheduleNext();
+      }, delayMs);
+    };
+
+    fetchPedidos().finally(() => {
+      scheduleNext();
+    });
+
+    return () => {
+      active = false;
+      if (timerId) clearTimeout(timerId);
+    };
   }, [fetchPedidos]);
 
   // Sound chime when new order arrives
@@ -1098,12 +1120,21 @@ export function CocineroDashboard() {
                     Comandas Activas: <strong className="text-gray-900 dark:text-gray-100">{pedidosFiltrados.length}</strong>
                   </span>
                 </div>
-                {refreshing && (
+                {refreshing ? (
                   <span className="text-[#F05454] text-[11px] font-black animate-pulse flex items-center gap-1">
                     <RefreshCw className="w-3 h-3 animate-spin" />
                     Sincronizando...
                   </span>
-                )}
+                ) : syncError ? (
+                  <button
+                    type="button"
+                    onClick={() => fetchPedidos(false)}
+                    className="text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer hover:bg-amber-100 transition"
+                  >
+                    <AlertCircle className="w-3 h-3" />
+                    Reconectar
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -1111,6 +1142,26 @@ export function CocineroDashboard() {
         {loading ? (
           <div className="p-8 sm:p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs flex-1 flex flex-col items-center justify-center">
             <ChazinLoader text="CARGANDO COMANDAS DE COCINA" size="md" />
+          </div>
+        ) : syncError && pedidos.length === 0 ? (
+          <div className="p-8 sm:p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border-2 border-dashed border-amber-200 dark:border-amber-800/60 shadow-xs flex-1 flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="font-black text-lg text-gray-800 dark:text-gray-100">
+              Reconectando con el servidor de cocina
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 max-w-md font-medium">
+              El servidor no respondió temporalmente. El tablero reintentará automáticamente en unos segundos o puedes reintentar ahora.
+            </p>
+            <button
+              type="button"
+              onClick={() => fetchPedidos(false)}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#F05454] hover:bg-[#d94444] text-white text-xs font-black rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Reintentar ahora
+            </button>
           </div>
         ) : pedidosFiltrados.length === 0 ? (
           <div className="p-8 sm:p-16 text-center bg-white dark:bg-gray-900 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 shadow-xs flex-1 flex flex-col items-center justify-center">

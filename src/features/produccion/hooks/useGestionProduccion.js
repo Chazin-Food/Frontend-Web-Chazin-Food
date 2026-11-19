@@ -16,6 +16,7 @@ export function useGestionProduccion() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState("Todos");
   const isFetchingRef = useRef(false);
+  const consecutiveFailuresRef = useRef(0);
 
   const fetchOrdenes = useCallback(async (isSilent = false) => {
     if (isSilent && (isFetchingRef.current || (typeof document !== "undefined" && document.hidden))) {
@@ -52,7 +53,9 @@ export function useGestionProduccion() {
         };
       });
       setOrdenes(merged);
+      consecutiveFailuresRef.current = 0;
     } catch (err) {
+      consecutiveFailuresRef.current = Math.min(consecutiveFailuresRef.current + 1, 3);
       if (!isSilent) {
         console.error(err);
         notify.error("Error", err.message || "Error al cargar órdenes de producción");
@@ -64,13 +67,27 @@ export function useGestionProduccion() {
   }, []);
 
   useEffect(() => {
-    fetchOrdenes();
+    let active = true;
+    let timerId = null;
 
-    const interval = setInterval(() => {
-      fetchOrdenes(true);
-    }, 20000);
+    const scheduleNext = () => {
+      if (!active) return;
+      const delayMs = 20000 * Math.min(3, 1 + consecutiveFailuresRef.current);
+      timerId = setTimeout(async () => {
+        if (!active) return;
+        await fetchOrdenes(true);
+        scheduleNext();
+      }, delayMs);
+    };
 
-    return () => clearInterval(interval);
+    fetchOrdenes().finally(() => {
+      scheduleNext();
+    });
+
+    return () => {
+      active = false;
+      if (timerId) clearTimeout(timerId);
+    };
   }, [fetchOrdenes]);
 
   // Buscador generalizado que busca por TODAS las columnas y atributos (Ítems 8, 17, 20 y Comandas)
