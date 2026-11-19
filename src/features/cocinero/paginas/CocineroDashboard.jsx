@@ -358,6 +358,27 @@ export function CocineroDashboard() {
     return saved !== null ? Number(saved) : 0; // 0 (Manual sin temporizador) por defecto
   });
   const [showConfigFade, setShowConfigFade] = useState(false);
+  const configFadeRef = useRef(null);
+
+  useEffect(() => {
+    if (!showConfigFade) return;
+    const handlePointerDown = (e) => {
+      if (configFadeRef.current && !configFadeRef.current.contains(e.target)) {
+        setShowConfigFade(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setShowConfigFade(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown, { passive: true });
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showConfigFade]);
 
   // Timers & Fading States
   const readyTimestamps = useRef({});
@@ -808,7 +829,7 @@ export function CocineroDashboard() {
         <div className="w-full flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 sm:gap-3">
           {/* Brand & Live Digital Clock */}
           <div className="flex items-center justify-between xl:justify-start gap-2 sm:gap-3 min-w-0">
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 xl:flex-initial">
               <Link
                 to="/"
                 title="Volver al inicio"
@@ -825,7 +846,7 @@ export function CocineroDashboard() {
                   className="w-full h-full object-contain"
                 />
               </Link>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <h1 className="font-black text-gray-900 dark:text-gray-100 text-sm sm:text-lg tracking-tight flex items-center gap-1.5 truncate">
                     <ChefHat className="w-4 h-4 sm:w-5 sm:h-5 text-[#F05454] shrink-0" />
@@ -843,7 +864,7 @@ export function CocineroDashboard() {
 
             {/* Live Clock Badge (12-hour AM/PM format) */}
             <div
-              className="xl:ml-4 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 rounded-xl flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-mono font-bold text-gray-700 dark:text-gray-200 shadow-2xs shrink-0"
+              className="xl:ml-4 px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/60 rounded-xl flex items-center gap-1 sm:gap-2 text-[10.5px] sm:text-xs font-mono font-bold text-gray-700 dark:text-gray-200 shadow-2xs shrink-0"
               title="Hora actual del sistema en formato 12 horas"
             >
               <Timer className="w-3.5 h-3.5 text-[#F05454] shrink-0" />
@@ -889,11 +910,12 @@ export function CocineroDashboard() {
               {/* Utility Buttons Group */}
               <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Auto-Fade Timer Config Dropdown */}
-                <div className="relative">
+                <div className="relative" ref={configFadeRef}>
                   <button
                     type="button"
                     onClick={() => setShowConfigFade(!showConfigFade)}
                     aria-label="Configurar tiempo de desvanecimiento de comandas listas"
+                    aria-expanded={showConfigFade}
                     className="flex items-center gap-1 px-2 sm:px-2.5 py-2 sm:py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750 transition cursor-pointer"
                     title="Configurar tiempo de desvanecimiento de comandas listas"
                   >
@@ -905,7 +927,7 @@ export function CocineroDashboard() {
                   </button>
 
                   {showConfigFade && (
-                    <div className="absolute right-0 top-full mt-1.5 w-52 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2 z-50 text-xs animate-in fade-in zoom-in-95">
+                    <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-56 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-800 p-2 z-50 text-xs animate-in fade-in zoom-in-95">
                       <p className="font-black text-[11px] text-gray-400 px-2 py-1 uppercase tracking-wide">
                         Desvanecer listas:
                       </p>
