@@ -406,9 +406,14 @@ export function CocineroDashboard() {
     setShowConfigFade(false);
   };
 
-  // Fetch orders from API
+  // Fetch orders from API (con protección anti-solapamiento y ahorro cuando la pestaña está oculta)
+  const isFetchingPedidosRef = useRef(false);
   const fetchPedidos = useCallback(
     async (isSilent = false) => {
+      if (isSilent && (isFetchingPedidosRef.current || (typeof document !== "undefined" && document.hidden))) {
+        return;
+      }
+      isFetchingPedidosRef.current = true;
       try {
         if (!isSilent) setLoading(true);
         else setRefreshing(true);
@@ -424,6 +429,7 @@ export function CocineroDashboard() {
           console.warn("Sincronización en segundo plano diferida:", err.message);
         }
       } finally {
+        isFetchingPedidosRef.current = false;
         setLoading(false);
         setRefreshing(false);
       }
@@ -435,7 +441,7 @@ export function CocineroDashboard() {
     fetchPedidos();
     const interval = setInterval(() => {
       fetchPedidos(true);
-    }, 10000);
+    }, 20000);
     return () => clearInterval(interval);
   }, [fetchPedidos]);
 

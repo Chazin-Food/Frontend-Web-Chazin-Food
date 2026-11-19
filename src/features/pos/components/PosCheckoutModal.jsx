@@ -293,7 +293,7 @@ export function PosCheckoutModal({
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 space-y-4 sm:space-y-5">
           {/* 1. Tarjeta Resumen Financiero */}
           <div className="bg-[#f8fafc] dark:bg-gray-800/60 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-xs space-y-2 font-mono">
             <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -365,10 +365,10 @@ export function PosCheckoutModal({
           </div>
 
           {/* 3. Panel Interactivo de Gestión y Asociación de Clientes */}
-          <div className="space-y-3 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3 p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                <User className="w-4 h-4 text-[#f05454]" />
+                <User className="w-4 h-4 text-[#f05454] shrink-0" />
                 <span>Identificación del Cliente</span>
               </h4>
               {selectedCliente && (
@@ -392,13 +392,13 @@ export function PosCheckoutModal({
                     setTieneCuenta(true);
                     setIsSearchingClient(true);
                   }}
-                  className={`py-2 px-3 rounded-xl border-2 font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-2 px-2 sm:px-3 rounded-xl border-2 font-black text-[11px] sm:text-xs leading-tight flex items-center justify-center gap-1.5 text-center transition cursor-pointer ${
                     tieneCuenta || selectedCliente
                       ? "border-[#f05454] bg-[#FFF5F5] dark:bg-red-950/40 text-[#f05454] shadow-2xs"
                       : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300"
                   }`}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                   <span>Sí, Con Cuenta</span>
                 </button>
 
@@ -409,13 +409,13 @@ export function PosCheckoutModal({
                     setIsSearchingClient(false);
                     handleClearSelectedClient();
                   }}
-                  className={`py-2 px-3 rounded-xl border-2 font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  className={`py-2 px-2 sm:px-3 rounded-xl border-2 font-black text-[11px] sm:text-xs leading-tight flex items-center justify-center gap-1.5 text-center transition cursor-pointer ${
                     !tieneCuenta && !selectedCliente
                       ? "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 shadow-2xs"
                       : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300"
                   }`}
                 >
-                  <User className="w-3.5 h-3.5" />
+                  <User className="w-3.5 h-3.5 shrink-0" />
                   <span>No, Sin Cuenta (Ocasional)</span>
                 </button>
               </div>
@@ -423,11 +423,11 @@ export function PosCheckoutModal({
 
             {/* CASO B: Buscador Interactivo de Clientes (Se muestra al presionar Buscar o Cambiar) */}
             {isSearchingClient ? (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-3.5 border border-gray-200 dark:border-gray-700 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                    <Search className="w-3.5 h-3.5 text-[#f05454]" />
-                    <span>{selectedCliente ? "Cambiar Cliente Asociado" : "Buscar Cliente con Cuenta"}</span>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-3 sm:p-3.5 border border-gray-200 dark:border-gray-700 shadow-sm space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5 min-w-0">
+                    <Search className="w-3.5 h-3.5 text-[#f05454] shrink-0" />
+                    <span className="truncate">{selectedCliente ? "Cambiar Cliente Asociado" : "Buscar Cliente con Cuenta"}</span>
                   </span>
                   <button
                     type="button"
@@ -435,7 +435,7 @@ export function PosCheckoutModal({
                       setIsSearchingClient(false);
                       setClientSearchTerm("");
                     }}
-                    className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold cursor-pointer"
+                    className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold cursor-pointer shrink-0"
                   >
                     Cancelar
                   </button>
@@ -464,11 +464,11 @@ export function PosCheckoutModal({
                 </div>
 
                 {/* Lista de Resultados Directos */}
-                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                <div className="max-h-60 overflow-y-auto overflow-x-hidden space-y-2 pr-0.5">
                   {!clientSearchTerm.trim() ? (
                     <div className="p-3.5 bg-gray-50 dark:bg-gray-750/50 rounded-xl text-center space-y-1 border border-dashed border-gray-200 dark:border-gray-700">
                       <p className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-center gap-1.5">
-                        <Search className="w-3.5 h-3.5 text-gray-400" />
+                        <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span>Búsqueda rápida por documento (cédula) o nombre</span>
                       </p>
                       <p className="text-[11px] text-gray-400">
@@ -498,7 +498,7 @@ export function PosCheckoutModal({
                         <div
                           key={cId}
                           onClick={() => handleSelectClient(c)}
-                          className={`p-2.5 rounded-xl border transition flex items-center justify-between gap-2.5 transition-all ${
+                          className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 overflow-hidden ${
                             isInactive
                               ? "bg-gray-100/70 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-70 cursor-not-allowed hover:border-red-300 dark:hover:border-red-800"
                               : isCurrentlySelected
@@ -506,61 +506,77 @@ export function PosCheckoutModal({
                               : "border-gray-100 dark:border-gray-700/80 hover:border-[#f05454] bg-gray-50/60 hover:bg-[#FFF5F5] dark:bg-gray-750/50 dark:hover:bg-red-950/20 cursor-pointer group"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="shrink-0">
-                              <FidelidadBadge tipo={cTipo} size="sm" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            {/* Fila 1: Nombre completo + Insignia de fidelidad */}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className={`text-xs font-black leading-snug break-words ${isInactive ? "text-gray-500 dark:text-gray-400" : "text-gray-900 dark:text-gray-100"}`}>
+                                {cNombre}
+                              </p>
+                              <div className="shrink-0">
+                                <FidelidadBadge tipo={cTipo} size="sm" />
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className={`text-xs font-bold truncate ${isInactive ? "text-gray-500 dark:text-gray-400" : "text-gray-900 dark:text-gray-100"}`}>
-                                  {cNombre}
-                                </p>
-                                {docVal ? (
-                                  <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 text-[10.5px] font-black border border-blue-200 dark:border-blue-800 shrink-0">
-                                    {docTipo} {docVal}
-                                  </span>
-                                ) : (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[9.5px] font-semibold shrink-0">
-                                    Sin registrar
-                                  </span>
-                                )}
-                                {isInactive ? (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[9.5px] font-black flex items-center gap-1 shrink-0">
-                                    <Lock className="w-2.5 h-2.5" />
-                                    <span>Inactivo (Bloqueado)</span>
-                                  </span>
-                                ) : hasActiveAccount ? (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[9.5px] font-black flex items-center gap-0.5 shrink-0">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span>Cuenta Activa</span>
-                                  </span>
-                                ) : (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[9.5px] font-semibold shrink-0">
-                                    Sin Cuenta Web
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10.5px] text-gray-500 dark:text-gray-400 truncate mt-0.5 flex items-center gap-2">
-                                {c.telefono ? <span className="flex items-center gap-0.5"><Phone className="w-3 h-3 text-gray-400" /> {c.telefono}</span> : null}
-                                {c.email ? <span className="flex items-center gap-0.5"><Mail className="w-3 h-3 text-gray-400" /> {c.email}</span> : null}
-                                {!c.telefono && !c.email ? <span>Cliente Registrado</span> : null}
-                              </div>
+
+                            {/* Fila 2: Documento + Estado de cuenta */}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {docVal ? (
+                                <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/70 text-blue-900 dark:text-blue-200 text-[10.5px] font-black border border-blue-200 dark:border-blue-800 shrink-0">
+                                  {docTipo} {docVal}
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[9.5px] font-semibold shrink-0">
+                                  Sin registrar
+                                </span>
+                              )}
+                              {isInactive ? (
+                                <span className="px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[9.5px] font-black inline-flex items-center gap-1 shrink-0">
+                                  <Lock className="w-2.5 h-2.5 shrink-0" />
+                                  <span>Inactivo (Bloqueado)</span>
+                                </span>
+                              ) : hasActiveAccount ? (
+                                <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[9.5px] font-black inline-flex items-center gap-1 shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                                  <span>Cuenta Activa</span>
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[9.5px] font-semibold shrink-0">
+                                  Sin Cuenta Web
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Fila 3: Contacto */}
+                            <div className="text-[10.5px] text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+                              {c.telefono ? (
+                                <span className="inline-flex items-center gap-1 shrink-0">
+                                  <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <span>{c.telefono}</span>
+                                </span>
+                              ) : null}
+                              {c.email ? (
+                                <span className="inline-flex items-center gap-1 min-w-0 break-all">
+                                  <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                  <span>{c.email}</span>
+                                </span>
+                              ) : null}
+                              {!c.telefono && !c.email ? <span>Cliente Registrado</span> : null}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
+                          {/* Fila / Columna de Acción */}
+                          <div className="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200/70 dark:border-gray-700/60 shrink-0">
                             {cDesc && !isInactive ? (
-                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-black rounded-lg">
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-black rounded-lg shrink-0">
                                 {cDesc}
                               </span>
-                            ) : null}
+                            ) : <span className="sm:hidden" />}
                             {isInactive ? (
-                              <span className="px-2.5 py-1 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 border border-red-200 dark:border-red-900/40 text-[10.5px] font-bold rounded-xl flex items-center gap-1 shadow-2xs">
-                                <Lock className="w-3 h-3" />
+                              <span className="px-2.5 py-1 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400 border border-red-200 dark:border-red-900/40 text-[10.5px] font-bold rounded-xl inline-flex items-center gap-1 shadow-2xs shrink-0">
+                                <Lock className="w-3 h-3 shrink-0" />
                                 <span>No disponible</span>
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 bg-white dark:bg-gray-800 text-[#f05454] group-hover:bg-[#f05454] group-hover:text-white border border-[#f05454] text-[11px] font-black rounded-xl transition shadow-2xs">
+                              <span className="px-3 py-1 bg-white dark:bg-gray-800 text-[#f05454] group-hover:bg-[#f05454] group-hover:text-white border border-[#f05454] text-[11px] font-black rounded-xl transition shadow-2xs shrink-0">
                                 {isCurrentlySelected ? "Seleccionado" : "Asociar"}
                               </span>
                             )}
@@ -573,14 +589,14 @@ export function PosCheckoutModal({
               </div>
             ) : selectedCliente ? (
               /* CASO A: Cliente Asociado Seleccionado */
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-3.5 border-2 border-[#f05454]/40 shadow-xs space-y-3 animate-in fade-in duration-200">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-3 sm:p-3.5 border-2 border-[#f05454]/40 shadow-xs space-y-3 animate-in fade-in duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0">
                     <div className="shrink-0">
                       <FidelidadBadge tipo={selectedCliente.tipo} size="md" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <h5 className="text-sm font-black text-gray-900 dark:text-gray-100">
                           {selectedCliente.nombre} {selectedCliente.apellidos || ''}
                         </h5>

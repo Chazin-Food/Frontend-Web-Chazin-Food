@@ -578,7 +578,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                 (evt.icono === "fries"
                   ? "https://images.unsplash.com/photo-1576107232684-1279f3908594?w=800&auto=format&fit=crop&q=80"
                   : evt.icono === "hotdog"
-                  ? "https://images.unsplash.com/photo-1619740455993-9e612b1af08a?w=800&auto=format&fit=crop&q=80"
+                  ? "https://res.cloudinary.com/dckwtknmq/image/upload/f_auto,q_auto,w_800,c_limit/v1788993441/c9pne5jrmjv5po93xhhl.jpg"
                   : "/hero-burger.webp");
 
               return (

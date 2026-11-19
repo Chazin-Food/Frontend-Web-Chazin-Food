@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { dashboardService } from "../servicios/dashboardService";
 
 export function useDashboardStats() {
@@ -30,8 +30,13 @@ export function useDashboardStats() {
     observaciones: []
   });
   const [loading, setLoading] = useState(true);
+  const isFetchingRef = useRef(false);
 
   const fetchDashboardData = useCallback(async (isSilent = false) => {
+    if (isSilent && (isFetchingRef.current || (typeof document !== "undefined" && document.hidden))) {
+      return;
+    }
+    isFetchingRef.current = true;
     try {
       if (!isSilent) setLoading(true);
       const params = { periodo, year };
@@ -60,6 +65,7 @@ export function useDashboardStats() {
     } catch (err) {
       console.error("Error loading dashboard metrics:", err);
     } finally {
+      isFetchingRef.current = false;
       if (!isSilent) setLoading(false);
     }
   }, [periodo, year]);
@@ -69,7 +75,7 @@ export function useDashboardStats() {
 
     const interval = setInterval(() => {
       fetchDashboardData(true);
-    }, 10000);
+    }, 20000);
 
     return () => clearInterval(interval);
   }, [fetchDashboardData]);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { produccionService } from "../servicios/produccionService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
@@ -15,8 +15,13 @@ export function useGestionProduccion() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState("Todos");
+  const isFetchingRef = useRef(false);
 
   const fetchOrdenes = useCallback(async (isSilent = false) => {
+    if (isSilent && (isFetchingRef.current || (typeof document !== "undefined" && document.hidden))) {
+      return;
+    }
+    isFetchingRef.current = true;
     try {
       if (!isSilent) setLoading(true);
       const data = await produccionService.getOrdenes();
@@ -48,11 +53,12 @@ export function useGestionProduccion() {
       });
       setOrdenes(merged);
     } catch (err) {
-      console.error(err);
       if (!isSilent) {
+        console.error(err);
         notify.error("Error", err.message || "Error al cargar órdenes de producción");
       }
     } finally {
+      isFetchingRef.current = false;
       if (!isSilent) setLoading(false);
     }
   }, []);
@@ -62,7 +68,7 @@ export function useGestionProduccion() {
 
     const interval = setInterval(() => {
       fetchOrdenes(true);
-    }, 10000);
+    }, 20000);
 
     return () => clearInterval(interval);
   }, [fetchOrdenes]);

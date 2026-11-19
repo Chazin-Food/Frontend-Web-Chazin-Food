@@ -4,9 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- Optimización LCP Prioritaria: Preload ultra-rápido de la imagen hero local del carrusel -->
-    <link rel="preload" as="image" href="/hero-burger.webp" type="image/webp" fetchpriority="high" />
-
     <meta name="description" content="Chazin Food - Deliciosas comidas rápidas artesanales: hamburguesas gourmet, salchipapas, perros calientes y combos. Pide en línea con entrega rápida." />
     <meta name="keywords" content="hamburguesas artesanales, comida rápida, salchipapas gourmet, perros calientes, combos, domicilios, Chazin Food" />
     <meta name="robots" content="index, follow" />
@@ -30,13 +27,9 @@
     <link rel="apple-touch-icon" href="/favicon.png?v=2" />
     <title>Chazin Food | Comidas Rápidas Artesanales</title>
 
-    <!-- Preload del emblema oficial del Splash Screen para LCP instantáneo (< 100ms) -->
-    <link rel="preload" as="image" href="/favicon_256.webp" type="image/webp" fetchpriority="high" />
-
-    <!-- Tipografía Inter oficial (Carga optimizada con preconnect) -->
+    <!-- Tipografía Inter oficial (Carga optimizada con preconnect sin preload duplicado) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
     <noscript>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />

@@ -16,26 +16,6 @@ function figmaAssetResolver() {
   };
 }
 
-function modulePreloadPlugin() {
-  return {
-    name: 'module-preload-plugin',
-    transformIndexHtml(html, ctx) {
-      if (!ctx || !ctx.bundle) return html;
-      const tags = [];
-      for (const fileName of Object.keys(ctx.bundle)) {
-        if ((fileName.includes('ClienteLanding') || fileName.includes('FoodIcon')) && fileName.endsWith('.js')) {
-          tags.push({
-            tag: 'link',
-            attrs: { rel: 'modulepreload', crossorigin: true, href: `/${fileName}` },
-            injectTo: 'head'
-          });
-        }
-      }
-      return tags;
-    }
-  };
-}
-
 function gzipCompressionPlugin() {
   return {
     name: 'gzip-compression',
@@ -105,7 +85,7 @@ function nonBlockingCssPlugin() {
     transformIndexHtml(html) {
       return html.replace(
         /<link rel="stylesheet" crossorigin href="([^"]+\.css)">/g,
-        '<link rel="preload" as="style" href="$1"><link rel="stylesheet" href="$1" media="print" onload="this.media=\'all\'"><noscript><link rel="stylesheet" href="$1"></noscript>'
+        '<link rel="stylesheet" crossorigin href="$1" media="print" onload="this.media=\'all\'"><noscript><link rel="stylesheet" crossorigin href="$1"></noscript>'
       );
     }
   };
@@ -114,7 +94,6 @@ function nonBlockingCssPlugin() {
 export default {
   plugins: [
     figmaAssetResolver(),
-    modulePreloadPlugin(),
     gzipCompressionPlugin(),
     react(),
     tailwindcss(),
