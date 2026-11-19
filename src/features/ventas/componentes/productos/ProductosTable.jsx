@@ -20,25 +20,14 @@ import { FoodIcon, EventBadge } from "@/shared/components/ui/FoodIcon";
 import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { getProductVariantSummary, isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { useNotifications } from "@/shared/hooks/useNotifications";
+import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 
 export const getActiveProductEvent = (producto) => {
   if (!producto || !producto.eventos || !Array.isArray(producto.eventos) || producto.eventos.length === 0) {
     return null;
   }
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-  return (
-    producto.eventos.find((e) => {
-      const isActivo = e.estado === 1 || e.estado === "Activo" || e.estado === undefined;
-      if (!isActivo) return false;
-      if (e.fechaFin) {
-        const finStr = String(e.fechaFin).split("T")[0];
-        if (todayStr > finStr) return false; // Ya finalizó
-      }
-      return true;
-    }) || null
-  );
+  const nowMs = Date.now();
+  return producto.eventos.find((e) => isEventActiveInColombia(e, nowMs)) || null;
 };
 
 export const getActiveEvent = getActiveProductEvent;

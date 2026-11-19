@@ -13,6 +13,7 @@ import {
   Activity,
   AlertCircle
 } from "lucide-react";
+import { formatDateLong } from "@/shared/utils/dateUtils";
 
 export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
   if (!isOpen || !empleado) return null;
@@ -37,16 +38,7 @@ export function VerEmpleadoModal({ isOpen, onClose, empleado }) {
 
   const formatDate = (d) => {
     if (!d) return "No registrada";
-    try {
-      const date = new Date(d);
-      return date.toLocaleDateString("es-CO", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-      });
-    } catch {
-      return String(d);
-    }
+    return formatDateLong(d, String(d));
   };
 
   return (

@@ -16,6 +16,7 @@ import {
   FlaskConical
 } from "lucide-react";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
+import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
 
 export function InsumosTable({
   insumos = [],
@@ -41,7 +42,12 @@ export function InsumosTable({
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedInsumos = insumos.slice(startIndex, startIndex + pageSize);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getColombiaDateISO();
+
+  const isExpiredOnColDate = (fechaVal) => {
+    const iso = extractDateOnlyISO(fechaVal);
+    return Boolean(iso && iso < todayStr);
+  };
 
   const renderInsumoAvatar = (i, isPreparado) => {
     const rawImg = i.imagen || i.foto || "";
@@ -115,9 +121,9 @@ export function InsumosTable({
             const isBajo = (i.stock || 0) <= (i.stockMinimo || 0) && (i.stock || 0) > 0;
             const isAgotado = (i.stock || 0) === 0;
             const tieneLoteVencido = (i.lotes || []).some(
-              (l) => l.estado === "VENCIDO" || (l.fechaVencimiento && l.fechaVencimiento <= todayStr)
+              (l) => l.estado === "VENCIDO" || isExpiredOnColDate(l.fechaVencimiento)
             );
-            const vencidoDirecto = i.fechaVencimiento && i.fechaVencimiento <= todayStr;
+            const vencidoDirecto = isExpiredOnColDate(i.fechaVencimiento);
             const estaVencido = tieneLoteVencido || vencidoDirecto;
             const stockLabel = isAgotado ? "Agotado" : isBajo ? "Bajo" : "Normal";
             const stockBadgeClass = isAgotado
@@ -321,10 +327,9 @@ export function InsumosTable({
                 const tieneLoteVencido = (i.lotes || []).some(
                   (l) =>
                     l.estado === "VENCIDO" ||
-                    (l.fechaVencimiento && l.fechaVencimiento <= todayStr)
+                    isExpiredOnColDate(l.fechaVencimiento)
                 );
-                const vencidoDirecto =
-                  i.fechaVencimiento && i.fechaVencimiento <= todayStr;
+                const vencidoDirecto = isExpiredOnColDate(i.fechaVencimiento);
                 const estaVencido = tieneLoteVencido || vencidoDirecto;
 
                 const stockLabel = isAgotado

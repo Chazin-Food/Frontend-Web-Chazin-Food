@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { formatTipoEvento, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
+import { evaluateEventVigencia } from "@/shared/utils/dateUtils";
 import { eventosService } from "../../servicios/eventosService";
 
 export function EventosModal({
@@ -32,117 +33,24 @@ export function EventosModal({
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // Live timer for real-time countdown (1 segundo de precisión)
+  // Live timer for real-time countdown (1 segundo de precisión, solo mientras el modal está abierto)
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000); // 1s tick
+    if (!isOpen) return undefined;
+    const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Sincronizar automáticamente con la API cualquier evento expirado para que su estado en BD pase a inactivo
-  useEffect(() => {
-    if (!isOpen || !Array.isArray(eventos) || eventos.length === 0) return;
-    const expActivos = eventos.filter((e) => {
-      const isDbActivo = e.estado === "Activo" || e.estado === 1;
-      if (!isDbActivo || !e.fechaFin) return false;
-      const finDate = new Date(`${e.fechaFin}T23:59:59`);
-      return new Date() > finDate;
-    });
-
-    if (expActivos.length > 0) {
-      Promise.allSettled(
-        expActivos.map((e) => eventosService.updateEvento(e.id || e.idEvento, { estado: 0 }))
-      ).then(() => {
-        if (onRefresh) onRefresh();
-      });
-    }
-  }, [isOpen, eventos, onRefresh]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  // Real-time evaluation helper
-  const evaluateVigencia = (evt) => {
-    if (!evt.fechaFin) {
-      return {
-        estadoVigencia: "PERMANENTE",
-        estaVigente: evt.estado === "Activo" || evt.estado === 1,
-        diasRestantes: null,
-        horasRestantes: null,
-        minutosRestantes: null,
-        segundosRestantes: null,
-        label: "Vigencia Permanente",
-        urgente: false
-      };
-    }
-
-    const finDate = new Date(`${evt.fechaFin}T23:59:59`);
-    const inicioDate = evt.fechaInicio ? new Date(`${evt.fechaInicio}T00:00:00`) : null;
-
-    const ms = finDate.getTime() - now.getTime();
-    const diasRestantes = Math.ceil(ms / (1000 * 60 * 60 * 24));
-    const horasRestantes = Math.max(0, Math.floor(ms / (1000 * 60 * 60)));
-    const minutosRestantes = Math.max(0, Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60)));
-    const segundosRestantes = Math.max(0, Math.floor((ms % (1000 * 60)) / 1000));
-
-    if (inicioDate && now < inicioDate) {
-      const msInicio = inicioDate.getTime() - now.getTime();
-      const diasInicio = Math.ceil(msInicio / (1000 * 60 * 60 * 24));
-      return {
-        estadoVigencia: "PROGRAMADO",
-        estaVigente: false,
-        diasRestantes,
-        horasRestantes,
-        minutosRestantes,
-        segundosRestantes,
-        label: `Inicia en ${diasInicio} día${diasInicio !== 1 ? "s" : ""}`,
-        urgente: false
-      };
-    }
-
-    if (ms < 0) {
-      const diasExpirado = Math.abs(diasRestantes);
-      return {
-        estadoVigencia: "EXPIRADO",
-        estaVigente: false,
-        diasRestantes: 0,
-        horasRestantes: 0,
-        minutosRestantes: 0,
-        segundosRestantes: 0,
-        label: `Finalizado hace ${diasExpirado} día${diasExpirado !== 1 ? "s" : ""}`,
-        urgente: false
-      };
-    }
-
-    const urgente = diasRestantes <= 3;
-    let label = `Quedan ${diasRestantes} días`;
-    if (horasRestantes < 24) {
-      if (horasRestantes === 0) {
-        label = `¡Termina pronto! (${minutosRestantes}m ${segundosRestantes}s restantes)`;
-      } else {
-        label = `¡Termina hoy! (${horasRestantes}h ${minutosRestantes}m restantes)`;
-      }
-    } else if (diasRestantes === 1) {
-      label = `¡Último día! (${horasRestantes}h restantes)`;
-    }
-
-    return {
-      estadoVigencia: "ACTIVO",
-      estaVigente: evt.estado === "Activo" || evt.estado === 1,
-      diasRestantes,
-      horasRestantes,
-      minutosRestantes,
-      segundosRestantes,
-      label,
-      urgente
-    };
-  };
-
+  const nowMs = now.getTime();
   const eventosEvaluados = eventos.map((e) => {
-    const vig = evaluateVigencia(e);
+    const vig = evaluateEventVigencia(e, nowMs);
+    const isActivo = Boolean(vig?.estaVigente && (vig.estadoVigencia === "ACTIVO" || vig.estadoVigencia === "PERMANENTE"));
     return {
       ...e,
       vigenciaEvaluada: vig,
-      isActivo: (e.estado === "Activo" || e.estado === 1) && vig.estadoVigencia === "ACTIVO"
+      isActivo
     };
   });
 

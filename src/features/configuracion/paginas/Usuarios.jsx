@@ -8,6 +8,7 @@ import { UsuarioModal } from "../componentes/usuarios/UsuarioModal";
 import { UsuarioPasswordModal } from "../componentes/usuarios/UsuarioPasswordModal";
 import { UsuarioDetalleModal } from "../componentes/usuarios/UsuarioDetalleModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 
 export function Usuarios() {
   const { user } = useAuth();
@@ -138,7 +139,7 @@ export function Usuarios() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
     XLSX.writeFile(
       workbook,
-      `reporte_usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`
+      `reporte_usuarios_${getColombiaDateISO()}.xlsx`
     );
     setExportMenuOpen(false);
   };

@@ -6,13 +6,23 @@ export const ventasService = {
     if (params.periodo) query.append("periodo", params.periodo);
     if (params.estado) query.append("estado", params.estado);
     if (params.search) query.append("search", params.search);
+    if (params.fechaInicio) query.append("fechaInicio", params.fechaInicio);
+    if (params.fechaFin) query.append("fechaFin", params.fechaFin);
     const qs = query.toString();
     return await apiClient.get(`/ventas${qs ? `?${qs}` : ""}`);
   },
 
-  getStats: async (periodo) => {
-    const qs = periodo ? `?periodo=${encodeURIComponent(periodo)}` : "";
-    return await apiClient.get(`/ventas/stats${qs}`);
+  getStats: async (paramsOrPeriodo) => {
+    const params = typeof paramsOrPeriodo === "string"
+      ? { periodo: paramsOrPeriodo }
+      : (paramsOrPeriodo || {});
+    const query = new URLSearchParams();
+    if (params.periodo) query.append("periodo", params.periodo);
+    if (params.estado) query.append("estado", params.estado);
+    if (params.fechaInicio) query.append("fechaInicio", params.fechaInicio);
+    if (params.fechaFin) query.append("fechaFin", params.fechaFin);
+    const qs = query.toString();
+    return await apiClient.get(`/ventas/stats${qs ? `?${qs}` : ""}`);
   },
 
   getVentaById: async (id) => {

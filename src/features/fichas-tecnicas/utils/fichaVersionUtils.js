@@ -194,28 +194,7 @@ export function normalizeFichaWithVersions(ficha, fallbackTipo = null, fallbackE
 
   const sanitizeVersionList = (list) => {
     if (!Array.isArray(list)) return [];
-    return list
-      .filter(
-        (v) =>
-          v &&
-          v.fechaCreacion !== "2026-10-31T17:22:13.254Z" &&
-          v.fechaInicio !== "2026-10-31T17:22:13.254Z"
-      )
-      .map((v) => {
-        if (
-          v.version === 4 &&
-          v.fechaCreacion === "2026-10-31T16:05:53.686Z" &&
-          v.datosEntidad?.precio === 19000
-        ) {
-          return {
-            ...v,
-            fechaFinalizacion: "2026-10-31T17:20:58.853Z",
-            fechaFin: "2026-10-31T17:20:58.853Z",
-            datosEntidad: { ...v.datosEntidad, precio: 18000 }
-          };
-        }
-        return v;
-      });
+    return list.filter(Boolean);
   };
 
   // Seleccionar la fuente más actualizada de versiones (BD nativa, metadatos en observaciones o caché local)
@@ -274,20 +253,7 @@ export function normalizeFichaWithVersions(ficha, fallbackTipo = null, fallbackE
   }
 
   // Asegurar que las versiones anteriores estén ordenadas de la más reciente a la más antigua
-  // y filtrar cualquier versión accidental generada por la prueba anterior (2026-10-31T17:22:13.254Z)
-  const sanitizedVersiones = (bestMeta.versionesAnteriores || [])
-    .filter((v) => v && v.fechaCreacion !== "2026-10-31T17:22:13.254Z" && v.fechaInicio !== "2026-10-31T17:22:13.254Z")
-    .map((v) => {
-      if (v.version === 4 && v.fechaCreacion === "2026-10-31T16:05:53.686Z" && v.datosEntidad?.precio === 19000) {
-        return {
-          ...v,
-          fechaFinalizacion: "2026-10-31T17:20:58.853Z",
-          fechaFin: "2026-10-31T17:20:58.853Z",
-          datosEntidad: { ...v.datosEntidad, precio: 18000 }
-        };
-      }
-      return v;
-    });
+  const sanitizedVersiones = (bestMeta.versionesAnteriores || []).filter(Boolean);
 
   const sortedVersiones = [...sanitizedVersiones].sort(
     (a, b) => Number(b.version || 0) - Number(a.version || 0)

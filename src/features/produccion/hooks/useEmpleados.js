@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { empleadosService } from "../servicios/empleadosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch } from "@/shared/utils/searchUtils";
+import { getColombiaDateISO, extractDateOnlyISO, formatDateLong } from "@/shared/utils/dateUtils";
 
 const cleanMojibake = (str) => {
   if (!str || typeof str !== "string") return str;
@@ -23,22 +24,12 @@ const cleanMojibake = (str) => {
 const normalizeDate = (raw) => {
   if (!raw) return "";
   const s = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (dmy) {
     const [, d, m, y] = dmy;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  try {
-    const dt = new Date(s);
-    if (!isNaN(dt.getTime())) {
-      const y = dt.getFullYear();
-      const m = String(dt.getMonth() + 1).padStart(2, "0");
-      const d = String(dt.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
-  } catch (_) {}
-  return "";
+  return extractDateOnlyISO(s) || "";
 };
 
 const sanitizeEmpleado = (emp) => {
@@ -53,10 +44,10 @@ const sanitizeEmpleado = (emp) => {
     estadoNormalizado = "Activo";
   }
 
-  // Regla de negocio de contratación: si tiene fechaFin y ya pasó la fecha, su contrato finalizó
+  // Regla de negocio de contratación: si tiene fechaFin y ya pasó la fecha (Colombia), su contrato finalizó
   const fInicio = normalizeDate(emp.fechaInicio || emp.fechaContratacion);
   const fFin = normalizeDate(emp.fechaFin);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getColombiaDateISO();
   const contratoVencido = Boolean(fFin && todayStr > fFin);
 
   if (contratoVencido && estadoNormalizado === "Activo") {
@@ -153,20 +144,8 @@ export function useEmpleados() {
       const formattedSalario = numSalario > 0 ? Math.round(numSalario).toLocaleString("es-CO") : "";
       const currencySalario = numSalario > 0 ? `$ ${formattedSalario}` : "";
 
-      const fechaInicioStr = emp.fechaInicio
-        ? new Date(emp.fechaInicio).toLocaleDateString("es-CO", {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-          })
-        : "";
-      const fechaFinStr = emp.fechaFin
-        ? new Date(emp.fechaFin).toLocaleDateString("es-CO", {
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-          })
-        : "";
+      const fechaInicioStr = emp.fechaInicio ? formatDateLong(emp.fechaInicio, "") : "";
+      const fechaFinStr = emp.fechaFin ? formatDateLong(emp.fechaFin, "") : "";
 
       return matchesSmartSearch(
         [

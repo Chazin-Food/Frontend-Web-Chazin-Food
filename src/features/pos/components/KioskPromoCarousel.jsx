@@ -3,20 +3,16 @@ import { Sparkles, ChevronRight, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { stripEmojis } from "@/shared/utils/foodEmojiUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 import { isDrinkProduct, resolveDrinkImage } from "@/shared/components/ui/FastFoodProductModal";
 
 export default function KioskPromoCarousel({ productos = [], onSelectProduct }) {
   // Find products that have active events or 2x1 promotions or special discounts
   const promoItems = useMemo(() => {
-    const now = new Date();
+    const nowMs = Date.now();
     const withEvents = (productos || []).filter((p) => {
       const evts = Array.isArray(p.eventos) ? p.eventos : [];
-      return evts.some((e) => {
-        if (e.estado !== 1 && e.estado !== "Activo" && e.estado !== undefined) return false;
-        if (e.fechaFin && now > new Date(`${e.fechaFin}T23:59:59`)) return false;
-        if (e.fechaInicio && now < new Date(`${e.fechaInicio}T00:00:00`)) return false;
-        return true;
-      });
+      return evts.some((e) => isEventActiveInColombia(e, nowMs));
     });
 
     if (withEvents.length > 0) return withEvents;

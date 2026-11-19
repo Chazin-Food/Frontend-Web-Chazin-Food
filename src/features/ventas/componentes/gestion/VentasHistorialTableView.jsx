@@ -1,85 +1,14 @@
 import { useState } from "react";
 import { Eye, TrendingUp, Calendar, Clock, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Globe, Store } from "lucide-react";
 import { formatNombreCompleto } from "@/shared/utils/validationUtils";
-import { formatTime12h } from "@/shared/utils/dateUtils";
+import { formatTime12h, formatDateSafe } from "@/shared/utils/dateUtils";
 import FoodIcon from "@/shared/components/ui/FoodIcon";
-
-function formatDateSafe(dateVal, fallback = "2026-06-09") {
-  if (!dateVal) return fallback;
-  try {
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return String(dateVal).slice(0, 10) || fallback;
-    return d.toISOString().split("T")[0];
-  } catch (e) {
-    return String(dateVal).slice(0, 10) || fallback;
-  }
-}
 
 export function VentasHistorialTableView({ ventas, onViewDetail }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Use ventas directly if provided (even if empty, to respect search results)
-  const itemsToDisplay = Array.isArray(ventas) ? ventas : [
-    {
-      id: 1,
-      clienteNombre: "María García",
-      codigoPedido: "PED-001",
-      fecha: "2026-08-06",
-      horario: "12:30 – 12:48",
-      precioOriginal: 36985,
-      total: 33320,
-      descuentoPorcentaje: 10,
-      tipoEntrega: "Domicilio",
-      origen: "ONLINE",
-      tiempoEstimadoEntrega: "35 - 45 min",
-      metodoPago: "Efectivo",
-      estado: "Completada"
-    },
-    {
-      id: 2,
-      clienteNombre: "Ana Martínez",
-      codigoPedido: "PED-002",
-      fecha: "2026-08-06",
-      horario: "13:05 – 13:22",
-      precioOriginal: 45000,
-      total: 40500,
-      descuentoPorcentaje: 10,
-      tipoEntrega: "En Mesa",
-      origen: "PUNTO_FISICO",
-      tiempoEstimadoEntrega: "15 - 20 min",
-      metodoPago: "Tarjeta",
-      estado: "Completada"
-    },
-    {
-      id: 3,
-      clienteNombre: "Alexis Gómez",
-      codigoPedido: "PED-003",
-      fecha: "2026-08-06",
-      horario: "13:45 – 14:02",
-      total: 21000,
-      tipoEntrega: "En Mesa",
-      origen: "PUNTO_FISICO",
-      tiempoEstimadoEntrega: "20 min",
-      metodoPago: "Efectivo",
-      estado: "Completada"
-    },
-    {
-      id: 4,
-      clienteNombre: "Sandra Gómez",
-      codigoPedido: "PED-004",
-      fecha: "2026-08-05",
-      horario: "11:20 – 11:38",
-      precioOriginal: 54000,
-      total: 45900,
-      descuentoPorcentaje: 15,
-      tipoEntrega: "Domicilio",
-      origen: "ONLINE",
-      tiempoEstimadoEntrega: "40 min",
-      metodoPago: "Tarjeta",
-      estado: "Completada"
-    }
-  ];
+  const itemsToDisplay = Array.isArray(ventas) ? ventas : [];
 
   const totalPages = Math.ceil(itemsToDisplay.length / pageSize) || 1;
   const safePage = Math.min(currentPage, totalPages);
@@ -194,7 +123,7 @@ export function VentasHistorialTableView({ ventas, onViewDetail }) {
                   {getMetodoIcon(v.metodoPago, v)}
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
-                  {formatDateSafe(v.fecha || v.fechaVenta, "2026-06-09")} · {formatTime12h(v.horario || v.fecha || v.fechaVenta, "12:30 PM")}
+                  {formatDateSafe(v.fecha || v.fechaVenta, "—")} · {formatTime12h(v.horario || v.fecha || v.fechaVenta, "—")}
                 </span>
               </div>
 
@@ -247,10 +176,10 @@ export function VentasHistorialTableView({ ventas, onViewDetail }) {
               const inicialCliente = clienteNombre.charAt(0).toUpperCase();
               const codigoPedido = v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`;
 
-              const hasDiscount = Boolean(v.descuentoPorcentaje || v.precioOriginal || v.descuento || v.id === 1 || v.id === 2 || v.id === 4);
-              const totalVal = Number(v.total || v.subtotal || 33320);
-              const originalPriceVal = Number(v.precioOriginal || (v.total ? Math.round(v.total * 1.11) : 36985));
-              const discountPctVal = v.descuentoPorcentaje || (v.id === 4 ? 15 : 10);
+              const totalVal = Number(v.total || v.subtotal || 0);
+              const originalPriceVal = Number(v.precioOriginal && v.precioOriginal > totalVal ? v.precioOriginal : totalVal);
+              const discountPctVal = Number(v.descuentoPorcentaje || 0);
+              const hasDiscount = discountPctVal > 0 || originalPriceVal > totalVal;
 
               return (
                 <tr key={v.id} className="hover:bg-slate-50/70 dark:hover:bg-gray-800/50 transition-colors">
@@ -301,12 +230,12 @@ export function VentasHistorialTableView({ ventas, onViewDetail }) {
                     <div className="flex items-center gap-1 font-medium text-gray-800 dark:text-gray-200">
                       <Calendar className="w-3 h-3 text-gray-400" />
                       <span>
-                        {formatDateSafe(v.fecha || v.fechaVenta, "2026-06-09")}
+                        {formatDateSafe(v.fecha || v.fechaVenta, "—")}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5 font-mono">
                       <Clock className="w-3 h-3 text-gray-400" />
-                      <span>{formatTime12h(v.horario || v.fecha || v.fechaVenta, "12:30 PM")}</span>
+                      <span>{formatTime12h(v.horario || v.fecha || v.fechaVenta, "—")}</span>
                     </div>
                   </td>
 

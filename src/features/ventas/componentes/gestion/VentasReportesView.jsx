@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Download, TrendingUp, Calendar, History, BarChart2, CheckCircle2 } from "lucide-react";
+import { getColombiaDateISO, getColombiaDateParts } from "@/shared/utils/dateUtils";
 import {
   ResponsiveContainer,
   BarChart,
@@ -100,30 +101,31 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
     const paymentCounts = { "Efectivo (Punto Físico)": 0, Tarjeta: 0, Transferencia: 0 };
 
     ventas.forEach((v) => {
-      const vDate = v.fecha || v.fechaVenta ? new Date(v.fecha || v.fechaVenta) : null;
-      if (vDate && !isNaN(vDate.getTime())) {
-        // Agrupación por día de la semana
-        const dayName = daysMap[vDate.getDay()];
+      const rawFechaV = v.fecha || v.fechaVenta;
+      const parts = rawFechaV ? getColombiaDateParts(rawFechaV) : null;
+      if (parts) {
+        // Agrupación por día de la semana en Colombia
+        const dayName = daysMap[parts.dayOfWeek];
         if (dailyStats[dayName]) {
           dailyStats[dayName].ventas += Number(v.total || 0);
           dailyStats[dayName].pedidos += 1;
         }
 
-        // Agrupación por mes (Histórico Mensual)
-        const monthIdx = vDate.getMonth();
+        // Agrupación por mes (Histórico Mensual en Colombia)
+        const monthIdx = parts.month - 1;
         if (monthIdx >= 0 && monthIdx < 12) {
           monthlyStats[monthIdx].ventas += Number(v.total || 0);
           monthlyStats[monthIdx].cantidadVentas += 1;
         }
 
-        // Agrupación cronológica por fecha
-        const dateKey = vDate.toISOString().split("T")[0];
+        // Agrupación cronológica por fecha Colombia
+        const dateKey = getColombiaDateISO(rawFechaV);
         if (!fechasMap[dateKey]) {
-          const displayDate = `${vDate.getDate().toString().padStart(2, "0")}/${(vDate.getMonth() + 1).toString().padStart(2, "0")}`;
+          const displayDate = `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}`;
           fechasMap[dateKey] = {
             fechaKey: dateKey,
             fecha: displayDate,
-            fechaCompleta: `${displayDate}/${vDate.getFullYear()}`,
+            fechaCompleta: `${displayDate}/${parts.year}`,
             ventas: 0,
             cantidadVentas: 0
           };
@@ -390,7 +392,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
     XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte Histórico");
     XLSX.writeFile(
       workbook,
-      `Reporte_Ventas_Historico_${new Date().toISOString().split("T")[0]}.xlsx`
+      `Reporte_Ventas_Historico_${getColombiaDateISO()}.xlsx`
     );
   };
 

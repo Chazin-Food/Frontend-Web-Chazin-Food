@@ -29,6 +29,24 @@ import {
 } from "lucide-react";
 import { getAdditionEmoji } from "@/shared/utils/foodEmojiUtils";
 import { parseKitchenOrderNotes } from "@/shared/utils/orderUtils";
+import {
+  getColombiaDateISO,
+  addDaysColombiaISO,
+  getColombiaDateParts,
+  formatTime12h
+} from "@/shared/utils/dateUtils";
+
+function formatComandaDateAndTime(ped) {
+  const raw = ped.fechaVenta || ped.fecha;
+  const parts = raw ? getColombiaDateParts(raw) : null;
+  let timeStr = ped.horaInicio || "";
+  let dateStr = "";
+  if (parts) {
+    timeStr = formatTime12h(raw, timeStr || "12:00 PM");
+    dateStr = `${parts.day}/${parts.month}/${parts.year}`;
+  }
+  return { timeStr, dateStr };
+}
 
 export function HistorialComandasLista({
   pedidos = [],
@@ -58,29 +76,23 @@ export function HistorialComandasLista({
     setCurrentPage(1);
   }, [searchTerm, filtroFecha, filtroCanal, itemsPerPage]);
 
-  // Helper date filter
+  // Helper date filter (horario Colombia America/Bogota)
   const filteredOrders = useMemo(() => {
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    const todayStr = getColombiaDateISO();
+    const yesterdayStr = addDaysColombiaISO(todayStr, -1);
+    const weekStartStr = addDaysColombiaISO(todayStr, -6);
 
     return pedidos.filter((p) => {
       const hasSearch = Boolean(searchTerm && searchTerm.trim());
 
-      const orderDate = p.fechaVenta ? new Date(p.fechaVenta) : (p.fecha ? new Date(p.fecha) : null);
-      const orderDateStr = orderDate && !isNaN(orderDate.getTime()) ? orderDate.toISOString().split("T")[0] : "";
+      const rawDate = p.fechaVenta || p.fecha;
+      const orderDateStr = rawDate ? getColombiaDateISO(rawDate) : "";
 
       // 1. Date filter (anulado si hay búsqueda activa para permitir encontrar registros históricos)
       if (!hasSearch) {
         if (filtroFecha === "hoy" && orderDateStr !== todayStr) return false;
         if (filtroFecha === "ayer" && orderDateStr !== yesterdayStr) return false;
-        if (filtroFecha === "semana" && orderDate && orderDate < weekAgo) return false;
+        if (filtroFecha === "semana" && (!orderDateStr || orderDateStr < weekStartStr)) return false;
 
         // 2. Channel filter
         if (filtroCanal !== "todos") {
@@ -269,17 +281,7 @@ export function HistorialComandasLista({
               const isDomicilio = String(ped.tipoEntrega || ped.mesa || "").toLowerCase().includes("domicilio");
               const isLlevar = String(ped.tipoEntrega || ped.mesa || "").toLowerCase().includes("llevar");
               const badgeLabel = ped.mesa || ped.tipoEntrega || "En Local";
-              const orderDate = ped.fechaVenta ? new Date(ped.fechaVenta) : (ped.fecha ? new Date(ped.fecha) : null);
-              let timeStr = ped.horaInicio || "";
-              let dateStr = "";
-              if (orderDate && !isNaN(orderDate.getTime())) {
-                let h = orderDate.getHours();
-                const m = String(orderDate.getMinutes()).padStart(2, "0");
-                const ampm = h >= 12 ? "PM" : "AM";
-                h = h % 12 || 12;
-                timeStr = `${String(h).padStart(2, "0")}:${m} ${ampm}`;
-                dateStr = `${orderDate.getDate()}/${orderDate.getMonth() + 1}/${orderDate.getFullYear()}`;
-              }
+              const { timeStr, dateStr } = formatComandaDateAndTime(ped);
 
               return (
                 <div key={orderId} className="p-4 space-y-3">
@@ -401,18 +403,8 @@ export function HistorialComandasLista({
                   const isLlevar = String(ped.tipoEntrega || ped.mesa || "").toLowerCase().includes("llevar");
                   const badgeLabel = ped.mesa || ped.tipoEntrega || "En Local";
 
-                  // Date and time display
-                  const orderDate = ped.fechaVenta ? new Date(ped.fechaVenta) : (ped.fecha ? new Date(ped.fecha) : null);
-                  let timeStr = ped.horaInicio || "";
-                  let dateStr = "";
-                  if (orderDate && !isNaN(orderDate.getTime())) {
-                    let h = orderDate.getHours();
-                    const m = String(orderDate.getMinutes()).padStart(2, "0");
-                    const ampm = h >= 12 ? "PM" : "AM";
-                    h = h % 12 || 12;
-                    timeStr = `${String(h).padStart(2, "0")}:${m} ${ampm}`;
-                    dateStr = `${orderDate.getDate()}/${orderDate.getMonth() + 1}/${orderDate.getFullYear()}`;
-                  }
+                  // Date and time display (Colombia)
+                  const { timeStr, dateStr } = formatComandaDateAndTime(ped);
 
                   return (
                     <tr

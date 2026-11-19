@@ -23,6 +23,7 @@ import {
   Info
 } from "lucide-react";
 import { insumosService } from "../../servicios/insumosService";
+import { COLOMBIA_OFFSET, getColombiaDateISO, getColombiaDateParts } from "@/shared/utils/dateUtils";
 
 // Tipos de operaciones disponibles
 const TIPOS_OPERACION = [
@@ -145,9 +146,11 @@ export function CancelarCompraModal({ isOpen, onClose, compra, onConfirm }) {
       }
     }
 
-    const now = new Date();
-    const hoyStr = now.toISOString().split("T")[0];
-    const horaStr = now.toTimeString().slice(0, 5);
+    const nowParts = getColombiaDateParts(new Date());
+    const hoyStr = getColombiaDateISO();
+    const horaStr = nowParts
+      ? `${String(nowParts.hour).padStart(2, "0")}:${String(nowParts.minute).padStart(2, "0")}`
+      : "12:00";
 
     // Si ya tiene datos previos estructurados
     if (prevData && typeof prevData === "object" && !Array.isArray(prevData)) {
@@ -205,9 +208,10 @@ export function CancelarCompraModal({ isOpen, onClose, compra, onConfirm }) {
       if (compra.fechaCancelacion) {
         try {
           const fc = new Date(compra.fechaCancelacion);
-          if (!isNaN(fc.getTime())) {
-            fechaInit = fc.toISOString().split("T")[0];
-            horaInit = fc.toTimeString().slice(0, 5);
+          const fcParts = getColombiaDateParts(fc);
+          if (!isNaN(fc.getTime()) && fcParts) {
+            fechaInit = getColombiaDateISO(fc);
+            horaInit = `${String(fcParts.hour).padStart(2, "0")}:${String(fcParts.minute).padStart(2, "0")}`;
           }
         } catch (_) {}
       }
@@ -337,11 +341,11 @@ export function CancelarCompraModal({ isOpen, onClose, compra, onConfirm }) {
         actualizadoEn: new Date().toISOString()
       };
 
-      // Combinar fecha y hora para la columna fechaCancelacion
+      // Combinar fecha y hora en Colombia (-05:00) para fechaCancelacion
       let fechaIso = new Date().toISOString();
       if (fechaDevolucion) {
         const horaPart = horaDevolucion || "12:00";
-        const combined = new Date(`${fechaDevolucion}T${horaPart}:00`);
+        const combined = new Date(`${fechaDevolucion}T${horaPart}:00${COLOMBIA_OFFSET}`);
         if (!isNaN(combined.getTime())) {
           fechaIso = combined.toISOString();
         }

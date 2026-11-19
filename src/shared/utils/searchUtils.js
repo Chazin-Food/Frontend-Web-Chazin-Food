@@ -4,6 +4,13 @@
  * e indexación profunda de campos anidados (productos, clientes, responsables,
  * métodos de pago, totales, fechas, horas y notas).
  */
+import {
+  getColombiaDateISO,
+  getColombiaDateParts,
+  getColombiaTimestamp,
+  extractDateOnlyISO,
+  parseDateOnlySafe
+} from "@/shared/utils/dateUtils";
 
 /**
  * Normaliza un texto removiendo diacríticos/acentos, espacios extra y en minúsculas.
@@ -793,26 +800,22 @@ export function buildVentaSearchCorpus(v = {}) {
   const rawFecha = v.fecha || v.fechaVenta;
   if (rawFecha) {
     try {
-      const d = new Date(rawFecha);
-      if (!isNaN(d.getTime())) {
-        const isoDate = d.toISOString().split("T")[0]; // "2026-08-06"
+      const d = parseDateOnlySafe(rawFecha);
+      const colParts = d ? getColombiaDateParts(d) : null;
+      if (colParts) {
+        const isoDate = getColombiaDateISO(d);
         parts.push(isoDate);
 
-        const year = d.getFullYear();
-        const monthNum = d.getMonth();
-        const dayNum = d.getDate();
-        const dayOfWeek = d.getDay();
+        const { year, month, day: dayNum, dayOfWeek, hour: hours24, minute: minutes } = colParts;
+        const monthIdx = month - 1;
 
         parts.push(String(year));
-        parts.push(MESES_ES[monthNum] || "");
+        parts.push(MESES_ES[monthIdx] || "");
         parts.push(DIAS_ES[dayOfWeek] || "");
-        parts.push(`${dayNum}/${monthNum + 1}/${year}`);
-        parts.push(`${String(dayNum).padStart(2, "0")}/${String(monthNum + 1).padStart(2, "0")}/${year}`);
-        parts.push(`${dayNum} de ${MESES_ES[monthNum]}`);
+        parts.push(`${dayNum}/${month}/${year}`);
+        parts.push(`${String(dayNum).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`);
+        parts.push(`${dayNum} de ${MESES_ES[monthIdx]}`);
 
-        // Hora
-        const hours24 = d.getHours();
-        const minutes = d.getMinutes();
         const minStr = String(minutes).padStart(2, "0");
         const hours12 = hours24 % 12 || 12;
         const isPm = hours24 >= 12;
@@ -997,32 +1000,29 @@ export function matchVentaMultiCriteria(venta, criteria = {}) {
     const rawF = venta.fecha || venta.fechaVenta;
     if (!rawF) return false;
     try {
-      const d = new Date(rawF);
-      const vDateStr = isNaN(d.getTime()) ? String(rawF).slice(0, 10) : d.toISOString().split("T")[0];
+      const vDateStr = extractDateOnlyISO(rawF);
       if (vDateStr !== filterFecha) return false;
     } catch {
       return false;
     }
   }
 
-  // 4. Filtro por Rango de Fechas (Desde - Hasta)
+  // 4. Filtro por Rango de Fechas (Desde - Hasta) en horario Colombia (-05:00)
   if (filterFechaInicio || filterFechaFin) {
     const rawF = venta.fecha || venta.fechaVenta;
     if (!rawF) return false;
     try {
-      const d = new Date(rawF);
-      if (isNaN(d.getTime())) return false;
+      const d = parseDateOnlySafe(rawF);
+      if (!d || isNaN(d.getTime())) return false;
       const vTime = d.getTime();
 
       if (filterFechaInicio) {
-        const startD = new Date(filterFechaInicio);
-        startD.setHours(0, 0, 0, 0);
-        if (vTime < startD.getTime()) return false;
+        const startMs = getColombiaTimestamp(filterFechaInicio, false);
+        if (!isNaN(startMs) && vTime < startMs) return false;
       }
       if (filterFechaFin) {
-        const endD = new Date(filterFechaFin);
-        endD.setHours(23, 59, 59, 999);
-        if (vTime > endD.getTime()) return false;
+        const endMs = getColombiaTimestamp(filterFechaFin, true);
+        if (!isNaN(endMs) && vTime > endMs) return false;
       }
     } catch {
       return false;
@@ -1195,17 +1195,16 @@ export function extractKitchenSearchTokens(p = {}) {
   if (normEstado.includes('cola') || normEstado.includes('pend')) tokens.push('pendiente', 'en cola', 'espera');
   if (normEstado.includes('entreg')) tokens.push('entregado', 'completado', 'completada');
 
-  // 5. Fechas y Horas exactas
-  const orderDate = p.fechaVenta ? new Date(p.fechaVenta) : (p.fecha ? new Date(p.fecha) : null);
-  if (orderDate && !isNaN(orderDate.getTime())) {
-    const isoDate = orderDate.toISOString().split('T')[0];
+  // 5. Fechas y Horas exactas (en America/Bogota)
+  const orderDate = parseDateOnlySafe(p.fechaVenta || p.fecha);
+  const colParts = orderDate ? getColombiaDateParts(orderDate) : null;
+  if (orderDate && colParts) {
+    const isoDate = getColombiaDateISO(orderDate);
     tokens.push(isoDate);
 
-    const day = orderDate.getDate();
+    const { day, month, year, hour: h, minute: mins } = colParts;
     const dayPadded = String(day).padStart(2, '0');
-    const month = orderDate.getMonth() + 1;
     const monthPadded = String(month).padStart(2, '0');
-    const year = orderDate.getFullYear();
 
     tokens.push(day + '/' + month + '/' + year);
     tokens.push(dayPadded + '/' + monthPadded + '/' + year);
@@ -1216,10 +1215,9 @@ export function extractKitchenSearchTokens(p = {}) {
       'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
       'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
     ];
-    tokens.push(meses[orderDate.getMonth()]);
+    tokens.push(meses[month - 1]);
 
-    let h = orderDate.getHours();
-    const m = String(orderDate.getMinutes()).padStart(2, '0');
+    const m = String(mins).padStart(2, '0');
     const ampm = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 || 12;
     const h12Padded = String(h12).padStart(2, '0');

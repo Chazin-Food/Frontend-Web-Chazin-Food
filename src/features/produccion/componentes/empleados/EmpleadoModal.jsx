@@ -29,26 +29,17 @@ import {
   sanitizeDocumento,
   sanitizeTelefono
 } from "@/shared/utils/validationUtils";
+import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
 
 const normalizeDate = (raw) => {
   if (!raw) return "";
   const s = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const dmy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (dmy) {
     const [, d, m, y] = dmy;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  try {
-    const dt = new Date(s);
-    if (!isNaN(dt.getTime())) {
-      const y = dt.getFullYear();
-      const m = String(dt.getMonth() + 1).padStart(2, "0");
-      const d = String(dt.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    }
-  } catch (_) {}
-  return "";
+  return extractDateOnlyISO(s) || "";
 };
 
 // Helper robusto para extraer y limpiar la dirección
@@ -95,7 +86,7 @@ export function EmpleadoModal({
     direccion: "",
     rol: "Cocinero",
     tipoContrato: "Término Fijo",
-    fechaInicio: new Date().toISOString().split("T")[0],
+    fechaInicio: getColombiaDateISO(),
     fechaFin: "",
     turno: "Completo",
     salario: "",
@@ -114,7 +105,7 @@ export function EmpleadoModal({
       const isBaseOrAvailable = ["Administrador", "Cocinero", "Vendedor", ...availableRoles].includes(currentRol);
 
       const numSalario = Number(empleado.salario) || 0;
-      const fInicio = normalizeDate(empleado.fechaInicio || empleado.fechaContratacion) || new Date().toISOString().split("T")[0];
+      const fInicio = normalizeDate(empleado.fechaInicio || empleado.fechaContratacion) || getColombiaDateISO();
       const fFin = normalizeDate(empleado.fechaFin);
 
       let estadoValue = "Activo";
@@ -147,7 +138,7 @@ export function EmpleadoModal({
     } else {
       setForm({
         ...initialForm,
-        fechaInicio: new Date().toISOString().split("T")[0]
+        fechaInicio: getColombiaDateISO()
       });
       setIsCustomRol(false);
     }

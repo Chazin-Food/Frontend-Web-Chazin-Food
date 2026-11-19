@@ -1,4 +1,5 @@
 import { TrendingUp, Users, ShoppingBag, Layers } from "lucide-react";
+import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 
 export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "personalizado" }) {
   const totalVentasSum = stats ? stats.totalVentas : ventas.reduce((acc, v) => acc + Number(v.total || 0), 0);
@@ -14,7 +15,7 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
 
   const frecuenciaVal = stats ? stats.frecuenciaCompra : (pedidosCount > 0 ? (pedidosCount / (new Set(ventas.map(v => v.idCliente || v.clienteNombre || v.cliente).filter(Boolean)).size || 1)).toFixed(1) : "0.0");
 
-  const uniqueDays = stats ? (stats.uniqueDays || 1) : (new Set(ventas.map(v => new Date(v.fechaRegistro || v.fechaVenta || v.createdAt || Date.now()).toISOString().split('T')[0])).size || 1);
+  const uniqueDays = stats ? (stats.uniqueDays || 1) : (new Set(ventas.map(v => getColombiaDateISO(v.fechaRegistro || v.fechaVenta || v.createdAt || Date.now()))).size || 1);
   const frecuenciaDiariaVal = stats ? stats.frecuenciaDiaria : (pedidosCount > 0 ? (pedidosCount / uniqueDays).toFixed(1) : "0.0");
 
   const tasaDescuentoVal = stats ? stats.tasaDescuento : ((totalVentasSum + descOtorgadosSum) > 0

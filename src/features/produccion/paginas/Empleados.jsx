@@ -18,6 +18,7 @@ import { EmpleadoModal } from "../componentes/empleados/EmpleadoModal";
 import { VerEmpleadoModal } from "../componentes/empleados/VerEmpleadoModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { useConfirm } from "@/shared/context/ConfirmContext";
+import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
 
 export function Empleados() {
   const {
@@ -124,8 +125,8 @@ export function Empleados() {
       e.rol || e.cargo || "",
       e.turno || "",
       e.tipoContrato || "",
-      e.fechaInicio ? new Date(e.fechaInicio).toISOString().split("T")[0] : "",
-      e.fechaFin ? new Date(e.fechaFin).toISOString().split("T")[0] : "Indefinido",
+      e.fechaInicio ? (extractDateOnlyISO(e.fechaInicio) || "") : "",
+      e.fechaFin ? (extractDateOnlyISO(e.fechaFin) || "Indefinido") : "Indefinido",
       e.telefono || "",
       e.correo || "",
       e.direccion || "",
@@ -156,7 +157,7 @@ export function Empleados() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Empleados");
     XLSX.writeFile(
       workbook,
-      `empleados_chazinfood_${new Date().toISOString().slice(0, 10)}.xlsx`
+      `empleados_chazinfood_${getColombiaDateISO()}.xlsx`
     );
   };
 

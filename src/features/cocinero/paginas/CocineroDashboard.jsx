@@ -54,7 +54,8 @@ import {
   formatColombiaTime,
   formatColombiaDate,
   resolveOrderTimings,
-  recordLocalOrderTransition
+  recordLocalOrderTransition,
+  evaluateProductionSemaphore
 } from "@/features/produccion/utils/tiempoProduccionUtils";
 
 /**
@@ -312,21 +313,15 @@ function getOrderTimeDisplay(order, isListo = false) {
 
   const targetMin = timings.tiempoMinutos || 12;
 
-  // Orders created in the last 60 minutes
+  // Orders created in the last 60 minutes (semáforo unificado con tiempoProduccionUtils)
   if (minutes < 1) {
     return { text: "Hace un momento", exactTime: formattedTime, targetPrep: timings.tiempoPreparacion, level: "fresh", isCompleted: false };
   }
   if (minutes === 1) {
     return { text: "Hace 1 min", exactTime: formattedTime, targetPrep: timings.tiempoPreparacion, level: "fresh", isCompleted: false };
   }
-  if (minutes <= targetMin) {
-    return { text: `Hace ${minutes} min`, exactTime: formattedTime, targetPrep: timings.tiempoPreparacion, level: "normal", isCompleted: false };
-  }
-  if (minutes <= targetMin + 8) {
-    return { text: `Hace ${minutes} min`, exactTime: formattedTime, targetPrep: timings.tiempoPreparacion, level: "warning", isCompleted: false };
-  }
-
-  return { text: `Hace ${minutes} min`, exactTime: formattedTime, targetPrep: timings.tiempoPreparacion, level: "critical", isCompleted: false };
+  const semLevel = evaluateProductionSemaphore(minutes, targetMin);
+  return { text: `Hace ${minutes} min`, exactTime: formattedTime, targetPrep: timings.tiempoPreparacion, level: semLevel, isCompleted: false };
 }
 
 export function CocineroDashboard() {
@@ -382,6 +377,7 @@ export function CocineroDashboard() {
 
   // Timers & Fading States
   const readyTimestamps = useRef({});
+  const pausedAtRef = useRef({});
   const [pausedOrderIds, setPausedOrderIds] = useState({});
   const [fadingOrders, setFadingOrders] = useState({});
   const [, setCountdownTick] = useState(0); // Trigger re-render every second
@@ -552,11 +548,21 @@ export function CocineroDashboard() {
     success("Comandas archivadas", "Todas las comandas listas fueron enviadas al historial");
   };
 
-  // Alternar pausa en el temporizador de auto-archivo de una comanda lista
+  // Alternar pausa en el temporizador de auto-archivo de una comanda lista (congela barra y segundos)
   const togglePauseCountdown = (orderId) => {
+    const isCurrentlyPaused = Boolean(pausedOrderIds[orderId]);
+    if (!isCurrentlyPaused) {
+      pausedAtRef.current[orderId] = Date.now();
+    } else {
+      const pausedAt = pausedAtRef.current[orderId];
+      if (pausedAt && readyTimestamps.current[orderId]) {
+        readyTimestamps.current[orderId] += Date.now() - pausedAt;
+      }
+      delete pausedAtRef.current[orderId];
+    }
     setPausedOrderIds((prev) => ({
       ...prev,
-      [orderId]: !prev[orderId]
+      [orderId]: !isCurrentlyPaused
     }));
   };
 
@@ -1239,12 +1245,15 @@ export function CocineroDashboard() {
               // Fading transition state
               const isFading = Boolean(fadingOrders[orderId]);
 
-              // Countdown calculation for Listo state
-              const readyTs = readyTimestamps.current[orderId] || Date.now();
-              const elapsedSec = Math.floor((currentTime.getTime() - readyTs) / 1000);
+              // Countdown calculation for Listo state (respeta pausa exacta)
+              const isPaused = Boolean(pausedOrderIds[orderId]);
+              const readyTs = readyTimestamps.current[orderId] || currentTime.getTime();
+              const effectiveNow = isPaused && pausedAtRef.current[orderId]
+                ? pausedAtRef.current[orderId]
+                : currentTime.getTime();
+              const elapsedSec = Math.max(0, Math.floor((effectiveNow - readyTs) / 1000));
               const remainingSec = Math.max(0, autoFadeSegundos - elapsedSec);
               const progressPercent = autoFadeSegundos > 0 ? Math.min(100, (elapsedSec / autoFadeSegundos) * 100) : 0;
-              const isPaused = Boolean(pausedOrderIds[orderId]);
 
               return (
                 <div

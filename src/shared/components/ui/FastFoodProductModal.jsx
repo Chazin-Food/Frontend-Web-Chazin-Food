@@ -40,6 +40,7 @@ import { apiClient } from "@/shared/api/apiClient";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { isEventActiveInColombia, evaluateEventVigencia } from "@/shared/utils/dateUtils";
 import postobonUvaImg from "@/shared/assets/drinks/postobon_uva.jpg";
 import postobonNaranjaImg from "@/shared/assets/drinks/postobon_naranja.jpg";
 
@@ -1664,24 +1665,21 @@ export function FastFoodProductModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Helper de Evento Activo para el Producto (Fast-food LTO / Festival drops)
+  const [eventTick, setEventTick] = useState(() => Date.now());
+  const hasEventosEnModal = Boolean(isOpen && Array.isArray(producto?.eventos) && producto.eventos.length > 0);
+  useEffect(() => {
+    if (!hasEventosEnModal) return undefined;
+    setEventTick(Date.now());
+    const id = setInterval(() => setEventTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasEventosEnModal]);
+
+  // Helper de Evento Activo para el Producto (horario Colombia -05:00)
   const eventInfo = (() => {
     if (!producto) return null;
     const eventos = Array.isArray(producto.eventos) ? producto.eventos : [];
     if (eventos.length === 0) return null;
-    const now = new Date();
-    const validEvents = eventos.filter((e) => {
-      if (e.estado !== 1 && e.estado !== "Activo" && e.estado !== undefined) return false;
-      if (e.fechaFin) {
-        const finDate = new Date(`${e.fechaFin}T23:59:59`);
-        if (now > finDate) return false;
-      }
-      if (e.fechaInicio) {
-        const inicioDate = new Date(`${e.fechaInicio}T00:00:00`);
-        if (now < inicioDate) return false;
-      }
-      return true;
-    });
+    const validEvents = eventos.filter((e) => isEventActiveInColombia(e, eventTick));
     if (validEvents.length === 0) return null;
     const evt = validEvents[0];
 
@@ -1697,45 +1695,12 @@ export function FastFoodProductModal({
     }
 
     const savings = Math.max(0, rawPrice - final);
-    const discountPercent = rawPrice > 0 && savings > 0 
-      ? Math.round((savings / rawPrice) * 100) 
+    const discountPercent = rawPrice > 0 && savings > 0
+      ? Math.round((savings / rawPrice) * 100)
       : (evt.descuento ? Math.round(Number(evt.descuento)) : 0);
 
-    let formattedDate = "";
-    let diasRestantes = null;
-    let horasRestantes = null;
-    let minutosRestantes = null;
-    let segundosRestantes = null;
-    let urgente = false;
-    let countdownLabel = "";
-
-    if (evt.fechaFin) {
-      try {
-        const parts = String(evt.fechaFin).split('T')[0].split('-');
-        if (parts.length === 3) {
-          const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-          const monthName = months[parseInt(parts[1], 10) - 1] || parts[1];
-          formattedDate = `${parseInt(parts[2], 10)} de ${monthName}`;
-        }
-        const finDate = new Date(`${evt.fechaFin}T23:59:59`);
-        const ms = finDate.getTime() - now.getTime();
-        diasRestantes = Math.ceil(ms / (1000 * 60 * 60 * 24));
-        horasRestantes = Math.max(0, Math.floor(ms / (1000 * 60 * 60)));
-        minutosRestantes = Math.max(0, Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60)));
-        segundosRestantes = Math.max(0, Math.floor((ms % (1000 * 60)) / 1000));
-        urgente = diasRestantes <= 3 && diasRestantes >= 0;
-
-        countdownLabel = diasRestantes > 1
-          ? `Quedan ${diasRestantes} días`
-          : horasRestantes > 0
-          ? `¡Último día! (${horasRestantes}h ${minutosRestantes}m)`
-          : minutosRestantes > 0
-          ? `¡Termina hoy! (${minutosRestantes}m ${segundosRestantes}s)`
-          : ms > 0
-          ? `¡Últimos segundos! (${segundosRestantes}s)`
-          : `Edición Especial`;
-      } catch (e) {}
-    }
+    const vig = evaluateEventVigencia(evt, eventTick);
+    const formattedDate = vig?.formattedDate || "";
 
     return {
       ...evt,
@@ -1748,12 +1713,19 @@ export function FastFoodProductModal({
       discountPercent,
       formattedDate,
       tipo: evt.tipoEvento || "EDICION_LIMITADA",
-      vigencia: {
-        diasRestantes,
-        horasRestantes,
-        urgente,
-        label: (diasRestantes >= 0 ? countdownLabel : null) || (formattedDate && diasRestantes >= 0 ? `Hasta el ${formattedDate}` : "Edición Especial")
-      }
+      vigencia: evt.fechaFin
+        ? {
+            diasRestantes: vig?.diasRestantes ?? null,
+            horasRestantes: vig?.horasRestantes ?? null,
+            urgente: Boolean(vig?.urgente),
+            label: vig?.label || (formattedDate ? `Hasta el ${formattedDate}` : "Edición Especial")
+          }
+        : {
+            diasRestantes: null,
+            horasRestantes: null,
+            urgente: false,
+            label: "Vigencia Permanente"
+          }
     };
   })();
 

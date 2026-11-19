@@ -22,6 +22,7 @@ import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fich
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { stripEmojis } from "@/shared/utils/foodEmojiUtils";
+import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 export default function PosVendedor() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -109,32 +110,22 @@ export default function PosVendedor() {
 
   // Count active event products
   const eventProductsCount = useMemo(() => {
-    const now = new Date();
+    const nowMs = Date.now();
     return (productos || []).filter((p) => {
       const evts = Array.isArray(p.eventos) ? p.eventos : [];
-      return evts.some((e) => {
-        if (e.estado !== 1 && e.estado !== "Activo" && e.estado !== undefined) return false;
-        if (e.fechaFin && now > new Date(`${e.fechaFin}T23:59:59`)) return false;
-        if (e.fechaInicio && now < new Date(`${e.fechaInicio}T00:00:00`)) return false;
-        return true;
-      });
+      return evts.some((e) => isEventActiveInColombia(e, nowMs));
     }).length;
   }, [productos]);
 
   // Filter products by selected category
   const visibleProducts = useMemo(() => {
+    const nowMs = Date.now();
     const list = (productos || []).filter((p) => {
       if (categoriaActiva === null) return true;
 
       if (categoriaActiva === "eventos") {
         const evts = Array.isArray(p.eventos) ? p.eventos : [];
-        const now = new Date();
-        return evts.some((e) => {
-          if (e.estado !== 1 && e.estado !== "Activo" && e.estado !== undefined) return false;
-          if (e.fechaFin && now > new Date(`${e.fechaFin}T23:59:59`)) return false;
-          if (e.fechaInicio && now < new Date(`${e.fechaInicio}T00:00:00`)) return false;
-          return true;
-        });
+        return evts.some((e) => isEventActiveInColombia(e, nowMs));
       }
 
       const selectedCatObj = (categorias || []).find(
@@ -158,21 +149,12 @@ export default function PosVendedor() {
       return matchCatId || matchCatName;
     });
 
-    const now = new Date();
     // Priorizar productos con eventos de primero
     return [...list].sort((a, b) => {
       const aEvts = Array.isArray(a.eventos) ? a.eventos : [];
       const bEvts = Array.isArray(b.eventos) ? b.eventos : [];
-      const aHasEvent = aEvts.some(
-        (e) =>
-          (e.estado === 1 || e.estado === "Activo" || e.estado === undefined) &&
-          (!e.fechaFin || now <= new Date(`${e.fechaFin}T23:59:59`))
-      );
-      const bHasEvent = bEvts.some(
-        (e) =>
-          (e.estado === 1 || e.estado === "Activo" || e.estado === undefined) &&
-          (!e.fechaFin || now <= new Date(`${e.fechaFin}T23:59:59`))
-      );
+      const aHasEvent = aEvts.some((e) => isEventActiveInColombia(e, nowMs));
+      const bHasEvent = bEvts.some((e) => isEventActiveInColombia(e, nowMs));
       if (aHasEvent && !bHasEvent) return -1;
       if (!aHasEvent && bHasEvent) return 1;
       return 0;

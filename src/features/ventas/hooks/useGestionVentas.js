@@ -27,9 +27,17 @@ export function useGestionVentas() {
   const fetchVentas = useCallback(async () => {
     try {
       setLoading(true);
+      const validInicio = /^\d{4}-\d{2}-\d{2}$/.test(filterFechaInicio) ? filterFechaInicio : undefined;
+      const validFin = /^\d{4}-\d{2}-\d{2}$/.test(filterFechaFin) ? filterFechaFin : undefined;
+      const useCustomDates = selectedPeriod === "personalizado" && (validInicio || validFin);
+      const queryParams = {
+        periodo: selectedPeriod,
+        ...(useCustomDates && validInicio ? { fechaInicio: validInicio } : {}),
+        ...(useCustomDates && validFin ? { fechaFin: validFin } : {})
+      };
       const [data, statsData] = await Promise.all([
-        ventasService.getVentas({ periodo: selectedPeriod }),
-        ventasService.getStats(selectedPeriod).catch(() => null)
+        ventasService.getVentas(queryParams),
+        ventasService.getStats(queryParams).catch(() => null)
       ]);
       setVentas(data || []);
       setStats(statsData);
@@ -39,7 +47,7 @@ export function useGestionVentas() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod]);
+  }, [selectedPeriod, filterFechaInicio, filterFechaFin]);
 
   useEffect(() => {
     fetchVentas();
@@ -210,7 +218,6 @@ export function useGestionVentas() {
           `El tiempo de entrega/despacho se fijó manualmente en ${tiempoEstimado}.`
         );
       }
-      await fetchVentas();
       await fetchVentas();
       return true;
     } catch (err) {

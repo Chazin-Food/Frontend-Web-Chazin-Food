@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Eye, FileText, Calendar, XCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ShoppingCart } from "lucide-react";
+import { COLOMBIA_TZ, parseDateOnlySafe, formatTime12h } from "@/shared/utils/dateUtils";
 
 const estadoConfig = {
   RECIBIDA:         { cls: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300", label: "Confirmada" },
@@ -90,7 +91,7 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
                       <Calendar className="w-3.5 h-3.5" />
-                      {fecha ? new Date(fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "Sin fecha"}
+                      {fecha ? (parseDateOnlySafe(fecha)?.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, day: "2-digit", month: "short", year: "numeric" }) || "Sin fecha") : "Sin fecha"}
                     </span>
                     {numItems > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
@@ -202,11 +203,12 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
                         {fecha
-                          ? new Date(fecha).toLocaleDateString("es-CO", {
+                          ? (parseDateOnlySafe(fecha)?.toLocaleDateString("es-CO", {
+                              timeZone: COLOMBIA_TZ,
                               day: "2-digit",
                               month: "short",
                               year: "numeric",
-                            })
+                            }) || "Sin fecha")
                           : "Sin fecha"}
                       </div>
                     </td>
@@ -230,7 +232,7 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
                         </span>
                         {c.fechaCancelacion && (
                           <span className="text-[9px] text-gray-400 font-mono" title="Fecha y hora de devolución / cancelación">
-                            {new Date(c.fechaCancelacion).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" })} {new Date(c.fechaCancelacion).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                            {new Date(c.fechaCancelacion).toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, day: "2-digit", month: "2-digit" })} {formatTime12h(c.fechaCancelacion, "")}
                           </span>
                         )}
                       </div>

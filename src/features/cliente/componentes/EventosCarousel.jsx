@@ -28,7 +28,7 @@ import {
 } from "@/shared/components/ui/FoodIcon";
 import { stripEmojis, formatTipoEvento, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
-import { calculateCountdown } from "@/shared/utils/dateUtils";
+import { calculateCountdown, isEventActiveInColombia } from "@/shared/utils/dateUtils";
 
 // Paleta de color unificada premium gastronómica para la sección de eventos (Color Chazin Red/Amber)
 const UNIFIED_EVENT_THEME = {
@@ -254,15 +254,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
 
   // Fusionar eventos activos de base de datos con showcases culinarios
   const combinedEventos = useMemo(() => {
-    const rawActive = eventos.filter((e) => {
-      const isActivo = e.estado === "Activo" || e.estado === 1 || e.estado === true;
-      if (!isActivo) return false;
-      if (e.fechaFin) {
-        const today = new Date().toISOString().split("T")[0];
-        if (today > e.fechaFin) return false;
-      }
-      return true;
-    });
+    const rawActive = eventos.filter((e) => isEventActiveInColombia(e, currentTick));
 
     const getEventRating = (e, prod) => {
       // 1. Verificar calificación del producto principal del evento en ratingsMap
@@ -626,22 +618,8 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                       </span>
 
                       {/* Temporizador Reloj Integrado Directamente dentro de la Tarjeta */}
-                      {(() => {
-                        const evtTimeLeft = (() => {
-                          if (evt.fechaFin) {
-                            return calculateCountdown(evt.fechaFin, currentTick);
-                          }
-                          const fallbackBase = Math.floor(currentTick / 1000);
-                          const diffSec = Math.max(0, (48 * 3600) - (fallbackBase % (48 * 3600)));
-                          return {
-                            dias: Math.floor(diffSec / 86400),
-                            horas: Math.floor((diffSec % 86400) / 3600),
-                            minutos: Math.floor((diffSec % 3600) / 60),
-                            segundos: diffSec % 60,
-                            expirado: false
-                          };
-                        })();
-
+                      {evt.fechaFin ? (() => {
+                        const evtTimeLeft = calculateCountdown(evt.fechaFin, currentTick);
                         return (
                           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black backdrop-blur-md border shadow-md shrink-0 ${
                             evtTimeLeft.expirado
@@ -659,7 +637,12 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                             </span>
                           </div>
                         );
-                      })()}
+                      })() : (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black backdrop-blur-md border shadow-md shrink-0 bg-emerald-950/70 text-emerald-200 border-emerald-400/40">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Vigencia Permanente</span>
+                        </div>
+                      )}
                     </div>
 
                     {savePct > 0 && (

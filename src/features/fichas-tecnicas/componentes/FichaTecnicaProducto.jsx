@@ -10,6 +10,7 @@ import { matchesSmartSearch } from "@/shared/utils/searchUtils";
 import { insumosService } from "@/features/compras/servicios/insumosService";
 import { fichasTecnicasService } from "../servicios/fichasTecnicasService";
 import { FichaVersionesHistorial } from "./FichaVersionesHistorial";
+import { diffCalendarDaysColombia } from "@/shared/utils/dateUtils";
 import {
   normalizeFichaWithVersions,
   formatFechaHoraFicha,
@@ -137,13 +138,8 @@ function FieldError({ msg }) {
 export const checkInsumoInvalido = (insumoItem) => {
   if (!insumoItem) return { vencido: false, agotado: false };
   const rawVenc = insumoItem.fechaVencimiento || insumoItem.insumo?.fechaVencimiento;
-  let vencido = false;
-  if (rawVenc) {
-    const fVenc = new Date(String(rawVenc).includes("T") ? rawVenc : `${rawVenc}T00:00:00`);
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    vencido = !isNaN(fVenc.getTime()) && fVenc < hoy;
-  }
+  const diasParaVencer = rawVenc ? diffCalendarDaysColombia(rawVenc) : null;
+  const vencido = diasParaVencer !== null && diasParaVencer < 0;
   const stockVal = Number(insumoItem.stock ?? insumoItem.insumo?.stock ?? 1);
   const estadoVal = String(insumoItem.estado ?? insumoItem.insumo?.estado ?? "");
   const agotado = stockVal <= 0 || estadoVal.toLowerCase() === "agotado" || estadoVal === "0";

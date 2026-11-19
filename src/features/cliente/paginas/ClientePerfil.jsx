@@ -119,6 +119,7 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/shared/servicios/cloudinaryService";
 
 import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono, validateDireccionMedellin } from "@/shared/utils/validationUtils";
+import { COLOMBIA_TZ, parseDateOnlySafe, formatDateTime12h } from "@/shared/utils/dateUtils";
 
 import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
 
@@ -584,9 +585,18 @@ export function ClientePerfil() {
 
             numeroVenta: matched.numeroVenta || matchedObs.codigoPedido || localOrd.numeroVenta,
 
-            fecha: matched.fechaVenta ? new Date(matched.fechaVenta).toLocaleString("es-CO") : localOrd.fecha,
+            fecha: formatDateTime12h(matched.fechaVenta, localOrd.fecha || "Reciente"),
 
-            fechaVenta: matched.fechaVenta || localOrd.fechaVenta || null,
+            fechaVenta: matched.fechaVenta || localOrd.fechaVenta || null,
+            fechaEntrega:
+              matched.fechaEntrega ||
+              matchedObs.fechaEntrega ||
+              matched.tiemposEstados?.entregado?.fecha ||
+              matchedObs.tiemposEstados?.entregado?.fecha ||
+              localOrd.fechaEntrega ||
+              null,
+            tiemposEstados: matched.tiemposEstados || matchedObs.tiemposEstados || localOrd.tiemposEstados || null,
+            fechaCambioEstado: matched.fechaCambioEstado || matchedObs.fechaCambioEstado || localOrd.fechaCambioEstado || null,
 
             detalles: matched.detalles || localOrd.detalles || [],
 
@@ -626,9 +636,12 @@ export function ClientePerfil() {
 
             numeroVenta: localOrd.numeroVenta,
 
-            fecha: localOrd.fecha,
+            fecha: localOrd.fecha || formatDateTime12h(localOrd.fechaVenta || localOrd.createdAt, "Reciente"),
 
-            fechaVenta: localOrd.fechaVenta || localOrd.createdAt || null,
+            fechaVenta: localOrd.fechaVenta || localOrd.createdAt || null,
+            fechaEntrega: localOrd.fechaEntrega || localOrd.tiemposEstados?.entregado?.fecha || null,
+            tiemposEstados: localOrd.tiemposEstados || null,
+            fechaCambioEstado: localOrd.fechaCambioEstado || null,
 
             detalles: localOrd.detalles || [],
 
@@ -784,9 +797,17 @@ export function ClientePerfil() {
 
             numeroVenta: o.numeroVenta || oObs.codigoPedido || `VEN-${String(o.idVenta || o.id).padStart(4, "0")}`,
 
-            fecha: o.fechaVenta ? new Date(o.fechaVenta).toLocaleString("es-CO") : "Reciente",
+            fecha: formatDateTime12h(o.fechaVenta, "Reciente"),
 
-            fechaVenta: o.fechaVenta || null,
+            fechaVenta: o.fechaVenta || null,
+            fechaEntrega:
+              o.fechaEntrega ||
+              oObs.fechaEntrega ||
+              o.tiemposEstados?.entregado?.fecha ||
+              oObs.tiemposEstados?.entregado?.fecha ||
+              null,
+            tiemposEstados: o.tiemposEstados || oObs.tiemposEstados || null,
+            fechaCambioEstado: o.fechaCambioEstado || oObs.fechaCambioEstado || null,
 
             detalles: o.detalles || [],
 
@@ -880,9 +901,16 @@ export function ClientePerfil() {
 
     );
 
-    const fechaRaw = ped.fechaVenta || ped.fechaCreacion || ped.createdAt || ped.fecha;
+    const fechaRaw =
+      ped.fechaEntrega ||
+      ped.tiemposEstados?.entregado?.fecha ||
+      ped.fechaCambioEstado ||
+      ped.fechaVenta ||
+      ped.fechaCreacion ||
+      ped.createdAt ||
+      ped.fecha;
 
-    let diffHours = 0;
+    let diffHours = null;
 
     if (fechaRaw) {
 
@@ -890,17 +918,22 @@ export function ClientePerfil() {
 
       if (!isNaN(parsed.getTime())) {
 
-        diffHours = (Date.now() - parsed.getTime()) / (1000 * 60 * 60);
+        diffHours = Math.max(0, (Date.now() - parsed.getTime()) / (1000 * 60 * 60));
 
       }
 
     }
 
-    const cumplePlazo = isNaN(diffHours) ? true : diffHours <= 48;
+    const cumplePlazo = diffHours !== null && !Number.isNaN(diffHours) ? diffHours <= 48 : false;
 
     const est = String(ped.estado || "").toLowerCase();
 
-    const esCompletado = est.includes("completad") || est.includes("listo") || est.includes("entregad");
+    const esCompletado =
+      est.includes("completad") ||
+      est.includes("listo") ||
+      est.includes("entregad") ||
+      est.includes("despachad") ||
+      est.includes("camino");
 
     return {
 
@@ -908,7 +941,7 @@ export function ClientePerfil() {
 
       cumplePlazo,
 
-      horasRestantes: Math.max(0, Math.round(48 - diffHours)),
+      horasRestantes: cumplePlazo ? Math.max(0, Math.round(48 - diffHours)) : 0,
 
       esCompletado,
 
@@ -1508,13 +1541,13 @@ export function ClientePerfil() {
 
     fidelidad.diasRestantes !== undefined ? fidelidad.diasRestantes : tipoFidelidad !== "Nuevo" ? 30 : null;
 
-  const diasGraciaRestantesRaw = fidelidad.diasGraciaRestantes || 0;
+  const diasGraciaRestantesRaw = fidelidad.diasGraciaRestantes ?? 0;
 
   const fechaVencimientoObj =
 
     fidelidad.fechaVencimientoNivel || fidelidad.vence
 
-      ? new Date(fidelidad.fechaVencimientoNivel || fidelidad.vence)
+      ? parseDateOnlySafe(fidelidad.fechaVencimientoNivel || fidelidad.vence)
 
       : null;
 
@@ -1630,7 +1663,8 @@ export function ClientePerfil() {
 
         barColor,
 
-        fechaVencimientoStr: fechaVencimientoObj.toLocaleDateString("es-CO", {
+        fechaVencimientoStr: fechaVencimientoObj.toLocaleDateString("es-CO", {
+          timeZone: COLOMBIA_TZ,
 
           year: "numeric",
 
@@ -1726,7 +1760,7 @@ export function ClientePerfil() {
 
   const enGraciaActivo = liveFidelityStatus.enGracia;
 
-  const diasGraciaRestantes = liveFidelityStatus.diasGracia || diasGraciaRestantesRaw;
+  const diasGraciaRestantes = liveFidelityStatus.diasGracia ?? diasGraciaRestantesRaw;
 
   // Format clean full name avoiding word duplication
 
@@ -2153,7 +2187,7 @@ export function ClientePerfil() {
 
                     descuento={descuentoPorcentaje}
 
-                    enGracia={enGracia}
+                    enGracia={enGraciaActivo}
 
                     size="sm"
 
@@ -2331,7 +2365,7 @@ export function ClientePerfil() {
 
                   </h2>
 
-                  <FidelidadBadge tipo={tipoFidelidad} descuento={descuentoPorcentaje} enGracia={enGracia} size="md" />
+                  <FidelidadBadge tipo={tipoFidelidad} descuento={descuentoPorcentaje} enGracia={enGraciaActivo} size="md" />
 
                 </div>
 
@@ -2867,7 +2901,7 @@ export function ClientePerfil() {
 
                       {tipoFidelidad === "Nuevo"
 
-                        ? "Membresía Permanente sin vencimiento. Completa 3 compras para desbloquear 5% de descuento permanente."
+                        ? "Membresía Permanente sin vencimiento. Completa 3 compras para desbloquear el nivel Regular (5% OFF con vigencia de 30 días)."
 
                         : `Vigencia activa con renovación automática cada 30 días o al cumplir la meta del ciclo.`}
 

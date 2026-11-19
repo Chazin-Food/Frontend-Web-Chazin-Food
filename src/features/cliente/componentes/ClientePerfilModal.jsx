@@ -9,6 +9,7 @@ import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono } from "@/shared/utils/validationUtils";
+import { COLOMBIA_TZ, parseDateOnlySafe } from "@/shared/utils/dateUtils";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 
 const TIPOS_DOCUMENTO = ["C.C.", "C.E.", "T.I.", "Pasaporte", "PPT", "NIT"];
@@ -104,10 +105,10 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
   const siguienteNivel = fidelidad.siguienteNivel || (tipoFidelidad === "Nuevo" ? "Regular" : tipoFidelidad === "Regular" ? "Frecuente" : "VIP");
   const enGracia = Boolean(fidelidad.enGracia);
   const diasRestantesRaw = fidelidad.diasRestantes !== undefined ? fidelidad.diasRestantes : (tipoFidelidad !== "Nuevo" ? 30 : null);
-  const diasGraciaRestantesRaw = fidelidad.diasGraciaRestantes || 0;
-  const fechaVencimientoObj = fidelidad.fechaVencimientoNivel || fidelidad.vence ? new Date(fidelidad.fechaVencimientoNivel || fidelidad.vence) : null;
+  const diasGraciaRestantesRaw = fidelidad.diasGraciaRestantes ?? 0;
+  const fechaVencimientoObj = parseDateOnlySafe(fidelidad.fechaVencimientoNivel || fidelidad.vence);
   const fechaVenceFormatted = fechaVencimientoObj && !isNaN(fechaVencimientoObj.getTime())
-    ? fechaVencimientoObj.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })
+    ? fechaVencimientoObj.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric", timeZone: COLOMBIA_TZ })
     : null;
 
   // Real-time client-side calculation of remaining days to ensure countdown is always 100% active
@@ -359,7 +360,7 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
 
                   {tipoFidelidad !== "Nuevo" && (
                     <div className="pt-2 space-y-1.5 border-t border-gray-200/40 dark:border-gray-700/40">
-                      {enGracia ? (
+                      {enGraciaActivo ? (
                         <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2">
                           <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
                           <div>

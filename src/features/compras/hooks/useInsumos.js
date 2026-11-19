@@ -6,6 +6,7 @@ import { normalizeFichaWithVersions } from "@/features/fichas-tecnicas/utils/fic
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { apiClient } from "@/shared/api/apiClient";
 import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
 
 export function useInsumos() {
   const notify = useNotifications();
@@ -171,7 +172,7 @@ export function useInsumos() {
   }, [fetchInsumos, fetchPapelera]);
 
   const filteredInsumos = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getColombiaDateISO();
     const hasSearch = Boolean(searchTerm && searchTerm.trim());
 
     const baseFiltered = insumos.filter((item) => {
@@ -195,7 +196,8 @@ export function useInsumos() {
       if (hasLots) {
         lotesTokensArr.push("lote lotes con lote con lotes");
         item.lotes.forEach((l) => {
-          const isLoteVenc = l.estado === "VENCIDO" || (l.fechaVencimiento && l.fechaVencimiento <= todayStr);
+          const loteFechaISO = extractDateOnlyISO(l.fechaVencimiento);
+          const isLoteVenc = l.estado === "VENCIDO" || Boolean(loteFechaISO && loteFechaISO < todayStr);
           if (isLoteVenc) tieneLoteVencido = true;
 
           const loteStatusStr = isLoteVenc
@@ -222,7 +224,8 @@ export function useInsumos() {
         lotesTokensArr.push("sin lote sin_lote sin lotes sin_lotes");
       }
 
-      const insumoDirectoVencido = item.fechaVencimiento && item.fechaVencimiento <= todayStr;
+      const itemFechaVencISO = extractDateOnlyISO(item.fechaVencimiento);
+      const insumoDirectoVencido = Boolean(itemFechaVencISO && itemFechaVencISO < todayStr);
       const estaVencido = tieneLoteVencido || insumoDirectoVencido;
       const vencimientoKeywords = estaVencido
         ? "lote vencido lotes vencidos vencido vencida vencitos vencito caducado caducada expirado expirada vencimiento inactivado reabastecer reabastecimiento"

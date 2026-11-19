@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { comprasService } from "../servicios/comprasService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { COLOMBIA_TZ, parseDateOnlySafe } from "@/shared/utils/dateUtils";
 
 export function useGestionCompras() {
   const notify = useNotifications();
@@ -92,12 +93,12 @@ export function useGestionCompras() {
       const procesarFecha = (f) => {
         if (!f) return;
         searchTokens.push(String(f));
-        const d = new Date(f);
-        if (!isNaN(d.getTime())) {
+        const d = parseDateOnlySafe(f);
+        if (d && !isNaN(d.getTime())) {
           searchTokens.push(
-            d.toLocaleDateString("es-CO"),
-            d.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }),
-            d.toLocaleDateString("es-CO", { month: "long" })
+            d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ }),
+            d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, day: "2-digit", month: "short", year: "numeric" }),
+            d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, month: "long" })
           );
         }
       };

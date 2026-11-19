@@ -21,7 +21,7 @@ import { VentasHistorialCardsView } from "../componentes/gestion/VentasHistorial
 import { VentasHistorialTableView } from "../componentes/gestion/VentasHistorialTableView";
 import { VentasBuscadorMulticriterio } from "../componentes/gestion/VentasBuscadorMulticriterio";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
-import { formatTime12h } from "@/shared/utils/dateUtils";
+import { formatTime12h, formatDateSafe, getColombiaDateISO, extractDateOnlyISO, COLOMBIA_TZ } from "@/shared/utils/dateUtils";
 
 const VentasReportesView = lazy(() => import("../componentes/gestion/VentasReportesView").then((m) => ({ default: m.VentasReportesView })));
 const VentaDetalleModal = lazy(() => import("../componentes/gestion/VentaDetalleModal").then((m) => ({ default: m.VentaDetalleModal })));
@@ -153,8 +153,8 @@ export function GestionVentas() {
       return [
         v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`,
         v.clienteNombre || v.cliente || "Cliente General",
-        v.fecha ? new Date(v.fecha).toISOString().split("T")[0] : "2026-08-06",
-        v.horario || "13:45 - 14:00",
+        (v.fecha || v.fechaVenta) ? (extractDateOnlyISO(v.fecha || v.fechaVenta) || "—") : "—",
+        formatTime12h(v.horario || v.fecha || v.fechaVenta, "—"),
         v.tipoEntrega || "En Mesa",
         metodoLabel,
         Number(v.subtotal || v.total || 0),
@@ -183,7 +183,7 @@ export function GestionVentas() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Historial de Ventas");
     XLSX.writeFile(
       workbook,
-      `Historial_Ventas_${selectedPeriod}_${new Date().toISOString().split("T")[0]}.xlsx`
+      `Historial_Ventas_${selectedPeriod}_${getColombiaDateISO()}.xlsx`
     );
   };
 
@@ -212,7 +212,7 @@ export function GestionVentas() {
         </head>
         <body>
           <h1>Chazin Food — Historial de Ventas</h1>
-          <h2>Período: ${periodText} | Registros: ${exportSource.length} | Generado el: ${new Date().toLocaleDateString("es-CO")} ${new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true })}</h2>
+          <h2>Período: ${periodText} | Registros: ${exportSource.length} | Generado el: ${new Date().toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ })} ${formatTime12h(new Date())}</h2>
           <table>
             <thead>
               <tr>
@@ -239,7 +239,7 @@ export function GestionVentas() {
                 <tr>
                   <td><strong>${v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`}</strong></td>
                   <td>${v.clienteNombre || v.cliente || "Cliente General"}</td>
-                  <td>${v.fecha ? new Date(v.fecha).toISOString().split("T")[0] : "2026-08-06"} (${formatTime12h(v.horario || v.fecha, "12:30 PM")})</td>
+                  <td>${formatDateSafe(v.fecha || v.fechaVenta, "—")} (${formatTime12h(v.horario || v.fecha || v.fechaVenta, "—")})</td>
                   <td>${v.tipoEntrega || "En Mesa"}</td>
                   <td>${metodoLabel}</td>
                   <td><strong>$${Number(v.total || v.subtotal || 0).toLocaleString("es-CO")}</strong></td>

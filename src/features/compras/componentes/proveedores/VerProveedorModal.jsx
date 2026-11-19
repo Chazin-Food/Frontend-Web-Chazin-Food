@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { proveedoresService } from "../../servicios/proveedoresService";
 import { comprasService } from "../../servicios/comprasService";
+import { COLOMBIA_TZ, parseDateOnlySafe } from "@/shared/utils/dateUtils";
 
 export function VerProveedorModal({ isOpen, onClose, proveedor, onEdit }) {
   const [activeTab, setActiveTab] = useState("general"); // "general" | "compras"
@@ -360,14 +361,11 @@ export function VerProveedorModal({ isOpen, onClose, proveedor, onEdit }) {
                         String(c.estado || "").toUpperCase() === "CANCELADA" ||
                         String(c.estado || "").toUpperCase() === "ANULADA";
 
-                      const fechaFacturaStr = c.fechaFactura
-                        ? new Date(c.fechaFactura).toLocaleDateString("es-CO", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric"
-                          })
-                        : c.fechaCompra
-                        ? new Date(c.fechaCompra).toLocaleDateString("es-CO", {
+                      const rawFechaProv = c.fechaFactura || c.fechaCompra;
+                      const parsedProv = rawFechaProv ? parseDateOnlySafe(rawFechaProv) : null;
+                      const fechaFacturaStr = parsedProv
+                        ? parsedProv.toLocaleDateString("es-CO", {
+                            timeZone: COLOMBIA_TZ,
                             day: "2-digit",
                             month: "short",
                             year: "numeric"

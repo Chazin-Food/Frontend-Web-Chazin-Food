@@ -1,17 +1,6 @@
 import { Calendar, Clock, Eye, Globe, Store } from "lucide-react";
 import { formatNombreCompleto } from "@/shared/utils/validationUtils";
-import { formatTime12h } from "@/shared/utils/dateUtils";
-
-function formatDateSafe(dateVal, fallback = "2026-06-09") {
-  if (!dateVal) return fallback;
-  try {
-    const d = new Date(dateVal);
-    if (isNaN(d.getTime())) return String(dateVal).slice(0, 10) || fallback;
-    return d.toISOString().split("T")[0];
-  } catch (e) {
-    return String(dateVal).slice(0, 10) || fallback;
-  }
-}
+import { formatTime12h, formatDateSafe } from "@/shared/utils/dateUtils";
 
 export function VentasHistorialCardsView({ ventas, onViewDetail }) {
   if (Array.isArray(ventas) && ventas.length === 0) {
@@ -32,9 +21,9 @@ export function VentasHistorialCardsView({ ventas, onViewDetail }) {
         const clienteNombre = formatNombreCompleto(rawName) || "Cliente General";
         const inicial = clienteNombre.trim().charAt(0).toUpperCase() || "C";
         const codigo = v?.numeroVenta || v?.codigoPedido || `PED-${String(v?.id || index + 1).padStart(3, "0")}`;
-        const fechaStr = formatDateSafe(v?.fecha || v?.fechaVenta, "2026-06-09");
-        const horarioStr = formatTime12h(v?.horario || v?.fecha || v?.fechaVenta, "01:05 PM");
-        const totalNum = Number(v?.total || v?.subtotal || 40500);
+        const fechaStr = formatDateSafe(v?.fecha || v?.fechaVenta, "—");
+        const horarioStr = formatTime12h(v?.horario || v?.fecha || v?.fechaVenta, "—");
+        const totalNum = Number(v?.total || v?.subtotal || 0);
         const isOnline = v?.origen === "ONLINE" || v?.tipoVenta === "DOMICILIO" || v?.origenNombre === "Venta Online";
         
         const descPct = Number(v?.descuentoPorcentaje || 0);
@@ -47,7 +36,7 @@ export function VentasHistorialCardsView({ ventas, onViewDetail }) {
           ? v.productos
           : (Array.isArray(v?.detalles) && v.detalles.length > 0 
               ? v.detalles.map(d => ({ cantidad: d.cantidad || 1, nombre: d.observaciones || `Producto #${d.idVariante}` }))
-              : [{ cantidad: 1, nombre: "Combo Familiar" }]);
+              : []);
 
         return (
           <div

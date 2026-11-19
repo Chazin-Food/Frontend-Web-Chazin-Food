@@ -1,4 +1,5 @@
 import { X, FileText, Calendar, User, Package, DollarSign, CheckCircle2, Clock, XCircle, AlertTriangle, Layers, Info, CornerDownRight, ArrowRightLeft, Truck, Wallet, RotateCcw, Edit3, Sparkles, Tag } from "lucide-react";
+import { COLOMBIA_TZ, parseDateOnlySafe, formatDateSafe, formatDateTime12h } from "@/shared/utils/dateUtils";
 
 const estadoBadges = {
   RECIBIDA:         { cls: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800", icon: CheckCircle2, label: "Confirmada" },
@@ -39,8 +40,11 @@ export function DetalleCompraModal({ isOpen, onClose, compra, onCancelar, onEdit
   };
   const IconEstado = estadoInfo.icon;
 
-  const fechaFormatted = (compra.fechaCompra || compra.fecha)
-    ? new Date(compra.fechaCompra || compra.fecha).toLocaleDateString("es-CO", {
+  const rawFechaRegistro = compra.fechaCompra || compra.fecha;
+  const parsedRegistro = rawFechaRegistro ? parseDateOnlySafe(rawFechaRegistro) : null;
+  const fechaFormatted = parsedRegistro
+    ? parsedRegistro.toLocaleDateString("es-CO", {
+        timeZone: COLOMBIA_TZ,
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -49,13 +53,7 @@ export function DetalleCompraModal({ isOpen, onClose, compra, onCancelar, onEdit
     : "Sin fecha";
 
   const fechaCancelacionFormatted = compra.fechaCancelacion
-    ? new Date(compra.fechaCancelacion).toLocaleString("es-CO", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
-      })
+    ? formatDateTime12h(compra.fechaCancelacion)
     : null;
 
   const detalles = compra.detalles || [];
@@ -401,8 +399,8 @@ export function DetalleCompraModal({ isOpen, onClose, compra, onCancelar, onEdit
                 <Calendar className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 <span>
                   {compra.fechaFactura
-                    ? new Date(compra.fechaFactura).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
-                    : (compra.fechaCompra ? new Date(compra.fechaCompra).toLocaleDateString("es-CO") : "Sin fecha")}
+                    ? (parseDateOnlySafe(compra.fechaFactura)?.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, day: "2-digit", month: "short", year: "numeric" }) || formatDateSafe(compra.fechaFactura, "Sin fecha"))
+                    : (compra.fechaCompra ? formatDateSafe(compra.fechaCompra, "Sin fecha") : "Sin fecha")}
                 </span>
               </div>
             </div>

@@ -27,7 +27,13 @@ import { isEssentialIngredient } from "@/shared/utils/ingredientUtils";
 const ClienteAuthModal = lazy(() => import("../componentes/ClienteAuthModal").then((m) => ({ default: m.ClienteAuthModal })));
 import { validateNombre, validateDocumento, sanitizeDocumento, validateDireccionMedellin, verifyDireccionMedellinRealtime } from "@/shared/utils/validationUtils";
 import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
-import { formatTime12h, formatDateSafe } from "@/shared/utils/dateUtils";
+import {
+  formatTime12h,
+  formatDateSafe,
+  isEventActiveInColombia,
+  evaluateEventVigencia,
+  parseDateOnlySafe
+} from "@/shared/utils/dateUtils";
 import { matchesSmartSearch } from "@/shared/utils/searchUtils";
 
 const FastFoodProductModal = lazy(() => import("@/shared/components/ui/FastFoodProductModal"));
@@ -521,14 +527,8 @@ export function ClienteLanding() {
 
   const hasActiveEvents = useMemo(() => {
     if (!Array.isArray(eventosList) || eventosList.length === 0) return false;
-    const today = new Date().toISOString().split("T")[0];
-    return eventosList.some((e) => {
-      const isActivo = e.estado === "Activo" || e.estado === 1 || e.estado === true;
-      if (!isActivo) return false;
-      if (e.fechaFin && today > e.fechaFin) return false;
-      return true;
-    });
-  }, [eventosList]);
+    return eventosList.some((e) => isEventActiveInColombia(e, liveTick));
+  }, [eventosList, liveTick]);
 
   // Manejador de flecha Atrás / Adelante del navegador (popstate) para cerrar modales sin salir de la página
   useEffect(() => {
@@ -1104,28 +1104,13 @@ export function ClienteLanding() {
     return ordenados;
   }, [activeProductos, cart]);
 
-  // Helper ultra-preciso de Evento Activo (Burger Fest / Drops / Promos con Vigencia en Tiempo Real)
+  // Helper ultra-preciso de Evento Activo (Burger Fest / Drops / Promos con Vigencia en Tiempo Real Colombia)
   const getActiveEvent = (producto) => {
     if (!producto) return null;
     const eventos = Array.isArray(producto.eventos) ? producto.eventos : [];
     if (eventos.length === 0) return null;
 
-    const now = new Date(liveTick);
-
-    // Filter events that are active and not expired
-    const validEvents = eventos.filter((e) => {
-      if (e.estado !== 1 && e.estado !== "Activo") return false;
-      if (e.fechaFin) {
-        const finDate = new Date(`${e.fechaFin}T23:59:59`);
-        if (now > finDate) return false;
-      }
-      if (e.fechaInicio) {
-        const inicioDate = new Date(`${e.fechaInicio}T00:00:00`);
-        if (now < inicioDate) return false;
-      }
-      return true;
-    });
-
+    const validEvents = eventos.filter((e) => isEventActiveInColombia(e, liveTick));
     if (validEvents.length === 0) return null;
     const evt = validEvents[0];
 
@@ -1138,45 +1123,12 @@ export function ClienteLanding() {
     }
 
     const savings = Math.max(0, regularPrice - eventPrice);
-    const discountPercent = regularPrice > 0 && savings > 0 
-      ? Math.round((savings / regularPrice) * 100) 
+    const discountPercent = regularPrice > 0 && savings > 0
+      ? Math.round((savings / regularPrice) * 100)
       : (evt.descuento ? Math.round(Number(evt.descuento)) : 0);
 
-    let formattedDate = "";
-    let diasRestantes = null;
-    let horasRestantes = null;
-    let minutosRestantes = null;
-    let segundosRestantes = null;
-    let urgente = false;
-    let countdownLabel = "";
-
-    if (evt.fechaFin) {
-      try {
-        const parts = String(evt.fechaFin).split('T')[0].split('-');
-        if (parts.length === 3) {
-          const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-          const monthName = months[parseInt(parts[1], 10) - 1] || parts[1];
-          formattedDate = `${parseInt(parts[2], 10)} de ${monthName}`;
-        }
-        const finDate = new Date(`${evt.fechaFin}T23:59:59`);
-        const ms = finDate.getTime() - now.getTime();
-        diasRestantes = Math.ceil(ms / (1000 * 60 * 60 * 24));
-        horasRestantes = Math.max(0, Math.floor(ms / (1000 * 60 * 60)));
-        minutosRestantes = Math.max(0, Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60)));
-        segundosRestantes = Math.max(0, Math.floor((ms % (1000 * 60)) / 1000));
-        urgente = diasRestantes <= 3 && diasRestantes >= 0;
-
-        countdownLabel = diasRestantes > 1
-          ? `Quedan ${diasRestantes} días`
-          : horasRestantes > 0
-          ? `¡Último día! (${horasRestantes}h ${minutosRestantes}m)`
-          : minutosRestantes > 0
-          ? `¡Termina hoy! (${minutosRestantes}m ${segundosRestantes}s)`
-          : ms > 0
-          ? `¡Últimos segundos! (${segundosRestantes}s)`
-          : `Edición Especial`;
-      } catch (e) {}
-    }
+    const vig = evaluateEventVigencia(evt, liveTick);
+    const formattedDate = vig?.formattedDate || "";
 
     return {
       ...evt,
@@ -1187,12 +1139,19 @@ export function ClienteLanding() {
       discountPercent,
       formattedDate,
       tipo: evt.tipoEvento || "EDICION_LIMITADA",
-      vigencia: {
-        diasRestantes,
-        horasRestantes,
-        urgente,
-        label: (diasRestantes >= 0 ? countdownLabel : null) || (formattedDate && diasRestantes >= 0 ? `Hasta ${formattedDate}` : "Edición Especial")
-      }
+      vigencia: evt.fechaFin
+        ? {
+            diasRestantes: vig?.diasRestantes ?? null,
+            horasRestantes: vig?.horasRestantes ?? null,
+            urgente: Boolean(vig?.urgente),
+            label: vig?.label || (formattedDate ? `Hasta ${formattedDate}` : "Edición Especial")
+          }
+        : {
+            diasRestantes: null,
+            horasRestantes: null,
+            urgente: false,
+            label: "Vigencia Permanente"
+          }
     };
   };
 
@@ -1746,7 +1705,8 @@ export function ClienteLanding() {
   const siguienteNivel = fidelidadCliente.siguienteNivel || (tipoFidelidad === "Nuevo" ? "Regular" : tipoFidelidad === "Regular" ? "Frecuente" : "VIP");
 
   // Dynamic real-time calculation of remaining days and seconds in hero banner
-  const heroVenceObj = fidelidadCliente.fechaVencimientoNivel || fidelidadCliente.vence ? new Date(fidelidadCliente.fechaVencimientoNivel || fidelidadCliente.vence) : null;
+  const rawHeroVence = fidelidadCliente.fechaVencimientoNivel || fidelidadCliente.vence;
+  const heroVenceObj = rawHeroVence ? parseDateOnlySafe(rawHeroVence) : null;
 
   const heroLiveStatus = useMemo(() => {
     if (tipoFidelidad === "Nuevo") {
@@ -1783,7 +1743,7 @@ export function ClienteLanding() {
         enGracia: false,
         expirado: false,
         countdownStr: str,
-        diasRestantes: d,
+        diasRestantes: Math.max(1, Math.ceil(diffMs / 86400000)),
       };
     }
 
@@ -1804,7 +1764,7 @@ export function ClienteLanding() {
         enGracia: true,
         expirado: false,
         countdownStr: `Periodo de Gracia: ${dG > 0 ? `${dG}d ` : ""}${hG}h ${mG}m ${String(sG).padStart(2, "0")}s`,
-        diasGracia: dG,
+        diasGracia: Math.max(1, Math.ceil(msRestanteGracia / 86400000)),
       };
     }
 

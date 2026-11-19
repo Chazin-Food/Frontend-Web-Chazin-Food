@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CheckCircle2, RotateCcw, UtensilsCrossed, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function KioskConfirmation({ orderId, orderData, onReset }) {
   const [secondsLeft, setSecondsLeft] = useState(10);
+  const hasResetRef = useRef(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          onReset();
           return 0;
         }
         return prev - 1;
@@ -18,7 +18,14 @@ export default function KioskConfirmation({ orderId, orderData, onReset }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [onReset]);
+  }, []);
+
+  useEffect(() => {
+    if (secondsLeft <= 0 && !hasResetRef.current) {
+      hasResetRef.current = true;
+      onReset();
+    }
+  }, [secondsLeft, onReset]);
 
   // Format order number cleanly and coherently with Ventas, Producción y Cocina (e.g. #VEN-0368)
   const rawOrderStr = String(orderId || "VEN-0001").trim().replace(/^#+/, "");

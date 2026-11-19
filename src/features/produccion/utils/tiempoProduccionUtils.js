@@ -6,6 +6,14 @@
 
 const LOCAL_TRANSITIONS_STORAGE_KEY = "chazin_tiempos_estados_v2";
 const LOCAL_DELIVERY_MODE_STORAGE_KEY = "chazin_modo_tiempo_entrega_v1";
+import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
+
+export function evaluateProductionSemaphore(minutes, targetMin = 12) {
+  const safeTarget = Number(targetMin) > 0 ? Number(targetMin) : 12;
+  if (minutes <= safeTarget) return "fresh";
+  if (minutes <= safeTarget + 5) return "warning";
+  return "critical";
+}
 
 export function recordLocalDeliveryTimeMode(orderId, mode = "AUTO", customTime = null) {
   if (!orderId || typeof window === "undefined") return null;
@@ -64,14 +72,12 @@ export function formatColombiaTimeWithSeconds(dateInput) {
 }
 
 export function formatColombiaDate(dateInput) {
-  const d = dateInput ? (dateInput instanceof Date ? dateInput : new Date(dateInput)) : new Date();
-  if (isNaN(d.getTime())) return new Date().toISOString().split("T")[0];
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(d);
+  if (!dateInput) return getColombiaDateISO();
+  if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    return dateInput.trim();
+  }
+  const iso = extractDateOnlyISO(dateInput);
+  return iso || getColombiaDateISO();
 }
 
 function normalizeStateKey(rawState = "") {
@@ -843,13 +849,8 @@ export function resolveOrderTimings(order = {}, nowMs = Date.now()) {
           minutes: diffMin
         };
       } else {
-        const target = prep.totalMin || 10;
-        const level =
-          diffMin <= target
-            ? "fresh"
-            : diffMin <= target + 5
-            ? "warning"
-            : "critical";
+        const target = prep.totalMin || 12;
+        const level = evaluateProductionSemaphore(diffMin, target);
         elapsedInfo = {
           text:
             currentStageIdx === 1

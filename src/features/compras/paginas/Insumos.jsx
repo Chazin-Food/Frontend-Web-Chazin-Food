@@ -8,6 +8,7 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 import { InsumosStatsCards } from "../componentes/insumos/InsumosStatsCards";
 import { InsumosTable } from "../componentes/insumos/InsumosTable";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 
 const InsumoModal = lazy(() => import("../componentes/insumos/InsumoModal").then((m) => ({ default: m.InsumoModal })));
 const TrazabilidadModal = lazy(() => import("../componentes/insumos/TrazabilidadModal").then((m) => ({ default: m.TrazabilidadModal })));
@@ -144,7 +145,7 @@ export function Insumos() {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Insumos");
-    XLSX.writeFile(workbook, `reporte_insumos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(workbook, `reporte_insumos_${getColombiaDateISO()}.xlsx`);
     setExportMenuOpen(false);
   };
 

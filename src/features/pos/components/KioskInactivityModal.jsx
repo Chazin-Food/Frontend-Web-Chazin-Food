@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertCircle, Clock, Check } from "lucide-react";
 import { motion } from "motion/react";
@@ -9,6 +9,7 @@ export default function KioskInactivityModal({
   onTimeout
 }) {
   const [seconds, setSeconds] = useState(10);
+  const hasTimedOutRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -21,7 +22,6 @@ export default function KioskInactivityModal({
       setSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          onTimeout();
           return 0;
         }
         return prev - 1;
@@ -29,7 +29,20 @@ export default function KioskInactivityModal({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isOpen, onTimeout]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (seconds > 0) {
+      hasTimedOutRef.current = false;
+    }
+  }, [seconds]);
+
+  useEffect(() => {
+    if (isOpen && seconds <= 0 && !hasTimedOutRef.current) {
+      hasTimedOutRef.current = true;
+      onTimeout();
+    }
+  }, [isOpen, seconds, onTimeout]);
 
   if (!isOpen) return null;
 

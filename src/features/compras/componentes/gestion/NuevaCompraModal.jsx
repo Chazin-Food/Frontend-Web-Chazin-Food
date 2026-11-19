@@ -36,6 +36,7 @@ import { validateTexto, validateNumeroPositivo, validateRequerido } from "@/shar
 import { NumberInput } from "@/shared/components/ui/NumberInput";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
 import { uploadImageToCloudinary } from "@/shared/servicios/cloudinaryService";
+import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 
 const QUICK_ADICION_ICONS = [
   { slug: "bacon", label: "Tocineta" },
@@ -58,11 +59,11 @@ const labelCls =
   "block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1";
 
 function hoy() {
-  return new Date().toISOString().split("T")[0];
+  return getColombiaDateISO();
 }
 
 function generarCodigoLote(idx = 0) {
-  const fechaStr = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+  const fechaStr = getColombiaDateISO().slice(2).replace(/-/g, "");
   const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
   return `LOT-${fechaStr}-${String(idx + 1).padStart(2, "0")}-${randomStr}`;
 }

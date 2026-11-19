@@ -28,6 +28,7 @@ import { apiClient } from "@/shared/api/apiClient";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { normalizeFichaWithVersions, formatFechaHoraFicha } from "@/features/fichas-tecnicas/utils/fichaVersionUtils";
 import { FichaVersionesHistorial } from "@/features/fichas-tecnicas/componentes/FichaVersionesHistorial";
+import { diffCalendarDaysColombia, extractDateOnlyISO, formatDateSafe } from "@/shared/utils/dateUtils";
 
 export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "general", onDeleteLoteVencido, onDeleteLotesVencidos }) {
   const [activeTab, setActiveTab] = useState(initialTab || "general"); // "general" | "receta" | "lotes"
@@ -90,16 +91,8 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
 
   if (!isOpen || !insumo) return null;
 
-  const getTodayColombiaISO = () => {
-    try {
-      return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
-    } catch (_) {
-      return new Date().toISOString().split("T")[0];
-    }
-  };
-
   const getLoteExpiryInfo = (lot) => {
-    const fechaVenc = lot?.fechaVencimiento ? String(lot.fechaVencimiento).split("T")[0] : "";
+    const fechaVenc = extractDateOnlyISO(lot?.fechaVencimiento) || "";
     const estadoUpper = String(lot?.estado || "").toUpperCase();
     const cantDisp = parseFloat(lot?.cantidadDisponible ?? lot?.cantidad ?? 0);
     if (!fechaVenc) {
@@ -110,11 +103,9 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
         cantDisp
       };
     }
-    const todayStr = getTodayColombiaISO();
-    const vDate = new Date(`${fechaVenc}T00:00:00`);
-    const tDate = new Date(`${todayStr}T00:00:00`);
-    const diasPorVencer = Math.round((vDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24));
-    const estaVencido = estadoUpper === "VENCIDO" || fechaVenc <= todayStr;
+    const diasPorVencer = diffCalendarDaysColombia(fechaVenc);
+    // Regla de negocio: fechaVencimiento === hoy sigue utilizable hasta 11:59 PM (diasPorVencer === 0)
+    const estaVencido = estadoUpper === "VENCIDO" || (diasPorVencer !== null && diasPorVencer < 0);
     return { fechaVenc, diasPorVencer, estaVencido, cantDisp };
   };
 
@@ -677,10 +668,12 @@ export function VerInsumoModal({ isOpen, onClose, insumo, onEdit, initialTab = "
                                       : "text-gray-700 dark:text-gray-300"
                                   }`}>
                                   <Calendar className="w-3 h-3 text-amber-500" />
-                                  {fechaVenc}
+                                  {formatDateSafe(fechaVenc, fechaVenc)}
                                   {estaVencido ? (
-                                    <span className="text-[10px] text-red-500 font-bold">(Vencido hace {Math.abs(diasPorVencer)}d)</span>
-                                  ) : diasPorVencer <= 5 ? (
+                                    <span className="text-[10px] text-red-500 font-bold">(Vencido hace {Math.max(1, Math.abs(diasPorVencer ?? 1))}d)</span>
+                                  ) : diasPorVencer === 0 ? (
+                                    <span className="text-[10px] text-amber-600 font-bold">(¡Vence hoy!)</span>
+                                  ) : diasPorVencer !== null && diasPorVencer <= 5 ? (
                                     <span className="text-[10px] text-amber-600 font-bold">(Vence en {diasPorVencer}d)</span>
                                   ) : null}
                                 </span>

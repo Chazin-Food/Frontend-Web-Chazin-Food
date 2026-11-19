@@ -38,17 +38,25 @@ export function SolicitarDevolucionModal({
   const [datosReembolso, setDatosReembolso] = useState(INITIAL_DATOS_REEMBOLSO);
   const [reembolsoErrors, setReembolsoErrors] = useState({});
 
-  // Calcular diferencia en días / horas
-  const fechaPedido = pedido?.fechaVenta || pedido?.fechaCreacion || pedido?.createdAt || pedido?.fecha;
-  let diffHours = 0;
+  // Calcular diferencia en días / horas desde la entrega del pedido
+  const fechaPedido =
+    pedido?.fechaEntrega ||
+    pedido?.tiemposEstados?.entregado?.fecha ||
+    pedido?.fechaCambioEstado ||
+    pedido?.fechaVenta ||
+    pedido?.fechaCreacion ||
+    pedido?.createdAt ||
+    pedido?.fecha;
+  let diffHours = null;
   if (fechaPedido) {
     const parsed = new Date(fechaPedido);
     if (!isNaN(parsed.getTime())) {
-      diffHours = (new Date().getTime() - parsed.getTime()) / (1000 * 60 * 60);
+      diffHours = Math.max(0, (Date.now() - parsed.getTime()) / (1000 * 60 * 60));
     }
   }
-  const diffDays = Math.round((diffHours / 24) * 10) / 10;
-  const cumplePlazo = isNaN(diffHours) ? true : diffHours <= 48;
+  const hasValidDate = diffHours !== null && !Number.isNaN(diffHours);
+  const diffDays = hasValidDate ? Math.round((diffHours / 24) * 10) / 10 : 0;
+  const cumplePlazo = hasValidDate ? diffHours <= 48 : false;
 
   // Extraer items del pedido
   let itemsList = [];
@@ -267,10 +275,12 @@ export function SolicitarDevolucionModal({
               )}
               <div>
                 <strong className="block text-xs leading-tight">
-                  {cumplePlazo ? "Pedido dentro de la política de 48 horas" : "Plazo de garantía expirado"}
+                  {cumplePlazo ? "Pedido dentro de la política de 48 horas desde la entrega" : "Plazo de garantía expirado"}
                 </strong>
                 <span className="text-[11px] opacity-80">
-                  Transcurrido: {diffDays} días ({Math.round(diffHours)} horas).
+                  {hasValidDate
+                    ? `Transcurrido desde la entrega del pedido: ${diffDays} días (${Math.round(diffHours)} horas).`
+                    : "No se encontró una fecha de entrega válida para validar la garantía."}
                 </span>
               </div>
             </div>
