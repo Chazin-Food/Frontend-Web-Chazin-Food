@@ -13,7 +13,7 @@ export function generateCartItemId(item) {
   const prodId = item.id || item.idProducto;
   const varKey = item.esVarianteBase
     ? '_var[BASE]'
-    : (item.idVariante && String(item.idVariante) !== String(prodId) ? `_var[${item.idVariante}]` : '');
+    : (item.idVariante && (String(item.idVariante) !== String(prodId) || item.varianteNombre || item.esVarianteDeEvento) ? `_var[${item.idVariante}]` : '');
   const saborKey = item.sabor ? `_sabor[${String(item.sabor).toLowerCase().trim()}]` : '';
   const evtKey = item.eventoInfo?.idEvento || (item.isEvento ? 'evt' : '');
   const adicionesKey = (item.adiciones || [])

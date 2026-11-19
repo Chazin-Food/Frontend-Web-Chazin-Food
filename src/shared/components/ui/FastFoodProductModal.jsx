@@ -1757,10 +1757,80 @@ export function FastFoodProductModal({
     };
   })();
 
+  const resolveFoodVariantPrice = useCallback((vObj) => {
+    const prodBase = Number(producto?.precio || 0);
+    const raw = vObj && Number(vObj.precio) > 0 ? Number(vObj.precio) : prodBase;
+    const isCustomNonBase = Boolean(vObj && !vObj.esOriginal && !vObj.esVarianteBase && !isDummyOrBaseVariant(vObj.nombre, producto?.nombre));
+    const isEvtCreatedVar = Boolean(isCustomNonBase && isVariantFromEvent(vObj));
+
+    // Las variantes creadas desde eventos ya traen su precio definitivo guardado en BD
+    if (isEvtCreatedVar && Number(vObj?.precio) > 0) {
+      return {
+        finalPrice: Number(vObj.precio),
+        originalPrice: prodBase > Number(vObj.precio) ? prodBase : Number(vObj.precio),
+        hasPromo: prodBase > Number(vObj.precio),
+        label: vObj?.eventoOrigen?.nombreEvento || "Edición Especial"
+      };
+    }
+
+    let finalP = raw;
+    let label = "";
+    let hasPromo = false;
+
+    if (eventInfo && (eventInfo.savings > 0 || eventInfo.discountPercent > 0 || Number(eventInfo.nuevoPrecio) > 0 || Number(eventInfo.descuento) > 0)) {
+      if (isCustomNonBase) {
+        const pct = Number(eventInfo.descuento || eventInfo.discountPercent || 0);
+        if (pct > 0 && !Number(eventInfo.nuevoPrecio)) {
+          finalP = Math.round(raw * (1 - pct / 100));
+          hasPromo = finalP < raw;
+          label = `-${Math.round(pct)}% OFF`;
+        } else if (Number(eventInfo.nuevoPrecio) > 0) {
+          const fixedDiscount = Math.max(0, prodBase - Number(eventInfo.nuevoPrecio));
+          finalP = Math.max(0, raw - fixedDiscount);
+          hasPromo = finalP < raw;
+          label = "Edición Especial";
+        }
+      } else if (eventInfo.savings > 0 || eventInfo.discountPercent > 0) {
+        finalP = eventInfo.eventPrice;
+        hasPromo = true;
+        label = eventInfo.savings > 0
+          ? `-${eventInfo.discountPercent}% OFF (Ahorro ${Number(eventInfo.savings || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })})`
+          : "Edición Especial";
+      }
+    } else if (!isCustomNonBase && producto?.precioPromo !== undefined && Number(producto.precioPromo) < raw) {
+      finalP = Number(producto.precioPromo);
+      hasPromo = true;
+      const pct = producto.descuentoPorcentaje || Math.round(((raw - finalP) / raw) * 100);
+      label = `-${pct}% OFF`;
+    } else if (!isCustomNonBase) {
+      const eventos = Array.isArray(producto?.eventos) ? producto.eventos : [];
+      const evtPrecio = eventos.find((e) => Number(e.nuevoPrecio) > 0);
+      const evtDesc = eventos.find((e) => Number(e.descuento || e.descuentoPorcentaje || e.porcentajeDescuento) > 0);
+      if (evtPrecio && Number(evtPrecio.nuevoPrecio) > 0) {
+        finalP = Number(evtPrecio.nuevoPrecio);
+        hasPromo = finalP < raw;
+        label = "Precio Promocional";
+      } else if (evtDesc) {
+        const desc = Number(evtDesc.descuento || evtDesc.descuentoPorcentaje || evtDesc.porcentajeDescuento);
+        if (desc > 0) {
+          finalP = Math.round(raw * (1 - desc / 100));
+          hasPromo = true;
+          label = `-${Math.round(desc)}% OFF`;
+        }
+      }
+    }
+
+    return {
+      finalPrice: finalP,
+      originalPrice: raw,
+      hasPromo,
+      label
+    };
+  }, [producto, eventInfo]);
+
   // Calculo de precio base con posibles eventos o promociones
   const { basePrice, originalPrice, hasDiscount, discountLabel } = (() => {
     if (!producto) return { basePrice: 0, originalPrice: 0, hasDiscount: false, discountLabel: '' };
-    let rawPrice = Number(producto.precio || 0);
     if (drinkHasSizes) {
       const sizeMatchedVar = realVariants.find((v) => {
         const vn = (v.nombre || "").toLowerCase();
@@ -1769,6 +1839,7 @@ export function FastFoodProductModal({
         if (selectedSizeId === "2.5L") return vn.includes("2.5") || vn.includes("2,5") || vn.includes("mega");
         return false;
       });
+      let rawPrice = Number(producto.precio || 0);
       if (sizeMatchedVar && Number(sizeMatchedVar.precio) > 0) {
         rawPrice = Number(sizeMatchedVar.precio);
       } else if (selectedSizeId === "400ml" && Number(producto?.precio) > 0) {
@@ -1776,52 +1847,30 @@ export function FastFoodProductModal({
       } else {
         rawPrice = isPostobonDrink ? selectedSizeObj.defaultPostobonPrice : selectedSizeObj.defaultPremiumPrice;
       }
-    } else {
-      rawPrice =
-        selectedVariant?.precio !== undefined && Number(selectedVariant.precio) > 0
-          ? Number(selectedVariant.precio)
-          : Number(producto.precio || 0);
-    }
-    let original = rawPrice;
-    let final = original;
-    let discount = false;
-    let label = "";
-
-    if (eventInfo && (eventInfo.savings > 0 || eventInfo.discountPercent > 0)) {
-      final = eventInfo.eventPrice;
-      discount = true;
-      label = eventInfo.savings > 0 
-        ? `-${eventInfo.discountPercent}% OFF (Ahorro ${Number(eventInfo.savings || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })})`
-        : "Edición Especial";
-    } else if (producto.precioPromo !== undefined && Number(producto.precioPromo) < original) {
-      final = Number(producto.precioPromo);
-      discount = true;
-      const pct = producto.descuentoPorcentaje || Math.round(((original - final) / original) * 100);
-      label = `-${pct}% OFF`;
-    } else {
-      const eventos = Array.isArray(producto.eventos) ? producto.eventos : [];
-      const evtPrecio = eventos.find((e) => Number(e.nuevoPrecio) > 0);
-      const evtDesc = eventos.find((e) => Number(e.descuento || e.descuentoPorcentaje || e.porcentajeDescuento) > 0);
-
-      if (evtPrecio && Number(evtPrecio.nuevoPrecio) > 0) {
-        final = Number(evtPrecio.nuevoPrecio);
+      let final = rawPrice;
+      let discount = false;
+      let label = "";
+      if (eventInfo && (eventInfo.savings > 0 || eventInfo.discountPercent > 0)) {
+        final = eventInfo.eventPrice;
         discount = true;
-        label = "Precio Promocional";
-      } else if (evtDesc) {
-        const desc = Number(evtDesc.descuento || evtDesc.descuentoPorcentaje || evtDesc.porcentajeDescuento);
-        if (desc > 0) {
-          final = Math.round(original * (1 - desc / 100));
-          discount = true;
-          label = `-${Math.round(desc)}% OFF`;
-        }
+        label = eventInfo.savings > 0
+          ? `-${eventInfo.discountPercent}% OFF (Ahorro ${Number(eventInfo.savings || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })})`
+          : "Edición Especial";
+      } else if (producto.precioPromo !== undefined && Number(producto.precioPromo) < rawPrice) {
+        final = Number(producto.precioPromo);
+        discount = true;
+        const pct = producto.descuentoPorcentaje || Math.round(((rawPrice - final) / rawPrice) * 100);
+        label = `-${pct}% OFF`;
       }
+      return { basePrice: final, originalPrice: rawPrice, hasDiscount: discount, discountLabel: label };
     }
 
+    const resolved = resolveFoodVariantPrice(selectedVariant);
     return {
-      basePrice: final,
-      originalPrice: original,
-      hasDiscount: discount,
-      discountLabel: label
+      basePrice: resolved.finalPrice,
+      originalPrice: resolved.originalPrice,
+      hasDiscount: resolved.hasPromo,
+      discountLabel: resolved.label
     };
   })();
 
@@ -3101,19 +3150,7 @@ export function FastFoodProductModal({
                       }
                     }}
                     basePrice={Number(producto?.precio || 0)}
-                    getPriceInfo={(vObj) => {
-                      const raw = vObj && Number(vObj.precio) > 0 ? Number(vObj.precio) : Number(producto?.precio || 0);
-                      let finalP = raw;
-                      if (eventInfo) {
-                        if (Number(eventInfo.nuevoPrecio) > 0) finalP = Number(eventInfo.nuevoPrecio);
-                        else if (Number(eventInfo.descuento) > 0) finalP = Math.round(raw * (1 - Number(eventInfo.descuento) / 100));
-                      }
-                      return {
-                        finalPrice: finalP,
-                        originalPrice: raw,
-                        hasPromo: Boolean(eventInfo && finalP < raw)
-                      };
-                    }}
+                    getPriceInfo={(vObj) => resolveFoodVariantPrice(vObj)}
                     includeBaseOption={true}
                     baseOptionLabel="Preparación Clásica / Estándar"
                     isDrink={false}

@@ -165,22 +165,41 @@ export function PersonalizarEventoModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Producto resuelto con sus variantes activas desde catálogo si no venían embebidas en eventProducts
+  // Producto resuelto con sus variantes activas desde catálogo o variantesCreadas del evento
   const resolvedProduct = useMemo(() => {
     if (!selectedProduct) return null;
-    const pId = selectedProduct.id || selectedProduct.idProducto;
-    const catalogMatch = (productosList || []).find((p) => Number(p.id || p.idProducto) === Number(pId));
-    if (!catalogMatch) return selectedProduct;
-    return {
-      ...catalogMatch,
-      ...selectedProduct,
-      variantes:
-        Array.isArray(selectedProduct.variantes) && selectedProduct.variantes.length > 0
-          ? selectedProduct.variantes
-          : (catalogMatch.variantes || []),
-      fichaTecnica: selectedProduct.fichaTecnica || catalogMatch.fichaTecnica || null
-    };
-  }, [selectedProduct, productosList]);
+    const pId = Number(selectedProduct.id || selectedProduct.idProducto || 0);
+    const catalogMatch = (productosList || []).find((p) => Number(p.id || p.idProducto) === pId);
+    const baseMerged = catalogMatch
+      ? {
+          ...catalogMatch,
+          ...selectedProduct,
+          variantes:
+            Array.isArray(selectedProduct.variantes) && selectedProduct.variantes.length > 0
+              ? selectedProduct.variantes
+              : (catalogMatch.variantes || []),
+          fichaTecnica: selectedProduct.fichaTecnica || catalogMatch.fichaTecnica || null
+        }
+      : selectedProduct;
+
+    const existingVars = Array.isArray(baseMerged.variantes) ? [...baseMerged.variantes] : [];
+    const existingIds = new Set(existingVars.map((v) => Number(v?.idVariante || v?.id || 0)).filter(Boolean));
+    const evtCreatedVars = Array.isArray(evento?.variantesCreadas) ? evento.variantesCreadas : [];
+    for (const ev of evtCreatedVars) {
+      if (!ev || Number(ev.idProducto || pId) !== pId) continue;
+      if (ev.estado !== undefined && ev.estado !== null && Number(ev.estado) === 0) continue;
+      if (ev.activo === false) continue;
+      const vid = Number(ev.idVariante || ev.id || 0);
+      if (vid && !existingIds.has(vid)) {
+        existingVars.push(ev);
+        existingIds.add(vid);
+      }
+    }
+
+    return existingVars.length !== (baseMerged.variantes || []).length
+      ? { ...baseMerged, variantes: existingVars }
+      : baseMerged;
+  }, [selectedProduct, productosList, evento]);
 
   const activeFoodVariants = useMemo(
     () => getDisplayProductVariants(resolvedProduct, { includeInactive: false }),

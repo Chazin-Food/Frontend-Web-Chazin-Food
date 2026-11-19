@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { posService } from "../servicios/posService";
 
-function findCartItemIndex(cart, productoId, varianteId, adicionIds, observacion = "", ingredientesRemovidos = []) {
+function findCartItemIndex(cart, productoId, varianteId, adicionIds, observacion = "", ingredientesRemovidos = [], esVarianteBase = false) {
   const normObs = String(observacion || "").trim().toLowerCase();
   const normRemoved = Array.isArray(ingredientesRemovidos)
     ? ingredientesRemovidos.map((r) => String(r).trim().toLowerCase()).sort().join(",")
     : "";
   return cart.findIndex((it) => {
     if (it.productoId !== productoId) return false;
+    if (Boolean(it.esVarianteBase) !== Boolean(esVarianteBase)) return false;
     if (it.varianteId !== varianteId) return false;
     const existingAdIds = (it.adiciones || []).map((a) => a.id).sort().join(',');
     const newAdIds = (adicionIds || []).slice().sort().join(',');
@@ -100,7 +101,26 @@ export function usePOS({ initialClienteId = null } = {}) {
 
   const total = subtotal - descuento;
 
-  function addProduct({ productoId, varianteId, nombre, precio, adiciones = [], observacion = "", ingredientesRemovidos = [], personalizaciones = {}, cantidad = 1, stock = null, is2x1Promo = false, cantidadCocina = null }) {
+  function addProduct({
+    productoId,
+    varianteId,
+    esVarianteBase = false,
+    varianteNombre = null,
+    varianteDescripcion = null,
+    varianteEspecificaciones = null,
+    varianteCambios = [],
+    esVarianteDeEvento = false,
+    nombre,
+    precio,
+    adiciones = [],
+    observacion = "",
+    ingredientesRemovidos = [],
+    personalizaciones = {},
+    cantidad = 1,
+    stock = null,
+    is2x1Promo = false,
+    cantidadCocina = null
+  }) {
     setCart((prev) => {
       const prodMeta = (productos || []).find((p) => (p.id || p.idProducto) === productoId);
       const prodStock = Number(stock !== null ? stock : (prodMeta?.stock !== undefined ? prodMeta.stock : (prodMeta?.stockActual !== undefined ? prodMeta.stockActual : 0)));
@@ -115,7 +135,7 @@ export function usePOS({ initialClienteId = null } = {}) {
       }
 
       const adicionIds = (adiciones || []).map((a) => (typeof a === "object" ? `${a.id || a.idAdicion}x${a.cantidad || 1}` : a)).slice();
-      const idx = findCartItemIndex(prev, productoId, varianteId, adicionIds, observacion, ingredientesRemovidos);
+      const idx = findCartItemIndex(prev, productoId, varianteId, adicionIds, observacion, ingredientesRemovidos, esVarianteBase);
       if (idx >= 0) {
         const newCart = [...prev];
         const newQty = (newCart[idx].cantidad || 0) + qtyToAdd;
@@ -133,6 +153,12 @@ export function usePOS({ initialClienteId = null } = {}) {
         {
           productoId,
           varianteId,
+          esVarianteBase: Boolean(esVarianteBase),
+          varianteNombre: esVarianteBase ? null : (varianteNombre || null),
+          varianteDescripcion: esVarianteBase ? null : (varianteDescripcion || null),
+          varianteEspecificaciones: esVarianteBase ? null : (varianteEspecificaciones || null),
+          varianteCambios: (!esVarianteBase && Array.isArray(varianteCambios)) ? varianteCambios : [],
+          esVarianteDeEvento: Boolean(!esVarianteBase && esVarianteDeEvento),
           nombre,
           precio,
           adiciones,
@@ -289,7 +315,13 @@ export function usePOS({ initialClienteId = null } = {}) {
             const kQty = it.cantidadCocina || (is2x1 ? (it.cantidad || 1) * 2 : (it.cantidad || 1));
             return {
               idProducto: it.productoId,
-              idVariante: it.varianteId,
+              idVariante: it.esVarianteBase ? null : it.varianteId,
+              esVarianteBase: Boolean(it.esVarianteBase),
+              varianteNombre: it.esVarianteBase ? null : (it.varianteNombre || null),
+              varianteDescripcion: it.esVarianteBase ? null : (it.varianteDescripcion || null),
+              varianteEspecificaciones: it.esVarianteBase ? null : (it.varianteEspecificaciones || null),
+              varianteCambios: (!it.esVarianteBase && Array.isArray(it.varianteCambios)) ? it.varianteCambios : [],
+              esVarianteDeEvento: Boolean(!it.esVarianteBase && it.esVarianteDeEvento),
               nombre: it.nombre,
               cantidad: it.cantidad,
               cantidadCocina: kQty,
@@ -312,7 +344,13 @@ export function usePOS({ initialClienteId = null } = {}) {
           const kQty = it.cantidadCocina || (is2x1 ? (it.cantidad || 1) * 2 : (it.cantidad || 1));
           return {
             idProducto: it.productoId,
-            idVariante: it.varianteId,
+            idVariante: it.esVarianteBase ? null : it.varianteId,
+            esVarianteBase: Boolean(it.esVarianteBase),
+            varianteNombre: it.esVarianteBase ? null : (it.varianteNombre || null),
+            varianteDescripcion: it.esVarianteBase ? null : (it.varianteDescripcion || null),
+            varianteEspecificaciones: it.esVarianteBase ? null : (it.varianteEspecificaciones || null),
+            varianteCambios: (!it.esVarianteBase && Array.isArray(it.varianteCambios)) ? it.varianteCambios : [],
+            esVarianteDeEvento: Boolean(!it.esVarianteBase && it.esVarianteDeEvento),
             cantidad: it.cantidad,
             cantidadCocina: kQty,
             is2x1Promo: is2x1,

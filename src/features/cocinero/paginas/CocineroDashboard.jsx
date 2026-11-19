@@ -1338,8 +1338,12 @@ export function CocineroDashboard() {
                                         Variante: {prod.varianteNombre}
                                       </span>
                                       {prod.esVarianteDeEvento && (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-200 text-[9.5px] font-black">
-                                          <Sparkles className="w-2.5 h-2.5" /> Evento
+                                        <span
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-200 text-[9.5px] font-black"
+                                          title={prod.eventoOrigenNombre ? `Creada por evento: ${prod.eventoOrigenNombre}` : "Variante hecha por evento"}
+                                        >
+                                          <Sparkles className="w-2.5 h-2.5" />
+                                          {prod.eventoOrigenNombre ? `Evento: ${prod.eventoOrigenNombre}` : "Evento"}
                                         </span>
                                       )}
                                     </div>

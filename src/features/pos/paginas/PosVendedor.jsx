@@ -219,12 +219,25 @@ export default function PosVendedor() {
     bebidas,
     observacion,
     ingredientesRemovidos,
-    personalizaciones
+    personalizaciones,
+    esVarianteBase,
+    varianteNombre,
+    varianteDescripcion,
+    varianteEspecificaciones,
+    varianteCambios,
+    esVarianteDeEvento
   }) => {
+    const resolvedIsBase = Boolean(esVarianteBase ?? producto.esVarianteBase);
     const displayName = producto.nombrePersonalizado || producto.nombre;
     addProduct({
       productoId: producto.idProducto || producto.id,
-      varianteId: producto.idVariante || producto.id || producto.idProducto,
+      varianteId: resolvedIsBase ? (producto.idVarianteBase || producto.idVariante || null) : (producto.idVariante || producto.id || producto.idProducto),
+      esVarianteBase: resolvedIsBase,
+      varianteNombre: resolvedIsBase ? null : (varianteNombre || producto.varianteNombre || null),
+      varianteDescripcion: resolvedIsBase ? null : (varianteDescripcion || producto.varianteDescripcion || null),
+      varianteEspecificaciones: resolvedIsBase ? null : (varianteEspecificaciones || producto.varianteEspecificaciones || null),
+      varianteCambios: (!resolvedIsBase && Array.isArray(varianteCambios || producto.varianteCambios)) ? (varianteCambios || producto.varianteCambios) : [],
+      esVarianteDeEvento: Boolean(!resolvedIsBase && (esVarianteDeEvento || producto.esVarianteDeEvento)),
       nombre: displayName,
       precio: producto.precio,
       adiciones: (adiciones || []).map((a) => ({

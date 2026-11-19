@@ -519,10 +519,24 @@ export function HistorialComandasLista({
 
                               return (
                                 <div key={idx} className="py-1.5 border-b border-gray-200/50 dark:border-gray-700/50 last:border-0 space-y-1">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="font-bold text-gray-800 dark:text-gray-200">
-                                      {it.cantidad}x {it.nombre}
-                                    </span>
+                                  <div className="flex items-center justify-between gap-2 text-xs">
+                                    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                      <span className="font-bold text-gray-800 dark:text-gray-200">
+                                        {it.cantidad}x {it.nombre}
+                                      </span>
+                                      {it.varianteNombre && !it.esVarianteBase && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-200 border border-purple-200 text-[10px] font-bold">
+                                          <Layers className="w-2.5 h-2.5" />
+                                          {it.varianteNombre}
+                                        </span>
+                                      )}
+                                      {it.esVarianteDeEvento && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 text-[9.5px] font-bold">
+                                          <Sparkles className="w-2.5 h-2.5" />
+                                          {it.eventoOrigenNombre ? `Evento: ${it.eventoOrigenNombre}` : "Evento"}
+                                        </span>
+                                      )}
+                                    </div>
                                     {onVerReceta && (
                                       <button
                                         type="button"
@@ -530,13 +544,29 @@ export function HistorialComandasLista({
                                           e.stopPropagation();
                                           onVerReceta(ped, it);
                                         }}
-                                        className="text-[10px] text-[#F05454] font-bold hover:underline cursor-pointer flex items-center gap-1"
+                                        className="text-[10px] text-[#F05454] font-bold hover:underline cursor-pointer flex items-center gap-1 shrink-0"
                                       >
                                         <BookOpen className="w-3 h-3" />
                                         Ficha Técnica
                                       </button>
                                     )}
                                   </div>
+
+                                  {Array.isArray(it.varianteCambios) && it.varianteCambios.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pl-3">
+                                      {it.varianteCambios.map((vc, vcIdx) => (
+                                        <span key={vcIdx} className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 px-1.5 py-0.5 rounded">
+                                          {vc.texto || vc.insumoNombre}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {(it.varianteEspecificaciones || it.receta?.especificaciones) && (
+                                    <p className="text-[10.5px] text-blue-800 dark:text-blue-200 pl-3">
+                                      <strong>Specs:</strong> {it.varianteEspecificaciones || it.receta?.especificaciones}
+                                    </p>
+                                  )}
 
                                   {/* Adiciones si existen */}
                                   {Array.isArray(it.adiciones) && it.adiciones.length > 0 && (
