@@ -1,6 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import * as XLSX from "xlsx";
 import {
   CheckCircle2,
   Clock,
@@ -20,11 +19,12 @@ import { VentasStatsCards } from "../componentes/gestion/VentasStatsCards";
 import { VentasTable } from "../componentes/gestion/VentasTable";
 import { VentasHistorialCardsView } from "../componentes/gestion/VentasHistorialCardsView";
 import { VentasHistorialTableView } from "../componentes/gestion/VentasHistorialTableView";
-import { VentasReportesView } from "../componentes/gestion/VentasReportesView";
-import { VentaDetalleModal } from "../componentes/gestion/VentaDetalleModal";
 import { VentasBuscadorMulticriterio } from "../componentes/gestion/VentasBuscadorMulticriterio";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { formatTime12h } from "@/shared/utils/dateUtils";
+
+const VentasReportesView = lazy(() => import("../componentes/gestion/VentasReportesView").then((m) => ({ default: m.VentasReportesView })));
+const VentaDetalleModal = lazy(() => import("../componentes/gestion/VentaDetalleModal").then((m) => ({ default: m.VentaDetalleModal })));
 
 export function GestionVentas() {
   const navigate = useNavigate();
@@ -125,7 +125,8 @@ export function GestionVentas() {
   };
 
   // Export to Excel (.xlsx) con los datos filtrados actualmente
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import("xlsx");
     const exportSource = activeTab === "historial" ? historialVentas : filteredVentas;
     const headers = [
       "N° Factura / Venta",
@@ -405,7 +406,9 @@ export function GestionVentas() {
 
         {/* TAB 1: REPORTES */}
         {activeTab === "reportes" ? (
-          <VentasReportesView ventas={ventas} selectedPeriod={selectedPeriod} />
+          <Suspense fallback={<ChazinLoader text="CARGANDO REPORTES Y GRÁFICAS" size="md" />}>
+            <VentasReportesView ventas={ventas} selectedPeriod={selectedPeriod} />
+          </Suspense>
         ) : activeTab === "historial" ? (
           /* TAB 2: HISTORIAL */
           <div className="space-y-6 pt-1">
@@ -578,14 +581,18 @@ export function GestionVentas() {
       </div>
 
       {/* Detail Modal */}
-      <VentaDetalleModal
-        isOpen={!!selectedVentaDetail}
-        onClose={() => setSelectedVentaDetail(null)}
-        venta={activeVentaDetail}
-        onUpdateTiempoEntrega={canEdit ? updateTiempoEntrega : null}
-        onAprobarPago={canEdit ? aprobarPago : null}
-        canEdit={canEdit}
-      />
+      {!!selectedVentaDetail && (
+        <Suspense fallback={null}>
+          <VentaDetalleModal
+            isOpen={!!selectedVentaDetail}
+            onClose={() => setSelectedVentaDetail(null)}
+            venta={activeVentaDetail}
+            onUpdateTiempoEntrega={canEdit ? updateTiempoEntrega : null}
+            onAprobarPago={canEdit ? aprobarPago : null}
+            canEdit={canEdit}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

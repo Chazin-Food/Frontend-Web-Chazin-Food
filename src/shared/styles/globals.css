@@ -8,6 +8,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Elimina latencia táctil de doble tap en dispositivos móviles */
+a,
+button,
+[role="button"],
+select,
+summary {
+  touch-action: manipulation;
+}
+
 #root {
   min-height: 100dvh;
   max-width: 100%;

@@ -1,5 +1,120 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// ── Caché GET en memoria + deduplicación de peticiones simultáneas ──
+const MAX_CLIENT_CACHE_ENTRIES = 50;
+const getCache = new Map();
+const inFlightGets = new Map();
+
+const NO_CACHE_PATH_RE = /\/(auth|autenticacion|wompi|health|perfil|login|registro|google|activar-cuenta|reset-password|forgot-password)(\/|$|\?)/i;
+const SHORT_TTL_PATH_RE = /\/(produccion|dashboard)(\/|$|\?)/i;
+
+const CLIENT_INVALIDATION_RULES = [
+  { prefix: '/productos', targets: ['/productos', '/products', '/categorias', '/eventos', '/fichas-tecnicas', '/dashboard', '/produccion'] },
+  { prefix: '/products', targets: ['/productos', '/products', '/categorias', '/eventos', '/fichas-tecnicas', '/dashboard', '/produccion'] },
+  { prefix: '/categorias-producto', targets: ['/categorias-producto', '/categorias-productos', '/categorias', '/productos', '/products'] },
+  { prefix: '/categorias-productos', targets: ['/categorias-producto', '/categorias-productos', '/categorias', '/productos', '/products'] },
+  { prefix: '/categorias-insumo', targets: ['/categorias-insumo', '/categorias-insumos', '/categories', '/insumos'] },
+  { prefix: '/categorias-insumos', targets: ['/categorias-insumo', '/categorias-insumos', '/categories', '/insumos'] },
+  { prefix: '/categorias', targets: ['/categorias', '/productos', '/categories'] },
+  { prefix: '/categories', targets: ['/categories', '/categorias', '/categorias-insumo', '/insumos'] },
+  { prefix: '/roles', targets: ['/roles', '/usuarios', '/users'] },
+  { prefix: '/usuarios', targets: ['/usuarios', '/users', '/roles', '/dashboard', '/clientes', '/empleados'] },
+  { prefix: '/users', targets: ['/usuarios', '/users', '/roles', '/dashboard', '/clientes', '/empleados'] },
+  { prefix: '/adiciones', targets: ['/adiciones', '/productos', '/insumos'] },
+  { prefix: '/eventos', targets: ['/eventos', '/productos', '/fichas-tecnicas', '/produccion'] },
+  { prefix: '/fichas-tecnicas', targets: ['/fichas-tecnicas', '/productos', '/produccion'] },
+  { prefix: '/insumos-preparados', targets: ['/insumos-preparados', '/fichas-tecnicas', '/productos', '/insumos', '/trazabilidad'] },
+  { prefix: '/insumos', targets: ['/insumos', '/insumos-preparados', '/adiciones', '/productos', '/fichas-tecnicas', '/categorias-insumo', '/categories', '/dashboard', '/trazabilidad'] },
+  { prefix: '/proveedores', targets: ['/proveedores', '/compras', '/insumos', '/trazabilidad'] },
+  { prefix: '/compras', targets: ['/compras', '/insumos', '/adiciones', '/productos', '/proveedores', '/dashboard', '/trazabilidad'] },
+  { prefix: '/ventas', targets: ['/ventas', '/pedidos', '/orders', '/productos', '/adiciones', '/clientes', '/dashboard', '/produccion', '/devoluciones'] },
+  { prefix: '/pedidos', targets: ['/ventas', '/pedidos', '/orders', '/productos', '/adiciones', '/clientes', '/dashboard', '/produccion', '/devoluciones'] },
+  { prefix: '/orders', targets: ['/ventas', '/pedidos', '/orders', '/productos', '/adiciones', '/clientes', '/dashboard', '/produccion', '/devoluciones'] },
+  { prefix: '/produccion', targets: ['/produccion', '/ventas', '/pedidos', '/productos', '/insumos', '/dashboard'] },
+  { prefix: '/devoluciones', targets: ['/devoluciones', '/ventas', '/pedidos', '/productos', '/insumos', '/dashboard', '/produccion', '/clientes'] },
+  { prefix: '/clientes', targets: ['/clientes', '/ventas', '/dashboard', '/usuarios'] },
+  { prefix: '/empleados', targets: ['/empleados', '/roles', '/usuarios', '/dashboard'] },
+  { prefix: '/resenas', targets: ['/resenas', '/productos', '/dashboard'] },
+  { prefix: '/trazabilidad', targets: ['/trazabilidad', '/insumos', '/proveedores'] },
+  { prefix: '/wompi', targets: ['/ventas', '/pedidos', '/productos', '/dashboard', '/produccion', '/clientes'] }
+];
+
+function clonePayload(value) {
+  if (value === null || typeof value !== 'object') return value;
+  try {
+    if (typeof structuredClone === 'function') return structuredClone(value);
+  } catch (_) {}
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (_) {
+    return value;
+  }
+}
+
+function getAuthFingerprint() {
+  try {
+    const raw = localStorage.getItem('chazin_user');
+    if (!raw) return 'anon';
+    const parsed = JSON.parse(raw);
+    const tok = parsed?.token ? String(parsed.token) : '';
+    return tok ? tok.slice(-16) : 'anon';
+  } catch (_) {
+    return 'anon';
+  }
+}
+
+function resolveClientCacheTtl(url, options = {}) {
+  if (options.noCache || options.cache === 'no-store' || options.headers?.['Cache-Control'] === 'no-cache') {
+    return 0;
+  }
+  if (url.includes('refresh=true') || NO_CACHE_PATH_RE.test(url)) {
+    return 0;
+  }
+  if (SHORT_TTL_PATH_RE.test(url)) {
+    return 8000;
+  }
+  return 20000;
+}
+
+export function clearApiCache() {
+  getCache.clear();
+  inFlightGets.clear();
+}
+
+export function invalidateApiCacheForEndpoint(endpoint = '') {
+  const cleanPath = String(endpoint || '').split('?')[0];
+  const matchedTargets = new Set();
+  for (const rule of CLIENT_INVALIDATION_RULES) {
+    if (cleanPath.includes(rule.prefix)) {
+      rule.targets.forEach((t) => matchedTargets.add(t));
+    }
+  }
+  if (matchedTargets.size === 0) {
+    getCache.clear();
+    return;
+  }
+  for (const key of getCache.keys()) {
+    for (const target of matchedTargets) {
+      if (key.includes(target)) {
+        getCache.delete(key);
+        break;
+      }
+    }
+  }
+}
+
+function setCacheEntry(cacheKey, data, ttlMs) {
+  if (ttlMs <= 0 || data === undefined) return;
+  if (getCache.size >= MAX_CLIENT_CACHE_ENTRIES) {
+    const oldestKey = getCache.keys().next().value;
+    if (oldestKey) getCache.delete(oldestKey);
+  }
+  getCache.set(cacheKey, {
+    data: clonePayload(data),
+    expiresAt: Date.now() + ttlMs
+  });
+}
+
 /**
  * Helper function to retrieve auth headers with Bearer token
  */
@@ -37,91 +152,133 @@ export async function apiFetch(endpoint, options = {}) {
     }
   }
 
+  const method = String(options.method || 'GET').toUpperCase();
+  const isGet = method === 'GET';
+  const cacheTtl = isGet ? resolveClientCacheTtl(url, options) : 0;
+  const cacheKey = isGet ? `${getAuthFingerprint()}:${url}` : '';
+
+  if (isGet && cacheTtl > 0) {
+    const cached = getCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return clonePayload(cached.data);
+    }
+    if (cached) {
+      getCache.delete(cacheKey);
+    }
+  }
+
+  if (isGet && !options.signal && inFlightGets.has(cacheKey)) {
+    const shared = await inFlightGets.get(cacheKey);
+    return clonePayload(shared);
+  }
+
   const defaultHeaders = getAuthHeaders();
+  const { noCache: _ignoreNoCache, params: _ignoreParams, ...fetchOptions } = options;
   const config = {
-    ...options,
+    ...fetchOptions,
+    method,
     headers: {
       ...defaultHeaders,
       ...(options.headers || {})
     }
   };
 
-  const response = await fetch(url, config);
+  const executeRequest = async () => {
+    const response = await fetch(url, config);
 
-  if (!response.ok) {
-    const isLoginEndpoint = endpoint.includes('/login') || endpoint.includes('/activar-cuenta');
-    if (response.status === 401 && !isLoginEndpoint && typeof window !== 'undefined') {
+    if (!response.ok) {
+      const isLoginEndpoint = endpoint.includes('/login') || endpoint.includes('/activar-cuenta');
+      if (response.status === 401 && !isLoginEndpoint && typeof window !== 'undefined') {
+        clearApiCache();
+        try {
+          localStorage.removeItem('chazin_user');
+        } catch (_) {}
+        setTimeout(() => {
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login';
+          }
+        }, 1800);
+      }
+      let errorMessage = `HTTP error ${response.status}`;
+      let parsedErrorData = null;
       try {
-        localStorage.removeItem('chazin_user');
-      } catch (_) {}
-      setTimeout(() => {
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
+        const errorData = await response.json();
+        parsedErrorData = errorData;
+        if (errorData) {
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.mensaje) {
+            errorMessage = errorData.mensaje;
+          } else if (typeof errorData.error === 'string' && errorData.error.trim()) {
+            errorMessage = errorData.error;
+          } else if (Array.isArray(errorData.errores) && errorData.errores.length > 0) {
+            errorMessage = errorData.errores.join(' ');
+          }
         }
-      }, 1800);
-    }
-    let errorMessage = `HTTP error ${response.status}`;
-    let parsedErrorData = null;
-    try {
-      const errorData = await response.json();
-      parsedErrorData = errorData;
-      if (errorData) {
-        if (errorData.message) {
-          errorMessage = errorData.message;
-        } else if (errorData.mensaje) {
-          errorMessage = errorData.mensaje;
-        } else if (typeof errorData.error === 'string' && errorData.error.trim()) {
-          errorMessage = errorData.error;
-        } else if (Array.isArray(errorData.errores) && errorData.errores.length > 0) {
-          errorMessage = errorData.errores.join(' ');
+      } catch {
+        // JSON parse error, use default message
+      }
+
+      // Mensaje coherente y amigable cuando la sesión se cerró o el token expiró
+      if (response.status === 401 && !isLoginEndpoint) {
+        if (!errorMessage || errorMessage.toLowerCase().includes('token') || errorMessage === `HTTP error ${response.status}`) {
+          errorMessage = 'Tu sesión ha expirado o has cerrado sesión. Por favor ingresa nuevamente.';
         }
       }
-    } catch {
-      // JSON parse error, use default message
+
+      // Traducción de errores técnicos de base de datos a mensajes entendibles por el usuario (Ítem 13)
+      const lower = String(errorMessage || '').toLowerCase();
+      if (lower.includes('foreign key constraint') || lower.includes('cannot delete or update a parent row')) {
+        if (lower.includes('categoriaproducto') || lower.includes('idcategoriaproducto')) {
+          errorMessage = 'No se puede eliminar la categoría porque tiene productos asociados en el menú.';
+        } else if (lower.includes('producto') || lower.includes('idproducto')) {
+          errorMessage = 'No se puede eliminar este producto porque está vinculado a ventas o pedidos registrados.';
+        } else if (lower.includes('insumo') || lower.includes('idinsumo')) {
+          errorMessage = 'No se puede eliminar este insumo porque forma parte de recetas o compras activas.';
+        } else {
+          errorMessage = 'No se puede realizar esta acción porque el registro está asociado a otros datos del sistema.';
+        }
+      } else if (lower.includes('duplicate entry') || lower.includes('unique constraint')) {
+        if (lower.includes('nombre') || lower.includes('name')) {
+          errorMessage = 'Ya existe un registro con este nombre. Por favor ingresa uno diferente.';
+        } else if (lower.includes('codigo') || lower.includes('code')) {
+          errorMessage = 'Ya existe un elemento con este código registrado.';
+        } else {
+          errorMessage = 'Ya existe un registro con estos datos en el sistema. Por favor verifica la información.';
+        }
+      }
+
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      if (parsedErrorData) error.data = parsedErrorData;
+      throw error;
     }
 
-    // Mensaje coherente y amigable cuando la sesión se cerró o el token expiró
-    if (response.status === 401 && !isLoginEndpoint) {
-      if (!errorMessage || errorMessage.toLowerCase().includes('token') || errorMessage === `HTTP error ${response.status}`) {
-        errorMessage = 'Tu sesión ha expirado o has cerrado sesión. Por favor ingresa nuevamente.';
-      }
+    // Check if response has content
+    const contentType = response.headers.get('content-type');
+    const result = contentType && contentType.includes('application/json')
+      ? await response.json()
+      : await response.text();
+
+    if (isGet && cacheTtl > 0) {
+      setCacheEntry(cacheKey, result, cacheTtl);
+    } else if (!isGet) {
+      invalidateApiCacheForEndpoint(endpoint);
     }
 
-    // Traducción de errores técnicos de base de datos a mensajes entendibles por el usuario (Ítem 13)
-    const lower = String(errorMessage || '').toLowerCase();
-    if (lower.includes('foreign key constraint') || lower.includes('cannot delete or update a parent row')) {
-      if (lower.includes('categoriaproducto') || lower.includes('idcategoriaproducto')) {
-        errorMessage = 'No se puede eliminar la categoría porque tiene productos asociados en el menú.';
-      } else if (lower.includes('producto') || lower.includes('idproducto')) {
-        errorMessage = 'No se puede eliminar este producto porque está vinculado a ventas o pedidos registrados.';
-      } else if (lower.includes('insumo') || lower.includes('idinsumo')) {
-        errorMessage = 'No se puede eliminar este insumo porque forma parte de recetas o compras activas.';
-      } else {
-        errorMessage = 'No se puede realizar esta acción porque el registro está asociado a otros datos del sistema.';
-      }
-    } else if (lower.includes('duplicate entry') || lower.includes('unique constraint')) {
-      if (lower.includes('nombre') || lower.includes('name')) {
-        errorMessage = 'Ya existe un registro con este nombre. Por favor ingresa uno diferente.';
-      } else if (lower.includes('codigo') || lower.includes('code')) {
-        errorMessage = 'Ya existe un elemento con este código registrado.';
-      } else {
-        errorMessage = 'Ya existe un registro con estos datos en el sistema. Por favor verifica la información.';
-      }
-    }
+    return result;
+  };
 
-    const error = new Error(errorMessage);
-    error.status = response.status;
-    if (parsedErrorData) error.data = parsedErrorData;
-    throw error;
+  if (isGet && !options.signal) {
+    const promise = executeRequest().finally(() => {
+      inFlightGets.delete(cacheKey);
+    });
+    inFlightGets.set(cacheKey, promise);
+    const data = await promise;
+    return clonePayload(data);
   }
 
-  // Check if response has content
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return await response.json();
-  }
-  
-  return await response.text();
+  return await executeRequest();
 }
 
 export const apiClient = {

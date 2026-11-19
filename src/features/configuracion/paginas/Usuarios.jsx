@@ -1,5 +1,4 @@
 import { useState } from "react";
-import * as XLSX from "xlsx";
 import { Plus, Search, Users, UserCheck, UserX, Download, Shield, X, Filter } from "lucide-react";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
@@ -104,9 +103,10 @@ export function Usuarios() {
     }
   };
 
-  const exportarExcel = () => {
+  const exportarExcel = async () => {
     const rows = filteredUsuarios;
     if (rows.length === 0) return;
+    const XLSX = await import("xlsx");
 
     const headers = ["ID", "Nombre", "Apellidos", "Tipo Doc", "Email", "Teléfono", "Dirección", "Rol", "Estado"];
     const data = rows.map((u) => [

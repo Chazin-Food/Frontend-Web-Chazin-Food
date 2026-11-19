@@ -1,16 +1,17 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from "react";
 import { Plus, Search, Package, Star, TrendingUp, Sparkles, Trash2, RotateCcw, X } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/shared/utils/privilegiosUtils";
 import { useProductos } from "../hooks/useProductos";
 import { ProductosTable } from "../componentes/productos/ProductosTable";
-import { PapeleraProductosView } from "../componentes/productos/PapeleraProductosView";
-import { ProductoModal } from "../componentes/productos/ProductoModal";
-import { VerProductoModal } from "../componentes/productos/VerProductoModal";
-import { EventosModal } from "../componentes/productos/EventosModal";
-import { CrearEventoModal } from "../componentes/productos/CrearEventoModal";
 import { eventosService } from "../servicios/eventosService";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+
+const PapeleraProductosView = lazy(() => import("../componentes/productos/PapeleraProductosView").then((m) => ({ default: m.PapeleraProductosView })));
+const ProductoModal = lazy(() => import("../componentes/productos/ProductoModal").then((m) => ({ default: m.ProductoModal })));
+const VerProductoModal = lazy(() => import("../componentes/productos/VerProductoModal").then((m) => ({ default: m.VerProductoModal })));
+const EventosModal = lazy(() => import("../componentes/productos/EventosModal").then((m) => ({ default: m.EventosModal })));
+const CrearEventoModal = lazy(() => import("../componentes/productos/CrearEventoModal").then((m) => ({ default: m.CrearEventoModal })));
 
 export function Productos() {
   const { user } = useAuth();
@@ -241,14 +242,16 @@ export function Productos() {
 
       {/* VIEW MODE: PAPELERA VS ACTIVOS */}
       {viewMode === "papelera" ? (
-        <PapeleraProductosView
-          papeleraProductos={papeleraProductos}
-          onVolverActivos={() => setViewMode("activos")}
-          onRestaurarProducto={restoreProducto}
-          onEliminarDefinitivoProducto={deleteDefinitivoProducto}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        <Suspense fallback={<ChazinLoader text="CARGANDO PAPELERA" size="sm" />}>
+          <PapeleraProductosView
+            papeleraProductos={papeleraProductos}
+            onVolverActivos={() => setViewMode("activos")}
+            onRestaurarProducto={restoreProducto}
+            onEliminarDefinitivoProducto={deleteDefinitivoProducto}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+        </Suspense>
       ) : (
         <div className="space-y-6">
           {/* Quick Trash / Recover Banner right after deleting a product */}
@@ -379,78 +382,90 @@ export function Productos() {
       )}
 
       {/* Producto Modal (Create/Edit/Duplicate) */}
-      {!isViewMode && (
-        <ProductoModal
-          isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false);
-            setIsDuplicateMode(false);
-          }}
-          onSave={handleSave}
-          producto={editingProducto}
-          categorias={categorias}
-          isDuplicate={isDuplicateMode}
-          onVariantToggled={() => {
-            refetch();
-            fetchEventos();
-          }}
-        />
+      {modalOpen && !isViewMode && (
+        <Suspense fallback={null}>
+          <ProductoModal
+            isOpen={modalOpen}
+            onClose={() => {
+              setModalOpen(false);
+              setIsDuplicateMode(false);
+            }}
+            onSave={handleSave}
+            producto={editingProducto}
+            categorias={categorias}
+            isDuplicate={isDuplicateMode}
+            onVariantToggled={() => {
+              refetch();
+              fetchEventos();
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Ver Producto Modal (Read Only) */}
-      {isViewMode && (
-        <VerProductoModal
-          isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false);
-            setIsDuplicateMode(false);
-          }}
-          producto={editingProducto}
-          onEdit={canEdit ? (prod) => handleOpenEdit(prod) : undefined}
-          onDuplicate={canEdit ? handleOpenDuplicate : undefined}
-          onVariantToggled={() => {
-            refetch();
-            fetchEventos();
-          }}
-        />
+      {modalOpen && isViewMode && (
+        <Suspense fallback={null}>
+          <VerProductoModal
+            isOpen={modalOpen}
+            onClose={() => {
+              setModalOpen(false);
+              setIsDuplicateMode(false);
+            }}
+            producto={editingProducto}
+            onEdit={canEdit ? (prod) => handleOpenEdit(prod) : undefined}
+            onDuplicate={canEdit ? handleOpenDuplicate : undefined}
+            onVariantToggled={() => {
+              refetch();
+              fetchEventos();
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Eventos Modal */}
-      <EventosModal
-        isOpen={eventosModalOpen}
-        onClose={() => setEventosModalOpen(false)}
-        eventos={eventos}
-        onOpenCrearEvento={() => {
-          setEventosModalOpen(false);
-          setProductoParaEvento(null);
-          setEventoParaEditar(null);
-          setCrearEventoModalOpen(true);
-        }}
-        onEditEvento={(evt) => {
-          setEventosModalOpen(false);
-          const relatedProd = productos.find(p => p.id === (evt.idProducto || evt.producto?.id)) || evt.producto || null;
-          setProductoParaEvento(relatedProd);
-          setEventoParaEditar(evt);
-          setCrearEventoModalOpen(true);
-        }}
-        onRefresh={() => {
-          fetchEventos();
-          refetch();
-        }}
-      />
+      {eventosModalOpen && (
+        <Suspense fallback={null}>
+          <EventosModal
+            isOpen={eventosModalOpen}
+            onClose={() => setEventosModalOpen(false)}
+            eventos={eventos}
+            onOpenCrearEvento={() => {
+              setEventosModalOpen(false);
+              setProductoParaEvento(null);
+              setEventoParaEditar(null);
+              setCrearEventoModalOpen(true);
+            }}
+            onEditEvento={(evt) => {
+              setEventosModalOpen(false);
+              const relatedProd = productos.find(p => p.id === (evt.idProducto || evt.producto?.id)) || evt.producto || null;
+              setProductoParaEvento(relatedProd);
+              setEventoParaEditar(evt);
+              setCrearEventoModalOpen(true);
+            }}
+            onRefresh={() => {
+              fetchEventos();
+              refetch();
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Crear / Editar Evento Modal */}
-      <CrearEventoModal
-        isOpen={crearEventoModalOpen}
-        onClose={() => {
-          setCrearEventoModalOpen(false);
-          setProductoParaEvento(null);
-          setEventoParaEditar(null);
-        }}
-        producto={productoParaEvento}
-        eventoToEdit={eventoParaEditar}
-        onCreated={handleEventoCreated}
-      />
+      {crearEventoModalOpen && (
+        <Suspense fallback={null}>
+          <CrearEventoModal
+            isOpen={crearEventoModalOpen}
+            onClose={() => {
+              setCrearEventoModalOpen(false);
+              setProductoParaEvento(null);
+              setEventoParaEditar(null);
+            }}
+            producto={productoParaEvento}
+            eventoToEdit={eventoParaEditar}
+            onCreated={handleEventoCreated}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

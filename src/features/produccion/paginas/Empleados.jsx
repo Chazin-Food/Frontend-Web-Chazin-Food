@@ -1,5 +1,4 @@
 import { useState } from "react";
-import * as XLSX from "xlsx";
 import {
   Plus,
   Search,
@@ -92,9 +91,10 @@ export function Empleados() {
     await restoreEmpleado(emp.idEmpleado);
   };
 
-  const exportarExcel = () => {
+  const exportarExcel = async () => {
     const listToExport = viewMode === "papelera" ? papeleraEmpleados : filteredEmpleados;
     if (listToExport.length === 0) return;
+    const XLSX = await import("xlsx");
 
     // Documento de identidad de primero en el reporte
     const headers = [

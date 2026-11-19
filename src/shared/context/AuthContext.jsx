@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiClient } from "@/shared/api/apiClient";
+import { apiClient, clearApiCache } from "@/shared/api/apiClient";
 
 export const AuthContext = createContext(undefined);
 
@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
     try {
       const userData = await apiClient.post("/usuarios/login", { email: correo, contrasena: contraseña });
       if (userData) {
+        clearApiCache();
         setUser(userData);
         localStorage.setItem("chazin_user", JSON.stringify(userData));
         return { success: true };
@@ -68,6 +69,7 @@ export function AuthProvider({ children }) {
     try {
       const data = await apiClient.post("/usuarios/registro", userData);
       if (data) {
+        clearApiCache();
         setUser(data);
         localStorage.setItem("chazin_user", JSON.stringify(data));
         return { success: true, message: "¡Cuenta creada exitosamente!" };
@@ -103,6 +105,7 @@ export function AuthProvider({ children }) {
       const payload = typeof credential === "object" ? { ...credential, ...options } : { credential, ...options };
       const userData = await apiClient.post("/usuarios/google", payload);
       if (userData) {
+        clearApiCache();
         setUser(userData);
         localStorage.setItem("chazin_user", JSON.stringify(userData));
         return { success: true, user: userData, message: "¡Autenticación con Google exitosa!" };
@@ -115,6 +118,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    clearApiCache();
     setUser(null);
     localStorage.removeItem("chazin_user");
   };

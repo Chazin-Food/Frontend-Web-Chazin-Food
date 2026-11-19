@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import * as XLSX from "xlsx";
 import { Download, TrendingUp, Calendar, History, BarChart2, CheckCircle2 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -363,7 +362,8 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
     };
   }, [vistaTemporal, reportData]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import("xlsx");
     const data = [
       ["Reporte General y Estadísticas Históricas de Ventas - Chazin Food"],
       ["Generado el", new Date().toLocaleString("es-CO")],

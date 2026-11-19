@@ -4,7 +4,39 @@ import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
+import { prefetchRoute, prefetchRoutes } from "@/routes/routePrefetch";
 const MiPerfilModal = lazy(() => import("@/shared/components/profile/MiPerfilModal").then((m) => ({ default: m.MiPerfilModal })));
+
+function PageTransitionSkeleton() {
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-5 animate-pulse" role="status" aria-label="Cargando módulo">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-2">
+          <div className="h-7 w-48 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+          <div className="h-3.5 w-64 max-w-full bg-gray-200/80 dark:bg-gray-800/80 rounded-lg" />
+        </div>
+        <div className="h-10 w-36 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+        {[0, 1, 2, 3].map((idx) => (
+          <div key={idx} className="h-24 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200/70 dark:border-gray-800 p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+            <div className="space-y-2 flex-1">
+              <div className="h-3 w-20 bg-gray-200 dark:bg-gray-800 rounded" />
+              <div className="h-6 w-14 bg-gray-200 dark:bg-gray-800 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="h-72 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200/70 dark:border-gray-800 p-5 space-y-3">
+        <div className="h-9 w-full bg-gray-100 dark:bg-gray-800 rounded-xl" />
+        <div className="h-10 w-full bg-gray-100/80 dark:bg-gray-800/70 rounded-xl" />
+        <div className="h-10 w-full bg-gray-100/70 dark:bg-gray-800/60 rounded-xl" />
+        <div className="h-10 w-full bg-gray-100/60 dark:bg-gray-800/50 rounded-xl" />
+      </div>
+    </div>
+  );
+}
 import logoImg from "@/shared/assets/logo_optimized.webp";
 import {
   Menu,
@@ -106,6 +138,12 @@ export function Layout() {
     setVentasExpanded(section === "ventas");
     setConfigExpanded(section === "config");
     setUsuariosExpanded(section === "usuarios");
+
+    if (section === "compras") prefetchRoutes(allComprasItems.map((i) => i.to));
+    else if (section === "produccion") prefetchRoutes(allProduccionItems.map((i) => i.to));
+    else if (section === "ventas") prefetchRoutes([...allVentasItems.map((i) => i.to), "/ventas/pos"]);
+    else if (section === "config") prefetchRoutes(["/configuracion/roles"]);
+    else if (section === "usuarios") prefetchRoutes(["/configuracion/usuarios"]);
   };
 
   const handleSectionClick = (section, cur) => {
@@ -281,7 +319,7 @@ export function Layout() {
             {/* Dashboard */}
             {hasPerm("Dashboard") && (
               <li>
-                <Link to="/" title="Dashboard" className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${isActive("/") ? "bg-red-600 text-white shadow-md" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                <Link to="/" onMouseEnter={() => prefetchRoute("/")} onFocus={() => prefetchRoute("/")} title="Dashboard" className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all ${isActive("/") ? "bg-red-600 text-white shadow-md" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
                   <Home className="w-5 h-5 shrink-0" />
                   <span className="font-medium">Dashboard</span>
                 </Link>
@@ -291,13 +329,13 @@ export function Layout() {
             {/* Configuración */}
             {showConfig && (
               <li>
-                <button onClick={() => handleSectionClick("config", configExpanded)} title="Configuración" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/configuracion") && !isInSection("/configuracion/usuarios") ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                <button onClick={() => handleSectionClick("config", configExpanded)} onMouseEnter={() => prefetchRoutes(configItems.map((i) => i.to))} title="Configuración" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/configuracion") && !isInSection("/configuracion/usuarios") ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
                   <div className="flex items-center gap-3"><Settings className="w-5 h-5 shrink-0" /><span className="font-medium">Configuración</span></div>
                   {configExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 {configExpanded && (
                   <ul className="ml-8 mt-1 space-y-1">
-                    {configItems.map(({ to, label }) => <li key={to}><Link to={to} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
+                    {configItems.map(({ to, label }) => <li key={to}><Link to={to} onMouseEnter={() => prefetchRoute(to)} onFocus={() => prefetchRoute(to)} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
                   </ul>
                 )}
               </li>
@@ -306,13 +344,13 @@ export function Layout() {
             {/* Usuarios */}
             {showUsuarios && (
               <li>
-                <button onClick={() => handleSectionClick("usuarios", usuariosExpanded)} title="Usuarios" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/configuracion/usuarios") ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                <button onClick={() => handleSectionClick("usuarios", usuariosExpanded)} onMouseEnter={() => prefetchRoutes(usuariosItems.map((i) => i.to))} title="Usuarios" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/configuracion/usuarios") ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
                   <div className="flex items-center gap-3"><Users className="w-5 h-5 shrink-0" /><span className="font-medium">Usuarios</span></div>
                   {usuariosExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 {usuariosExpanded && (
                   <ul className="ml-8 mt-1 space-y-1">
-                    {usuariosItems.map(({ to, label }) => <li key={to}><Link to={to} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
+                    {usuariosItems.map(({ to, label }) => <li key={to}><Link to={to} onMouseEnter={() => prefetchRoute(to)} onFocus={() => prefetchRoute(to)} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
                   </ul>
                 )}
               </li>
@@ -321,13 +359,13 @@ export function Layout() {
             {/* Compras */}
             {showCompras && (
               <li>
-                <button onClick={() => handleSectionClick("compras", comprasExpanded)} title="Compras" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/compras") ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                <button onClick={() => handleSectionClick("compras", comprasExpanded)} onMouseEnter={() => prefetchRoutes(comprasItems.map((i) => i.to))} title="Compras" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/compras") ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
                   <div className="flex items-center gap-3"><ShoppingCart className="w-5 h-5 shrink-0" /><span className="font-medium">Compras</span></div>
                   {comprasExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 {comprasExpanded && (
                   <ul className="ml-8 mt-1 space-y-1">
-                    {comprasItems.map(({ to, label }) => <li key={to}><Link to={to} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
+                    {comprasItems.map(({ to, label }) => <li key={to}><Link to={to} onMouseEnter={() => prefetchRoute(to)} onFocus={() => prefetchRoute(to)} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
                   </ul>
                 )}
               </li>
@@ -336,13 +374,13 @@ export function Layout() {
             {/* Producción */}
             {showProduccion && (
               <li>
-                <button onClick={() => handleSectionClick("produccion", produccionExpanded)} title="Producción" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/produccion") || produccionPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                <button onClick={() => handleSectionClick("produccion", produccionExpanded)} onMouseEnter={() => prefetchRoutes(produccionItems.map((i) => i.to))} title="Producción" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${isInSection("/produccion") || produccionPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
                   <div className="flex items-center gap-3"><ChefHat className="w-5 h-5 shrink-0" /><span className="font-medium">Producción</span></div>
                   {produccionExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 {produccionExpanded && (
                   <ul className="ml-8 mt-1 space-y-1">
-                    {produccionItems.map(({ to, label }) => <li key={to}><Link to={to} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
+                    {produccionItems.map(({ to, label }) => <li key={to}><Link to={to} onMouseEnter={() => prefetchRoute(to)} onFocus={() => prefetchRoute(to)} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
                   </ul>
                 )}
               </li>
@@ -351,13 +389,13 @@ export function Layout() {
             {/* Ventas */}
             {showVentas && (
               <li>
-                <button onClick={() => handleSectionClick("ventas", ventasExpanded)} title="Ventas" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${ventasPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                <button onClick={() => handleSectionClick("ventas", ventasExpanded)} onMouseEnter={() => prefetchRoutes(ventasItems.map((i) => i.to))} title="Ventas" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${ventasPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
                   <div className="flex items-center gap-3"><TrendingUp className="w-5 h-5 shrink-0" /><span className="font-medium">Ventas</span></div>
                   {ventasExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 {ventasExpanded && (
                   <ul className="ml-8 mt-1 space-y-1">
-                    {ventasItems.map(({ to, label }) => <li key={to}><Link to={to} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
+                    {ventasItems.map(({ to, label }) => <li key={to}><Link to={to} onMouseEnter={() => prefetchRoute(to)} onFocus={() => prefetchRoute(to)} className={`block px-4 py-2 rounded-lg text-sm transition-all ${isActive(to) ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>{label}</Link></li>)}
                   </ul>
                 )}
               </li>
@@ -439,6 +477,7 @@ export function Layout() {
             <Link
               to="/"
               onClick={handleNavClick}
+              onTouchStart={() => prefetchRoute("/")}
               className={`flex items-center gap-3 w-full px-3 py-3 rounded-xl transition-colors active:scale-[0.98] ${isActive("/") ? "bg-red-600 text-white shadow-sm" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
             >
               <LayoutDashboard className="w-5 h-5 shrink-0" />
@@ -765,6 +804,9 @@ export function Layout() {
                       <Link
                         key={item.to}
                         to={item.to}
+                        onMouseEnter={() => prefetchRoute(item.to)}
+                        onTouchStart={() => prefetchRoute(item.to)}
+                        onFocus={() => prefetchRoute(item.to)}
                         className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
                           active
                             ? "bg-[#A91B2E] text-white shadow-xs font-black"
@@ -830,9 +872,11 @@ export function Layout() {
           </header>
         )}
 
-        {/* Main scrollable body */}
+        {/* Main scrollable body — Suspense local evita desmontar Sidebar/Header al cambiar de módulo */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-950">
-          <Outlet />
+          <Suspense fallback={<PageTransitionSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

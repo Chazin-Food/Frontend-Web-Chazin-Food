@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import * as XLSX from "xlsx";
 import { Plus, Search, Bell, Download, FileSpreadsheet, FileText, AlertTriangle, ShoppingCart, Filter, Layers } from "lucide-react";
 import { useInsumos } from "../hooks/useInsumos";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
@@ -8,11 +7,12 @@ import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { InsumosStatsCards } from "../componentes/insumos/InsumosStatsCards";
 import { InsumosTable } from "../componentes/insumos/InsumosTable";
-import { InsumoModal } from "../componentes/insumos/InsumoModal";
-import { TrazabilidadModal } from "../componentes/insumos/TrazabilidadModal";
-import { PapeleraReciclajeView } from "../componentes/insumos/PapeleraReciclajeView";
-import { VerInsumoModal } from "../componentes/insumos/VerInsumoModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+
+const InsumoModal = lazy(() => import("../componentes/insumos/InsumoModal").then((m) => ({ default: m.InsumoModal })));
+const TrazabilidadModal = lazy(() => import("../componentes/insumos/TrazabilidadModal").then((m) => ({ default: m.TrazabilidadModal })));
+const PapeleraReciclajeView = lazy(() => import("../componentes/insumos/PapeleraReciclajeView").then((m) => ({ default: m.PapeleraReciclajeView })));
+const VerInsumoModal = lazy(() => import("../componentes/insumos/VerInsumoModal").then((m) => ({ default: m.VerInsumoModal })));
 
 export function Insumos() {
   const { user } = useAuth();
@@ -91,9 +91,10 @@ export function Insumos() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const exportarExcel = () => {
+  const exportarExcel = async () => {
     const rows = filteredInsumos;
     if (rows.length === 0) return;
+    const XLSX = await import("xlsx");
 
     const headers = [
       "ID",
@@ -369,13 +370,15 @@ export function Insumos() {
             </div>
           </div>
 
-          <PapeleraReciclajeView
-            papeleraInsumos={papeleraInsumos}
-            papeleraPreparados={papeleraPreparados}
-            onVolverActivos={() => setViewMode("activos")}
-            onRestaurarInsumo={restoreInsumo}
-            onEliminarDefinitivoInsumo={deleteDefinitivoInsumo}
-          />
+          <Suspense fallback={<ChazinLoader text="CARGANDO PAPELERA" size="sm" />}>
+            <PapeleraReciclajeView
+              papeleraInsumos={papeleraInsumos}
+              papeleraPreparados={papeleraPreparados}
+              onVolverActivos={() => setViewMode("activos")}
+              onRestaurarInsumo={restoreInsumo}
+              onEliminarDefinitivoInsumo={deleteDefinitivoInsumo}
+            />
+          </Suspense>
         </div>
       ) : (
         /* VIEW MODE: ACTIVOS */
@@ -566,51 +569,63 @@ export function Insumos() {
       )}
 
       {/* Unified Insumo Modal (Base + Preparado + Adición) */}
-      <InsumoModal
-        isOpen={modalInsumoOpen}
-        onClose={() => {
-          setModalInsumoOpen(false);
-          setEditingInsumo(null);
-        }}
-        onSave={handleSaveInsumo}
-        insumo={editingInsumo}
-        categorias={categorias}
-        proveedores={proveedores}
-        insumosDisponibles={insumos.filter((i) => i.tipo !== "Preparado")}
-      />
+      {modalInsumoOpen && (
+        <Suspense fallback={null}>
+          <InsumoModal
+            isOpen={modalInsumoOpen}
+            onClose={() => {
+              setModalInsumoOpen(false);
+              setEditingInsumo(null);
+            }}
+            onSave={handleSaveInsumo}
+            insumo={editingInsumo}
+            categorias={categorias}
+            proveedores={proveedores}
+            insumosDisponibles={insumos.filter((i) => i.tipo !== "Preparado")}
+          />
+        </Suspense>
+      )}
 
       {/* Detail View Modal */}
-      <VerInsumoModal
-        isOpen={!!activeViewingInsumo}
-        onClose={() => {
-          setViewingInsumo(null);
-          setViewingInsumoInitialTab("general");
-        }}
-        insumo={activeViewingInsumo}
-        initialTab={viewingInsumoInitialTab}
-        onDeleteLoteVencido={canDeleteLote ? deleteLoteVencido : undefined}
-        onDeleteLotesVencidos={canDeleteLote ? deleteLotesVencidos : undefined}
-        onEdit={
-          canEdit
-            ? (ins) => {
+      {!!activeViewingInsumo && (
+        <Suspense fallback={null}>
+          <VerInsumoModal
+            isOpen={!!activeViewingInsumo}
+            onClose={() => {
               setViewingInsumo(null);
-              handleOpenEdit(ins);
+              setViewingInsumoInitialTab("general");
+            }}
+            insumo={activeViewingInsumo}
+            initialTab={viewingInsumoInitialTab}
+            onDeleteLoteVencido={canDeleteLote ? deleteLoteVencido : undefined}
+            onDeleteLotesVencidos={canDeleteLote ? deleteLotesVencidos : undefined}
+            onEdit={
+              canEdit
+                ? (ins) => {
+                  setViewingInsumo(null);
+                  handleOpenEdit(ins);
+                }
+                : undefined
             }
-            : undefined
-        }
-      />
+          />
+        </Suspense>
+      )}
 
       {/* Trazabilidad Modal */}
-      <TrazabilidadModal
-        isOpen={trazabilidadOpen}
-        onClose={() => setTrazabilidadOpen(false)}
-        eventos={eventos}
-        onClearAll={clearEventos}
-        onOpenPapelera={() => {
-          setTrazabilidadOpen(false);
-          setViewMode("papelera");
-        }}
-      />
+      {trazabilidadOpen && (
+        <Suspense fallback={null}>
+          <TrazabilidadModal
+            isOpen={trazabilidadOpen}
+            onClose={() => setTrazabilidadOpen(false)}
+            eventos={eventos}
+            onClearAll={clearEventos}
+            onOpenPapelera={() => {
+              setTrazabilidadOpen(false);
+              setViewMode("papelera");
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
