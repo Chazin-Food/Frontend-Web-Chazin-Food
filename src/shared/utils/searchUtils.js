@@ -746,10 +746,20 @@ export function buildVentaSearchCorpus(v = {}) {
   }
 
   // 7. Método de Pago y Estado de Pago
-  const metodoPago = String(v.metodoPago || v.metodo_pago || v.medioPago || obsMeta.metodoPago || "");
+  const isOnlineSale = Boolean(
+    (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
+    !v.esDevolucion
+  );
+  const rawMetodoPago = String(v.metodoPago || v.metodo_pago || v.medioPago || obsMeta.metodoPago || "").trim();
+  const metodoPago = isOnlineSale && (!rawMetodoPago || rawMetodoPago.toLowerCase() === "efectivo")
+    ? "Wompi"
+    : rawMetodoPago;
   if (metodoPago) {
     parts.push(metodoPago);
     const mLower = metodoPago.toLowerCase();
+    if (mLower.includes("wompi") || mLower.includes("pasarela") || mLower.includes("pse")) {
+      parts.push("wompi", "pasarela", "pago en linea", "pago online", "tarjeta");
+    }
     if (mLower.includes("transf") || mLower.includes("nequi") || mLower.includes("davi")) {
       parts.push("transferencia", "nequi", "daviplata", "bancolombia");
     }
@@ -1022,8 +1032,21 @@ export function matchVentaMultiCriteria(venta, criteria = {}) {
   // 5. Filtro por Método de Pago
   if (filterMetodoPago && filterMetodoPago !== "Todos") {
     const vMetodo = String(venta.metodoPago || venta.metodo_pago || venta.medioPago || "").toLowerCase();
+    const isOnlineSale = Boolean(
+      (venta.origen === "ONLINE" || venta.tipoVenta === "DOMICILIO" || venta.origenNombre === "Venta Online") &&
+      !venta.esDevolucion
+    );
     const targetMetodo = filterMetodoPago.toLowerCase();
-    if (!vMetodo.includes(targetMetodo)) return false;
+    if (targetMetodo === "wompi") {
+      if (!vMetodo.includes("wompi") && !vMetodo.includes("pasarela") && !vMetodo.includes("pse") && !isOnlineSale) {
+        return false;
+      }
+    } else if (targetMetodo === "efectivo") {
+      if (isOnlineSale && (!vMetodo || vMetodo === "efectivo")) return false;
+      if (!vMetodo.includes("efectivo")) return false;
+    } else if (!vMetodo.includes(targetMetodo)) {
+      return false;
+    }
   }
 
   // 6. Filtro por Origen / Canal

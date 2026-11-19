@@ -240,7 +240,17 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
     horario = formatTime12h(horario);
   }
 
-  const metodoPago = obsMeta.metodoPago || venta.metodoPago || "Efectivo";
+  const isOnlineSale = Boolean(
+    (venta.origen === "ONLINE" ||
+      venta.tipoVenta === "DOMICILIO" ||
+      venta.origenNombre === "Venta Online") &&
+      !venta.esDevolucion
+  );
+  const rawMetodo = obsMeta.metodoPago || venta.metodoPago || "Efectivo";
+  const metodoPago =
+    isOnlineSale && (!rawMetodo || rawMetodo.toLowerCase().trim() === "efectivo")
+      ? "Wompi (Pago en Línea)"
+      : rawMetodo;
   const tipoEntrega = obsMeta.tipoEntrega || venta.tipoEntrega || "En Mesa";
   const total = Number(venta.total || 0);
   const descPct = Number(venta.descuentoPorcentaje || obsMeta.descuentoPorcentaje || 0);

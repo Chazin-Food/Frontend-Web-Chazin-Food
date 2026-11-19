@@ -74,6 +74,37 @@ export function GestionVentas() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [selectedVentaDetail, setSelectedVentaDetail] = useState(null);
 
+  const isCompletedSale = (v) => {
+    const st = String(v?.estado || "").toLowerCase();
+    const stEnt = String(v?.estadoEntrega || "").toLowerCase();
+    if (st.includes("anul") || st.includes("cancel") || stEnt.includes("cancel")) return false;
+    if (st.includes("pend") || st.includes("prepar") || stEnt.includes("pend") || stEnt.includes("prepar")) return false;
+    return st.includes("complet") || st.includes("entreg") || st.includes("list") || stEnt.includes("entreg") || stEnt.includes("list");
+  };
+
+  const normalizeOnlineWompi = (v) => {
+    const isOnline =
+      (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
+      !v.esDevolucion;
+    const rawMetodo = String(v.metodoPago || "").trim();
+    return {
+      ...v,
+      estado: "Completada",
+      metodoPago: isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo") ? "Wompi" : (rawMetodo || "Efectivo")
+    };
+  };
+
+  const historialTotalCount = useMemo(
+    () => ventas.filter(isCompletedSale).length,
+    [ventas]
+  );
+
+  // Historial de transacciones: únicamente ventas completadas (solo lectura, con método Wompi en ventas online)
+  const historialVentas = useMemo(
+    () => filteredVentas.filter(isCompletedSale).map(normalizeOnlineWompi),
+    [filteredVentas]
+  );
+
   const activeVentaDetail = useMemo(() => {
     if (!selectedVentaDetail) return null;
     const targetId = selectedVentaDetail.id || selectedVentaDetail.idVenta;
@@ -95,6 +126,7 @@ export function GestionVentas() {
 
   // Export to Excel (.xlsx) con los datos filtrados actualmente
   const handleExportExcel = () => {
+    const exportSource = activeTab === "historial" ? historialVentas : filteredVentas;
     const headers = [
       "N° Factura / Venta",
       "Cliente",
@@ -108,18 +140,28 @@ export function GestionVentas() {
       "Estado"
     ];
 
-    const rows = filteredVentas.map((v) => [
-      v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`,
-      v.clienteNombre || v.cliente || "Cliente General",
-      v.fecha ? new Date(v.fecha).toISOString().split("T")[0] : "2026-08-06",
-      v.horario || "13:45 - 14:00",
-      v.tipoEntrega || "En Mesa",
-      v.metodoPago || "Efectivo",
-      Number(v.subtotal || v.total || 0),
-      v.descuentoPorcentaje ? `${v.descuentoPorcentaje}%` : "0%",
-      Number(v.total || v.subtotal || 0),
-      v.estado || "Completada"
-    ]);
+    const rows = exportSource.map((v) => {
+      const isOnline =
+        (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
+        !v.esDevolucion;
+      const rawMetodo = String(v.metodoPago || "").trim();
+      const metodoLabel =
+        isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo")
+          ? "Wompi"
+          : (rawMetodo || "Efectivo");
+      return [
+        v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`,
+        v.clienteNombre || v.cliente || "Cliente General",
+        v.fecha ? new Date(v.fecha).toISOString().split("T")[0] : "2026-08-06",
+        v.horario || "13:45 - 14:00",
+        v.tipoEntrega || "En Mesa",
+        metodoLabel,
+        Number(v.subtotal || v.total || 0),
+        v.descuentoPorcentaje ? `${v.descuentoPorcentaje}%` : "0%",
+        Number(v.total || v.subtotal || 0),
+        v.estado || "Completada"
+      ];
+    });
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
 
@@ -146,6 +188,7 @@ export function GestionVentas() {
 
   // Export to Printable PDF Window con los datos filtrados actualmente
   const handleExportPDF = () => {
+    const exportSource = activeTab === "historial" ? historialVentas : filteredVentas;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
@@ -168,7 +211,7 @@ export function GestionVentas() {
         </head>
         <body>
           <h1>Chazin Food — Historial de Ventas</h1>
-          <h2>Período: ${periodText} | Registros: ${filteredVentas.length} | Generado el: ${new Date().toLocaleDateString("es-CO")} ${new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true })}</h2>
+          <h2>Período: ${periodText} | Registros: ${exportSource.length} | Generado el: ${new Date().toLocaleDateString("es-CO")} ${new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true })}</h2>
           <table>
             <thead>
               <tr>
@@ -182,17 +225,27 @@ export function GestionVentas() {
               </tr>
             </thead>
             <tbody>
-              ${filteredVentas.map(v => `
+              ${exportSource.map(v => {
+                const isOnline =
+                  (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
+                  !v.esDevolucion;
+                const rawMetodo = String(v.metodoPago || "").trim();
+                const metodoLabel =
+                  isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo")
+                    ? "Wompi"
+                    : (rawMetodo || "Efectivo");
+                return `
                 <tr>
                   <td><strong>${v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`}</strong></td>
                   <td>${v.clienteNombre || v.cliente || "Cliente General"}</td>
                   <td>${v.fecha ? new Date(v.fecha).toISOString().split("T")[0] : "2026-08-06"} (${formatTime12h(v.horario || v.fecha, "12:30 PM")})</td>
                   <td>${v.tipoEntrega || "En Mesa"}</td>
-                  <td>${v.metodoPago || "Efectivo"}</td>
+                  <td>${metodoLabel}</td>
                   <td><strong>$${Number(v.total || v.subtotal || 0).toLocaleString("es-CO")}</strong></td>
                   <td><span class="badge">${v.estado || "Completada"}</span></td>
                 </tr>
-              `).join("")}
+              `;
+              }).join("")}
             </tbody>
           </table>
           <div class="footer">Chazin Food — Sistema de Gestión Comercial y Ventas</div>
@@ -287,7 +340,10 @@ export function GestionVentas() {
             </button>
 
             <button
-              onClick={() => setActiveTab("historial")}
+              onClick={() => {
+                setActiveTab("historial");
+                if (filterEstado !== "Todos") setFilterEstado("Todos");
+              }}
               className={`flex items-center gap-2 pb-3.5 text-sm font-semibold transition-colors relative cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "historial"
                   ? "text-[#F05454] border-b-2 border-[#F05454]"
@@ -435,18 +491,23 @@ export function GestionVentas() {
             </div>
 
             {/* Buscador Multicriterio en Historial */}
-            <VentasBuscadorMulticriterio {...buscadorProps} />
+            <VentasBuscadorMulticriterio
+              {...buscadorProps}
+              isHistorial={true}
+              totalRecords={historialTotalCount}
+              filteredRecords={historialVentas.length}
+            />
 
-            {/* Visualización de Resultados en Historial */}
+            {/* Visualización de Resultados en Historial (Solo ventas completadas) */}
             {loading ? (
               <ChazinLoader text="CARGANDO HISTORIAL DE VENTAS" size="md" />
-            ) : filteredVentas.length === 0 ? (
+            ) : historialVentas.length === 0 ? (
               <div className="py-16 text-center flex flex-col items-center justify-center space-y-3 bg-gray-50/50 dark:bg-gray-800/40 rounded-3xl border border-gray-100 dark:border-gray-800">
                 <div className="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#F05454] flex items-center justify-center mb-1">
                   <Search className="w-7 h-7 stroke-[1.5]" />
                 </div>
                 <p className="text-base font-bold text-gray-800 dark:text-gray-100">
-                  No se encontraron ventas para los criterios seleccionados
+                  No se encontraron ventas completadas para los criterios seleccionados
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md">
                   {searchTerm ? `No hay coincidencias para "${searchTerm}". ` : ""}
@@ -463,13 +524,12 @@ export function GestionVentas() {
               </div>
             ) : historialViewMode === "table" ? (
               <VentasHistorialTableView
-                ventas={filteredVentas}
+                ventas={historialVentas}
                 onViewDetail={handleViewDetail}
-                onUpdateEstado={updateEstado}
               />
             ) : (
               <VentasHistorialCardsView
-                ventas={filteredVentas}
+                ventas={historialVentas}
                 onViewDetail={handleViewDetail}
               />
             )}

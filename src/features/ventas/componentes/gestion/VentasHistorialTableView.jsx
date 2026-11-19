@@ -15,7 +15,7 @@ function formatDateSafe(dateVal, fallback = "2026-06-09") {
   }
 }
 
-export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado }) {
+export function VentasHistorialTableView({ ventas, onViewDetail }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
@@ -82,7 +82,8 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
   ];
 
   const totalPages = Math.ceil(itemsToDisplay.length / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
   const paginatedVentas = itemsToDisplay.slice(startIndex, startIndex + pageSize);
 
   const handlePageChange = (newPage) => {
@@ -109,8 +110,28 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
     );
   };
 
-  const getMetodoIcon = (metodo) => {
-    const metodoNormalized = (metodo || "").toLowerCase();
+  const getMetodoIcon = (metodo, ventaObj = null) => {
+    const metodoNormalized = (metodo || "").toLowerCase().trim();
+    const isOnline =
+      ventaObj &&
+      (ventaObj.origen === "ONLINE" ||
+        ventaObj.tipoVenta === "DOMICILIO" ||
+        ventaObj.origenNombre === "Venta Online") &&
+      !ventaObj.esDevolucion;
+
+    if (
+      metodoNormalized.includes("wompi") ||
+      metodoNormalized.includes("pasarela") ||
+      metodoNormalized.includes("pse") ||
+      (isOnline && (!metodoNormalized || metodoNormalized === "efectivo"))
+    ) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60">
+          <FoodIcon name="card" size={13} className="text-indigo-600" />
+          <span>Wompi</span>
+        </span>
+      );
+    }
     if (metodoNormalized.includes("tarjeta")) {
       return (
         <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
@@ -161,29 +182,16 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 truncate">{clienteNombre}</p>
                   </div>
                 </div>
-                <select
-                  value={v.estado || "Completada"}
-                  onChange={(e) => onUpdateEstado && onUpdateEstado(v.id, e.target.value)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold border-0 cursor-pointer shrink-0 ${
-                    v.estado === "Completada" || v.estado === "Entregado" || v.estado === "Listo"
-                      ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-                      : v.estado === "En Preparación" || v.estado === "Pendiente"
-                      ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
-                      : "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300"
-                  }`}
-                >
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="En Preparación">En Preparación</option>
-                  <option value="Listo">Listo</option>
-                  <option value="Completada">Completada</option>
-                  <option value="Anulada">Anulada</option>
-                </select>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 select-none shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>Completada</span>
+                </span>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl p-2.5 text-xs">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {getEntregaBadge(v.tipoEntrega)}
-                  {getMetodoIcon(v.metodoPago)}
+                  {getMetodoIcon(v.metodoPago, v)}
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
                   {formatDateSafe(v.fecha || v.fechaVenta, "2026-06-09")} · {formatTime12h(v.horario || v.fecha || v.fechaVenta, "12:30 PM")}
@@ -306,30 +314,19 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
                   <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">
                     <div className="flex flex-col items-start gap-1">
                       {getEntregaBadge(v.tipoEntrega)}
-                      <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-gray-500 dark:text-gray-400">
-                        <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                        <span>{
-  (() => {
-    const st = String(v.estado || '').toLowerCase();
-    const isDomi = String(v.tipoEntrega || '').toLowerCase().includes('domicilio');
-    if (st.includes('entreg') || st.includes('complet')) {
-      return isDomi ? 'Entregado a destino' : 'Servido en Mesa';
-    }
-    if (st.includes('despach')) {
-      return isDomi ? 'En Despacho (Ruta)' : 'Servido en Mesa';
-    }
-    if (st.includes('list')) {
-      return isDomi ? 'Listo • En Despacho' : 'Listo para entrega';
-    }
-    return v.tiempoEstimadoEntrega || (isDomi ? '35 - 45 min' : '15 - 20 min');
-  })()
-}</span>
+                      <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-emerald-600 dark:text-emerald-400">
+                        <Clock className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                        <span>
+                          {String(v.tipoEntrega || "").toLowerCase().includes("domicilio")
+                            ? "Entregado a destino"
+                            : "Servido en Mesa"}
+                        </span>
                       </span>
                     </div>
                   </td>
 
                   {/* Método de Pago */}
-                  <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">{getMetodoIcon(v.metodoPago)}</td>
+                  <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">{getMetodoIcon(v.metodoPago, v)}</td>
 
                   {/* Monto Total & Descuento */}
                   <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">
@@ -354,25 +351,12 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
                     )}
                   </td>
 
-                  {/* Estado Select Badge */}
+                  {/* Estado Badge (Solo lectura — ventas completadas) */}
                   <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">
-                    <select
-                      value={v.estado || "Completada"}
-                      onChange={(e) => onUpdateEstado && onUpdateEstado(v.id, e.target.value)}
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500/50 appearance-none text-center ${
-                        v.estado === "Completada" || v.estado === "Entregado" || v.estado === "Listo"
-                          ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
-                          : v.estado === "En Preparación" || v.estado === "Pendiente"
-                          ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
-                          : "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300"
-                      }`}
-                    >
-                      <option value="Pendiente">Pendiente</option>
-                      <option value="En Preparación">En Preparación</option>
-                      <option value="Listo">Listo</option>
-                      <option value="Completada">Completada</option>
-                      <option value="Anulada">Anulada</option>
-                    </select>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 select-none">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span>Completada</span>
+                    </span>
                   </td>
 
                   {/* Acciones */}
@@ -416,20 +400,20 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
 
           <div className="flex items-center gap-4">
             <span>
-              Página {currentPage} de {totalPages} ({itemsToDisplay.length} registros en total)
+              Página {safePage} de {totalPages} ({itemsToDisplay.length} registros en total)
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
+                disabled={safePage === 1}
                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title="Primera página"
               >
                 <ChevronsLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
+                onClick={() => handlePageChange(safePage - 1)}
+                disabled={safePage === 1}
                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title="Página anterior"
               >
@@ -437,12 +421,12 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
               </button>
 
               <span className="px-2.5 py-1 bg-[#1e293b] text-white font-semibold rounded-lg text-xs">
-                {currentPage}
+                {safePage}
               </span>
 
               <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(safePage + 1)}
+                disabled={safePage === totalPages}
                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title="Página siguiente"
               >
@@ -450,7 +434,7 @@ export function VentasHistorialTableView({ ventas, onViewDetail, onUpdateEstado 
               </button>
               <button
                 onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
+                disabled={safePage === totalPages}
                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title="Última página"
               >

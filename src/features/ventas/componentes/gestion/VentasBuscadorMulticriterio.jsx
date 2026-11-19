@@ -44,7 +44,8 @@ export function VentasBuscadorMulticriterio({
   hasActiveFilters,
   activeFiltersCount,
   totalRecords = 0,
-  filteredRecords = 0
+  filteredRecords = 0,
+  isHistorial = false
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -68,53 +69,96 @@ export function VentasBuscadorMulticriterio({
   ];
 
   // Quick Chips para interacción inmediata
-  const quickFilters = [
-    {
-      label: "Todos",
-      isActive: filterEstado === "Todos" && filterOrigen === "Todos" && filterTipoEntrega === "Todos",
-      apply: () => {
-        setFilterEstado("Todos");
-        setFilterOrigen("Todos");
-        setFilterTipoEntrega("Todos");
-      }
-    },
-    {
-      label: "Pendientes",
-      isActive: filterEstado === "Pendiente",
-      apply: () => setFilterEstado(filterEstado === "Pendiente" ? "Todos" : "Pendiente")
-    },
-    {
-      label: "En Cocina",
-      isActive: filterEstado === "En Preparación",
-      apply: () => setFilterEstado(filterEstado === "En Preparación" ? "Todos" : "En Preparación")
-    },
-    {
-      label: "Listos",
-      isActive: filterEstado === "Listo",
-      apply: () => setFilterEstado(filterEstado === "Listo" ? "Todos" : "Listo")
-    },
-    {
-      label: "Completadas",
-      isActive: filterEstado === "Completada",
-      apply: () => setFilterEstado(filterEstado === "Completada" ? "Todos" : "Completada")
-    },
-    {
-      label: "Domicilios",
-      isActive: filterTipoEntrega === "Domicilio" || filterOrigen === "ONLINE",
-      apply: () => {
-        if (filterTipoEntrega === "Domicilio") {
-          setFilterTipoEntrega("Todos");
-        } else {
-          setFilterTipoEntrega("Domicilio");
+  const quickFilters = isHistorial
+    ? [
+        {
+          label: "Todos",
+          isActive:
+            filterEstado === "Todos" &&
+            filterOrigen === "Todos" &&
+            filterTipoEntrega === "Todos" &&
+            filterMetodoPago === "Todos",
+          apply: () => {
+            setFilterEstado("Todos");
+            setFilterOrigen("Todos");
+            setFilterTipoEntrega("Todos");
+            setFilterMetodoPago("Todos");
+          }
+        },
+        {
+          label: "Venta Online (Wompi)",
+          isActive: filterOrigen === "ONLINE" || filterMetodoPago === "Wompi",
+          apply: () => {
+            if (filterOrigen === "ONLINE") {
+              setFilterOrigen("Todos");
+            } else {
+              setFilterOrigen("ONLINE");
+            }
+          }
+        },
+        {
+          label: "Punto Físico",
+          isActive: filterOrigen === "PUNTO_FISICO",
+          apply: () => setFilterOrigen(filterOrigen === "PUNTO_FISICO" ? "Todos" : "PUNTO_FISICO")
+        },
+        {
+          label: "Domicilios",
+          isActive: filterTipoEntrega === "Domicilio",
+          apply: () => setFilterTipoEntrega(filterTipoEntrega === "Domicilio" ? "Todos" : "Domicilio")
+        },
+        {
+          label: "En Mesa",
+          isActive: filterTipoEntrega === "En Mesa",
+          apply: () => setFilterTipoEntrega(filterTipoEntrega === "En Mesa" ? "Todos" : "En Mesa")
         }
-      }
-    },
-    {
-      label: "En Mesa",
-      isActive: filterTipoEntrega === "En Mesa",
-      apply: () => setFilterTipoEntrega(filterTipoEntrega === "En Mesa" ? "Todos" : "En Mesa")
-    }
-  ];
+      ]
+    : [
+        {
+          label: "Todos",
+          isActive: filterEstado === "Todos" && filterOrigen === "Todos" && filterTipoEntrega === "Todos",
+          apply: () => {
+            setFilterEstado("Todos");
+            setFilterOrigen("Todos");
+            setFilterTipoEntrega("Todos");
+          }
+        },
+        {
+          label: "Pendientes",
+          isActive: filterEstado === "Pendiente",
+          apply: () => setFilterEstado(filterEstado === "Pendiente" ? "Todos" : "Pendiente")
+        },
+        {
+          label: "En Cocina",
+          isActive: filterEstado === "En Preparación",
+          apply: () => setFilterEstado(filterEstado === "En Preparación" ? "Todos" : "En Preparación")
+        },
+        {
+          label: "Listos",
+          isActive: filterEstado === "Listo",
+          apply: () => setFilterEstado(filterEstado === "Listo" ? "Todos" : "Listo")
+        },
+        {
+          label: "Completadas",
+          isActive: filterEstado === "Completada",
+          apply: () => setFilterEstado(filterEstado === "Completada" ? "Todos" : "Completada")
+        },
+        {
+          label: "Domicilios",
+          isActive: filterTipoEntrega === "Domicilio" || filterOrigen === "ONLINE",
+          apply: () => {
+            if (filterTipoEntrega === "Domicilio") {
+              setFilterTipoEntrega("Todos");
+            } else {
+              setFilterTipoEntrega("Domicilio");
+            }
+          }
+        },
+        {
+          label: "En Mesa",
+          isActive: filterTipoEntrega === "En Mesa",
+          apply: () => setFilterTipoEntrega(filterTipoEntrega === "En Mesa" ? "Todos" : "En Mesa")
+        }
+      ];
 
   return (
     <div className="space-y-3 w-full">
@@ -273,24 +317,26 @@ export function VentasBuscadorMulticriterio({
               </div>
             </div>
 
-            {/* 3. Estado de la Venta */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-gray-400" />
-                <span>Estado de la Venta</span>
-              </label>
-              <select
-                value={filterEstado}
-                onChange={(e) => setFilterEstado(e.target.value)}
-                className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer"
-              >
-                {estados.map((est) => (
-                  <option key={est.id} value={est.id}>
-                    {est.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 3. Estado de la Venta (solo en pestaña Ventas activas; en Historial todas son Completadas) */}
+            {!isHistorial && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Estado de la Venta</span>
+                </label>
+                <select
+                  value={filterEstado}
+                  onChange={(e) => setFilterEstado(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer"
+                >
+                  {estados.map((est) => (
+                    <option key={est.id} value={est.id}>
+                      {est.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* 4. Método de Pago */}
             <div className="space-y-1.5">
@@ -304,6 +350,7 @@ export function VentasBuscadorMulticriterio({
                 className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer"
               >
                 <option value="Todos">Todos los métodos</option>
+                <option value="Wompi">Wompi (Pasarela Online)</option>
                 <option value="Efectivo">Efectivo</option>
                 <option value="Tarjeta">Tarjeta (Débito / Crédito)</option>
                 <option value="Transferencia">Transferencia (Nequi / Daviplata / Bancos)</option>

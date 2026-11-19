@@ -29,7 +29,8 @@ export function VentasTable({ ventas = [], onViewDetail, onUpdateEstado, onAprob
 
   const totalRecords = ventas.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
   const paginatedVentas = ventas.slice(startIndex, startIndex + pageSize);
 
   const handlePageChange = (newPage) => {
@@ -56,9 +57,21 @@ export function VentasTable({ ventas = [], onViewDetail, onUpdateEstado, onAprob
     );
   };
 
-  const getMetodoIcon = (metodo) => {
-    const metodoNormalized = (metodo || "").toLowerCase();
-    if (metodoNormalized.includes("wompi") || metodoNormalized.includes("pasarela") || metodoNormalized.includes("pse")) {
+  const getMetodoIcon = (metodo, ventaObj = null) => {
+    const metodoNormalized = (metodo || "").toLowerCase().trim();
+    const isOnline =
+      ventaObj &&
+      (ventaObj.origen === "ONLINE" ||
+        ventaObj.tipoVenta === "DOMICILIO" ||
+        ventaObj.origenNombre === "Venta Online") &&
+      !ventaObj.esDevolucion;
+
+    if (
+      metodoNormalized.includes("wompi") ||
+      metodoNormalized.includes("pasarela") ||
+      metodoNormalized.includes("pse") ||
+      (isOnline && (!metodoNormalized || metodoNormalized === "efectivo"))
+    ) {
       return (
         <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60">
           <FoodIcon name="card" size={13} className="text-indigo-600" />
@@ -139,7 +152,7 @@ export function VentasTable({ ventas = [], onViewDetail, onUpdateEstado, onAprob
               <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50/70 dark:bg-gray-800/40 rounded-xl p-2.5 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   {getEntregaBadge(v.tipoEntrega)}
-                  {getMetodoIcon(v.metodoPago)}
+                  {getMetodoIcon(v.metodoPago, v)}
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
                   {formatDateSafe(v.fecha || v.fechaVenta, "Hoy")} · {formatTimeSafe(v.fecha || v.fechaVenta, v.horario)}
@@ -300,7 +313,7 @@ export function VentasTable({ ventas = [], onViewDetail, onUpdateEstado, onAprob
                   </td>
 
                   {/* Método de Pago */}
-                  <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">{getMetodoIcon(v.metodoPago)}</td>
+                  <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">{getMetodoIcon(v.metodoPago, v)}</td>
 
                   {/* Monto Total con Descuento */}
                   <td className="px-2.5 py-2.5 whitespace-nowrap align-middle">
@@ -381,26 +394,26 @@ export function VentasTable({ ventas = [], onViewDetail, onUpdateEstado, onAprob
             <div className="flex items-center gap-1 ml-2">
               <button
                 onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
+                disabled={safePage === 1}
                 className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 title="Primera página"
               >
                 <ChevronsLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
+                onClick={() => handlePageChange(safePage - 1)}
+                disabled={safePage === 1}
                 className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 title="Página anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="px-2 py-0.5 bg-[#F05454] text-white font-bold rounded-md">
-                {currentPage}
+                {safePage}
               </span>
               <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(safePage + 1)}
+                disabled={safePage === totalPages}
                 className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 title="Página siguiente"
               >
@@ -408,7 +421,7 @@ export function VentasTable({ ventas = [], onViewDetail, onUpdateEstado, onAprob
               </button>
               <button
                 onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
+                disabled={safePage === totalPages}
                 className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 title="Última página"
               >

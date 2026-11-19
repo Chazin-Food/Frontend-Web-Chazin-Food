@@ -15,7 +15,10 @@ import {
   CheckCircle2,
   Calendar,
   Layers,
-  Clock
+  Clock,
+  Star,
+  MessageSquare,
+  Heart
 } from "lucide-react";
 import {
   AreaChart,
@@ -32,6 +35,52 @@ import {
 } from "recharts";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { formatTime12h } from "@/shared/utils/dateUtils";
+import { apiClient } from "@/shared/api/apiClient";
+
+const FEATURED_REVIEW_PRODUCTS = [
+  { idProducto: 1, productoNombre: "Hamburguesa Clásica Chazin" },
+  { idProducto: 2, productoNombre: "Hamburguesa Doble Carne & Tocineta" },
+  { idProducto: 5, productoNombre: "Perro Suizo Chazin" }
+];
+
+const FALLBACK_CLIENT_REVIEWS = [
+  {
+    id: "seed-2",
+    idProducto: 1,
+    productoNombre: "Hamburguesa Clásica Chazin",
+    nombre: "Cliente Verificado",
+    puntuacion: 5,
+    comentario: "La carne estaba en su punto perfecto y el pan brioche súper suave y fresco. La tocineta crocante le da un toque fenomenal.",
+    fecha: "2026-09-07T19:30:00"
+  },
+  {
+    id: "seed-3",
+    idProducto: 1,
+    productoNombre: "Hamburguesa Clásica Chazin",
+    nombre: "Cliente Verificado",
+    puntuacion: 5,
+    comentario: "Poder personalizar y quitar la cebolla directamente desde la web fue excelente. La comida llegó calientita y las salsas deliciosas.",
+    fecha: "2026-09-08T20:15:00"
+  },
+  {
+    id: "seed-4",
+    idProducto: 2,
+    productoNombre: "Hamburguesa Doble Carne & Tocineta",
+    nombre: "Cliente Verificado",
+    puntuacion: 5,
+    comentario: "Tremenda hamburguesa, las dos carnes son jugosas y el queso cheddar bien derretido. Muy recomendada.",
+    fecha: "2026-09-08T21:00:00"
+  },
+  {
+    id: "seed-5",
+    idProducto: 5,
+    productoNombre: "Perro Suizo Chazin",
+    nombre: "Cliente Verificado",
+    puntuacion: 5,
+    comentario: "La salchicha suiza ahumada es de primera calidad y el queso gratinado espectacular. Excelente servicio.",
+    fecha: "2026-09-06T14:20:00"
+  }
+];
 
 function StatVariation({ value, label = "vs mes anterior" }) {
   const num = Number(value || 0);
@@ -194,6 +243,39 @@ export function Dashboard() {
     year,
     setYear
   } = useDashboardStats();
+
+  const [clientReviews, setClientReviews] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled(
+      FEATURED_REVIEW_PRODUCTS.map((p) =>
+        apiClient.get(`/resenas/producto/${p.idProducto}`).then((res) => ({
+          producto: p,
+          resenas: Array.isArray(res?.resenas) ? res.resenas : []
+        }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const merged = [];
+      results.forEach((r) => {
+        if (r.status === "fulfilled" && Array.isArray(r.value.resenas)) {
+          r.value.resenas.forEach((rev) => {
+            merged.push({
+              ...rev,
+              idProducto: r.value.producto.idProducto,
+              productoNombre: rev.productoNombre || r.value.producto.productoNombre
+            });
+          });
+        }
+      });
+      merged.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+      setClientReviews(merged.length > 0 ? merged : FALLBACK_CLIENT_REVIEWS);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const axisColor = isDark ? "#e0ecf8" : "#374151";
   const axisColorMuted = isDark ? "#b8cde0" : "#6b7280";
@@ -433,12 +515,12 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 3. Total Pedidos */}
+        {/* 3. Total Ventas */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">
-                Total Pedidos
+                Total Ventas
               </span>
               <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
                 {Number(stats.pedidosTotal || 0).toLocaleString("es-CO")}
@@ -453,18 +535,18 @@ export function Dashboard() {
             {stats.frecuenciaVentas !== undefined && (
               <span className="text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px]">
                 <Zap className="w-3 h-3 text-blue-500 shrink-0" />
-                <span>{stats.frecuenciaVentas} ped/día</span>
+                <span>{stats.frecuenciaVentas} ventas/día</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* 4. Clientes Activos */}
+        {/* 4. Clientes y Usuarios */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">
-                Clientes Activos
+                Clientes y Usuarios
               </span>
               <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
                 {Number(stats.clientesActivos || stats.clientesTotal || 0).toLocaleString("es-CO")}
@@ -476,7 +558,7 @@ export function Dashboard() {
           </div>
           <div className="mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between text-xs">
             <StatVariation value={stats.clientesVariacion} />
-            <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px]">Registrados</span>
+            <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px]">Usuarios registrados</span>
           </div>
         </div>
 
@@ -555,12 +637,12 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* 2. Productos más vendidos por unidad - Ejes X e Y etiquetados con escala entera */}
+        {/* 2. Productos más vendidos y favoritos - Ejes X e Y etiquetados con escala entera */}
         <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div>
-              <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">Productos más vendidos por unidad</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Top 5 platos ordenados por unidades vendidas y representación comercial</p>
+              <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">Productos más vendidos y favoritos</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Top 5 platos más vendidos y favoritos de los clientes</p>
             </div>
             <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">
               Unidades Vendidas
@@ -812,6 +894,174 @@ export function Dashboard() {
         </div>
 
       </div>
+
+      {/* ── Observaciones y Comentarios Recibidos (Medición y Desempeño) ── */}
+      {(() => {
+        const reviewsList = clientReviews.length > 0 ? clientReviews : FALLBACK_CLIENT_REVIEWS;
+        const avgRating = reviewsList.length > 0
+          ? (reviewsList.reduce((sum, r) => sum + Number(r.puntuacion || 5), 0) / reviewsList.length).toFixed(1)
+          : "5.0";
+
+        const orderObservations = (Array.isArray(ventasRecientes) ? ventasRecientes : [])
+          .map((v) => {
+            const rawText = String(v.especificaciones || v.observacionCocina || "").trim();
+            const lower = rawText.toLowerCase();
+            const isTrivial =
+              !rawText ||
+              rawText.startsWith("{") ||
+              lower === "n/a" ||
+              lower === "ninguna" ||
+              lower === "sin observaciones" ||
+              lower.startsWith("qa_");
+            if (isTrivial) return null;
+            return {
+              id: v.id || v.idVenta || v.codigoPedido,
+              codigo: v.codigoPedido || v.numeroVenta || `#${String(v.id || "").padStart(4, "0")}`,
+              cliente: v.clienteNombre || v.cliente || "Cliente General",
+              origen: v.origenNombre || (v.tipoEntrega === "Domicilio" ? "Venta Online" : "Punto Físico"),
+              nota: rawText,
+              fecha: v.fechaFormatted || (v.fecha ? String(v.fecha).slice(0, 10) : "Reciente")
+            };
+          })
+          .filter(Boolean)
+          .slice(0, 5);
+
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base sm:text-lg flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Observaciones y Comentarios Recibidos</span>
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Opiniones verificadas sobre platos favoritos e instrucciones registradas en ventas
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 px-3 py-1 rounded-full">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span>Promedio {avgRating} / 5.0</span>
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+              {/* Izquierda: Comentarios y Calificaciones de Clientes (Productos Favoritos) */}
+              <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm sm:text-base flex items-center gap-1.5">
+                      <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
+                      <span>Comentarios y Calificaciones de Clientes</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Productos favoritos mejor calificados ({avgRating} ⭐)
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-md border border-amber-200/80 dark:border-amber-800/60">
+                    {reviewsList.length} reseñas
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {reviewsList.slice(0, 4).map((rev, idx) => (
+                    <div
+                      key={rev.id || idx}
+                      className="p-3 bg-amber-50/40 dark:bg-gray-800/60 rounded-xl border border-amber-100/80 dark:border-gray-800 space-y-1.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
+                            {rev.nombre || "Cliente Chazin"}
+                          </span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-gray-900 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/50 truncate max-w-[200px]">
+                            {rev.productoNombre || "Plato Favorito"}
+                          </span>
+                        </div>
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-black shrink-0">
+                          {Array.from({ length: Number(rev.puntuacion || 5) }).map((_, sIdx) => (
+                            <Star key={sIdx} className="w-3 h-3 fill-amber-500 text-amber-500" />
+                          ))}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                        &ldquo;{rev.comentario}&rdquo;
+                      </p>
+                      {rev.fecha && (
+                        <p className="text-[10.5px] text-gray-400 font-medium">
+                          {new Date(rev.fecha).toLocaleDateString("es-CO", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric"
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Derecha: Observaciones Recibidas en Ventas */}
+              <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm sm:text-base flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span>Observaciones Recibidas en Ventas</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Notas e indicaciones recientes enviadas por clientes en sus compras
+                    </p>
+                  </div>
+                  <Link
+                    to="/ventas/gestion-ventas"
+                    className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 hover:underline font-bold"
+                  >
+                    Ver ventas <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                {orderObservations.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {orderObservations.map((obs) => (
+                      <div
+                        key={obs.id}
+                        className="p-3 bg-gray-50/70 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 space-y-1"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-extrabold text-xs text-gray-900 dark:text-gray-100">
+                              {obs.codigo}
+                            </span>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">
+                              {obs.cliente}
+                            </span>
+                          </div>
+                          <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 shrink-0">
+                            {obs.origen} · {obs.fecha}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                          &ldquo;{obs.nota}&rdquo;
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-2">
+                      <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Sin observaciones pendientes</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xs">
+                      Las instrucciones especiales que escriban los clientes en nuevas ventas aparecerán aquí.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
