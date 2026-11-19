@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
         clearApiCache();
         setUser(userData);
         localStorage.setItem("chazin_user", JSON.stringify(userData));
-        return { success: true };
+        return { success: true, user: userData };
       }
       return { success: false, message: "Error al iniciar sesión" };
     } catch (err) {
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
         clearApiCache();
         setUser(data);
         localStorage.setItem("chazin_user", JSON.stringify(data));
-        return { success: true, message: "¡Cuenta creada exitosamente!" };
+        return { success: true, user: data, message: "¡Cuenta creada exitosamente!" };
       }
       return { success: false, message: "Error al crear la cuenta" };
     } catch (err) {

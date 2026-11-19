@@ -5,7 +5,7 @@ const MAX_CLIENT_CACHE_ENTRIES = 50;
 const getCache = new Map();
 const inFlightGets = new Map();
 
-const NO_CACHE_PATH_RE = /\/(auth|autenticacion|wompi|health|perfil|login|registro|google|activar-cuenta|reset-password|forgot-password)(\/|$|\?)/i;
+const NO_CACHE_PATH_RE = /\/(auth|autenticacion|wompi|health|perfil|login|registro|google|activar-cuenta|reset-password|forgot-password|verificar-documento|check-document|verificar-correo|check-email)(\/|$|\?)/i;
 const SHORT_TTL_PATH_RE = /\/(produccion|dashboard)(\/|$|\?)/i;
 
 const CLIENT_INVALIDATION_RULES = [

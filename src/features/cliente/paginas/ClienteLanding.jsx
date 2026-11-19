@@ -352,12 +352,114 @@ export function ClienteLanding() {
   const [checkoutTipoEntrega, setCheckoutTipoEntrega] = useState("domicilio");
   const [checkoutEmpaqueParaLlevar, setCheckoutEmpaqueParaLlevar] = useState(false);
   const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [checkoutDocCheck, setCheckoutDocCheck] = useState({ status: "idle", message: "" });
+  const checkoutUserEditedDocRef = useRef(false);
   const [isProcessingWompi, setIsProcessingWompi] = useState(false);
 
   const checkoutAddressValidation = useMedellinAddressValidation(
     showCheckout ? checkoutDireccion : "",
     { required: showCheckout }
   );
+
+  const ownUserDocClean = useMemo(() => {
+    const raw = user?.numeroDocumento || user?.documento || "";
+    const trimmed = String(raw || "").trim();
+    return trimmed.length >= 6 ? trimmed : "";
+  }, [user?.numeroDocumento, user?.documento]);
+
+  // Sincroniza automáticamente tipo de documento, cédula, nombre y dirección de la cuenta al abrir o refrescar perfil
+  useEffect(() => {
+    if (!showCheckout || !isAuthenticated || !user) return;
+    if (!checkoutUserEditedDocRef.current && ownUserDocClean) {
+      setCheckoutTipoDoc(user?.tipoDocumento || "C.C.");
+      setCheckoutDocumento(ownUserDocClean);
+    }
+    setCheckoutNombre((prev) => {
+      if (prev && prev.trim()) return prev;
+      return user?.nombre ? `${user.nombre} ${user.apellidos || ""}`.trim() : "";
+    });
+    setCheckoutDireccion((prev) => {
+      if (prev && prev.trim()) return prev;
+      const rawDir = user?.direccion || "";
+      let cleanDir = rawDir;
+      if (typeof rawDir === "string" && rawDir.trim().startsWith("{")) {
+        try {
+          const p = JSON.parse(rawDir);
+          cleanDir = p.direccion || rawDir;
+        } catch (_) {}
+      }
+      return cleanDir;
+    });
+  }, [showCheckout, isAuthenticated, user, ownUserDocClean]);
+
+  // Validación en vivo contra el backend para detectar si el documento ingresado pertenece a otro usuario registrado
+  useEffect(() => {
+    if (!showCheckout) {
+      setCheckoutDocCheck({ status: "idle", message: "" });
+      return;
+    }
+
+    const cleanDoc = sanitizeDocumento(checkoutDocumento, checkoutTipoDoc);
+    const valRes = validateDocumento(cleanDoc, checkoutTipoDoc);
+    if (!cleanDoc || !valRes.isValid) {
+      setCheckoutDocCheck({ status: "idle", message: "" });
+      return;
+    }
+
+    if (ownUserDocClean && cleanDoc === ownUserDocClean) {
+      setCheckoutDocCheck({ status: "own", message: "Documento verificado de tu cuenta" });
+      setCheckoutErrors((prev) => {
+        if (!prev.documento) return prev;
+        const next = { ...prev };
+        delete next.documento;
+        return next;
+      });
+      return;
+    }
+
+    let cancelled = false;
+    setCheckoutDocCheck({ status: "checking", message: "Verificando documento..." });
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiClient.get("/usuarios/verificar-documento", {
+          params: { numeroDocumento: cleanDoc },
+          noCache: true
+        });
+        if (cancelled) return;
+        if (res?.conflict) {
+          const msg = res.message || `El número de documento "${cleanDoc}" ya pertenece a otro usuario registrado.`;
+          setCheckoutDocCheck({ status: "conflict", message: msg });
+          setCheckoutErrors((prev) => ({ ...prev, documento: msg }));
+        } else if (res?.isOwnDocument) {
+          setCheckoutDocCheck({ status: "own", message: "Documento verificado de tu cuenta" });
+          setCheckoutErrors((prev) => {
+            if (!prev.documento) return prev;
+            const next = { ...prev };
+            delete next.documento;
+            return next;
+          });
+        } else {
+          setCheckoutDocCheck({ status: "available", message: "Documento válido" });
+          setCheckoutErrors((prev) => {
+            if (!prev.documento) return prev;
+            const next = { ...prev };
+            delete next.documento;
+            return next;
+          });
+        }
+      } catch (_) {
+        if (!cancelled) {
+          setCheckoutDocCheck({ status: "idle", message: "" });
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [showCheckout, checkoutDocumento, checkoutTipoDoc, ownUserDocClean]);
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
@@ -1559,12 +1661,18 @@ export function ClienteLanding() {
       setShowEmptyCartLoginModal(true);
       return;
     }
-    setCheckoutNombre(user?.nombre ? `${user.nombre} ${user.apellidos || ''}` : "");
-    const rawDocUser = user?.numeroDocumento || user?.documento || "";
+    checkoutUserEditedDocRef.current = false;
+    let fallbackStored = null;
+    try {
+      fallbackStored = JSON.parse(localStorage.getItem("chazin_user") || "null");
+    } catch (_) {}
+    const sourceUser = user || fallbackStored;
+    setCheckoutNombre(sourceUser?.nombre ? `${sourceUser.nombre} ${sourceUser.apellidos || ''}`.trim() : "");
+    const rawDocUser = sourceUser?.numeroDocumento || sourceUser?.documento || "";
     const cleanDocUser = (rawDocUser && String(rawDocUser).trim().length >= 6) ? String(rawDocUser).trim() : "";
-    setCheckoutTipoDoc(user?.tipoDocumento || "C.C.");
+    setCheckoutTipoDoc(sourceUser?.tipoDocumento || "C.C.");
     setCheckoutDocumento(cleanDocUser);
-    const rawDir = user?.direccion || "";
+    const rawDir = sourceUser?.direccion || "";
     let cleanDir = rawDir;
     if (typeof rawDir === 'string' && rawDir.trim().startsWith('{')) {
       try { const p = JSON.parse(rawDir); cleanDir = p.direccion || rawDir; } catch (e) { /* keep raw */ }
@@ -1576,11 +1684,19 @@ export function ClienteLanding() {
     setCheckoutTipoEntrega("domicilio");
     window.history.pushState({ modal: "checkout" }, "");
     setShowCheckout(true);
+    if (!cleanDocUser && typeof refreshUser === "function") {
+      refreshUser().catch(() => {});
+    }
   };
 
   const handleAuthModalSuccess = (authenticatedUser) => {
     setShowEmptyCartLoginModal(false);
-    const target = authenticatedUser || user;
+    checkoutUserEditedDocRef.current = false;
+    let fallbackStored = null;
+    try {
+      fallbackStored = JSON.parse(localStorage.getItem("chazin_user") || "null");
+    } catch (_) {}
+    const target = authenticatedUser || user || fallbackStored;
     if (cart.length > 0) {
       const fullName = target?.nombre ? `${target.nombre} ${target.apellidos || ''}`.trim() : "";
       setCheckoutNombre(fullName);
@@ -1600,6 +1716,9 @@ export function ClienteLanding() {
       setCheckoutTipoEntrega("domicilio");
       window.history.pushState({ modal: "checkout" }, "");
       setShowCheckout(true);
+      if (!cleanDocAuth && typeof refreshUser === "function") {
+        refreshUser().catch(() => {});
+      }
     }
   };
 
@@ -1731,6 +1850,47 @@ export function ClienteLanding() {
       }, 100);
       return;
     }
+    // Verificación en vivo de documento duplicado perteneciente a otro usuario registrado
+    const cleanSubmittedDoc = sanitizeDocumento(checkoutDocumento, checkoutTipoDoc);
+    if (checkoutDocCheck.status === "conflict") {
+      const conflictMsg =
+        checkoutDocCheck.message ||
+        `El número de documento "${cleanSubmittedDoc}" ya pertenece a otro usuario registrado.`;
+      setCheckoutErrors((prev) => ({ ...prev, documento: conflictMsg }));
+      error("Documento ya registrado", conflictMsg);
+      const docInput = document.getElementById("checkout-documento-input");
+      if (docInput) {
+        docInput.focus();
+        docInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+
+    if (!ownUserDocClean || cleanSubmittedDoc !== ownUserDocClean) {
+      try {
+        const liveCheck = await apiClient.get("/usuarios/verificar-documento", {
+          params: { numeroDocumento: cleanSubmittedDoc },
+          noCache: true
+        });
+        if (liveCheck?.conflict) {
+          const conflictMsg =
+            liveCheck.message ||
+            `El número de documento "${cleanSubmittedDoc}" ya pertenece a otro usuario registrado.`;
+          setCheckoutDocCheck({ status: "conflict", message: conflictMsg });
+          setCheckoutErrors((prev) => ({ ...prev, documento: conflictMsg }));
+          error("Documento ya registrado", conflictMsg);
+          const docInput = document.getElementById("checkout-documento-input");
+          if (docInput) {
+            docInput.focus();
+            docInput.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return;
+        }
+      } catch (_) {
+        // Si falla la consulta preventiva, el backend validará en /wompi/crear-intencion
+      }
+    }
+
     const syncDir = validateDireccionMedellin(checkoutDireccion, { required: true });
     if (!syncDir.isValid) {
       setCheckoutErrors((prev) => ({ ...prev, direccion: syncDir.error }));
@@ -1745,10 +1905,10 @@ export function ClienteLanding() {
       return;
     }
 
-    if (user && typeof updateProfile === "function" && (!user.numeroDocumento || user.numeroDocumento !== checkoutDocumento)) {
+    if (user && typeof updateProfile === "function" && !ownUserDocClean && cleanSubmittedDoc) {
       updateProfile({
         tipoDocumento: checkoutTipoDoc,
-        numeroDocumento: checkoutDocumento
+        numeroDocumento: cleanSubmittedDoc
       }).catch(err => console.warn("Sincronización en segundo plano de documento falló:", err));
     }
 
@@ -3201,6 +3361,7 @@ export function ClienteLanding() {
                     <select
                       value={checkoutTipoDoc}
                       onChange={(e) => {
+                        checkoutUserEditedDocRef.current = true;
                         const newT = e.target.value;
                         setCheckoutTipoDoc(newT);
                         setCheckoutDocumento((prev) => sanitizeDocumento(prev, newT));
@@ -3216,9 +3377,23 @@ export function ClienteLanding() {
                     </select>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                      N.° de Cédula / Documento <span className="text-red-500">*</span>
-                      <span className="ml-1 text-[11px] text-gray-400 font-normal">(6 a 10 dígitos)</span>
+                    <label className="flex items-center justify-between gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 flex-wrap">
+                      <span>
+                        N.° de Cédula / Documento <span className="text-red-500">*</span>
+                        <span className="ml-1 text-[11px] text-gray-400 font-normal">(6 a 10 dígitos)</span>
+                      </span>
+                      {checkoutDocCheck.status === "own" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold">
+                          <ShieldCheck className="w-3 h-3" />
+                          De tu cuenta
+                        </span>
+                      )}
+                      {checkoutDocCheck.status === "checking" && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Verificando...
+                        </span>
+                      )}
                     </label>
                     <input
                       id="checkout-documento-input"
@@ -3226,6 +3401,7 @@ export function ClienteLanding() {
                       inputMode="numeric"
                       value={checkoutDocumento}
                       onChange={(e) => {
+                        checkoutUserEditedDocRef.current = true;
                         const val = sanitizeDocumento(e.target.value, checkoutTipoDoc);
                         setCheckoutDocumento(val);
                         const valRes = validateDocumento(val, checkoutTipoDoc);
@@ -3240,16 +3416,45 @@ export function ClienteLanding() {
                         }
                       }}
                       className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border rounded-2xl text-sm font-medium text-gray-900 dark:text-gray-100 outline-none transition ${
-                        checkoutErrors.documento
-                          ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500"
+                        checkoutErrors.documento || checkoutDocCheck.status === "conflict"
+                          ? "border-red-500 focus:border-red-600 focus:ring-1 focus:ring-red-500 bg-red-50/40 dark:bg-red-950/20"
+                          : checkoutDocCheck.status === "own" || checkoutDocCheck.status === "available"
+                          ? "border-emerald-500 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
                           : "border-gray-200 dark:border-gray-700 focus:border-[#E03E3E]"
                       }`}
                       placeholder="Ej: 1020304050"
                     />
-                    {checkoutErrors.documento && (
-                      <p className="text-[11px] text-red-500 font-bold mt-1.5 flex items-center gap-1 animate-in fade-in">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span>{checkoutErrors.documento}</span>
+                    {(checkoutErrors.documento || checkoutDocCheck.status === "conflict") && (
+                      <div className="mt-1.5 space-y-1.5 animate-in fade-in">
+                        <p className="text-[11px] text-red-600 dark:text-red-400 font-bold flex items-start gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          <span>{checkoutErrors.documento || checkoutDocCheck.message}</span>
+                        </p>
+                        {checkoutDocCheck.status === "conflict" && ownUserDocClean && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              checkoutUserEditedDocRef.current = false;
+                              setCheckoutTipoDoc(user?.tipoDocumento || "C.C.");
+                              setCheckoutDocumento(ownUserDocClean);
+                              setCheckoutErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.documento;
+                                return next;
+                              });
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold transition cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>Usar mi documento ({ownUserDocClean})</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {!checkoutErrors.documento && checkoutDocCheck.status === "own" && (
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Documento verificado de tu cuenta ({checkoutTipoDoc}).</span>
                       </p>
                     )}
                   </div>
@@ -3454,7 +3659,7 @@ export function ClienteLanding() {
               </div>
               <button
                 type="button"
-                disabled={isProcessingWompi}
+                disabled={isProcessingWompi || checkoutDocCheck.status === "conflict" || checkoutDocCheck.status === "checking"}
                 onClick={handleConfirmarPedido}
                 className="w-full py-4 font-extrabold rounded-2xl text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-[#E03E3E] to-[#B91C1C] hover:from-[#C92A2A] hover:to-[#991B1B] text-white active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
               >
