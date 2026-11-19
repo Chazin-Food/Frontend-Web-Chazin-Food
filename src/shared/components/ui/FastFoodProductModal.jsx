@@ -25,7 +25,10 @@ import {
   UtensilsCrossed,
   Lock,
   AlertCircle,
-  Globe
+  Globe,
+  Pencil,
+  Trash2,
+  LogIn
 } from "lucide-react";
 import { getProductEmoji, getAdditionEmoji, stripEmojis, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
@@ -716,6 +719,7 @@ export function FastFoodProductModal({
   allBebidas = [],
   ratingsInfo = null,
   onOpenResenas = null,
+  onReviewChanged = null,
   onConfirm,
   mode = "pos", // "pos" | "cliente"
   initialTab = "personalizar"
@@ -1449,29 +1453,34 @@ export function FastFoodProductModal({
     comboRecipeInfo.comboItems.length > 0 ||
     comboRecipeInfo.steps.length > 0;
 
-  // Reseñas dinámicas del producto
+  // Reseñas dinámicas del producto (100% persistidas en BD)
   const [reviewsData, setReviewsData] = useState({ promedio: 0, total: 0, resenas: [] });
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [myReview, setMyReview] = useState(null); // null | { id, puntuacion, comentario }
 
-  // Formulario interactivo para escribir / publicar reseña dentro del modal
+  // Formulario interactivo para crear / editar reseña dentro del modal
   const [showWriteReview, setShowWriteReview] = useState(false);
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
-  const [guestName, setGuestName] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [deletingReview, setDeletingReview] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState(null); // { type: 'success'|'error', message: string }
-  const [reviewTouched, setReviewTouched] = useState({ guestName: false, comment: false });
+  const [reviewCommentTouched, setReviewCommentTouched] = useState(false);
   const [showFullDesc, setShowFullDesc] = useState(false);
 
   const prodId = producto?.id || producto?.idProducto;
 
-  // Cargar reseñas cuando se abre el modal
+  // Cargar reseñas reales y reseña propia del usuario en paralelo
   const fetchReviews = useCallback(async () => {
     if (!prodId) return;
     setLoadingReviews(true);
     try {
-      const res = await apiClient.get(`/resenas/producto/${prodId}`);
+      const canFetchOwn = Boolean(isAuthenticated && user && !isReadOnlyReviews);
+      const [res, ownRes] = await Promise.all([
+        apiClient.get(`/resenas/producto/${prodId}`),
+        canFetchOwn ? apiClient.get(`/resenas/mia/${prodId}`).catch(() => null) : Promise.resolve(null)
+      ]);
       if (res) {
         setReviewsData({
           promedio: Number(res.promedio || 0),
@@ -1479,28 +1488,49 @@ export function FastFoodProductModal({
           resenas: Array.isArray(res.resenas) ? res.resenas : []
         });
       }
+      if (canFetchOwn) {
+        if (ownRes && (ownRes.id || ownRes.idResena)) {
+          const normalizedOwn = {
+            id: ownRes.id || ownRes.idResena,
+            puntuacion: Number(ownRes.puntuacion || 5),
+            comentario: ownRes.comentario || ""
+          };
+          setMyReview(normalizedOwn);
+          setNewRating(normalizedOwn.puntuacion);
+          setNewComment(normalizedOwn.comentario);
+        } else {
+          setMyReview(null);
+          setNewRating(5);
+          setNewComment("");
+        }
+      } else {
+        setMyReview(null);
+      }
     } catch (e) {
       console.warn("No se pudieron cargar reseñas del producto:", e);
     } finally {
       setLoadingReviews(false);
     }
-  }, [prodId]);
+  }, [prodId, isAuthenticated, user, isReadOnlyReviews]);
 
-  // Handler para publicar reseña interactiva
+  // Handler para crear o editar reseña real en BD
   const handleSubmitReview = async (e) => {
     e?.preventDefault();
     if (isReadOnlyReviews) {
       warning("Acción no permitida", "En el punto de venta rápida, los administradores y vendedores solo pueden consultar las opiniones de los clientes de la web.");
       return;
     }
-    if (!prodId) return;
-    setReviewTouched({ guestName: true, comment: true });
-    if (newRating < 1) {
-      setReviewFeedback({ type: "error", message: "Por favor selecciona una calificación de 1 a 5 estrellas." });
+    if (!isAuthenticated || !user) {
+      setReviewFeedback({
+        type: "error",
+        message: "Inicia sesión con tu cuenta de cliente para publicar una reseña verificada."
+      });
       return;
     }
-    if (!user && (!guestName || guestName.trim().length < 2)) {
-      setReviewFeedback({ type: "error", message: "Por favor ingresa tu nombre (mínimo 2 caracteres)." });
+    if (!prodId) return;
+    setReviewCommentTouched(true);
+    if (newRating < 1 || newRating > 5) {
+      setReviewFeedback({ type: "error", message: "Por favor selecciona una calificación de 1 a 5 estrellas." });
       return;
     }
     if (!newComment.trim() || newComment.trim().length < 5) {
@@ -1512,75 +1542,55 @@ export function FastFoodProductModal({
     setReviewFeedback(null);
 
     try {
-      if (isAuthenticated && user) {
-        const created = await apiClient.post("/resenas", {
+      if (myReview?.id) {
+        await apiClient.put(`/resenas/${myReview.id}`, {
+          puntuacion: newRating,
+          comentario: newComment.trim()
+        });
+        setReviewFeedback({ type: "success", message: "¡Tu reseña fue actualizada correctamente!" });
+      } else {
+        await apiClient.post("/resenas", {
           idProducto: prodId,
           puntuacion: newRating,
           comentario: newComment.trim()
         });
-
-        const newReviewItem = {
-          id: created?.id || created?.idResena || Date.now(),
-          puntuacion: newRating,
-          comentario: newComment.trim(),
-          fecha: new Date().toISOString(),
-          usuario: {
-            nombre: user?.nombre || user?.nombreCompleto || "Comensal",
-            apellidos: user?.apellidos || ""
-          }
-        };
-
-        setReviewsData((prev) => {
-          const updatedList = [newReviewItem, ...prev.resenas];
-          const newTotal = prev.total + 1;
-          const newAvg = updatedList.reduce((acc, r) => acc + (r.puntuacion || 5), 0) / updatedList.length;
-          return {
-            promedio: Number(newAvg.toFixed(1)),
-            total: newTotal,
-            resenas: updatedList
-          };
-        });
-
         setReviewFeedback({ type: "success", message: "¡Tu reseña ha sido verificada y publicada con éxito!" });
-        setNewComment("");
-        setShowWriteReview(false);
-      } else {
-        const guestReviewItem = {
-          id: Date.now(),
-          puntuacion: newRating,
-          comentario: newComment.trim(),
-          fecha: new Date().toISOString(),
-          usuario: {
-            nombre: guestName.trim() || "Comensal Gourmet",
-            apellidos: ""
-          }
-        };
-
-        setReviewsData((prev) => {
-          const updatedList = [guestReviewItem, ...prev.resenas];
-          const newTotal = prev.total + 1;
-          const newAvg = updatedList.reduce((acc, r) => acc + (r.puntuacion || 5), 0) / updatedList.length;
-          return {
-            promedio: Number(newAvg.toFixed(1)),
-            total: newTotal,
-            resenas: updatedList
-          };
-        });
-
-        setReviewFeedback({
-          type: "success",
-          message: "¡Gracias por calificar! Tu opinión se ha sumado a las recomendaciones de este plato."
-        });
-        setNewComment("");
-        setGuestName("");
-        setShowWriteReview(false);
       }
+
+      setShowWriteReview(false);
+      setReviewCommentTouched(false);
+      await fetchReviews();
+      if (typeof onReviewChanged === "function") onReviewChanged();
     } catch (err) {
       console.warn("Error enviando reseña:", err);
-      const msg = err?.response?.data?.message || err?.message || "No se pudo registrar la reseña en este momento.";
+      const msg = err?.message || err?.response?.data?.message || "No se pudo guardar la reseña en este momento.";
       setReviewFeedback({ type: "error", message: msg });
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  // Handler para eliminar la reseña propia del cliente en BD
+  const handleDeleteReview = async () => {
+    if (!myReview?.id || !isAuthenticated || !user || isReadOnlyReviews) return;
+    setDeletingReview(true);
+    setReviewFeedback(null);
+    try {
+      await apiClient.delete(`/resenas/${myReview.id}`);
+      setMyReview(null);
+      setNewRating(5);
+      setNewComment("");
+      setShowWriteReview(false);
+      setReviewCommentTouched(false);
+      setReviewFeedback({ type: "success", message: "Tu reseña fue eliminada correctamente." });
+      await fetchReviews();
+      if (typeof onReviewChanged === "function") onReviewChanged();
+    } catch (err) {
+      console.warn("Error eliminando reseña:", err);
+      const msg = err?.message || err?.response?.data?.message || "No se pudo eliminar la reseña en este momento.";
+      setReviewFeedback({ type: "error", message: msg });
+    } finally {
+      setDeletingReview(false);
     }
   };
 
@@ -1636,6 +1646,8 @@ export function FastFoodProductModal({
       setImageError(false);
       setShowWriteReview(false);
       setReviewFeedback(null);
+      setReviewCommentTouched(false);
+      setMyReview(null);
       setShowFullDesc(false);
       fetchReviews();
     }
@@ -2328,8 +2340,8 @@ export function FastFoodProductModal({
   const ambientGlowColor = isDrink ? brandMeta.color : "#f05454";
 
   const hasRealRatings = reviewsData.total > 0;
-  const effectiveRating = hasRealRatings ? reviewsData.promedio : 0;
-  const effectiveReviewsTotal = hasRealRatings ? reviewsData.total : (ratingsInfo?.total || 0);
+  const effectiveRating = hasRealRatings ? reviewsData.promedio : Number(ratingsInfo?.promedio || 0);
+  const effectiveReviewsTotal = hasRealRatings ? reviewsData.total : Number(ratingsInfo?.total || 0);
 
   // Early-return guard AFTER all hooks (React rules of hooks)
   if (!isOpen || !producto) return null;
@@ -3632,15 +3644,41 @@ export function FastFoodProductModal({
                       <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                       <span>Solo Lectura Web</span>
                     </div>
+                  ) : isAuthenticated && user ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewFeedback(null);
+                          setReviewCommentTouched(false);
+                          if (myReview) {
+                            setNewRating(myReview.puntuacion);
+                            setNewComment(myReview.comentario || "");
+                          }
+                          setShowWriteReview((prev) => !prev);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 shrink-0"
+                      >
+                        {myReview ? <Pencil className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                        <span>{showWriteReview ? "Cerrar" : myReview ? "Editar mi reseña" : "Calificar / Opinar"}</span>
+                      </button>
+                      {myReview && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteReview}
+                          disabled={deletingReview}
+                          title="Eliminar mi reseña"
+                          className="p-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 transition cursor-pointer disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowWriteReview((prev) => !prev)}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 shrink-0"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>{showWriteReview ? "Cerrar" : "Calificar / Opinar"}</span>
-                    </button>
+                    <div className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[11px] font-bold border border-gray-200 dark:border-gray-700 flex items-center gap-1.5 shrink-0">
+                      <LogIn className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Inicia sesión para opinar</span>
+                    </div>
                   )}
                 </div>
 
@@ -3695,12 +3733,38 @@ export function FastFoodProductModal({
 
                   <div className="flex items-center gap-2 text-xs font-extrabold text-amber-700 dark:text-amber-400 bg-amber-100/70 dark:bg-amber-900/40 px-3 py-1.5 rounded-xl border border-amber-200/60 dark:border-amber-800/60">
                     <Award className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Receta Artesanal Certificada</span>
+                    <span>Opiniones 100% Verificadas</span>
                   </div>
                 </div>
 
-                {/* ═══ FORMULARIO INTERACTIVO PARA ESCRIBIR / PUBLICAR RESEÑA (SOLO CLIENTES WEB) ═══ */}
-                {!isReadOnlyReviews && showWriteReview && (
+                {/* Aviso para visitantes sin sesión */}
+                {!isReadOnlyReviews && (!isAuthenticated || !user) && (
+                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 flex items-center gap-2.5 text-xs text-gray-600 dark:text-gray-300 font-medium">
+                    <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Inicia sesión con tu cuenta de cliente para calificar y comentar productos que hayas comprado.</span>
+                  </div>
+                )}
+
+                {/* Feedback persistente fuera del formulario */}
+                {!showWriteReview && reviewFeedback && (
+                  <div
+                    className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                      reviewFeedback.type === "success"
+                        ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 border border-emerald-300"
+                        : "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border border-red-300"
+                    }`}
+                  >
+                    {reviewFeedback.type === "success" ? (
+                      <Check className="w-4 h-4 shrink-0" />
+                    ) : (
+                      <Info className="w-4 h-4 shrink-0" />
+                    )}
+                    <span>{reviewFeedback.message}</span>
+                  </div>
+                )}
+
+                {/* ═══ FORMULARIO INTERACTIVO PARA CREAR / EDITAR RESEÑA (SOLO CLIENTES AUTENTICADOS) ═══ */}
+                {!isReadOnlyReviews && isAuthenticated && user && showWriteReview && (
                   <form
                     onSubmit={handleSubmitReview}
                     className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border-2 border-dashed border-amber-300 dark:border-amber-800/80 space-y-3.5 animate-in fade-in zoom-in-95 duration-200"
@@ -3708,7 +3772,7 @@ export function FastFoodProductModal({
                     <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/60 dark:border-amber-800/40 pb-2">
                       <span className="text-xs font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                         <ChefHat className="w-4 h-4 text-amber-500" />
-                        Deja tu Calificación Gastronómica
+                        {myReview ? "Editar tu Calificación" : "Deja tu Calificación Gastronómica"}
                       </span>
                       <span className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400">
                         {newRating === 5 && "¡Excepcional! Lo amé"}
@@ -3747,33 +3811,6 @@ export function FastFoodProductModal({
                       </div>
                     </div>
 
-                    {/* Guest Name if not logged in */}
-                    {(!user || !user.nombre) && (
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
-                          Tu Nombre o Apodo: <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={guestName}
-                          onBlur={() => setReviewTouched(prev => ({ ...prev, guestName: true }))}
-                          onChange={(e) => setGuestName(e.target.value)}
-                          placeholder="Ej. Sofía Morales"
-                          className={`w-full text-xs px-3 py-2 rounded-xl border transition-colors outline-none ${
-                            reviewTouched.guestName && (!guestName || guestName.trim().length < 2)
-                              ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-2 focus:ring-red-400"
-                              : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-amber-400"
-                          }`}
-                        />
-                        {reviewTouched.guestName && (!guestName || guestName.trim().length < 2) && (
-                          <p className="flex items-center gap-1 text-[11px] text-red-600 mt-1 font-medium">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
-                            <span>El nombre debe tener al menos 2 caracteres.</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
-
                     {/* Comment Textarea */}
                     <div>
                       <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
@@ -3781,17 +3818,18 @@ export function FastFoodProductModal({
                       </label>
                       <textarea
                         rows={3}
+                        maxLength={500}
                         value={newComment}
-                        onBlur={() => setReviewTouched(prev => ({ ...prev, comment: true }))}
+                        onBlur={() => setReviewCommentTouched(true)}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Cuéntale a otros comensales qué fue lo que más disfrutaste de este plato..."
                         className={`w-full text-xs p-3 rounded-xl border transition-colors outline-none resize-none ${
-                          reviewTouched.comment && (!newComment.trim() || newComment.trim().length < 5)
+                          reviewCommentTouched && (!newComment.trim() || newComment.trim().length < 5)
                             ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-2 focus:ring-red-400"
                             : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-amber-400"
                         }`}
                       />
-                      {reviewTouched.comment && (!newComment.trim() || newComment.trim().length < 5) && (
+                      {reviewCommentTouched && (!newComment.trim() || newComment.trim().length < 5) && (
                         <p className="flex items-center gap-1 text-[11px] text-red-600 mt-1 font-medium">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
                           <span>El comentario debe tener al menos 5 caracteres.</span>
@@ -3819,7 +3857,10 @@ export function FastFoodProductModal({
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => setShowWriteReview(false)}
+                        onClick={() => {
+                          setShowWriteReview(false);
+                          setReviewCommentTouched(false);
+                        }}
                         className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                       >
                         Cancelar
@@ -3830,11 +3871,11 @@ export function FastFoodProductModal({
                         className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
                       >
                         {submittingReview ? (
-                          <span>Publicando...</span>
+                          <span>Guardando...</span>
                         ) : (
                           <>
                             <Send className="w-3.5 h-3.5" />
-                            <span>Publicar Reseña</span>
+                            <span>{myReview ? "Guardar Cambios" : "Publicar Reseña"}</span>
                           </>
                         )}
                       </button>
@@ -3842,51 +3883,80 @@ export function FastFoodProductModal({
                   </form>
                 )}
 
-                {/* Lista de Reseñas */}
+                {/* Lista de Reseñas Reales */}
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1">
                   {loadingReviews ? (
                     <div className="py-8 text-center text-xs text-gray-400">
                       Cargando opiniones de clientes...
                     </div>
                   ) : reviewsData.resenas.length > 0 ? (
-                    reviewsData.resenas.map((r, i) => (
-                      <div
-                        key={r.id || r.idResena || i}
-                        className="p-3 bg-gray-50 dark:bg-gray-800/70 rounded-2xl border border-gray-150 dark:border-gray-750 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#f05454] to-amber-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-2xs">
-                              {r.usuario?.nombre ? r.usuario.nombre.slice(0, 2).toUpperCase() : "C"}
+                    reviewsData.resenas.map((r, i) => {
+                      const authorName =
+                        r.nombre ||
+                        (r.usuario ? `${r.usuario.nombre || ""} ${r.usuario.apellidos || ""}`.trim() : "") ||
+                        "Cliente registrado";
+                      const initials =
+                        authorName
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0])
+                          .join("")
+                          .toUpperCase() || "CL";
+                      const isOwn = Boolean(
+                        user &&
+                          (Number(r.idUsuario) === Number(user.idUsuario || user.id) ||
+                            (myReview && Number(r.id || r.idResena) === Number(myReview.id)))
+                      );
+
+                      return (
+                        <div
+                          key={r.id || r.idResena || i}
+                          className={`p-3 rounded-2xl border space-y-1.5 ${
+                            isOwn
+                              ? "bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/60"
+                              : "bg-gray-50 dark:bg-gray-800/70 border-gray-150 dark:border-gray-750"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#f05454] to-amber-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-2xs">
+                                {initials}
+                              </div>
+                              <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
+                                {authorName}
+                              </span>
+                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5 shrink-0">
+                                <Check className="w-2.5 h-2.5" /> Compra verificada
+                              </span>
+                              {isOwn && (
+                                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 shrink-0">
+                                  Tu reseña
+                                </span>
+                              )}
                             </div>
-                            <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
-                              {r.usuario ? `${r.usuario.nombre} ${r.usuario.apellidos || ""}`.trim() : "Comensal Gourmet"}
-                            </span>
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5 shrink-0">
-                              <Check className="w-2.5 h-2.5" /> Compra verificada
+                            <span className="text-[10px] text-gray-400 shrink-0">
+                              {formatFechaRelativa(r.fecha || r.createdAt)}
                             </span>
                           </div>
-                          <span className="text-[10px] text-gray-400 shrink-0">
-                            {formatFechaRelativa(r.fecha || r.createdAt)}
-                          </span>
-                        </div>
 
-                        <div className="flex items-center gap-1 text-amber-500 pl-9">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                              key={s}
-                              className={`w-3 h-3 ${s <= (r.puntuacion || 5) ? "fill-amber-500" : "opacity-25"}`}
-                            />
-                          ))}
-                        </div>
+                          <div className="flex items-center gap-1 text-amber-500 pl-9">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${s <= (r.puntuacion || 5) ? "fill-amber-500" : "opacity-25"}`}
+                              />
+                            ))}
+                          </div>
 
-                        {r.comentario && (
-                          <p className="text-xs text-gray-700 dark:text-gray-300 pl-9 leading-relaxed font-medium">
-                            "{r.comentario}"
-                          </p>
-                        )}
-                      </div>
-                    ))
+                          {r.comentario && (
+                            <p className="text-xs text-gray-700 dark:text-gray-300 pl-9 leading-relaxed font-medium">
+                              &ldquo;{r.comentario}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-6 px-4 bg-gray-50/70 dark:bg-gray-800/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
                       <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-2">
@@ -3896,16 +3966,20 @@ export function FastFoodProductModal({
                         Aún no hay opiniones registradas para este plato
                       </p>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-xs mx-auto">
-                        ¡Sé el primero en compartir tu experiencia gastronómica y calificar este plato!
+                        {isAuthenticated && user && !isReadOnlyReviews
+                          ? "¡Sé el primero en compartir tu experiencia gastronómica y calificar este plato!"
+                          : "Las opiniones de clientes que hayan comprado este plato aparecerán aquí."}
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => setShowWriteReview(true)}
-                        className="mt-3 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
-                      >
-                        <Star className="w-3.5 h-3.5 fill-white text-white" />
-                        <span>Escribir Primera Reseña</span>
-                      </button>
+                      {!isReadOnlyReviews && isAuthenticated && user && (
+                        <button
+                          type="button"
+                          onClick={() => setShowWriteReview(true)}
+                          className="mt-3 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-white text-white" />
+                          <span>Escribir Primera Reseña</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

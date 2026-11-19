@@ -35,52 +35,6 @@ import {
 } from "recharts";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { formatTime12h } from "@/shared/utils/dateUtils";
-import { apiClient } from "@/shared/api/apiClient";
-
-const FEATURED_REVIEW_PRODUCTS = [
-  { idProducto: 1, productoNombre: "Hamburguesa Clásica Chazin" },
-  { idProducto: 2, productoNombre: "Hamburguesa Doble Carne & Tocineta" },
-  { idProducto: 5, productoNombre: "Perro Suizo Chazin" }
-];
-
-const FALLBACK_CLIENT_REVIEWS = [
-  {
-    id: "seed-2",
-    idProducto: 1,
-    productoNombre: "Hamburguesa Clásica Chazin",
-    nombre: "Cliente Verificado",
-    puntuacion: 5,
-    comentario: "La carne estaba en su punto perfecto y el pan brioche súper suave y fresco. La tocineta crocante le da un toque fenomenal.",
-    fecha: "2026-09-07T19:30:00"
-  },
-  {
-    id: "seed-3",
-    idProducto: 1,
-    productoNombre: "Hamburguesa Clásica Chazin",
-    nombre: "Cliente Verificado",
-    puntuacion: 5,
-    comentario: "Poder personalizar y quitar la cebolla directamente desde la web fue excelente. La comida llegó calientita y las salsas deliciosas.",
-    fecha: "2026-09-08T20:15:00"
-  },
-  {
-    id: "seed-4",
-    idProducto: 2,
-    productoNombre: "Hamburguesa Doble Carne & Tocineta",
-    nombre: "Cliente Verificado",
-    puntuacion: 5,
-    comentario: "Tremenda hamburguesa, las dos carnes son jugosas y el queso cheddar bien derretido. Muy recomendada.",
-    fecha: "2026-09-08T21:00:00"
-  },
-  {
-    id: "seed-5",
-    idProducto: 5,
-    productoNombre: "Perro Suizo Chazin",
-    nombre: "Cliente Verificado",
-    puntuacion: 5,
-    comentario: "La salchicha suiza ahumada es de primera calidad y el queso gratinado espectacular. Excelente servicio.",
-    fecha: "2026-09-06T14:20:00"
-  }
-];
 
 function StatVariation({ value, label = "vs mes anterior" }) {
   const num = Number(value || 0);
@@ -157,41 +111,6 @@ const quickAccess = [
   }
 ];
 
-const defaultProductPrices = {
-  "hamburguesa clásica chazin": 18000,
-  "hamburguesa clasica chazin": 18000,
-  "hamburguesa doble carne & tocineta": 25000,
-  "hamburguesa doble carne": 25000,
-  "hamburguesa pollo crispy gourmet": 21000,
-  "hamburguesa pollo crispy": 21000,
-  "hamburguesa bbq bacon chazin": 22000,
-  "hamburguesa mexicana chazin": 22000,
-  "hamburguesa campesina chazin": 23000,
-  "perro caliente especial americano": 14000,
-  "perro especial americano": 14000,
-  "perro suizo chazin": 17000,
-  "perro mexicano clásico": 16000,
-  "perro criollo especial chazin": 17000,
-  "salchipapa salvaje gourmet": 24000,
-  "salchipapa criolla chazin": 20000,
-  "salchipapa costeña chazin": 22000,
-  "combo pareja chazin": 38000,
-  "porción papas a la francesa (150g)": 7500,
-  "porción papas a la francesa": 7500,
-  "porcion papas a la francesa": 7500,
-  "papas a la francesa": 7500,
-  "papas corral grandes": 9000,
-  "gaseosa coca-cola 400ml": 4500,
-  "gaseosa coca cola 400ml": 4500,
-  "gaseosa coca-cola": 4500,
-  "gaseosa manzana postobón 400ml": 4500,
-  "gaseosa manzana postobon": 4500,
-  "gaseosa postobón manzana 400ml": 4500,
-  "gaseosa postobon manzana": 4500,
-  "gaseosa pepsi 400ml": 4500,
-  "gaseosa pepsi": 4500
-};
-
 function CustomProductoTooltip({ active, payload }) {
   if (active && payload && payload.length) {
     const data = payload[0].payload || {};
@@ -238,44 +157,12 @@ export function Dashboard() {
     productosPopulares,
     alertasStock,
     ventasRecientes,
+    comentariosObservaciones,
     periodo,
     setPeriodo,
     year,
     setYear
   } = useDashboardStats();
-
-  const [clientReviews, setClientReviews] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.allSettled(
-      FEATURED_REVIEW_PRODUCTS.map((p) =>
-        apiClient.get(`/resenas/producto/${p.idProducto}`).then((res) => ({
-          producto: p,
-          resenas: Array.isArray(res?.resenas) ? res.resenas : []
-        }))
-      )
-    ).then((results) => {
-      if (cancelled) return;
-      const merged = [];
-      results.forEach((r) => {
-        if (r.status === "fulfilled" && Array.isArray(r.value.resenas)) {
-          r.value.resenas.forEach((rev) => {
-            merged.push({
-              ...rev,
-              idProducto: r.value.producto.idProducto,
-              productoNombre: rev.productoNombre || r.value.producto.productoNombre
-            });
-          });
-        }
-      });
-      merged.sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
-      setClientReviews(merged.length > 0 ? merged : FALLBACK_CLIENT_REVIEWS);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const axisColor = isDark ? "#e0ecf8" : "#374151";
   const axisColorMuted = isDark ? "#b8cde0" : "#6b7280";
@@ -300,11 +187,9 @@ export function Dashboard() {
   const enrichedPopulares = finalPopulares
     .map((p) => {
       const cleanName = (p.nombre || "").replace(/\s*\(.*?\)/g, "").replace(/\s*-\s*base/i, "").trim();
-      const cleanKey = cleanName.toLowerCase();
       const qty = Number(p.ventas || p.cantidad || 0);
 
-      const refPrice = defaultProductPrices[cleanKey] || (cleanKey.includes("hamburguesa") ? 18000 : cleanKey.includes("perro") ? 14000 : cleanKey.includes("gaseosa") ? 4500 : 15000);
-      const unitPrice = Number(p.precioUnitario > 0 ? p.precioUnitario : refPrice);
+      const unitPrice = Number(p.precioUnitario || 0);
       const totalIngresos = Number(p.ingresos > 0 ? p.ingresos : (qty * unitPrice));
       const pct = totalPopularesUnidades > 0 ? Number(((qty / totalPopularesUnidades) * 100).toFixed(1)) : 0;
 
@@ -895,36 +780,16 @@ export function Dashboard() {
 
       </div>
 
-      {/* ── Observaciones y Comentarios Recibidos (Medición y Desempeño) ── */}
+      {/* ── Observaciones y Comentarios Recibidos (Medición y Desempeño - 100% Datos Reales) ── */}
       {(() => {
-        const reviewsList = clientReviews.length > 0 ? clientReviews : FALLBACK_CLIENT_REVIEWS;
-        const avgRating = reviewsList.length > 0
-          ? (reviewsList.reduce((sum, r) => sum + Number(r.puntuacion || 5), 0) / reviewsList.length).toFixed(1)
-          : "5.0";
-
-        const orderObservations = (Array.isArray(ventasRecientes) ? ventasRecientes : [])
-          .map((v) => {
-            const rawText = String(v.especificaciones || v.observacionCocina || "").trim();
-            const lower = rawText.toLowerCase();
-            const isTrivial =
-              !rawText ||
-              rawText.startsWith("{") ||
-              lower === "n/a" ||
-              lower === "ninguna" ||
-              lower === "sin observaciones" ||
-              lower.startsWith("qa_");
-            if (isTrivial) return null;
-            return {
-              id: v.id || v.idVenta || v.codigoPedido,
-              codigo: v.codigoPedido || v.numeroVenta || `#${String(v.id || "").padStart(4, "0")}`,
-              cliente: v.clienteNombre || v.cliente || "Cliente General",
-              origen: v.origenNombre || (v.tipoEntrega === "Domicilio" ? "Venta Online" : "Punto Físico"),
-              nota: rawText,
-              fecha: v.fechaFormatted || (v.fecha ? String(v.fecha).slice(0, 10) : "Reciente")
-            };
-          })
-          .filter(Boolean)
-          .slice(0, 5);
+        const reviewsList = Array.isArray(comentariosObservaciones?.resenas)
+          ? comentariosObservaciones.resenas
+          : [];
+        const totalResenas = Number(comentariosObservaciones?.totalResenas ?? reviewsList.length);
+        const promedioGlobal = Number(comentariosObservaciones?.promedioGlobal || 0);
+        const orderObservations = Array.isArray(comentariosObservaciones?.observaciones)
+          ? comentariosObservaciones.observaciones
+          : [];
 
         return (
           <div className="space-y-4">
@@ -935,17 +800,24 @@ export function Dashboard() {
                   <span>Observaciones y Comentarios Recibidos</span>
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Opiniones verificadas sobre platos favoritos e instrucciones registradas en ventas
+                  Opiniones reales de clientes sobre productos e instrucciones registradas en ventas
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 px-3 py-1 rounded-full">
-                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                <span>Promedio {avgRating} / 5.0</span>
-              </span>
+              {totalResenas > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 px-3 py-1 rounded-full">
+                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <span>Promedio {promedioGlobal.toFixed(1)} / 5.0</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 px-3 py-1 rounded-full">
+                  <Star className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Sin calificaciones aún</span>
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-              {/* Izquierda: Comentarios y Calificaciones de Clientes (Productos Favoritos) */}
+              {/* Izquierda: Comentarios y Calificaciones de Clientes (Todos los productos en BD) */}
               <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -954,53 +826,82 @@ export function Dashboard() {
                       <span>Comentarios y Calificaciones de Clientes</span>
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Productos favoritos mejor calificados ({avgRating} ⭐)
+                      {totalResenas > 0
+                        ? `Opiniones verificadas en tiempo real (${promedioGlobal.toFixed(1)} ⭐)`
+                        : "Las reseñas que publiquen los clientes en el catálogo aparecerán aquí"}
                     </p>
                   </div>
                   <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-md border border-amber-200/80 dark:border-amber-800/60">
-                    {reviewsList.length} reseñas
+                    {totalResenas} {totalResenas === 1 ? "reseña" : "reseñas"}
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
-                  {reviewsList.slice(0, 4).map((rev, idx) => (
-                    <div
-                      key={rev.id || idx}
-                      className="p-3 bg-amber-50/40 dark:bg-gray-800/60 rounded-xl border border-amber-100/80 dark:border-gray-800 space-y-1.5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
-                            {rev.nombre || "Cliente Chazin"}
-                          </span>
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-gray-900 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/50 truncate max-w-[200px]">
-                            {rev.productoNombre || "Plato Favorito"}
-                          </span>
+                {reviewsList.length > 0 ? (
+                  <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    {reviewsList.map((rev, idx) => {
+                      const authorName =
+                        rev.nombre ||
+                        (rev.usuario ? `${rev.usuario.nombre || ""} ${rev.usuario.apellidos || ""}`.trim() : "") ||
+                        "Cliente registrado";
+                      const score = Math.min(5, Math.max(1, Number(rev.puntuacion || 0)));
+                      return (
+                        <div
+                          key={rev.id || rev.idResena || idx}
+                          className="p-3 bg-amber-50/40 dark:bg-gray-800/60 rounded-xl border border-amber-100/80 dark:border-gray-800 space-y-1.5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-xs sm:text-sm text-gray-900 dark:text-gray-100 truncate">
+                                {authorName}
+                              </span>
+                              {rev.productoNombre && (
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-gray-900 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/50 truncate max-w-[200px]">
+                                  {rev.productoNombre}
+                                </span>
+                              )}
+                            </div>
+                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-black shrink-0">
+                              {Array.from({ length: score }).map((_, sIdx) => (
+                                <Star key={sIdx} className="w-3 h-3 fill-amber-500 text-amber-500" />
+                              ))}
+                            </span>
+                          </div>
+                          {rev.comentario ? (
+                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                              &ldquo;{rev.comentario}&rdquo;
+                            </p>
+                          ) : (
+                            <p className="text-[11px] italic text-gray-400 dark:text-gray-500">
+                              Calificación registrada sin comentario escrito.
+                            </p>
+                          )}
+                          {rev.fecha && (
+                            <p className="text-[10.5px] text-gray-400 font-medium">
+                              {new Date(rev.fecha).toLocaleDateString("es-CO", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric"
+                              })}
+                            </p>
+                          )}
                         </div>
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-black shrink-0">
-                          {Array.from({ length: Number(rev.puntuacion || 5) }).map((_, sIdx) => (
-                            <Star key={sIdx} className="w-3 h-3 fill-amber-500 text-amber-500" />
-                          ))}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                        &ldquo;{rev.comentario}&rdquo;
-                      </p>
-                      {rev.fecha && (
-                        <p className="text-[10.5px] text-gray-400 font-medium">
-                          {new Date(rev.fecha).toLocaleDateString("es-CO", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric"
-                          })}
-                        </p>
-                      )}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
+                    <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-2">
+                      <Star className="w-5 h-5 text-amber-500" />
                     </div>
-                  ))}
-                </div>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Sin reseñas registradas aún</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xs">
+                      Cuando los clientes califiquen y comenten sus productos comprados, sus opiniones aparecerán aquí automáticamente.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Derecha: Observaciones Recibidas en Ventas */}
+              {/* Derecha: Observaciones Recibidas en Ventas (Todas las ventas del período en BD) */}
               <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -1009,22 +910,27 @@ export function Dashboard() {
                       <span>Observaciones Recibidas en Ventas</span>
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Notas e indicaciones recientes enviadas por clientes en sus compras
+                      Notas e indicaciones reales enviadas por clientes en sus compras
                     </p>
                   </div>
-                  <Link
-                    to="/ventas/gestion-ventas"
-                    className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 hover:underline font-bold"
-                  >
-                    Ver ventas <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-md border border-blue-200/80 dark:border-blue-800/60">
+                      {orderObservations.length} {orderObservations.length === 1 ? "nota" : "notas"}
+                    </span>
+                    <Link
+                      to="/ventas/gestion-ventas"
+                      className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 hover:underline font-bold"
+                    >
+                      Ver ventas <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
 
                 {orderObservations.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {orderObservations.map((obs) => (
+                  <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    {orderObservations.map((obs, idx) => (
                       <div
-                        key={obs.id}
+                        key={obs.id || idx}
                         className="p-3 bg-gray-50/70 dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-800 space-y-1"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1037,7 +943,7 @@ export function Dashboard() {
                             </span>
                           </div>
                           <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 shrink-0">
-                            {obs.origen} · {obs.fecha}
+                            {obs.origen}{obs.fecha ? ` · ${obs.fecha}` : ""}
                           </span>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -1051,9 +957,9 @@ export function Dashboard() {
                     <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-2">
                       <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Sin observaciones pendientes</p>
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Sin observaciones en este período</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 max-w-xs">
-                      Las instrucciones especiales que escriban los clientes en nuevas ventas aparecerán aquí.
+                      Las instrucciones especiales que escriban los clientes en sus compras aparecerán aquí.
                     </p>
                   </div>
                 )}

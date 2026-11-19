@@ -23,18 +23,25 @@ export function useDashboardStats() {
   const [productosPopulares, setProductosPopulares] = useState([]);
   const [alertasStock, setAlertasStock] = useState([]);
   const [ventasRecientes, setVentasRecientes] = useState([]);
+  const [comentariosObservaciones, setComentariosObservaciones] = useState({
+    promedioGlobal: 0,
+    totalResenas: 0,
+    resenas: [],
+    observaciones: []
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async (isSilent = false) => {
     try {
       if (!isSilent) setLoading(true);
       const params = { periodo, year };
-      const [statsRes, chartRes, popRes, alertasRes, recientesRes] = await Promise.all([
+      const [statsRes, chartRes, popRes, alertasRes, recientesRes, feedbackRes] = await Promise.all([
         dashboardService.getStats(params).catch(() => null),
         dashboardService.getVentasChart(params).catch(() => []),
         dashboardService.getProductosPopulares(params).catch(() => []),
         dashboardService.getAlertasStock(params).catch(() => []),
-        dashboardService.getVentasRecientes(params).catch(() => [])
+        dashboardService.getVentasRecientes(params).catch(() => []),
+        dashboardService.getComentariosObservaciones(params).catch(() => null)
       ]);
 
       if (statsRes) setStats(statsRes);
@@ -42,6 +49,14 @@ export function useDashboardStats() {
       if (Array.isArray(popRes)) setProductosPopulares(popRes);
       if (Array.isArray(alertasRes)) setAlertasStock(alertasRes);
       if (Array.isArray(recientesRes)) setVentasRecientes(recientesRes);
+      if (feedbackRes && typeof feedbackRes === "object") {
+        setComentariosObservaciones({
+          promedioGlobal: Number(feedbackRes.promedioGlobal || 0),
+          totalResenas: Number(feedbackRes.totalResenas || 0),
+          resenas: Array.isArray(feedbackRes.resenas) ? feedbackRes.resenas : [],
+          observaciones: Array.isArray(feedbackRes.observaciones) ? feedbackRes.observaciones : []
+        });
+      }
     } catch (err) {
       console.error("Error loading dashboard metrics:", err);
     } finally {
@@ -65,6 +80,7 @@ export function useDashboardStats() {
     productosPopulares,
     alertasStock,
     ventasRecientes,
+    comentariosObservaciones,
     loading,
     periodo,
     setPeriodo,

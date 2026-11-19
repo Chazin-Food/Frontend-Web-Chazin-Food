@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
@@ -386,6 +386,35 @@ export function ClienteLanding() {
   const [showPersonalizarEventoModal, setShowPersonalizarEventoModal] = useState(false);
   const [eventoParaPersonalizar, setEventoParaPersonalizar] = useState(null);
   const [productoParaEvento, setProductoParaEvento] = useState(null);
+
+  const refreshRatingsMap = useCallback(() => {
+    const pIdSet = new Set(productosList.map((p) => p?.id || p?.idProducto).filter(Boolean));
+    if (Array.isArray(eventosList)) {
+      eventosList.forEach((e) => {
+        if (e?.idProducto) pIdSet.add(e.idProducto);
+        if (e?.productosAsociados) {
+          try {
+            const parsed = typeof e.productosAsociados === "string"
+              ? JSON.parse(e.productosAsociados)
+              : e.productosAsociados;
+            if (Array.isArray(parsed)) {
+              parsed.forEach((a) => {
+                const aId = a?.idProducto || a?.id;
+                if (aId) pIdSet.add(aId);
+              });
+            }
+          } catch {
+            // ignorar JSON inválido
+          }
+        }
+      });
+    }
+    const pIds = Array.from(pIdSet).filter(Boolean).join(",");
+    if (!pIds) return;
+    apiClient.get(`/resenas/ratings?ids=${pIds}`)
+      .then((res) => { if (res) setRatingsMap(res); })
+      .catch(() => {});
+  }, [productosList, eventosList]);
 
   const hasActiveEvents = useMemo(() => {
     if (!Array.isArray(eventosList) || eventosList.length === 0) return false;
@@ -2755,6 +2784,7 @@ export function ClienteLanding() {
                 setShowResenasModal(true);
               }
             }}
+            onReviewChanged={refreshRatingsMap}
             onConfirm={handleClientModalConfirm}
             mode="cliente"
             initialTab={modalInitialTab}
@@ -3477,6 +3507,7 @@ export function ClienteLanding() {
               setProductoParaResenas(prod);
               setShowResenasModal(true);
             }}
+            onReviewChanged={refreshRatingsMap}
             onAddToCart={(item, selectedDrinks = []) => {
               const itemsToBatch = [item];
               if (Array.isArray(selectedDrinks) && selectedDrinks.length > 0) {
@@ -3595,14 +3626,9 @@ export function ClienteLanding() {
             isOpen={true}
             onClose={() => {
               setShowResenasModal(false);
-              // Refresh ratings
-              if (productosList.length > 0) {
-                const pIds = productosList.map(p => p.id || p.idProducto).join(',');
-                apiClient.get(`/resenas/ratings?ids=${pIds}`)
-                  .then(res => { if (res) setRatingsMap(res); })
-                  .catch(() => {});
-              }
+              refreshRatingsMap();
             }}
+            onReviewChanged={refreshRatingsMap}
             producto={productoParaResenas}
           />
         </Suspense>

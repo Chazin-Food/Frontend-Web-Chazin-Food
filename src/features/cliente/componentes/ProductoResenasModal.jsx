@@ -7,6 +7,7 @@ import { StarRating } from "@/shared/components/ui/StarRating";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { apiClient } from "@/shared/api/apiClient";
 import { useNotifications } from "@/shared/hooks/useNotifications";
+import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 
 function formatFecha(dateStr) {
   if (!dateStr) return "";
@@ -44,7 +45,7 @@ function StarsDisplay({ valor }) {
   );
 }
 
-export function ProductoResenasModal({ isOpen, onClose, producto }) {
+export function ProductoResenasModal({ isOpen, onClose, producto, onReviewChanged = null }) {
   const { user } = useAuth();
   const userRole = Number(user?.idRol || user?.rolId || user?.rol || 0);
   const isStaff = userRole === 1 || userRole === 2 || userRole === 3;
@@ -148,6 +149,7 @@ export function ProductoResenasModal({ isOpen, onClose, producto }) {
       setModoEditar(false);
       await fetchResenas();
       await checkUsuarioCompro();
+      if (typeof onReviewChanged === "function") onReviewChanged();
     } catch (err) {
       const msg = err.message || "Error al guardar la reseña.";
       if (msg.includes("comprado") || err.status === 403) {
@@ -175,6 +177,7 @@ export function ProductoResenasModal({ isOpen, onClose, producto }) {
       setForm({ puntuacion: 0, comentario: "" });
       notify.success("Reseña eliminada", "Tu reseña fue eliminada con éxito.");
       await fetchResenas();
+      if (typeof onReviewChanged === "function") onReviewChanged();
     } catch (err) {
       notify.error("Error al eliminar", err.message || "No se pudo eliminar la reseña.");
     }
@@ -202,7 +205,15 @@ export function ProductoResenasModal({ isOpen, onClose, producto }) {
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-4 sm:p-5 text-white relative flex items-center gap-3.5 sm:gap-4 shrink-0">
           <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden shrink-0">
             {imagenProducto ? (
-              <img src={imagenProducto.startsWith("http") ? imagenProducto : `http://localhost:5000${imagenProducto}`} alt={nombreProducto} className="w-full h-full object-cover" />
+              <img
+                src={getOptimizedImageUrl(imagenProducto, 160)}
+                alt={nombreProducto}
+                width={56}
+                height={56}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
             ) : (
               <Star className="w-7 h-7 text-white" />
             )}

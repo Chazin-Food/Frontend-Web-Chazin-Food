@@ -17,7 +17,11 @@ import {
   Send,
   UtensilsCrossed,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2,
+  Globe,
+  LogIn
 } from "lucide-react";
 import { extractPersonalizables, resolveNutritionalSpecs, isEssentialIngredient } from "@/shared/components/ui/FastFoodProductModal";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
@@ -70,10 +74,13 @@ export function PersonalizarEventoModal({
   fichasMap = {},
   ratingsMap = {},
   onOpenResenas,
+  onReviewChanged = null,
   onAddToCart,
   getProductQuantityInCart
 }) {
   const { user, isAuthenticated } = useAuth?.() || {};
+  const userRole = Number(user?.idRol || user?.rolId || user?.rol || 0);
+  const isReadOnlyReviews = userRole === 1 || userRole === 2 || userRole === 3;
 
   // List of available products for this event
   const eventProducts = useMemo(() => {
@@ -113,16 +120,17 @@ export function PersonalizarEventoModal({
   const [selectedDrinks, setSelectedDrinks] = useState([]);
   const [customObservation, setCustomObservation] = useState("");
 
-  // Reviews data & form
+  // Reviews data & form (100% persistido en BD)
   const [reviewsData, setReviewsData] = useState({ promedio: 0, total: 0, resenas: [] });
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [myReview, setMyReview] = useState(null);
   const [showWriteReview, setShowWriteReview] = useState(false);
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
-  const [guestName, setGuestName] = useState("");
-  const [reviewTouched, setReviewTouched] = useState({ guestName: false, comment: false });
+  const [reviewCommentTouched, setReviewCommentTouched] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [deletingReview, setDeletingReview] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState(null);
 
   // Initialize and reset on modal open
@@ -136,7 +144,8 @@ export function PersonalizarEventoModal({
       setCustomObservation("");
       setShowWriteReview(false);
       setReviewFeedback(null);
-      setReviewTouched({ guestName: false, comment: false });
+      setReviewCommentTouched(false);
+      setMyReview(null);
       if (initialProducto) {
         setSelectedProduct(initialProducto);
       } else if (eventProducts.length > 0) {
@@ -452,12 +461,16 @@ export function PersonalizarEventoModal({
     }
   }, [isOpen, hasRecipeTabContent, activeTab, adicionesList.length, allBebidas.length]);
 
-  // Fetch reviews for selected product
+  // Fetch real reviews + user's own review in parallel
   const fetchReviews = useCallback(async () => {
     if (!prodId) return;
     setLoadingReviews(true);
     try {
-      const res = await apiClient.get(`/resenas/producto/${prodId}`);
+      const canFetchOwn = Boolean(isAuthenticated && user && !isReadOnlyReviews);
+      const [res, ownRes] = await Promise.all([
+        apiClient.get(`/resenas/producto/${prodId}`),
+        canFetchOwn ? apiClient.get(`/resenas/mia/${prodId}`).catch(() => null) : Promise.resolve(null)
+      ]);
       if (res) {
         setReviewsData({
           promedio: Number(res.promedio || 0),
@@ -465,12 +478,30 @@ export function PersonalizarEventoModal({
           resenas: Array.isArray(res.resenas) ? res.resenas : []
         });
       }
+      if (canFetchOwn) {
+        if (ownRes && (ownRes.id || ownRes.idResena)) {
+          const normalizedOwn = {
+            id: ownRes.id || ownRes.idResena,
+            puntuacion: Number(ownRes.puntuacion || 5),
+            comentario: ownRes.comentario || ""
+          };
+          setMyReview(normalizedOwn);
+          setNewRating(normalizedOwn.puntuacion);
+          setNewComment(normalizedOwn.comentario);
+        } else {
+          setMyReview(null);
+          setNewRating(5);
+          setNewComment("");
+        }
+      } else {
+        setMyReview(null);
+      }
     } catch (e) {
       console.warn("No se pudieron cargar reseñas del producto:", e);
     } finally {
       setLoadingReviews(false);
     }
-  }, [prodId]);
+  }, [prodId, isAuthenticated, user, isReadOnlyReviews]);
 
   useEffect(() => {
     if (isOpen && prodId) {
@@ -478,17 +509,27 @@ export function PersonalizarEventoModal({
     }
   }, [isOpen, prodId, fetchReviews]);
 
-  // Submit review form inside tab
+  // Create or update real review in DB
   const handleSubmitReview = async (e) => {
     e?.preventDefault();
-    setReviewTouched({ guestName: true, comment: true });
-    if (!prodId) return;
-    if (newRating < 1) {
-      setReviewFeedback({ type: "error", message: "Selecciona una calificación de 1 a 5 estrellas." });
+    if (isReadOnlyReviews) {
+      setReviewFeedback({
+        type: "error",
+        message: "En modo administración/vendedor solo puedes consultar las opiniones registradas por los clientes."
+      });
       return;
     }
-    if ((!user || !user.nombre) && (!guestName || guestName.trim().length < 2)) {
-      setReviewFeedback({ type: "error", message: "El nombre debe tener al menos 2 caracteres." });
+    if (!isAuthenticated || !user) {
+      setReviewFeedback({
+        type: "error",
+        message: "Inicia sesión con tu cuenta de cliente para publicar una reseña verificada."
+      });
+      return;
+    }
+    setReviewCommentTouched(true);
+    if (!prodId) return;
+    if (newRating < 1 || newRating > 5) {
+      setReviewFeedback({ type: "error", message: "Selecciona una calificación de 1 a 5 estrellas." });
       return;
     }
     if (!newComment.trim() || newComment.trim().length < 5) {
@@ -500,71 +541,57 @@ export function PersonalizarEventoModal({
     setReviewFeedback(null);
 
     try {
-      if (isAuthenticated && user) {
-        const created = await apiClient.post("/resenas", {
+      if (myReview?.id) {
+        await apiClient.put(`/resenas/${myReview.id}`, {
+          puntuacion: newRating,
+          comentario: newComment.trim()
+        });
+        setReviewFeedback({ type: "success", message: "¡Tu reseña fue actualizada correctamente!" });
+      } else {
+        await apiClient.post("/resenas", {
           idProducto: prodId,
           puntuacion: newRating,
           comentario: newComment.trim()
         });
-
-        const newReviewItem = {
-          id: created?.id || Date.now(),
-          puntuacion: newRating,
-          comentario: newComment.trim(),
-          fecha: new Date().toISOString(),
-          usuario: {
-            nombre: user.nombre || "Tú",
-            apellidos: user.apellidos || ""
-          }
-        };
-
-        setReviewsData((prev) => {
-          const nextTotal = prev.total + 1;
-          const nextPromedio = ((prev.promedio * prev.total) + newRating) / nextTotal;
-          return {
-            total: nextTotal,
-            promedio: nextPromedio,
-            resenas: [newReviewItem, ...prev.resenas]
-          };
-        });
-
         setReviewFeedback({ type: "success", message: "¡Gracias! Tu reseña ha sido publicada con éxito." });
-        setNewComment("");
-        setTimeout(() => setShowWriteReview(false), 2000);
-      } else {
-        const guestItem = {
-          id: Date.now(),
-          puntuacion: newRating,
-          comentario: newComment.trim(),
-          fecha: new Date().toISOString(),
-          usuario: {
-            nombre: guestName.trim() || "Comensal Gourmet",
-            apellidos: ""
-          }
-        };
-
-        setReviewsData((prev) => {
-          const nextTotal = prev.total + 1;
-          const nextPromedio = ((prev.promedio * prev.total) + newRating) / nextTotal;
-          return {
-            total: nextTotal,
-            promedio: nextPromedio,
-            resenas: [guestItem, ...prev.resenas]
-          };
-        });
-
-        setReviewFeedback({ type: "success", message: "¡Gracias por calificar este plato!" });
-        setNewComment("");
-        setGuestName("");
-        setTimeout(() => setShowWriteReview(false), 2000);
       }
+
+      setShowWriteReview(false);
+      setReviewCommentTouched(false);
+      await fetchReviews();
+      if (typeof onReviewChanged === "function") onReviewChanged();
     } catch (err) {
       setReviewFeedback({
         type: "error",
-        message: err?.response?.data?.message || "No se pudo guardar la reseña. Inténtalo de nuevo."
+        message: err?.message || err?.response?.data?.message || "No se pudo guardar la reseña. Inténtalo de nuevo."
       });
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  // Delete own review in DB
+  const handleDeleteReview = async () => {
+    if (!myReview?.id || !isAuthenticated || !user || isReadOnlyReviews) return;
+    setDeletingReview(true);
+    setReviewFeedback(null);
+    try {
+      await apiClient.delete(`/resenas/${myReview.id}`);
+      setMyReview(null);
+      setNewRating(5);
+      setNewComment("");
+      setShowWriteReview(false);
+      setReviewCommentTouched(false);
+      setReviewFeedback({ type: "success", message: "Tu reseña fue eliminada correctamente." });
+      await fetchReviews();
+      if (typeof onReviewChanged === "function") onReviewChanged();
+    } catch (err) {
+      setReviewFeedback({
+        type: "error",
+        message: err?.message || err?.response?.data?.message || "No se pudo eliminar la reseña."
+      });
+    } finally {
+      setDeletingReview(false);
     }
   };
 
@@ -1664,22 +1691,77 @@ export function PersonalizarEventoModal({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowWriteReview(!showWriteReview)}
-                    className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 flex items-center gap-1.5"
-                  >
-                    <Star className="w-3.5 h-3.5 fill-white text-white" />
-                    <span>{showWriteReview ? "Ver Reseñas" : "Escribir Reseña"}</span>
-                  </button>
+                  {isReadOnlyReviews ? (
+                    <div className="px-3.5 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200/70 dark:border-blue-800/60 flex items-center gap-1.5 shrink-0">
+                      <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>Solo Lectura Web</span>
+                    </div>
+                  ) : isAuthenticated && user ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewFeedback(null);
+                          setReviewCommentTouched(false);
+                          if (myReview) {
+                            setNewRating(myReview.puntuacion);
+                            setNewComment(myReview.comentario || "");
+                          }
+                          setShowWriteReview((prev) => !prev);
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95 shrink-0 flex items-center gap-1.5"
+                      >
+                        {myReview ? <Pencil className="w-3.5 h-3.5" /> : <Star className="w-3.5 h-3.5 fill-white text-white" />}
+                        <span>{showWriteReview ? "Ver Reseñas" : myReview ? "Editar mi reseña" : "Escribir Reseña"}</span>
+                      </button>
+                      {myReview && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteReview}
+                          disabled={deletingReview}
+                          title="Eliminar mi reseña"
+                          className="p-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 transition cursor-pointer disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[11px] font-bold border border-gray-200 dark:border-gray-700 flex items-center gap-1.5 shrink-0">
+                      <LogIn className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Inicia sesión para opinar</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Formulario de Calificación */}
-                {showWriteReview && (
+                {/* Aviso para visitantes sin sesión */}
+                {!isReadOnlyReviews && (!isAuthenticated || !user) && (
+                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 flex items-center gap-2.5 text-xs text-gray-600 dark:text-gray-300 font-medium">
+                    <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>Inicia sesión con tu cuenta de cliente para calificar y comentar productos que hayas comprado.</span>
+                  </div>
+                )}
+
+                {/* Feedback persistente fuera del formulario */}
+                {!showWriteReview && reviewFeedback && (
+                  <div
+                    className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                      reviewFeedback.type === "success"
+                        ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 border border-emerald-300"
+                        : "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border border-red-300"
+                    }`}
+                  >
+                    {reviewFeedback.type === "success" ? <Check className="w-4 h-4 shrink-0" /> : <Info className="w-4 h-4 shrink-0" />}
+                    <span>{reviewFeedback.message}</span>
+                  </div>
+                )}
+
+                {/* Formulario de Calificación (Solo clientes autenticados) */}
+                {!isReadOnlyReviews && isAuthenticated && user && showWriteReview && (
                   <form onSubmit={handleSubmitReview} className="p-4 bg-gray-50 dark:bg-gray-800/80 rounded-2xl border border-amber-300 dark:border-amber-700/60 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                        Tu Calificación
+                        {myReview ? "Editar tu Calificación" : "Tu Calificación"}
                       </span>
                       <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
                         {newRating === 5 && "¡Excelente!"}
@@ -1711,49 +1793,24 @@ export function PersonalizarEventoModal({
                       ))}
                     </div>
 
-                    {(!user || !user.nombre) && (
-                      <div>
-                        <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
-                          Tu Nombre: <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={guestName}
-                          onBlur={() => setReviewTouched((prev) => ({ ...prev, guestName: true }))}
-                          onChange={(e) => setGuestName(e.target.value)}
-                          placeholder="Ej. Sofía Morales"
-                          className={`w-full text-xs px-3 py-2 rounded-xl border transition-colors outline-none ${
-                            reviewTouched.guestName && (!guestName || guestName.trim().length < 2)
-                              ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-2 focus:ring-red-400"
-                              : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-amber-400"
-                          }`}
-                        />
-                        {reviewTouched.guestName && (!guestName || guestName.trim().length < 2) && (
-                          <p className="flex items-center gap-1 text-[11px] text-red-600 mt-1 font-medium">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
-                            <span>El nombre debe tener al menos 2 caracteres.</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
-
                     <div>
                       <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
                         ¿Qué tal estuvo la preparación y sabor? <span className="text-red-500">*</span>
                       </label>
                       <textarea
                         rows={3}
+                        maxLength={500}
                         value={newComment}
-                        onBlur={() => setReviewTouched((prev) => ({ ...prev, comment: true }))}
+                        onBlur={() => setReviewCommentTouched(true)}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Comparte tu experiencia con otros clientes..."
                         className={`w-full text-xs p-3 rounded-xl border transition-colors outline-none resize-none ${
-                          reviewTouched.comment && (!newComment.trim() || newComment.trim().length < 5)
+                          reviewCommentTouched && (!newComment.trim() || newComment.trim().length < 5)
                             ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-2 focus:ring-red-400"
                             : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-amber-400"
                         }`}
                       />
-                      {reviewTouched.comment && (!newComment.trim() || newComment.trim().length < 5) && (
+                      {reviewCommentTouched && (!newComment.trim() || newComment.trim().length < 5) && (
                         <p className="flex items-center gap-1 text-[11px] text-red-600 mt-1 font-medium">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
                           <span>El comentario debe tener al menos 5 caracteres.</span>
@@ -1777,7 +1834,10 @@ export function PersonalizarEventoModal({
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => setShowWriteReview(false)}
+                        onClick={() => {
+                          setShowWriteReview(false);
+                          setReviewCommentTouched(false);
+                        }}
                         className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                       >
                         Cancelar
@@ -1787,57 +1847,93 @@ export function PersonalizarEventoModal({
                         disabled={submittingReview}
                         className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
                       >
-                        {submittingReview ? <span>Publicando...</span> : <><Send className="w-3.5 h-3.5" /><span>Publicar</span></>}
+                        {submittingReview ? (
+                          <span>Guardando...</span>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{myReview ? "Guardar Cambios" : "Publicar"}</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </form>
                 )}
 
-                {/* Lista de Opiniones */}
+                {/* Lista de Opiniones Reales */}
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1">
                   {loadingReviews ? (
                     <div className="py-8 text-center text-xs text-gray-400">
                       Cargando opiniones de clientes...
                     </div>
                   ) : effectiveRating.resenas && effectiveRating.resenas.length > 0 ? (
-                    effectiveRating.resenas.map((r, i) => (
-                      <div
-                        key={r.id || r.idResena || i}
-                        className="p-3 bg-gray-50 dark:bg-gray-800/70 rounded-2xl border border-gray-150 dark:border-gray-750 space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-2xs">
-                              {r.usuario?.nombre ? r.usuario.nombre.slice(0, 2).toUpperCase() : "C"}
+                    effectiveRating.resenas.map((r, i) => {
+                      const authorName =
+                        r.nombre ||
+                        (r.usuario ? `${r.usuario.nombre || ""} ${r.usuario.apellidos || ""}`.trim() : "") ||
+                        "Cliente registrado";
+                      const initials =
+                        authorName
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0])
+                          .join("")
+                          .toUpperCase() || "CL";
+                      const isOwn = Boolean(
+                        user &&
+                          (Number(r.idUsuario) === Number(user.idUsuario || user.id) ||
+                            (myReview && Number(r.id || r.idResena) === Number(myReview.id)))
+                      );
+
+                      return (
+                        <div
+                          key={r.id || r.idResena || i}
+                          className={`p-3 rounded-2xl border space-y-1.5 ${
+                            isOwn
+                              ? "bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/60"
+                              : "bg-gray-50 dark:bg-gray-800/70 border-gray-150 dark:border-gray-750"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-2xs">
+                                {initials}
+                              </div>
+                              <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
+                                {authorName}
+                              </span>
+                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5 shrink-0">
+                                <Check className="w-2.5 h-2.5" /> Compra verificada
+                              </span>
+                              {isOwn && (
+                                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 shrink-0">
+                                  Tu reseña
+                                </span>
+                              )}
                             </div>
-                            <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
-                              {r.usuario ? `${r.usuario.nombre} ${r.usuario.apellidos || ""}`.trim() : "Comensal Gourmet"}
-                            </span>
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5 shrink-0">
-                              <Check className="w-2.5 h-2.5" /> Compra verificada
+                            <span className="text-[10px] text-gray-400 shrink-0">
+                              {formatFecha(r.fecha || r.createdAt)}
                             </span>
                           </div>
-                          <span className="text-[10px] text-gray-400 shrink-0">
-                            {formatFecha(r.fecha || r.createdAt)}
-                          </span>
-                        </div>
 
-                        <div className="flex items-center gap-1 text-amber-500 pl-9">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                              key={s}
-                              className={`w-3 h-3 ${s <= (r.puntuacion || 5) ? "fill-amber-500" : "opacity-25"}`}
-                            />
-                          ))}
-                        </div>
+                          <div className="flex items-center gap-1 text-amber-500 pl-9">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`w-3 h-3 ${s <= (r.puntuacion || 5) ? "fill-amber-500" : "opacity-25"}`}
+                              />
+                            ))}
+                          </div>
 
-                        {r.comentario && (
-                          <p className="text-xs text-gray-700 dark:text-gray-300 pl-9 leading-relaxed font-medium">
-                            "{r.comentario}"
-                          </p>
-                        )}
-                      </div>
-                    ))
+                          {r.comentario && (
+                            <p className="text-xs text-gray-700 dark:text-gray-300 pl-9 leading-relaxed font-medium">
+                              &ldquo;{r.comentario}&rdquo;
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-6 px-4 bg-gray-50/70 dark:bg-gray-800/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
                       <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-2">
@@ -1847,7 +1943,9 @@ export function PersonalizarEventoModal({
                         Aún no hay opiniones registradas para este plato
                       </p>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-xs mx-auto">
-                        ¡Sé el primero en compartir tu experiencia gastronómica y calificar este plato!
+                        {isAuthenticated && user && !isReadOnlyReviews
+                          ? "¡Sé el primero en compartir tu experiencia gastronómica y calificar este plato!"
+                          : "Las opiniones de clientes que hayan comprado este plato aparecerán aquí."}
                       </p>
                     </div>
                   )}
