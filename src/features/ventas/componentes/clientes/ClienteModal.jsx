@@ -279,7 +279,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="cliente-tipo-doc" className="block font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                  Tipo de Documento <span className="text-red-500 font-bold">*</span>
+                  Tipo de Documento {!isIdentificationLocked && <span className="text-red-500 font-bold">*</span>}
                 </label>
                 <div className="relative">
                   <select
@@ -328,10 +328,10 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label htmlFor="cliente-documento" className="block font-semibold text-gray-700 dark:text-gray-300">
-                    Número de Documento <span className="text-red-500 font-bold">*</span>
+                    Número de Documento {!isIdentificationLocked && <span className="text-red-500 font-bold">*</span>}
                   </label>
                   <span className="text-[10px] text-gray-400 font-medium">
-                    {docConfig.helper}
+                    {isIdentificationLocked ? (form.documento ? "Documento no editable" : "Sin documento registrado") : docConfig.helper}
                   </span>
                 </div>
                 <div className="relative">
@@ -387,6 +387,12 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                       Documento válido
                     </p>
                   ) : null
+                )}
+                {isIdentificationLocked && !form.documento && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Sin documento registrado. Se le notificará al cliente por correo para que lo complete.</span>
+                  </p>
                 )}
               </div>
             </div>

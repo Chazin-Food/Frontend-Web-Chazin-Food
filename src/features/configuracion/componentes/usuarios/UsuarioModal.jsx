@@ -56,6 +56,10 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
         break;
       }
       case "documento": {
+        if (isEditing) {
+          // En modo edición el documento es inmutable y no se puede exigir al usuario si no fue registrado
+          return "";
+        }
         const res = validateDocumento(value, currentForm.tipoDocumento);
         if (!res.isValid) {
           err = res.error;
@@ -134,7 +138,11 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
         nombre: usuario.nombre || "",
         apellidos: usuario.apellidos || "",
         tipoDocumento: usuario.tipoDocumento || "C.C.",
-        documento: (usuario.documento && String(usuario.documento).length >= 6) ? usuario.documento : (usuario.numeroDocumento && String(usuario.numeroDocumento).length >= 6) ? usuario.numeroDocumento : "",
+        documento: usuario.documento !== undefined && usuario.documento !== null && String(usuario.documento).trim() !== ""
+          ? String(usuario.documento).trim()
+          : usuario.numeroDocumento !== undefined && usuario.numeroDocumento !== null && String(usuario.numeroDocumento).trim() !== ""
+          ? String(usuario.numeroDocumento).trim()
+          : "",
         email: usuario.email || usuario.correo || "",
         telefono: sanitizeTelefono(usuario.telefono || ""),
         password: "",
@@ -177,12 +185,12 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
 
     // Validate all fields
     const newErrors = {};
-    const fieldsToValidate = ["nombre", "documento", "email"];
+    const fieldsToValidate = ["nombre", "email"];
+    if (!isEditing) {
+      fieldsToValidate.push("documento", "password", "confirmPassword");
+    }
     if (form.apellidos) fieldsToValidate.push("apellidos");
     if (form.telefono) fieldsToValidate.push("telefono");
-    if (!isEditing) {
-      fieldsToValidate.push("password", "confirmPassword");
-    }
 
     let hasErrors = false;
     fieldsToValidate.forEach((f) => {
@@ -201,17 +209,27 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
       return;
     }
 
-    onSave({
+    const payload = {
       ...form,
       nombre: form.nombre.trim(),
       apellidos: form.apellidos.trim(),
       telefono: sanitizeTelefono(form.telefono),
-      documento: sanitizeDocumento(form.documento, form.tipoDocumento),
       notificarEmail: isEditing ? form.notificarCambios : form.enviarCorreoBienvenida
-    });
+    };
+    if (isEditing) {
+      delete payload.documento;
+      delete payload.tipoDocumento;
+    } else {
+      payload.documento = sanitizeDocumento(form.documento, form.tipoDocumento);
+    }
+
+    onSave(payload);
   };
 
   const getInputClass = (fieldName) => {
+    if (isEditing && fieldName === "documento") {
+      return `${baseInputCls} border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 cursor-not-allowed`;
+    }
     const hasValue = form[fieldName] && String(form[fieldName]).length > 0;
     const hasError = (touched[fieldName] || hasValue) && errors[fieldName];
     const isValid = (touched[fieldName] || hasValue) && !errors[fieldName] && hasValue;
@@ -298,70 +316,103 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className={labelCls}>Tipo de Documento</label>
+                <label className={labelCls}>
+                  Tipo de Documento {!isEditing && <span className="text-red-500 font-bold">*</span>}
+                </label>
                 {isEditing && (
                   <span className="text-[10px] text-gray-400 font-medium">
                     (Inmutable)
                   </span>
                 )}
               </div>
-              <select
-                disabled={isEditing}
-                value={form.tipoDocumento}
-                onChange={(e) => {
-                  const newTipo = e.target.value;
-                  const newDoc = sanitizeDocumento(form.documento, newTipo);
-                  const updated = { ...form, tipoDocumento: newTipo, documento: newDoc };
-                  setForm(updated);
-                  setTouched((prev) => ({ ...prev, tipoDocumento: true, documento: true }));
-                  const err = validateSingleField("documento", newDoc, updated);
-                  setErrors((prev) => ({ ...prev, documento: err }));
-                }}
-                className={`${baseInputCls} border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
-                  isEditing ? "opacity-60 bg-gray-100 dark:bg-gray-800/80 cursor-not-allowed" : "focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer"
-                }`}
-              >
-                <option value="C.C.">Cédula de Ciudadanía (C.C.)</option>
-                <option value="T.I.">Tarjeta de Identidad (T.I.)</option>
-                <option value="C.E.">Cédula de Extranjería (C.E.)</option>
-                <option value="PPT">Permiso por Protección Temporal (PPT)</option>
-                <option value="Pasaporte">Pasaporte</option>
-                <option value="NIT">NIT</option>
-              </select>
+              <div className="relative">
+                <select
+                  disabled={isEditing}
+                  aria-disabled={isEditing}
+                  tabIndex={isEditing ? -1 : 0}
+                  value={form.tipoDocumento}
+                  onChange={(e) => {
+                    if (isEditing) return;
+                    const newTipo = e.target.value;
+                    const newDoc = sanitizeDocumento(form.documento, newTipo);
+                    const updated = { ...form, tipoDocumento: newTipo, documento: newDoc };
+                    setForm(updated);
+                    setTouched((prev) => ({ ...prev, tipoDocumento: true, documento: true }));
+                    const err = validateSingleField("documento", newDoc, updated);
+                    setErrors((prev) => ({ ...prev, documento: err }));
+                  }}
+                  className={`${baseInputCls} border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 ${
+                    isEditing ? "pr-9 opacity-60 bg-gray-100 dark:bg-gray-800/80 cursor-not-allowed select-none appearance-none" : "focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer"
+                  }`}
+                >
+                  <option value="C.C.">Cédula de Ciudadanía (C.C.)</option>
+                  <option value="T.I.">Tarjeta de Identidad (T.I.)</option>
+                  <option value="C.E.">Cédula de Extranjería (C.E.)</option>
+                  <option value="PPT">Permiso por Protección Temporal (PPT)</option>
+                  <option value="Pasaporte">Pasaporte</option>
+                  <option value="NIT">NIT</option>
+                </select>
+                {isEditing && (
+                  <Lock
+                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className={labelCls}>Número de Identificación *</label>
+                <label className={labelCls}>
+                  Número de Identificación {!isEditing && <span className="text-red-500 font-bold">*</span>}
+                </label>
                 <span className="text-[10px] text-gray-400 font-medium">
-                  {isEditing ? "Documento no editable" : docConfig.helper}
+                  {isEditing ? (form.documento ? "Documento no editable" : "Sin documento registrado") : docConfig.helper}
                 </span>
               </div>
-              <input
-                type="text"
-                disabled={isEditing}
-                readOnly={isEditing}
-                value={form.documento}
-                maxLength={docConfig.max}
-                onChange={(e) => {
-                  const clean = sanitizeDocumento(e.target.value, form.tipoDocumento);
-                  handleFieldChange("documento", clean);
-                }}
-                onBlur={() => handleFieldBlur("documento")}
-                className={`${getInputClass("documento")} ${
-                  isEditing ? "opacity-60 bg-gray-100 dark:bg-gray-800/80 cursor-not-allowed" : ""
-                }`}
-                placeholder={docConfig.helper}
-              />
-              {(touched.documento || form.documento) && errors.documento ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  disabled={isEditing}
+                  readOnly={isEditing}
+                  tabIndex={isEditing ? -1 : 0}
+                  aria-disabled={isEditing}
+                  value={form.documento}
+                  maxLength={docConfig.max}
+                  onChange={(e) => {
+                    if (isEditing) return;
+                    const clean = sanitizeDocumento(e.target.value, form.tipoDocumento);
+                    handleFieldChange("documento", clean);
+                  }}
+                  onBlur={() => {
+                    if (!isEditing) handleFieldBlur("documento");
+                  }}
+                  className={`${getInputClass("documento")} ${
+                    isEditing ? "pr-9 opacity-60 bg-gray-100 dark:bg-gray-800/80 cursor-not-allowed select-none font-medium" : ""
+                  }`}
+                  placeholder={isEditing && !form.documento ? "Sin documento registrado (Pendiente)" : docConfig.helper}
+                />
+                {isEditing && (
+                  <Lock
+                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+              {!isEditing && (touched.documento || form.documento) && errors.documento ? (
                 <p className="text-[11px] text-red-500 font-medium mt-1 flex items-center gap-1 animate-in fade-in duration-150">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>{errors.documento}</span>
                 </p>
-              ) : form.documento && !errors.documento ? (
+              ) : !isEditing && form.documento && !errors.documento ? (
                 <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1 animate-in fade-in duration-150">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                   <span>Documento válido</span>
+                </p>
+              ) : isEditing && !form.documento ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Sin documento registrado. Se le notificará al usuario por correo para que lo complete.</span>
                 </p>
               ) : null}
             </div>
