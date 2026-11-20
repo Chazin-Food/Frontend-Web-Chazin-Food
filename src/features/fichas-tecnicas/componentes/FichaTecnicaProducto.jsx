@@ -266,9 +266,25 @@ export function FichaTecnicaProducto({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  const onPrecioSugeridoChangeRef = useRef(onPrecioSugeridoChange);
+  useEffect(() => {
+    onPrecioSugeridoChangeRef.current = onPrecioSugeridoChange;
+  }, [onPrecioSugeridoChange]);
+
+  const dbInsumosListRef = useRef(dbInsumosList);
+  dbInsumosListRef.current = dbInsumosList;
+  const rendimientoRef = useRef(rendimiento);
+  rendimientoRef.current = rendimiento;
+  const productNameRef = useRef(productName);
+  productNameRef.current = productName;
+
   const lastSentRef = useRef("");
   const lastEmittedPayloadRef = useRef(null);
+  const emittedPayloadsRef = useRef(new WeakSet());
   const loadedInitialRef = useRef(null);
+  const hydratedNullProductIdRef = useRef(null);
+  const fetchedMissingQualityProductIdRef = useRef(null);
+  const lastNotifiedPrecioSugeridoRef = useRef(null);
   const isMountedRef = useRef(false);
   const prevProductIdRef = useRef(productId);
 
@@ -277,6 +293,10 @@ export function FichaTecnicaProducto({
       prevProductIdRef.current = productId;
       loadedInitialRef.current = null;
       lastEmittedPayloadRef.current = null;
+      emittedPayloadsRef.current = new WeakSet();
+      hydratedNullProductIdRef.current = null;
+      fetchedMissingQualityProductIdRef.current = null;
+      lastNotifiedPrecioSugeridoRef.current = null;
       lastSentRef.current = "";
     }
   }, [productId]);
@@ -313,6 +333,7 @@ export function FichaTecnicaProducto({
           }
         : null,
       _isRestoredVersionCommit: Boolean(cleanPrev?._isRestoredVersionCommit),
+      _fromHistoricalRestore: Boolean(cleanPrev?._fromHistoricalRestore || cleanPrev?._isRestoredVersionCommit),
       _restoredSnapshot: cleanPrev,
       detalles: insumos.map(i => {
         const cost = Number(i.costoUnitario || i.precioUnitario || i.insumo?.precioUnitario || i.insumo?.costo || 0);
@@ -347,6 +368,7 @@ export function FichaTecnicaProducto({
     if (fingerprint !== lastSentRef.current) {
       lastSentRef.current = fingerprint;
       lastEmittedPayloadRef.current = payload;
+      emittedPayloadsRef.current.add(payload);
       if (typeof onChangeRef.current === "function") {
         onChangeRef.current(payload);
       }
@@ -359,16 +381,27 @@ export function FichaTecnicaProducto({
     entityData, prevEntityData
   ]);
 
-  // Cargar insumos disponibles para el autocompletado y re-sanear recetas
+  // Cargar insumos disponibles una sola vez al montar y re-sanear receta con el rendimiento vigente
   useEffect(() => {
+    let cancelled = false;
     insumosService.getInsumos()
       .then(res => {
+        if (cancelled) return;
         const list = Array.isArray(res) ? res : res?.data || [];
+        dbInsumosListRef.current = list;
         setDbInsumosList(list);
-        setInsumos(prev => sanitizeRecetaInsumos(prev, list, rendimiento));
+        setInsumos(prev => sanitizeRecetaInsumos(prev, list, rendimientoRef.current));
       })
-      .catch(() => setDbInsumosList([]));
-  }, [rendimiento]);
+      .catch(() => {
+        if (!cancelled) {
+          dbInsumosListRef.current = [];
+          setDbInsumosList([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const populateFields = useCallback((fRaw) => {
     if (!fRaw) return;
@@ -377,12 +410,15 @@ export function FichaTecnicaProducto({
     if (fRaw?._isRestoredVersionCommit) {
       f._isRestoredVersionCommit = true;
     }
+    if (fRaw?._fromHistoricalRestore) {
+      f._fromHistoricalRestore = true;
+    }
     const rawInsumos = f.detalles || f.insumos || [];
-    setInsumos(sanitizeRecetaInsumos(rawInsumos, dbInsumosList, f.rendimiento));
+    setInsumos(sanitizeRecetaInsumos(rawInsumos, dbInsumosListRef.current, f.rendimiento));
 
     const pasosDesglosados = desglosarProcedimiento(f.procedimiento || f.descripcion || "");
     const textoProc = (f.procedimiento || f.descripcion || "").trim() || serializarPasos(pasosDesglosados);
-    const calidadResuelta = buildDefaultCalidadFields(productName, f);
+    const calidadResuelta = buildDefaultCalidadFields(productNameRef.current, f);
 
     setProcedimiento(textoProc);
     setPasosProceso(pasosDesglosados);
@@ -395,64 +431,95 @@ export function FichaTecnicaProducto({
     setVidaUtil(calidadResuelta.vidaUtil);
     setObservaciones(extractFichaVersionMeta(f.observaciones || "").cleanObservaciones);
     setErrors({});
+    const prevSnapshot = sanitizeSnapshot(
+      fRaw?._isRestoredVersionCommit || fRaw?._fromHistoricalRestore ? fRaw : f
+    );
     setVersionInfo({
       versionActual: f.versionActual || 1,
       fechaInicioVigencia: f.fechaInicioVigencia || f.fechaCreacion || null,
       versionesAnteriores: f.versionesAnteriores || [],
-      prevFichaSnapshot: sanitizeSnapshot(fRaw?._isRestoredVersionCommit ? fRaw : f)
+      prevFichaSnapshot: prevSnapshot
     });
-  }, [dbInsumosList, productId, productName]);
-
-  const loadFichaData = useCallback(async () => {
-    if (initialData) {
-      if (initialData === lastEmittedPayloadRef.current || initialData === loadedInitialRef.current) {
-        return;
-      }
-      loadedInitialRef.current = initialData;
-      populateFields(initialData);
-
-      const missingQuality =
-        !String(initialData.especificaciones || "").trim() ||
-        !String(initialData.caracteristicas || "").trim() ||
-        !String(initialData.informacionNutricional || "").trim();
-
-      if (missingQuality && productId) {
-        try {
-          const fullFicha = await fichasTecnicasService.getFichaByProducto(productId);
-          if (fullFicha && fullFicha.idFichaTecnica) {
-            populateFields({
-              ...fullFicha,
-              ...initialData,
-              especificaciones: initialData.especificaciones || fullFicha.especificaciones,
-              caracteristicas: initialData.caracteristicas || fullFicha.caracteristicas,
-              informacionNutricional: initialData.informacionNutricional || fullFicha.informacionNutricional,
-              condicionesAlmacenamiento: initialData.condicionesAlmacenamiento || fullFicha.condicionesAlmacenamiento,
-              vidaUtil: initialData.vidaUtil || fullFicha.vidaUtil,
-              versionesAnteriores: initialData.versionesAnteriores?.length ? initialData.versionesAnteriores : fullFicha.versionesAnteriores,
-              detalles: initialData.detalles?.length ? initialData.detalles : fullFicha.detalles
-            });
-          }
-        } catch (err) {
-          console.error("Error completando campos de calidad de ficha:", err);
-        }
-      }
-      return;
-    }
-    if (productId && !initialData) {
-      try {
-        const f = await fichasTecnicasService.getFichaByProducto(productId);
-        if (f && f.idFichaTecnica) {
-          populateFields(f);
-        }
-      } catch (err) {
-        console.error("Error cargando ficha de producto:", err);
-      }
-    }
-  }, [productId, initialData, populateFields]);
+  }, [productId]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadFichaData = async () => {
+      if (initialData) {
+        // Nunca re-hidratar desde objetos ya emitidos por este componente o ya cargados
+        if (
+          initialData === lastEmittedPayloadRef.current ||
+          emittedPayloadsRef.current.has(initialData) ||
+          initialData === loadedInitialRef.current
+        ) {
+          return;
+        }
+        loadedInitialRef.current = initialData;
+        populateFields(initialData);
+
+        const isHistoricalRestore = Boolean(
+          initialData._isRestoredVersionCommit || initialData._fromHistoricalRestore
+        );
+        const missingQuality =
+          !String(initialData.especificaciones || "").trim() ||
+          !String(initialData.caracteristicas || "").trim() ||
+          !String(initialData.informacionNutricional || "").trim();
+
+        if (
+          missingQuality &&
+          productId &&
+          !isHistoricalRestore &&
+          fetchedMissingQualityProductIdRef.current !== productId
+        ) {
+          try {
+            const fullFicha = await fichasTecnicasService.getFichaByProducto(productId);
+            if (cancelled || loadedInitialRef.current !== initialData) return;
+            fetchedMissingQualityProductIdRef.current = productId;
+            if (fullFicha && fullFicha.idFichaTecnica) {
+              populateFields({
+                ...fullFicha,
+                ...initialData,
+                especificaciones: initialData.especificaciones || fullFicha.especificaciones,
+                caracteristicas: initialData.caracteristicas || fullFicha.caracteristicas,
+                informacionNutricional: initialData.informacionNutricional || fullFicha.informacionNutricional,
+                condicionesAlmacenamiento: initialData.condicionesAlmacenamiento || fullFicha.condicionesAlmacenamiento,
+                vidaUtil: initialData.vidaUtil || fullFicha.vidaUtil,
+                versionesAnteriores: initialData.versionesAnteriores?.length ? initialData.versionesAnteriores : fullFicha.versionesAnteriores,
+                detalles: initialData.detalles?.length ? initialData.detalles : fullFicha.detalles
+              });
+            }
+          } catch (err) {
+            if (!cancelled) {
+              console.error("Error completando campos de calidad de ficha:", err);
+            }
+          }
+        }
+        return;
+      }
+
+      if (productId && !initialData && hydratedNullProductIdRef.current !== productId) {
+        try {
+          const f = await fichasTecnicasService.getFichaByProducto(productId);
+          if (cancelled || loadedInitialRef.current !== null) return;
+          hydratedNullProductIdRef.current = productId;
+          if (f && f.idFichaTecnica) {
+            populateFields(f);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            console.error("Error cargando ficha de producto:", err);
+          }
+        }
+      }
+    };
+
     loadFichaData();
-  }, [loadFichaData]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [productId, initialData, populateFields]);
 
   // Manejo de versión restaurada
   const handleRestoreVersion = (snapshot) => {
@@ -589,10 +656,13 @@ export function FichaTecnicaProducto({
 
   // Requerimiento 5: Sincronizar precio de venta sugerido con la sección Datos & Tipo
   useEffect(() => {
-    if (typeof onPrecioSugeridoChange === "function" && recipeTotals.precioSugerido > 0) {
-      onPrecioSugeridoChange(recipeTotals.precioSugerido);
+    const sug = Number(recipeTotals.precioSugerido || 0);
+    if (typeof onPrecioSugeridoChangeRef.current !== "function") return;
+    if ((sug > 0 || lastNotifiedPrecioSugeridoRef.current !== null) && lastNotifiedPrecioSugeridoRef.current !== sug) {
+      lastNotifiedPrecioSugeridoRef.current = sug;
+      onPrecioSugeridoChangeRef.current(sug);
     }
-  }, [recipeTotals.precioSugerido, onPrecioSugeridoChange]);
+  }, [recipeTotals.precioSugerido]);
 
   // Pasos de preparación
   const agregarPaso = () => {
@@ -1135,6 +1205,7 @@ export function FichaTecnicaProducto({
                                   onChange={(e) => {
                                     const val = e.target.value.replace(',', '.');
                                     if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                      clearRestoredCommitFlag();
                                       setInsumos(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: val } : x));
                                     }
                                   }}

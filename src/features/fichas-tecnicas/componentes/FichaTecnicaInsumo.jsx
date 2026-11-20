@@ -282,8 +282,13 @@ export function FichaTecnicaInsumo({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  const dbInsumosListRef = useRef(dbInsumosList);
+  dbInsumosListRef.current = dbInsumosList;
+
   const lastSentRef = useRef("");
   const lastEmittedPayloadRef = useRef(null);
+  const emittedPayloadsRef = useRef(new WeakSet());
+  const hydratedNullInsumoIdRef = useRef(null);
   const isMountedRef = useRef(false);
   const prevInsumoIdRef = useRef(insumoId);
 
@@ -292,6 +297,8 @@ export function FichaTecnicaInsumo({
       prevInsumoIdRef.current = insumoId;
       loadedKeyRef.current = null;
       lastEmittedPayloadRef.current = null;
+      emittedPayloadsRef.current = new WeakSet();
+      hydratedNullInsumoIdRef.current = null;
       lastSentRef.current = "";
     }
   }, [insumoId]);
@@ -360,6 +367,7 @@ export function FichaTecnicaInsumo({
     if (fingerprint !== lastSentRef.current) {
       lastSentRef.current = fingerprint;
       lastEmittedPayloadRef.current = payload;
+      emittedPayloadsRef.current.add(payload);
       onChangeRef.current?.(payload);
     }
   }, [
@@ -371,12 +379,24 @@ export function FichaTecnicaInsumo({
 
   // Cargar lista de insumos base para autocompletado
   useEffect(() => {
+    let cancelled = false;
     insumosService.getInsumos()
       .then((res) => {
+        if (cancelled) return;
         const raw = Array.isArray(res) ? res : res?.data || [];
-        setDbInsumosList(raw.filter(item => !insumoId || String(item.id || item.idInsumo) !== String(insumoId)));
+        const filtered = raw.filter(item => !insumoId || String(item.id || item.idInsumo) !== String(insumoId));
+        dbInsumosListRef.current = filtered;
+        setDbInsumosList(filtered);
       })
-      .catch(() => setDbInsumosList([]));
+      .catch(() => {
+        if (!cancelled) {
+          dbInsumosListRef.current = [];
+          setDbInsumosList([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [insumoId]);
 
   const populateFields = useCallback((fRaw) => {
@@ -387,8 +407,9 @@ export function FichaTecnicaInsumo({
       f._isRestoredVersionCommit = true;
     }
     const rawInsumos = f.detalles || f.insumos || [];
+    const currentDbList = dbInsumosListRef.current;
     setInsumos(rawInsumos.map(item => {
-      const matchDb = dbInsumosList.find(d => String(d.id || d.idInsumo) === String(item.idInsumo || item.id));
+      const matchDb = currentDbList.find(d => String(d.id || d.idInsumo) === String(item.idInsumo || item.id));
       return {
         idInsumo: item.idInsumo || item.id,
         nombreInsumo: item.nombreInsumo || item.insumo?.nombre || item.nombre || matchDb?.nombre || `Insumo #${item.idInsumo || item.id}`,
@@ -416,32 +437,46 @@ export function FichaTecnicaInsumo({
       versionesAnteriores: f.versionesAnteriores || [],
       prevFichaSnapshot: sanitizeSnapshot(fRaw?._isRestoredVersionCommit ? fRaw : f)
     });
-  }, [dbInsumosList, insumoId]);
-
-  const loadFicha = useCallback(async () => {
-    if (initialData) {
-      if (initialData === lastEmittedPayloadRef.current || initialData === loadedKeyRef.current) {
-        return;
-      }
-      loadedKeyRef.current = initialData;
-      populateFields(initialData);
-      return;
-    }
-    if (insumoId && !initialData) {
-      try {
-        const res = await fichasTecnicasService.getFichaByInsumoPreparado(insumoId);
-        if (res && res.idFichaTecnica) {
-          populateFields(res);
-        }
-      } catch (err) {
-        console.error("Error cargando ficha de insumo preparado:", err);
-      }
-    }
-  }, [insumoId, initialData, populateFields]);
+  }, [insumoId]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadFicha = async () => {
+      if (initialData) {
+        if (
+          initialData === lastEmittedPayloadRef.current ||
+          emittedPayloadsRef.current.has(initialData) ||
+          initialData === loadedKeyRef.current
+        ) {
+          return;
+        }
+        loadedKeyRef.current = initialData;
+        populateFields(initialData);
+        return;
+      }
+      if (insumoId && !initialData && hydratedNullInsumoIdRef.current !== insumoId) {
+        try {
+          const res = await fichasTecnicasService.getFichaByInsumoPreparado(insumoId);
+          if (cancelled || loadedKeyRef.current !== null) return;
+          hydratedNullInsumoIdRef.current = insumoId;
+          if (res && res.idFichaTecnica) {
+            populateFields(res);
+          }
+        } catch (err) {
+          if (!cancelled) {
+            console.error("Error cargando ficha de insumo preparado:", err);
+          }
+        }
+      }
+    };
+
     loadFicha();
-  }, [loadFicha]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [insumoId, initialData, populateFields]);
 
   // Manejo de versión restaurada
   const handleRestoreVersion = (snapshot) => {

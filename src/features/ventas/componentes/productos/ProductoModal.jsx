@@ -272,6 +272,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
     setActiveStep(1);
     setFileToUpload(null);
     setPreviewUrl(producto?.imagen || "");
@@ -282,37 +285,46 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     setPrecioSugeridoLive(0);
 
     // Cargar adiciones e insumos
-    adicionesService.getAdiciones().then(setTodasAdiciones).catch(console.error);
-    insumosService.getInsumos().then((data) => {
-      setTodosInsumosCatalogo(Array.isArray(data) ? data : []);
-    }).catch(console.error);
+    adicionesService.getAdiciones()
+      .then((data) => {
+        if (!cancelled) setTodasAdiciones(data);
+      })
+      .catch(console.error);
+    insumosService.getInsumos()
+      .then((data) => {
+        if (!cancelled) setTodosInsumosCatalogo(Array.isArray(data) ? data : []);
+      })
+      .catch(console.error);
 
     // Cargar productos del catálogo para poder asociarlos a combos
-    productosService.getProductos().then((prods) => {
-      const all = prods || [];
-      const currentId = producto?.id || producto?.idProducto;
-      
-      const regularProducts = all.filter(p => {
-        const cat = String(p.categoria || p.categoriaNombre || "").toLowerCase();
-        const nom = String(p.nombre || "").toLowerCase();
-        const pId = p.id || p.idProducto;
-        return !cat.includes("combo") && !nom.includes("combo") && (currentId ? pId !== currentId : true);
-      });
-      setTodosProductosCatalogo(regularProducts);
+    productosService.getProductos()
+      .then((prods) => {
+        if (cancelled) return;
+        const all = prods || [];
+        const currentId = producto?.id || producto?.idProducto;
 
-      const bebidas = all.filter((p) => {
-        const cat = String(p.categoria || p.categoriaNombre || "").toLowerCase();
-        const nom = String(p.nombre || "").toLowerCase();
-        return (
-          cat.includes("bebida") ||
-          cat.includes("gaseos") ||
-          cat.includes("refresco") ||
-          nom.includes("gaseosa") ||
-          nom.includes("agua")
-        );
-      });
-      setTodasBebidas(bebidas);
-    }).catch(console.error);
+        const regularProducts = all.filter(p => {
+          const cat = String(p.categoria || p.categoriaNombre || "").toLowerCase();
+          const nom = String(p.nombre || "").toLowerCase();
+          const pId = p.id || p.idProducto;
+          return !cat.includes("combo") && !nom.includes("combo") && (currentId ? pId !== currentId : true);
+        });
+        setTodosProductosCatalogo(regularProducts);
+
+        const bebidas = all.filter((p) => {
+          const cat = String(p.categoria || p.categoriaNombre || "").toLowerCase();
+          const nom = String(p.nombre || "").toLowerCase();
+          return (
+            cat.includes("bebida") ||
+            cat.includes("gaseos") ||
+            cat.includes("refresco") ||
+            nom.includes("gaseosa") ||
+            nom.includes("agua")
+          );
+        });
+        setTodasBebidas(bebidas);
+      })
+      .catch(console.error);
 
     if (producto) {
       const selectedCat = (categorias || []).find(c => c.nombre === producto.categoria || (c.id && c.id === producto.idCategoriaProducto) || (c.idCategoriaProducto && c.idCategoriaProducto === producto.idCategoriaProducto));
@@ -338,8 +350,13 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
         fichasTecnicasService
           .getFichaByProducto(prodIdLoad)
           .then((bf) => {
+            if (cancelled) return;
             if (bf && ((Array.isArray(bf.detalles) && bf.detalles.length > 0) || (Array.isArray(bf.insumos) && bf.insumos.length > 0))) {
-              setFichaTecnica((prev) => prev || bf);
+              setFichaTecnica((prev) => {
+                if (!prev) return bf;
+                const prevHas = (prev.detalles?.length || prev.insumos?.length || 0) > 0;
+                return prevHas || prev._isRestoredVersionCommit || prev._fromHistoricalRestore ? prev : bf;
+              });
             }
           })
           .catch(() => {});
@@ -560,6 +577,10 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       });
       setVariantes([]);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [producto, isOpen, categorias]);
 
   const autoIsDrink = useMemo(() => {
@@ -642,7 +663,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     const detallesSnap = selectedHistoricalVersionObj.detalles || selectedHistoricalVersionObj.insumos || [];
     setFichaTecnica(prev => ({
       ...prev,
-      rendimiento: selectedHistoricalVersionObj.rendimiento || prev?.rendimiento || 1,
+      rendimiento: selectedHistoricalVersionObj.rendimiento || prev?.rendimiento || "1 porción",
       detalles: detallesSnap,
       insumos: detallesSnap,
       procedimiento: selectedHistoricalVersionObj.procedimiento || "",
@@ -653,7 +674,8 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       condicionesAlmacenamiento: selectedHistoricalVersionObj.condicionesAlmacenamiento || "",
       vidaUtil: selectedHistoricalVersionObj.vidaUtil || "",
       observaciones: selectedHistoricalVersionObj.observaciones || "",
-      _isRestoredVersionCommit: true
+      _isRestoredVersionCommit: true,
+      _fromHistoricalRestore: true
     }));
     setSelectedVersionFilter("actual");
     notify.success(
@@ -2456,11 +2478,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     );
   };
 
-  if (!isOpen) return null;
-
-  const isStep1Valid = Boolean(form.nombre?.trim() && Number(form.precio) > 0 && !errors.nombre && !errors.precio);
-
-  const entityDataActual = {
+  const entityDataActual = useMemo(() => ({
     nombre: form.nombre || "",
     categoria: form.categoria || "",
     idCategoriaProducto: form.idCategoriaProducto || null,
@@ -2470,22 +2488,34 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
     imagen: form.imagen || "",
     estado: form.estado || "Activo",
     adiciones: tipoElaboracion === "base" ? [] : (Array.isArray(form.adiciones) ? form.adiciones : [])
-  };
+  }), [
+    form.nombre,
+    form.categoria,
+    form.idCategoriaProducto,
+    form.precio,
+    tipoElaboracion,
+    form.descripcion,
+    form.imagen,
+    form.estado,
+    form.adiciones
+  ]);
 
-  const prevEntityDataInicial = producto
-    ? {
-        nombre: producto.nombre || "",
-        categoria: producto.categoria || "",
-        idCategoriaProducto: producto.idCategoriaProducto || null,
-        precio: Number(producto.precio) || 0,
-        descripcion: producto.descripcion || "",
-        imagen: producto.imagen || "",
-        estado: producto.estado || "Activo",
-        adiciones: Array.isArray(producto.adiciones) ? producto.adiciones : []
-      }
-    : null;
+  const prevEntityDataInicial = useMemo(() => (
+    producto
+      ? {
+          nombre: producto.nombre || "",
+          categoria: producto.categoria || "",
+          idCategoriaProducto: producto.idCategoriaProducto || null,
+          precio: Number(producto.precio) || 0,
+          descripcion: producto.descripcion || "",
+          imagen: producto.imagen || "",
+          estado: producto.estado || "Activo",
+          adiciones: Array.isArray(producto.adiciones) ? producto.adiciones : []
+        }
+      : null
+  ), [producto]);
 
-  const handleRestoreEntityData = (restoredEnt) => {
+  const handleRestoreEntityData = useCallback((restoredEnt) => {
     if (!restoredEnt || typeof restoredEnt !== "object") return;
     setForm((prev) => ({
       ...prev,
@@ -2498,7 +2528,27 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
       descripcion: restoredEnt.descripcion !== undefined ? restoredEnt.descripcion : prev.descripcion,
       estado: restoredEnt.estado || prev.estado
     }));
-  };
+  }, [tieneVentasProtegido]);
+
+  const handlePrecioSugeridoChange = useCallback((sug) => {
+    setPrecioSugeridoLive((prev) => (prev === sug ? prev : sug));
+  }, []);
+
+  const handleFichaChange = useCallback((data) => {
+    setFichaTecnica(data);
+    if (data?.precioSugerido !== undefined) {
+      setPrecioSugeridoLive((prev) => (prev === data.precioSugerido ? prev : data.precioSugerido));
+    }
+  }, []);
+
+  const handleFichaSave = useCallback((data) => {
+    setFichaTecnica(data);
+    notify.success("Ficha Técnica Actualizada", "Los datos de la receta fueron sincronizados con el producto.");
+  }, [notify]);
+
+  if (!isOpen) return null;
+
+  const isStep1Valid = Boolean(form.nombre?.trim() && Number(form.precio) > 0 && !errors.nombre && !errors.precio);
 
   // Requerimiento 7: Guardado efectivo tras confirmación o creación directa
   const executeActualSave = async () => {
@@ -4221,19 +4271,9 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     entityData={entityDataActual}
                     prevEntityData={prevEntityDataInicial}
                     onRestoreEntityData={handleRestoreEntityData}
-                    onPrecioSugeridoChange={(sug) => {
-                      setPrecioSugeridoLive(sug);
-                    }}
-                    onChange={(data) => {
-                      setFichaTecnica(data);
-                      if (data?.precioSugerido) {
-                        setPrecioSugeridoLive(data.precioSugerido);
-                      }
-                    }}
-                    onSave={(data) => {
-                      setFichaTecnica(data);
-                      notify.success("Ficha Técnica Actualizada", "Los datos de la receta fueron sincronizados con el producto.");
-                    }}
+                    onPrecioSugeridoChange={handlePrecioSugeridoChange}
+                    onChange={handleFichaChange}
+                    onSave={handleFichaSave}
                   />
                 </div>
               )}
