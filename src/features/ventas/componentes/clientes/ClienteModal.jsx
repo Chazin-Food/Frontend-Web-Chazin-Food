@@ -45,7 +45,11 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
         nombre: cliente.nombre || "",
         apellidos: cliente.apellidos || "",
         tipoDocumento: cliente.tipoDocumento || "C.C.",
-        documento: (cliente.documento && String(cliente.documento).length >= 6) ? cliente.documento : (cliente.numeroDocumento && String(cliente.numeroDocumento).length >= 6) ? cliente.numeroDocumento : "",
+        documento: cliente.documento !== undefined && cliente.documento !== null && String(cliente.documento).trim() !== ""
+          ? String(cliente.documento).trim()
+          : cliente.numeroDocumento !== undefined && cliente.numeroDocumento !== null && String(cliente.numeroDocumento).trim() !== ""
+          ? String(cliente.numeroDocumento).trim()
+          : "",
         email: cliente.email || "",
         telefono: sanitizeTelefono(cliente.telefono || ""),
         direccion: cliente.direccion || "",
@@ -277,38 +281,48 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                 <label htmlFor="cliente-tipo-doc" className="block font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
                   Tipo de Documento <span className="text-red-500 font-bold">*</span>
                 </label>
-                <select
-                  id="cliente-tipo-doc"
-                  value={form.tipoDocumento}
-                  disabled={isIdentificationLocked}
-                  aria-required={!isIdentificationLocked}
-                  onChange={(e) => {
-                    if (isIdentificationLocked) return;
-                    const newTipo = e.target.value;
-                    const cleanDoc = sanitizeDocumento(form.documento, newTipo);
-                    setForm({
-                      ...form,
-                      tipoDocumento: newTipo,
-                      documento: cleanDoc
-                    });
-                    setTouched((prev) => ({ ...prev, documento: true }));
-                    const err = validateField("documento", cleanDoc, { ...form, tipoDocumento: newTipo, documento: cleanDoc });
-                    setErrors((prev) => ({ ...prev, documento: err }));
-                  }}
-                  className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-medium transition-colors ${
-                    isIdentificationLocked
-                      ? "bg-gray-100 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500/50 cursor-pointer"
-                  }`}
-                  required={!isIdentificationLocked}
-                >
-                  <option value="C.C.">Cédula de Ciudadanía (C.C.)</option>
-                  <option value="T.I.">Tarjeta de Identidad (T.I.)</option>
-                  <option value="C.E.">Cédula de Extranjería (C.E.)</option>
-                  <option value="Pasaporte">Pasaporte</option>
-                  <option value="PPT">Permiso por Protección Temporal (PPT)</option>
-                  <option value="NIT">NIT</option>
-                </select>
+                <div className="relative">
+                  <select
+                    id="cliente-tipo-doc"
+                    value={form.tipoDocumento}
+                    disabled={isIdentificationLocked}
+                    aria-required={!isIdentificationLocked}
+                    aria-disabled={isIdentificationLocked}
+                    tabIndex={isIdentificationLocked ? -1 : 0}
+                    onChange={(e) => {
+                      if (isIdentificationLocked) return;
+                      const newTipo = e.target.value;
+                      const cleanDoc = sanitizeDocumento(form.documento, newTipo);
+                      setForm({
+                        ...form,
+                        tipoDocumento: newTipo,
+                        documento: cleanDoc
+                      });
+                      setTouched((prev) => ({ ...prev, documento: true }));
+                      const err = validateField("documento", cleanDoc, { ...form, tipoDocumento: newTipo, documento: cleanDoc });
+                      setErrors((prev) => ({ ...prev, documento: err }));
+                    }}
+                    className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs font-medium transition-colors ${
+                      isIdentificationLocked
+                        ? "pr-9 bg-gray-100 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed select-none appearance-none"
+                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500/50 cursor-pointer"
+                    }`}
+                    required={!isIdentificationLocked}
+                  >
+                    <option value="C.C.">Cédula de Ciudadanía (C.C.)</option>
+                    <option value="T.I.">Tarjeta de Identidad (T.I.)</option>
+                    <option value="C.E.">Cédula de Extranjería (C.E.)</option>
+                    <option value="Pasaporte">Pasaporte</option>
+                    <option value="PPT">Permiso por Protección Temporal (PPT)</option>
+                    <option value="NIT">NIT</option>
+                  </select>
+                  {isIdentificationLocked && (
+                    <Lock
+                      className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
               </div>
 
               <div>
@@ -327,7 +341,9 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                     required={!isIdentificationLocked}
                     disabled={isIdentificationLocked}
                     readOnly={isIdentificationLocked}
+                    tabIndex={isIdentificationLocked ? -1 : 0}
                     aria-required={!isIdentificationLocked}
+                    aria-disabled={isIdentificationLocked}
                     aria-invalid={!isIdentificationLocked && (!!existingClient || (!!(touched.documento || submitted) && !!errors.documento))}
                     value={form.documento}
                     maxLength={docConfig.max}
