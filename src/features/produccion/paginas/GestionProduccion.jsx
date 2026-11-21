@@ -16,6 +16,13 @@ export function GestionProduccion() {
   const {
     ordenes,
     filteredOrdenes,
+    pagination,
+    summary,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     loading,
     searchTerm,
     setSearchTerm,
@@ -54,15 +61,16 @@ export function GestionProduccion() {
     });
   };
 
-  // Dynamic stat counts
+  // Dynamic stat counts (usa resumen global del servidor cuando está paginado)
   const stats = useMemo(() => {
+    if (summary) return summary;
     const enCola = ordenes.filter((o) => o.estado === "En Cola").length;
     const enPreparacion = ordenes.filter((o) => o.estado === "En Preparación").length;
     const listos = ordenes.filter((o) => o.estado === "Listo" || o.estado === "Listos" || o.estado === "Despachado" || o.estado === "Entregado").length;
     const total = ordenes.length;
 
     return { enCola, enPreparacion, listos, total };
-  }, [ordenes]);
+  }, [ordenes, summary]);
 
   const statCards = [
     {
@@ -198,6 +206,12 @@ export function GestionProduccion() {
           onOpenChecklist={canEdit ? (orden) => setChecklistOrden(orden) : null}
           canEdit={canEdit}
           canDelete={canDelete}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={serverPaginated ? pagination.total : filteredOrdenes.length}
+          serverPaginated={serverPaginated}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
         />
       )}
 

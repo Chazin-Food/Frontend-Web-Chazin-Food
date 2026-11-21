@@ -3,17 +3,40 @@ import { productosService } from "../servicios/productosService";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const PRODUCTOS_URL_DEFAULTS = {
+  view: "activos",
+  q: "",
+  categoria: "Todas",
+  estado: "Todos",
+  page: 1,
+  limit: 10
+};
 
 export function useProductos() {
   const notify = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(PRODUCTOS_URL_DEFAULTS);
+
   const [productos, setProductos] = useState([]);
   const [papeleraProductos, setPapeleraProductos] = useState([]);
   const [lastDeletedProducto, setLastDeletedProducto] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategoria, setFilterCategoria] = useState("Todas");
-  const [filterEstado, setFilterEstado] = useState("Todos");
+
+  const viewMode = filters.view;
+  const searchTerm = filters.q;
+  const filterCategoria = filters.categoria;
+  const filterEstado = filters.estado;
+  const currentPage = filters.page;
+  const pageSize = filters.limit;
+
+  const setViewMode = useCallback((v) => setFilters({ view: v, page: 1 }), [setFilters]);
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterCategoria = useCallback((v) => setFilter("categoria", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setPageSize = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
 
   const fetchPapelera = useCallback(async () => {
     try {
@@ -328,12 +351,18 @@ export function useProductos() {
     filteredProductos,
     categorias,
     loading,
+    viewMode,
+    setViewMode,
     searchTerm,
     setSearchTerm,
     filterCategoria,
     setFilterCategoria,
     filterEstado,
     setFilterEstado,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     lastDeletedProducto,
     dismissLastDeleted,
     refetch: fetchProductos,

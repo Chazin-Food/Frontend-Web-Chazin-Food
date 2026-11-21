@@ -1,4 +1,5 @@
 import { apiClient } from "@/shared/api/apiClient";
+import { notifyCatalogUpdated } from "@/shared/utils/secureStorage";
 
 export const eventosService = {
   getEventos: async () => {
@@ -10,15 +11,21 @@ export const eventosService = {
   },
 
   createEvento: async (data) => {
-    return await apiClient.post("/eventos", data);
+    const res = await apiClient.post("/eventos", data);
+    notifyCatalogUpdated();
+    return res;
   },
 
   updateEvento: async (id, data) => {
-    return await apiClient.put(`/eventos/${id}`, data);
+    const res = await apiClient.put(`/eventos/${id}`, data);
+    notifyCatalogUpdated();
+    return res;
   },
 
   deleteEvento: async (id) => {
-    return await apiClient.delete(`/eventos/${id}`);
+    const res = await apiClient.delete(`/eventos/${id}`);
+    notifyCatalogUpdated();
+    return res;
   },
 
   getInsumos: async () => {

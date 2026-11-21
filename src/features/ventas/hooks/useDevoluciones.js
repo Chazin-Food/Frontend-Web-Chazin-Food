@@ -2,9 +2,20 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { devolucionesService } from "../servicios/devolucionesService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch, rankSearchResults, formatStatusTokens } from "@/shared/utils/searchUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const DEVOLUCIONES_URL_DEFAULTS = {
+  q: "",
+  estado: "Todos",
+  motivo: "Todos",
+  resolucion: "Todos",
+  page: 1,
+  limit: 10
+};
 
 export function useDevoluciones() {
   const notify = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(DEVOLUCIONES_URL_DEFAULTS);
   const [devoluciones, setDevoluciones] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -23,15 +34,20 @@ export function useDevoluciones() {
   });
   const [loading, setLoading] = useState(true);
 
-  // Filtros y búsqueda
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("Todos");
-  const [filtroMotivo, setFiltroMotivo] = useState("Todos");
-  const [filtroResolucion, setFiltroResolucion] = useState("Todos");
+  // URL como única fuente de la verdad para filtros, búsqueda y paginación
+  const searchTerm = filters.q;
+  const filtroEstado = filters.estado;
+  const filtroMotivo = filters.motivo;
+  const filtroResolucion = filters.resolucion;
+  const currentPage = filters.page;
+  const itemsPerPage = filters.limit;
 
-  // Paginación
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFiltroEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setFiltroMotivo = useCallback((v) => setFilter("motivo", v), [setFilter]);
+  const setFiltroResolucion = useCallback((v) => setFilter("resolucion", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setItemsPerPage = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
 
   const fetchData = useCallback(async () => {
     try {

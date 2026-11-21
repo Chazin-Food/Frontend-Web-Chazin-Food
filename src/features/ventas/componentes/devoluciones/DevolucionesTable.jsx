@@ -163,20 +163,20 @@ export function DevolucionesTable({
         )}
       </div>
 
-      {/* Desktop Table (lg+) */}
-      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
-        <table className="w-full text-left border-collapse table-auto">
+      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      <div className="hidden lg:block w-full overflow-hidden">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-[11px] font-bold text-gray-400 dark:text-gray-400 tracking-wider uppercase">
-              <th className="px-3.5 py-3 whitespace-nowrap">DEVOLUCIÓN</th>
-              <th className="px-3.5 py-3 whitespace-nowrap">VENTA ASOCIADA</th>
-              <th className="px-3.5 py-3 whitespace-nowrap">CLIENTE</th>
-              <th className="px-3.5 py-3 whitespace-nowrap">MOTIVO POLÍTICA</th>
-              <th className="px-3.5 py-3 whitespace-nowrap">RESOLUCIÓN</th>
-              <th className="px-3.5 py-3 text-center whitespace-nowrap">PRODUCTOS</th>
-              <th className="px-3.5 py-3 text-right whitespace-nowrap">VALOR</th>
-              <th className="px-3.5 py-3 whitespace-nowrap">ESTADO</th>
-              <th className="px-3.5 py-3 text-center whitespace-nowrap">ACCIONES</th>
+              <th className="px-2.5 py-3 w-[12%]">DEVOLUCIÓN</th>
+              <th className="px-2 py-3 w-[10%]">VENTA</th>
+              <th className="px-2.5 py-3 w-[15%]">CLIENTE</th>
+              <th className="px-2 py-3 w-[14%]">MOTIVO</th>
+              <th className="px-2 py-3 w-[16%]">RESOLUCIÓN</th>
+              <th className="px-1.5 py-3 text-center w-[7%]">PROD.</th>
+              <th className="px-2 py-3 text-right w-[9%]">VALOR</th>
+              <th className="px-2 py-3 w-[9%]">ESTADO</th>
+              <th className="px-2 py-3 text-center w-[8%]">ACCIONES</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
@@ -236,18 +236,18 @@ export function DevolucionesTable({
                     </td>
 
                     {/* Cliente */}
-                    <td className="px-3.5 py-3.5 whitespace-nowrap">
-                      <div className="font-medium text-gray-800 dark:text-gray-200 max-w-[150px] truncate" title={clienteNombre}>
+                    <td className="px-2.5 py-3 align-middle">
+                      <div className="font-medium text-gray-800 dark:text-gray-200 truncate" title={clienteNombre}>
                         {clienteNombre}
                       </div>
-                      <div className="text-[10px] text-gray-400">
+                      <div className="text-[10px] text-gray-400 truncate">
                         {d.cliente?.documento || d.venta?.cliente?.documento || "Sin doc"}
                       </div>
                     </td>
 
                     {/* Motivo según Política */}
-                    <td className="px-3.5 py-3.5 whitespace-nowrap">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-medium ${getMotivoBadge(d.motivo)}`}>
+                    <td className="px-2 py-3 align-middle">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium max-w-full truncate ${getMotivoBadge(d.motivo)}`} title={d.motivo}>
                         {d.motivo}
                       </span>
                     </td>

@@ -1,3 +1,5 @@
+import { loadSessionUser, clearSessionUser } from '@/shared/utils/secureStorage';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // ── Caché GET en memoria + deduplicación de peticiones simultáneas ──
@@ -53,9 +55,7 @@ function clonePayload(value) {
 
 function getAuthFingerprint() {
   try {
-    const raw = localStorage.getItem('chazin_user');
-    if (!raw) return 'anon';
-    const parsed = JSON.parse(raw);
+    const parsed = loadSessionUser();
     const tok = parsed?.token ? String(parsed.token) : '';
     return tok ? tok.slice(-16) : 'anon';
   } catch (_) {
@@ -123,12 +123,12 @@ export function getAuthHeaders() {
     'Content-Type': 'application/json'
   };
   try {
-    const savedUser = JSON.parse(localStorage.getItem('chazin_user') || '{}');
+    const savedUser = loadSessionUser();
     if (savedUser && savedUser.token) {
       headers['Authorization'] = `Bearer ${savedUser.token}`;
     }
   } catch (err) {
-    console.error('Error parsing chazin_user from localStorage:', err);
+    console.error('Error leyendo sesión desde localStorage:', err);
   }
   return headers;
 }
@@ -190,9 +190,7 @@ export async function apiFetch(endpoint, options = {}) {
       const isLoginEndpoint = endpoint.includes('/login') || endpoint.includes('/activar-cuenta');
       if (response.status === 401 && !isLoginEndpoint && typeof window !== 'undefined') {
         clearApiCache();
-        try {
-          localStorage.removeItem('chazin_user');
-        } catch (_) {}
+        clearSessionUser();
         setTimeout(() => {
           if (!window.location.pathname.includes('/login')) {
             window.location.href = '/login';

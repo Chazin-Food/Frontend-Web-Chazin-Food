@@ -21,19 +21,47 @@ function esEstadoCancelada(estado) {
   return e === "CANCELADA" || e === "ANULADA";
 }
 
-export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesandoId = null }) {
-  const [pageSize, setPageSize] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
+export function ComprasTable({
+  compras = [],
+  onViewDetail,
+  onCancelar,
+  procesandoId = null,
+  currentPage: controlledPage,
+  pageSize: controlledPageSize,
+  totalItems: controlledTotalItems,
+  onPageChange,
+  onPageSizeChange,
+  serverPaginated = false
+}) {
+  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPage, setInternalPage] = useState(1);
 
-  // Resetear a página 1 cuando cambia el resultado de búsqueda o filtros
   useEffect(() => {
-    setCurrentPage(1);
-  }, [compras.length]);
+    if (!onPageChange) setInternalPage(1);
+  }, [compras.length, onPageChange]);
 
-  const totalRecords = compras.length;
-  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginated = compras.slice(startIndex, startIndex + pageSize);
+  const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : compras.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const paginated = serverPaginated ? compras : compras.slice(startIndex, startIndex + pageSize);
+
+  const setCurrentPage = (updater) => {
+    const nextVal = typeof updater === "function" ? updater(safePage) : updater;
+    const clamped = Math.min(Math.max(1, Number(nextVal) || 1), totalPages);
+    if (onPageChange) onPageChange(clamped);
+    else setInternalPage(clamped);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    if (onPageSizeChange) onPageSizeChange(newSize);
+    else {
+      setInternalPageSize(newSize);
+      setInternalPage(1);
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs overflow-hidden">
@@ -137,18 +165,18 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
         )}
       </div>
 
-      {/* Desktop Table (md+) */}
-      <div className="hidden md:block overflow-x-auto touch-scroll-x focus:outline-none">
-        <table className="w-full text-left border-collapse table-auto">
+      {/* Desktop Table (md+) — sin scroll horizontal */}
+      <div className="hidden md:block w-full overflow-hidden focus:outline-none">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="px-3.5 sm:px-4 py-3.5 w-[22%]">Factura / Compra</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[25%]">Proveedor</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[15%]">Fecha</th>
-              <th className="px-3.5 sm:px-4 py-3.5 text-center w-[10%]">Ítems</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[14%]">Total</th>
-              <th className="px-3.5 sm:px-4 py-3.5 text-center w-[8%]">Estado</th>
-              <th className="px-3.5 sm:px-4 py-3.5 text-center w-[6%]">Acciones</th>
+              <th className="px-3 py-3.5 w-[21%]">Factura / Compra</th>
+              <th className="px-3 py-3.5 w-[24%]">Proveedor</th>
+              <th className="px-3 py-3.5 w-[14%]">Fecha</th>
+              <th className="px-2.5 py-3.5 text-center w-[10%]">Ítems</th>
+              <th className="px-3 py-3.5 w-[13%]">Total</th>
+              <th className="px-2.5 py-3.5 text-center w-[10%]">Estado</th>
+              <th className="px-2.5 py-3.5 text-center w-[8%]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs sm:text-sm">
@@ -190,9 +218,9 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
                         </div>
                       </div>
                     </td>
-                    <td className="px-3.5 sm:px-4 py-3.5 font-medium text-gray-900 dark:text-gray-100">
+                    <td className="px-3 py-3.5 font-medium text-gray-900 dark:text-gray-100">
                       {c.proveedorNombre && c.proveedorNombre !== "Sin proveedor" && c.proveedorNombre !== "Proveedor Genérico" && c.proveedorNombre !== "Proveedor Desconocido" ? (
-                        c.proveedorNombre
+                        <span className="block truncate" title={c.proveedorNombre}>{c.proveedorNombre}</span>
                       ) : (
                         <span className="text-gray-400 italic font-normal text-xs bg-gray-50 dark:bg-gray-800 px-2 py-0.5 rounded-lg border border-gray-100 dark:border-gray-700 inline-block">
                           Sin proveedor
@@ -272,10 +300,7 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
           <span>Mostrar:</span>
           <select
             value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
             className="px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium"
           >
             <option value={5}>5</option>
@@ -293,31 +318,31 @@ export function ComprasTable({ compras = [], onViewDetail, onCancelar, procesand
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
+            disabled={safePage === 1}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
+            disabled={safePage === 1}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="w-8 h-8 rounded-full bg-[#F05454] text-white flex items-center justify-center font-bold text-xs mx-1">
-            {currentPage}
+            {safePage}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages}
+            disabled={safePage === totalPages}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
+            disabled={safePage === totalPages}
             className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
           >
             <ChevronsRight className="w-4 h-4" />

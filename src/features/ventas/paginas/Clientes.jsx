@@ -21,6 +21,12 @@ export function Clientes() {
   const {
     clientes,
     filteredClientes,
+    pagination,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     stats,
     loading,
     searchTerm,
@@ -131,8 +137,8 @@ export function Clientes() {
           clearAllFilters={clearAllFilters}
           hasActiveFilters={hasActiveFilters}
           activeFiltersCount={activeFiltersCount}
-          totalRecords={clientes.length}
-          filteredRecords={filteredClientes.length}
+          totalRecords={serverPaginated ? (stats?.total ?? pagination.total) : clientes.length}
+          filteredRecords={serverPaginated ? pagination.total : filteredClientes.length}
         />
       </div>
 
@@ -168,6 +174,12 @@ export function Clientes() {
           onDelete={deleteCliente}
           canEdit={canEdit}
           canDelete={canDelete}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={serverPaginated ? pagination.total : filteredClientes.length}
+          serverPaginated={serverPaginated}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
         />
       )}
 

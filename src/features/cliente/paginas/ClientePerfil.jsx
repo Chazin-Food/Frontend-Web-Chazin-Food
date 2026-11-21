@@ -132,7 +132,8 @@ import { ClientePedidoDevolucionDetalle } from "@/features/ventas/componentes/de
 
 import { wompiService } from "@/features/ventas/servicios/wompiService";
 
-import { useCart } from "@/shared/context/CartContext";
+import { useCart } from "@/shared/context/CartContext";
+import { getClientMeta, setClientMeta } from "@/shared/utils/secureStorage";
 
 import { extractCleanSpecifications } from "@/shared/utils/orderUtils";
 
@@ -354,7 +355,7 @@ export function ClientePerfil() {
 
   const [avatarUrl, setAvatarUrl] = useState(() => {
 
-    return user?.foto || user?.avatar || localStorage.getItem(`avatar_${user?.id || user?.idUsuario}`) || "";
+    return user?.foto || user?.avatar || getClientMeta("avatars", String(user?.id || user?.idUsuario || ""), "") || "";
 
   });
 
@@ -445,7 +446,13 @@ export function ClientePerfil() {
 
       try {
 
-        localHistory = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        const metaOrders = getClientMeta("orders", String(userId || "guest"), null);
+        if (Array.isArray(metaOrders)) {
+          localHistory = metaOrders;
+        } else {
+          localHistory = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          if (localHistory.length > 0) { setClientMeta("orders", String(userId || "guest"), localHistory.slice(0, 50)); localStorage.removeItem(storageKey); }
+        }
 
       } catch (e) {
 
@@ -1145,7 +1152,7 @@ export function ClientePerfil() {
 
       });
 
-      const userAvatar = user.foto || user.avatar || localStorage.getItem(`avatar_${user?.id || user?.idUsuario}`) || "";
+      const userAvatar = user.foto || user.avatar || getClientMeta("avatars", String(user?.id || user?.idUsuario || ""), "") || "";
 
       setAvatarUrl(userAvatar);
 
@@ -1874,7 +1881,7 @@ export function ClientePerfil() {
 
       setAvatarUrl(url);
 
-      localStorage.setItem(`avatar_${user?.id || user?.idUsuario}`, url);
+      setClientMeta("avatars", String(user?.id || user?.idUsuario || ""), url); try { localStorage.removeItem(`avatar_${user?.id || user?.idUsuario}`); } catch {}
 
       success("Foto cargada", "Presiona 'Guardar Cambios' para aplicar tu foto de perfil");
 
@@ -1900,7 +1907,7 @@ export function ClientePerfil() {
 
     setAvatarUrl(avatar);
 
-    localStorage.setItem(`avatar_${user?.id || user?.idUsuario}`, avatar);
+    setClientMeta("avatars", String(user?.id || user?.idUsuario || ""), avatar); try { localStorage.removeItem(`avatar_${user?.id || user?.idUsuario}`); } catch {}
 
     success("Avatar seleccionado", "Presiona 'Guardar Cambios' para actualizar tu perfil");
 
@@ -1918,7 +1925,7 @@ export function ClientePerfil() {
 
     setAvatarUrl("");
 
-    localStorage.removeItem(`avatar_${user?.id || user?.idUsuario}`);
+    setClientMeta("avatars", String(user?.id || user?.idUsuario || ""), null); try { localStorage.removeItem(`avatar_${user?.id || user?.idUsuario}`); } catch {}
 
     success("Foto eliminada", "Se mostrará el distintivo de tu nivel");
 

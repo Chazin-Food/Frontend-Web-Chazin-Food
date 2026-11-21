@@ -29,6 +29,10 @@ export function Usuarios() {
     setFilterRol,
     filterEstado,
     setFilterEstado,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     createUsuario,
     updateUsuario,
     deleteUsuario,
@@ -43,8 +47,6 @@ export function Usuarios() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewingUsuario, setViewingUsuario] = useState(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
 
   const totalActivos = usuarios.filter((u) => u.estado === "Activo" || u.estado === 1 || u.estado === "1").length;
   const totalInactivos = usuarios.filter((u) => u.estado === "Inactivo" || u.estado === 0 || u.estado === "0").length;

@@ -7,6 +7,8 @@
  * - Sincronización dual: Base de Datos (API Backend / TiDB Cloud) + Respaldo Local
  */
 
+import { getClientMeta, setClientMeta } from "@/shared/utils/secureStorage";
+
 const META_OPEN = "<!--CHAZIN_FT_VERSIONS:";
 const META_CLOSE = "-->";
 const LS_PREFIX = "chazin_ft_ver_v1_";
@@ -148,13 +150,19 @@ function getLocalStorageKeys(ficha, fallbackTipo = null, fallbackEntityId = null
 }
 
 function readLocalVersionMeta(keys) {
-  if (typeof window === "undefined" || !window.localStorage) return null;
+  if (typeof window === "undefined") return null;
   for (const k of keys) {
     try {
-      const raw = window.localStorage.getItem(k);
+      const fromMeta = getClientMeta("fichaVersions", k, null);
+      if (fromMeta && typeof fromMeta === "object") return fromMeta;
+      const raw = window.localStorage?.getItem(k);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") return parsed;
+        if (parsed && typeof parsed === "object") {
+          setClientMeta("fichaVersions", k, parsed);
+          window.localStorage.removeItem(k);
+          return parsed;
+        }
       }
     } catch (_) {}
   }
@@ -162,10 +170,11 @@ function readLocalVersionMeta(keys) {
 }
 
 function writeLocalVersionMeta(keys, meta) {
-  if (typeof window === "undefined" || !window.localStorage || !meta) return;
+  if (typeof window === "undefined" || !meta) return;
   for (const k of keys) {
     try {
-      window.localStorage.setItem(k, JSON.stringify(meta));
+      setClientMeta("fichaVersions", k, meta);
+      window.localStorage?.removeItem(k);
     } catch (_) {}
   }
 }

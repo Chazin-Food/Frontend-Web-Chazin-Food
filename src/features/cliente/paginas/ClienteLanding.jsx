@@ -5,6 +5,18 @@ import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useCart } from "@/shared/context/CartContext";
+import {
+  loadSessionUser,
+  getClientMeta,
+  setClientMeta,
+  subscribeCatalogUpdates
+} from "@/shared/utils/secureStorage";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const STORE_URL_DEFAULTS = {
+  cat: "",
+  q: ""
+};
 import logoImg from "@/shared/assets/logo_optimized.webp";
 import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
 import { StarRating } from "@/shared/components/ui/StarRating";
@@ -331,12 +343,15 @@ function FichaTecnicaProductoCliente({ ficha, producto }) {
 export function ClienteLanding() {
   const { user, logout, isAuthenticated, refreshUser, updateProfile } = useAuth();
   const navigate = useNavigate();
-  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, syncCartWithCatalog, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { success, error, warning, info, confirmAction, confirmLogout } = useNotifications();
 
-  const [selectedCategoria, setSelectedCategoria] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const { filters: storeFilters, setFilter: setStoreFilter } = useUrlFilters(STORE_URL_DEFAULTS);
+  const selectedCategoria = storeFilters.cat ? (Number.isNaN(Number(storeFilters.cat)) ? storeFilters.cat : Number(storeFilters.cat)) : null;
+  const setSelectedCategoria = useCallback((val) => setStoreFilter("cat", val ?? "", { resetPage: false }), [setStoreFilter]);
+  const searchTerm = storeFilters.q;
+  const setSearchTerm = useCallback((val) => setStoreFilter("q", val ?? "", { resetPage: false }), [setStoreFilter]);
   const categoryCarouselRef = useRef(null);
 
   const scrollCategories = (direction) => {
@@ -650,134 +665,156 @@ export function ClienteLanding() {
     }
   }, []);
 
-  // Fetch catalog categories & products dynamically from API
-  useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        const [catsRes, prodsRes, fichasRes, adicRes, evtsRes] = await Promise.allSettled([
-          categoriaProductosService.getCategorias(),
-          productosService.getProductos(),
-          fichasTecnicasService.getFichas(),
-          adicionesService.getAdiciones(),
-          eventosService.getEventos()
-        ]);
+  // Fetch catalog categories & products dynamically from API + sincronización en vivo con carrito
+  const lastCatalogFetchRef = useRef(0);
+  const fetchCatalog = useCallback(async (forceRefresh = false) => {
+    try {
+      lastCatalogFetchRef.current = Date.now();
+      const [catsRes, prodsRes, fichasRes, adicRes, evtsRes] = await Promise.allSettled([
+        categoriaProductosService.getCategorias(),
+        productosService.getProductos(forceRefresh ? { refresh: "true" } : null),
+        fichasTecnicasService.getFichas(),
+        adicionesService.getAdiciones(),
+        eventosService.getEventos()
+      ]);
 
+      const activeEvts = evtsRes.status === "fulfilled" && Array.isArray(evtsRes.value)
+        ? evtsRes.value
+        : [];
+      if (evtsRes.status === "fulfilled" && Array.isArray(evtsRes.value)) {
+        setEventosList(evtsRes.value);
+      }
+
+      if (catsRes.status === "fulfilled" && Array.isArray(catsRes.value) && catsRes.value.length > 0) {
+        const apiCats = catsRes.value
+          .filter(c => (c.estado === 'Activo' || c.estado === 1 || c.estado === undefined))
+          .filter(c => !['ssss', 'fghjk', 'dfg', 'test', '1', '3', '4', '5', '6', '7'].includes(c.nombre?.trim()?.toLowerCase?.()) && !c.nombre?.startsWith('__SISTEMA'))
+          .map(c => {
+            const meta = getCategoryMeta(c.nombre);
+            return {
+              id: c.id || c.idCategoriaProducto,
+              idCategoriaProducto: c.idCategoriaProducto || c.id,
+              nombre: c.nombre,
+              icon: c.icon || meta.icon,
+              color: meta.color
+            };
+          });
+        setCategoriasList(apiCats.length > 0 ? apiCats : categoriasDefault);
+      } else {
+        setCategoriasList(categoriasDefault);
+      }
+
+      let apiAdicsList = [];
+      if (adicRes.status === "fulfilled" && Array.isArray(adicRes.value) && adicRes.value.length > 0) {
+        apiAdicsList = adicRes.value.map(a => ({
+          idAdicion: a.idAdicion || a.id,
+          nombre: a.nombre,
+          precio: parseFloat(a.precio || 0),
+          stock: Number(a.stock !== undefined ? a.stock : (a.stockActual !== undefined ? a.stockActual : 0)),
+          stockActual: Number(a.stockActual !== undefined ? a.stockActual : (a.stock !== undefined ? a.stock : 0)),
+          tipo: a.tipo || "Adición",
+          estado: a.estado !== undefined ? a.estado : 1,
+          imagen: (a.imagen && typeof a.imagen === "string" && a.imagen.startsWith("http")) ? a.imagen : getAdicionImage(a)
+        }));
+        setAdicionesList(apiAdicsList);
+      }
+
+      if (prodsRes.status === "fulfilled" && Array.isArray(prodsRes.value) && prodsRes.value.length > 0) {
+        const apiProds = prodsRes.value
+          .filter(p => p.id !== 0 && p.idProducto !== 0 && !p.nombre?.startsWith('__SISTEMA'))
+          .map(p => {
+            const isInactive = p.estado === 'Inactivo' || p.estado === 0;
+            const rawStock = Number(p.stock !== undefined ? p.stock : (p.stockActual !== undefined ? p.stockActual : 0));
+            const finalStock = isInactive ? 0 : rawStock;
+            return {
+              id: p.id || p.idProducto,
+              idProducto: p.idProducto || p.id,
+              nombre: p.nombre,
+              precio: Number(p.precio) || 0,
+              stock: finalStock,
+              agotado: Boolean(p.agotado || isInactive || finalStock <= 0),
+              estado: p.estado,
+              categoria: p.categoria || (p.categoriaProducto ? p.categoriaProducto.nombre : ''),
+              idCategoriaProducto: p.idCategoriaProducto,
+              descripcion: p.descripcion,
+              imagen: p.imagen,
+              variantes: Array.isArray(p.variantes) ? p.variantes.filter((v) => isVariantActive(v)) : [],
+              idVarianteBase: p.idVarianteBase || null,
+              idVariantePrincipal: p.idVariantePrincipal || null,
+              fichaTecnica: p.fichaTecnica || null,
+              esCombo: Boolean(p.esCombo),
+              configuracionCombo: p.configuracionCombo || null,
+              itemsCombo: Array.isArray(p.itemsCombo) ? p.itemsCombo : [],
+              adiciones: Array.isArray(p.adiciones) ? p.adiciones : [],
+              adicionesDisponibles: Array.isArray(p.adicionesDisponibles) ? p.adicionesDisponibles : [],
+              eventos: p.eventos || []
+            };
+          });
+        setProductosList(apiProds);
+
+        // Sincronizar carrito guardado en localStorage contra el catálogo vivo (precios, nombres, stock, variantes, eventos y adiciones)
+        syncCartWithCatalog(apiProds, activeEvts, apiAdicsList);
+
+        // Fetch ratings
+        const pIdSet = new Set(apiProds.map(p => p.id || p.idProducto));
         if (evtsRes.status === "fulfilled" && Array.isArray(evtsRes.value)) {
-          setEventosList(evtsRes.value);
-        }
-
-        if (catsRes.status === "fulfilled" && Array.isArray(catsRes.value) && catsRes.value.length > 0) {
-          const apiCats = catsRes.value
-            .filter(c => (c.estado === 'Activo' || c.estado === 1 || c.estado === undefined))
-            .filter(c => !['ssss', 'fghjk', 'dfg', 'test', '1', '3', '4', '5', '6', '7'].includes(c.nombre?.trim()?.toLowerCase?.()) && !c.nombre?.startsWith('__SISTEMA'))
-            .map(c => {
-              const meta = getCategoryMeta(c.nombre);
-              return {
-                id: c.id || c.idCategoriaProducto,
-                idCategoriaProducto: c.idCategoriaProducto || c.id,
-                nombre: c.nombre,
-                icon: c.icon || meta.icon,
-                color: meta.color
-              };
-            });
-          setCategoriasList(apiCats.length > 0 ? apiCats : categoriasDefault);
-        } else {
-          setCategoriasList(categoriasDefault);
-        }
-
-        if (prodsRes.status === "fulfilled" && Array.isArray(prodsRes.value) && prodsRes.value.length > 0) {
-          const apiProds = prodsRes.value
-            .filter(p => p.id !== 0 && p.idProducto !== 0 && !p.nombre?.startsWith('__SISTEMA'))
-            .map(p => {
-              const isInactive = p.estado === 'Inactivo' || p.estado === 0;
-              const rawStock = Number(p.stock !== undefined ? p.stock : (p.stockActual !== undefined ? p.stockActual : 0));
-              const finalStock = isInactive ? 0 : rawStock;
-              return {
-                id: p.id || p.idProducto,
-                idProducto: p.idProducto || p.id,
-                nombre: p.nombre,
-                precio: Number(p.precio) || 0,
-                stock: finalStock,
-                agotado: Boolean(p.agotado || isInactive || finalStock <= 0),
-                estado: p.estado,
-                categoria: p.categoria || (p.categoriaProducto ? p.categoriaProducto.nombre : ''),
-                idCategoriaProducto: p.idCategoriaProducto,
-                descripcion: p.descripcion,
-                imagen: p.imagen,
-                variantes: Array.isArray(p.variantes) ? p.variantes.filter((v) => isVariantActive(v)) : [],
-                idVarianteBase: p.idVarianteBase || null,
-                idVariantePrincipal: p.idVariantePrincipal || null,
-                fichaTecnica: p.fichaTecnica || null,
-                esCombo: Boolean(p.esCombo),
-                configuracionCombo: p.configuracionCombo || null,
-                itemsCombo: Array.isArray(p.itemsCombo) ? p.itemsCombo : [],
-                adiciones: Array.isArray(p.adiciones) ? p.adiciones : [],
-                adicionesDisponibles: Array.isArray(p.adicionesDisponibles) ? p.adicionesDisponibles : [],
-                eventos: p.eventos || []
-              };
-            });
-          setProductosList(apiProds);
-
-          // Fetch ratings
-          const pIdSet = new Set(apiProds.map(p => p.id || p.idProducto));
-          if (evtsRes.status === "fulfilled" && Array.isArray(evtsRes.value)) {
-            evtsRes.value.forEach(e => {
-              if (e.idProducto) pIdSet.add(e.idProducto);
-              if (e.productosAsociados) {
-                try {
-                  const parsed = typeof e.productosAsociados === "string" ? JSON.parse(e.productosAsociados) : e.productosAsociados;
-                  if (Array.isArray(parsed)) {
-                    parsed.forEach(a => {
-                      const aId = a.idProducto || a.id;
-                      if (aId) pIdSet.add(aId);
-                    });
-                  }
-                } catch (err) {}
-              }
-            });
-          }
-          const pIds = Array.from(pIdSet).filter(Boolean).join(',');
-          if (pIds) {
-            apiClient.get(`/resenas/ratings?ids=${pIds}`)
-              .then(res => { if (res) setRatingsMap(res); })
-              .catch(() => {});
-          }
-        } else {
-          setProductosList(productosDefault);
-        }
-
-        if (fichasRes.status === "fulfilled" && Array.isArray(fichasRes.value)) {
-          const fMap = { ...fichasTecnicasDefault };
-          fichasRes.value.forEach(f => {
-            if (f.idProducto) {
-              fMap[f.idProducto] = f;
+          evtsRes.value.forEach(e => {
+            if (e.idProducto) pIdSet.add(e.idProducto);
+            if (e.productosAsociados) {
+              try {
+                const parsed = typeof e.productosAsociados === "string" ? JSON.parse(e.productosAsociados) : e.productosAsociados;
+                if (Array.isArray(parsed)) {
+                  parsed.forEach(a => {
+                    const aId = a.idProducto || a.id;
+                    if (aId) pIdSet.add(aId);
+                  });
+                }
+              } catch (err) {}
             }
           });
-          setFichasMap(fMap);
         }
-
-        if (adicRes.status === "fulfilled" && Array.isArray(adicRes.value) && adicRes.value.length > 0) {
-          const apiAdics = adicRes.value.map(a => ({
-            idAdicion: a.idAdicion || a.id,
-            nombre: a.nombre,
-            precio: parseFloat(a.precio || 0),
-            stock: Number(a.stock !== undefined ? a.stock : (a.stockActual !== undefined ? a.stockActual : 0)),
-            stockActual: Number(a.stockActual !== undefined ? a.stockActual : (a.stock !== undefined ? a.stock : 0)),
-            tipo: a.tipo || "Adición",
-            estado: a.estado !== undefined ? a.estado : 1,
-            imagen: (a.imagen && typeof a.imagen === "string" && a.imagen.startsWith("http")) ? a.imagen : getAdicionImage(a)
-          }));
-          setAdicionesList(apiAdics);
+        const pIds = Array.from(pIdSet).filter(Boolean).join(',');
+        if (pIds) {
+          apiClient.get(`/resenas/ratings?ids=${pIds}`)
+            .then(res => { if (res) setRatingsMap(res); })
+            .catch(() => {});
         }
-      } catch (e) {
-        console.warn("Error cargando catálogo dinámico en ClienteLanding:", e);
-        setCategoriasList(categoriasDefault);
+      } else {
         setProductosList(productosDefault);
       }
-    };
 
-    fetchCatalog();
-  }, []);
+      if (fichasRes.status === "fulfilled" && Array.isArray(fichasRes.value)) {
+        const fMap = { ...fichasTecnicasDefault };
+        fichasRes.value.forEach(f => {
+          if (f.idProducto) {
+            fMap[f.idProducto] = f;
+          }
+        });
+        setFichasMap(fMap);
+      }
+    } catch (e) {
+      console.warn("Error cargando catálogo dinámico en ClienteLanding:", e);
+      setCategoriasList(categoriasDefault);
+      setProductosList(productosDefault);
+    }
+  }, [syncCartWithCatalog]);
+
+  useEffect(() => {
+    fetchCatalog(false);
+    const unsubCatalog = subscribeCatalogUpdates(() => {
+      fetchCatalog(true);
+    });
+    const handleFocusRefresh = () => {
+      if (Date.now() - lastCatalogFetchRef.current > 15000) {
+        fetchCatalog(true);
+      }
+    };
+    window.addEventListener("focus", handleFocusRefresh);
+    return () => {
+      unsubCatalog();
+      window.removeEventListener("focus", handleFocusRefresh);
+    };
+  }, [fetchCatalog]);
 
   // Fetch client orders from backend + local history synchronization
   const fetchMyOrders = async () => {
@@ -785,12 +822,20 @@ export function ClienteLanding() {
     try {
       setLoadingPedidos(true);
       const userId = user?.idUsuario || user?.id || user?._id;
-      const storageKey = `mis_pedidos_${userId || 'guest'}`;
-      let localHistory = [];
-      try {
-        localHistory = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      } catch (e) {
-        localHistory = [];
+      const metaOrderKey = String(userId || 'guest');
+      const legacyOrderKey = `mis_pedidos_${metaOrderKey}`;
+      let localHistory = getClientMeta("orders", metaOrderKey, null);
+      if (!Array.isArray(localHistory)) {
+        try {
+          const legacyRaw = localStorage.getItem(legacyOrderKey);
+          localHistory = legacyRaw ? JSON.parse(legacyRaw) : [];
+          if (legacyRaw) {
+            setClientMeta("orders", metaOrderKey, Array.isArray(localHistory) ? localHistory.slice(0, 50) : []);
+            localStorage.removeItem(legacyOrderKey);
+          }
+        } catch (e) {
+          localHistory = [];
+        }
       }
 
       let backendOrders = [];
@@ -895,7 +940,7 @@ export function ClienteLanding() {
         }
       }
 
-      localStorage.setItem(storageKey, JSON.stringify(localHistory.slice(0, 50)));
+      setClientMeta("orders", metaOrderKey, localHistory.slice(0, 50));
       setPedidos(mergedPedidos);
     } catch (err) {
       console.log("Error cargando pedidos:", err);
@@ -1624,7 +1669,7 @@ export function ClienteLanding() {
     checkoutUserEditedDocRef.current = false;
     let fallbackStored = null;
     try {
-      fallbackStored = JSON.parse(localStorage.getItem("chazin_user") || "null");
+      fallbackStored = loadSessionUser();
     } catch (_) {}
     const sourceUser = user || fallbackStored;
     setCheckoutNombre(sourceUser?.nombre ? `${sourceUser.nombre} ${sourceUser.apellidos || ''}`.trim() : "");
@@ -1654,7 +1699,7 @@ export function ClienteLanding() {
     checkoutUserEditedDocRef.current = false;
     let fallbackStored = null;
     try {
-      fallbackStored = JSON.parse(localStorage.getItem("chazin_user") || "null");
+      fallbackStored = loadSessionUser();
     } catch (_) {}
     const target = authenticatedUser || user || fallbackStored;
     if (cart.length > 0) {
@@ -2046,8 +2091,9 @@ export function ClienteLanding() {
 
           try {
             const userId = user?.idUsuario || user?.id || user?._id;
-            const storageKey = `mis_pedidos_${userId || 'guest'}`;
-            const localHistory = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const metaOrderKey = String(userId || 'guest');
+            const prevHistory = getClientMeta("orders", metaOrderKey, []);
+            const localHistory = Array.isArray(prevHistory) ? [...prevHistory] : [];
             localHistory.unshift({
               id: orderId,
               numeroVenta: orderCode,
@@ -2060,7 +2106,7 @@ export function ClienteLanding() {
               total: totalCheckout,
               estado: 'En Preparación'
             });
-            localStorage.setItem(storageKey, JSON.stringify(localHistory.slice(0, 50)));
+            setClientMeta("orders", metaOrderKey, localHistory.slice(0, 50));
           } catch (storageErr) {
             console.warn("No se pudo guardar pedido en historial local:", storageErr);
           }

@@ -22,12 +22,40 @@ import { getProductVariantSummary, isVariantActive, isVariantFromEvent } from "@
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 
-export const getActiveProductEvent = (producto) => {
-  if (!producto || !producto.eventos || !Array.isArray(producto.eventos) || producto.eventos.length === 0) {
-    return null;
-  }
+export const getActiveProductEvent = (producto, allEventos = []) => {
+  if (!producto) return null;
   const nowMs = Date.now();
-  return producto.eventos.find((e) => isEventActiveInColombia(e, nowMs)) || null;
+  const prodId = String(producto.id || producto.idProducto || "");
+
+  if (Array.isArray(producto.eventos) && producto.eventos.length > 0) {
+    const direct = producto.eventos.find((e) => isEventActiveInColombia(e, nowMs));
+    if (direct) {
+      const full = Array.isArray(allEventos)
+        ? allEventos.find((e) => String(e.id || e.idEvento) === String(direct.id || direct.idEvento))
+        : null;
+      return full ? { ...direct, ...full } : direct;
+    }
+  }
+
+  if (Array.isArray(allEventos) && allEventos.length > 0 && prodId) {
+    return (
+      allEventos.find((e) => {
+        if (!isEventActiveInColombia(e, nowMs)) return false;
+        if (String(e.idProducto || e.producto?.id || "") === prodId) return true;
+        if (!e.productosAsociados) return false;
+        try {
+          const list = typeof e.productosAsociados === "string"
+            ? JSON.parse(e.productosAsociados)
+            : e.productosAsociados;
+          return Array.isArray(list) && list.some((a) => String(a?.idProducto || a?.id) === prodId);
+        } catch (_) {
+          return false;
+        }
+      }) || null
+    );
+  }
+
+  return null;
 };
 
 export const getActiveEvent = getActiveProductEvent;
@@ -73,6 +101,7 @@ export const isProductDrink = isProductCommercialDrink;
 
 export function ProductosTable({
   productos = [],
+  eventos = [],
   onEdit,
   onDelete,
   onToggleEstado,
@@ -80,18 +109,26 @@ export function ProductosTable({
   onDuplicate,
   onCreateEvento,
   canEdit = true,
-  canDelete = true
+  canDelete = true,
+  currentPage: controlledPage,
+  pageSize: controlledPageSize,
+  totalItems: controlledTotalItems,
+  onPageChange,
+  onPageSizeChange,
+  serverPaginated = false
 }) {
   const { warning: notifyWarning } = useNotifications();
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(10);
 
-  // Reset page to 1 when dataset changes (e.g. search or filter applied)
+  // Reset page to 1 when dataset changes (only in uncontrolled mode)
   useEffect(() => {
-    setCurrentPage(1);
-  }, [productos.length]);
+    if (!onPageChange) setInternalPage(1);
+  }, [productos.length, onPageChange]);
 
-  const totalRecords = productos.length;
+  const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : productos.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
 
   // Ensure current page is within valid range
@@ -99,7 +136,22 @@ export function ProductosTable({
 
   const startIndex = (validCurrentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalRecords);
-  const paginatedProductos = productos.slice(startIndex, endIndex);
+  const paginatedProductos = serverPaginated ? productos : productos.slice(startIndex, endIndex);
+
+  const setCurrentPage = (updater) => {
+    const nextVal = typeof updater === "function" ? updater(validCurrentPage) : updater;
+    const clamped = Math.min(Math.max(1, Number(nextVal) || 1), totalPages);
+    if (onPageChange) onPageChange(clamped);
+    else setInternalPage(clamped);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    if (onPageSizeChange) onPageSizeChange(newSize);
+    else {
+      setInternalPageSize(newSize);
+      setInternalPage(1);
+    }
+  };
 
   // Helper for generating visible page numbers
   const getPageNumbers = () => {
@@ -147,7 +199,7 @@ export function ProductosTable({
           </div>
         ) : (
           paginatedProductos.map((p) => {
-            const activeEvt = getActiveEvent(p);
+            const activeEvt = getActiveEvent(p, eventos);
             const variantSummary = getProductVariantSummary(p, { includeInactive: true });
             const stockVal = Number(p.stockDisponible !== undefined ? p.stockDisponible : (p.stock !== undefined ? p.stock : 0));
             const isActivo = p.estado === "Activo" || p.estado === 1 || p.estado === "1";
@@ -278,17 +330,17 @@ export function ProductosTable({
         )}
       </div>
 
-      {/* Desktop Table (lg+) */}
-      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
-        <table className="w-full text-left border-collapse">
+      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      <div className="hidden lg:block w-full overflow-hidden">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="px-6 py-4">Producto / Código</th>
-              <th className="px-6 py-4">Categoría</th>
-              <th className="px-6 py-4">Precio Venta</th>
-              <th className="px-6 py-4">Stock Disponible</th>
-              <th className="px-6 py-4">Estado</th>
-              <th className="px-6 py-4 text-center">Acciones</th>
+              <th className="px-4 py-3.5 w-[35%]">Producto / Código</th>
+              <th className="px-3 py-3.5 w-[15%]">Categoría</th>
+              <th className="px-3 py-3.5 w-[12%]">Precio Venta</th>
+              <th className="px-3 py-3.5 w-[12%]">Stock</th>
+              <th className="px-3 py-3.5 w-[10%]">Estado</th>
+              <th className="px-3 py-3.5 w-[16%] text-center">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
@@ -313,12 +365,16 @@ export function ProductosTable({
                   key={p.id}
                   className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
                 >
-                  <td className="px-5 py-2.5">
-                    <div className="flex items-center gap-3">
+                  <td className="px-4 py-2.5 align-middle">
+                    <div className="flex items-center gap-3 min-w-0">
                       {p.imagen ? (
                         <img
                           src={p.imagen}
                           alt={p.nombre}
+                          width="40"
+                          height="40"
+                          loading="lazy"
+                          decoding="async"
                           className="w-10 h-10 rounded-xl object-cover border border-gray-200 dark:border-gray-700 shrink-0 shadow-2xs"
                         />
                       ) : (
@@ -326,9 +382,9 @@ export function ProductosTable({
                           <Utensils className="w-5 h-5" />
                         </div>
                       )}
-                      <div>
+                      <div className="min-w-0 flex-1">
                         {(() => {
-                          const activeEvt = getActiveEvent(p);
+                          const activeEvt = getActiveEvent(p, eventos);
                           const variantSummary = getProductVariantSummary(p, { includeInactive: true });
                           const basePrice = Number(p.precio || 0);
                           const toppings = activeEvt ? parseEventoInsumos(activeEvt) : [];
@@ -343,8 +399,11 @@ export function ProductosTable({
 
                           return (
                             <>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span
+                                  className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-full"
+                                  title={p.nombre}
+                                >
                                   {p.nombre}
                                 </span>
                                 {variantSummary.hasVariants && (
@@ -459,7 +518,7 @@ export function ProductosTable({
                   </td>
                   <td className="px-5 py-2.5 font-bold text-gray-900 dark:text-gray-100">
                     {(() => {
-                      const activeEvt = getActiveEvent(p);
+                      const activeEvt = getActiveEvent(p, eventos);
                       if (!activeEvt) {
                         return <span>${Number(p.precio || 0).toLocaleString("es-CO")}</span>;
                       }
@@ -551,7 +610,7 @@ export function ProductosTable({
                     <div className="flex items-center justify-center gap-1.5">
                       {/* Evento: Editar si está activo y vigente, o Crear si no tiene */}
                       {canEdit && (() => {
-                        const activeEvt = getActiveProductEvent(p);
+                        const activeEvt = getActiveProductEvent(p, eventos);
                         if (activeEvt) {
                           return (
                             <button
@@ -669,10 +728,7 @@ export function ProductosTable({
           <span>Mostrar:</span>
           <select
             value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
             className="px-2.5 py-1.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium outline-none focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer text-xs"
           >
             <option value={5}>5</option>

@@ -30,15 +30,21 @@ export function ProduccionTable({
   onViewDetails,
   onOpenChecklist,
   canEdit = true,
-  canDelete = true
+  canDelete = true,
+  currentPage: controlledPage,
+  pageSize: controlledPageSize,
+  totalItems: controlledTotalItems,
+  onPageChange,
+  onPageSizeChange,
+  serverPaginated = false
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(10);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [ordenes.length]);
+    if (!onPageChange) setInternalPage(1);
+  }, [ordenes.length, onPageChange]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -47,13 +53,30 @@ export function ProduccionTable({
     return () => clearInterval(interval);
   }, []);
 
-  const totalRecords = ordenes.length;
+  const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : ordenes.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
 
   const startIndex = (validCurrentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalRecords);
-  const paginatedOrdenes = ordenes.slice(startIndex, endIndex);
+  const paginatedOrdenes = serverPaginated ? ordenes : ordenes.slice(startIndex, endIndex);
+
+  const setCurrentPage = (updater) => {
+    const nextVal = typeof updater === "function" ? updater(validCurrentPage) : updater;
+    const clamped = Math.min(Math.max(1, Number(nextVal) || 1), totalPages);
+    if (onPageChange) onPageChange(clamped);
+    else setInternalPage(clamped);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    if (onPageSizeChange) onPageSizeChange(newSize);
+    else {
+      setInternalPageSize(newSize);
+      setInternalPage(1);
+    }
+  };
 
   const getPageNumbers = () => {
     const pages = [];
@@ -173,14 +196,14 @@ export function ProduccionTable({
                           x{o.cantidad || 1}
                         </span>
                       </div>
-                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-snug break-words">
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-snug break-words [overflow-wrap:anywhere] line-clamp-2">
                         {Array.isArray(o.productos) && o.productos.length > 2
                           ? `${o.productos.slice(0, 2).map((p) => `${p.nombre} (x${p.cantidad})`).join(", ")} (+${o.productos.length - 2})`
                           : o.platilloNombre}
                       </p>
-                      <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 font-semibold">
+                      <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 font-semibold min-w-0">
                         <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="truncate">{o.cliente || "Cliente Mostrador"}</span>
+                        <span className="truncate" title={o.cliente || "Cliente Mostrador"}>{o.cliente || "Cliente Mostrador"}</span>
                       </div>
                     </div>
                   </div>
@@ -201,9 +224,9 @@ export function ProduccionTable({
 
                 {/* Meta chips */}
                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl p-2.5">
-                  <span className="inline-flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200">
+                  <span className="inline-flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 max-w-full min-w-0">
                     <ChefHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span>{o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}</span>
+                    <span className="truncate" title={o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}>{o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}</span>
                   </span>
                   <span className="text-gray-300 dark:text-gray-600">•</span>
                   <span className="inline-flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200">
@@ -287,19 +310,19 @@ export function ProduccionTable({
         )}
       </div>
 
-      {/* Desktop Table (lg+) */}
-      <div className="hidden lg:block overflow-x-auto touch-scroll-x">
-        <table className="w-full text-left border-collapse">
+      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      <div className="hidden lg:block w-full overflow-hidden">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
-            <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="px-4 py-3 whitespace-nowrap">Orden / Cliente</th>
-              <th className="px-4 py-3 text-center whitespace-nowrap">Cant.</th>
-              <th className="px-4 py-3 whitespace-nowrap">Responsable Cocina</th>
-              <th className="px-4 py-3 whitespace-nowrap">Tiempo / Inicio</th>
-              <th className="px-4 py-3 text-center whitespace-nowrap">Turno</th>
-              <th className="px-4 py-3 text-center whitespace-nowrap">Estado / Hora</th>
-              <th className="px-4 py-3 text-center whitespace-nowrap">Avanza a</th>
-              <th className="px-4 py-3 text-center whitespace-nowrap">Acciones</th>
+            <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <th className="px-3 py-3 w-[25%]">Orden / Cliente</th>
+              <th className="px-2 py-3 text-center w-[6%]">Cant.</th>
+              <th className="px-2.5 py-3 w-[14%]">Resp. Cocina</th>
+              <th className="px-2.5 py-3 w-[15%]">Tiempo / Inicio</th>
+              <th className="px-2 py-3 text-center w-[8%]">Turno</th>
+              <th className="px-2 py-3 text-center w-[13%]">Estado / Hora</th>
+              <th className="px-2 py-3 text-center w-[11%]">Avanza a</th>
+              <th className="px-2 py-3 text-center w-[8%]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
@@ -313,50 +336,56 @@ export function ProduccionTable({
               paginatedOrdenes.map((o) => {
                 const nextConfig = getNextStatusConfig(o.estado, o);
                 const timings = resolveOrderTimings(o, nowMs);
+                const clienteLabel = o.cliente || "Cliente Mostrador";
+                const responsableLabel = o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno";
+                const platilloText = Array.isArray(o.productos) && o.productos.length > 2
+                  ? o.productos.slice(0, 2).map((p) => `${p.nombre} (x${p.cantidad})`).join(", ")
+                  : o.platilloNombre;
 
                 return (
                   <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                     {/* Orden / Código + Nombre del Cliente Prominente */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-start gap-2.5">
+                    <td className="px-3 py-3 align-middle">
+                      <div className="flex items-start gap-2 min-w-0">
                         <div className="shrink-0 mt-0.5">
                           <FoodIconBadge name={o.productos?.[0]?.nombre || o.nombreProducto || o.producto || "burger"} size="sm" />
                         </div>
-                        <div className="space-y-0.5 max-w-sm">
-                          {/* Cliente que recibe la orden (Requisito 9) */}
-                          <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 font-bold">
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          {/* Cliente que recibe la orden */}
+                          <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 font-bold min-w-0">
                             <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <span className="truncate">Cliente: {o.cliente || "Cliente Mostrador"}</span>
+                            <span className="truncate block min-w-0" title={clienteLabel}>
+                              {clienteLabel}
+                            </span>
                           </div>
 
                           {/* Platillo / Platillos */}
-                          <div className="flex flex-wrap items-center gap-1.5 font-bold text-gray-900 dark:text-gray-100 text-xs sm:text-sm">
-                            {Array.isArray(o.productos) && o.productos.length > 2 ? (
-                              <>
-                                <span>
-                                  {o.productos.slice(0, 2).map((p) => `${p.nombre} (x${p.cantidad})`).join(", ")}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => onViewDetails && onViewDetails(o)}
-                                  className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 cursor-pointer transition shadow-2xs whitespace-nowrap"
-                                  title="Ver todos los platillos en el detalle de la orden"
-                                >
-                                  +{o.productos.length - 2} más
-                                </button>
-                              </>
-                            ) : (
-                              <span>{o.platilloNombre}</span>
+                          <div className="flex items-center gap-1 font-bold text-gray-900 dark:text-gray-100 text-xs min-w-0">
+                            <span
+                              className="line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0"
+                              title={platilloText}
+                            >
+                              {platilloText}
+                            </span>
+                            {Array.isArray(o.productos) && o.productos.length > 2 && (
+                              <button
+                                type="button"
+                                onClick={() => onViewDetails && onViewDetails(o)}
+                                className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 cursor-pointer transition shrink-0 whitespace-nowrap"
+                                title="Ver todos los platillos en el detalle de la orden"
+                              >
+                                +{o.productos.length - 2}
+                              </button>
                             )}
                             {o.alerta && (
-                              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" title="Pedido incompleto registrado en checklist" />
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Pedido incompleto registrado en checklist" />
                             )}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                            <span className="text-[11px] text-gray-400 font-mono font-bold">{o.codigo || `OP-00${o.id}`}</span>
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span className="text-[10.5px] text-gray-400 font-mono font-bold truncate">{o.codigo || `OP-00${o.id}`}</span>
                             {o.mesa && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 truncate max-w-[90px]" title={o.mesa}>
                                 {o.mesa}
                               </span>
                             )}
@@ -364,14 +393,14 @@ export function ProduccionTable({
                               <button
                                 type="button"
                                 onClick={() => (onOpenChecklist ? onOpenChecklist(o) : onViewDetails && onViewDetails(o))}
-                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-black border transition cursor-pointer ${
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9.5px] font-black border transition cursor-pointer ${
                                   o.pedidoCompleto
                                     ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                                     : "bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800"
                                 }`}
                                 title="Ver o actualizar el checklist de verificación del pedido"
                               >
-                                <span>{o.pedidoCompleto ? "✅ Completo" : "⚠️ Incompleto"}</span>
+                                <span>{o.pedidoCompleto ? "✅ Completo" : "⚠️ Incomp."}</span>
                               </button>
                             )}
                           </div>
@@ -380,27 +409,29 @@ export function ProduccionTable({
                     </td>
 
                     {/* Cantidad */}
-                    <td className="px-4 py-3 text-center font-black text-gray-900 dark:text-gray-100 whitespace-nowrap text-xs sm:text-sm">
+                    <td className="px-2 py-3 text-center font-black text-gray-900 dark:text-gray-100 text-xs align-middle">
                       x{o.cantidad || 1}
                     </td>
 
-                    {/* Responsable (Cocinero/Chef que está preparando el pedido - Requisito 9) */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200">
-                        <ChefHat className="w-4 h-4 text-amber-500 shrink-0" />
-                        <span>{o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}</span>
+                    {/* Responsable Cocina — truncado seguro ante nombres exageradamente largos */}
+                    <td className="px-2.5 py-3 align-middle">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 min-w-0">
+                        <ChefHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span className="truncate block min-w-0 flex-1" title={responsableLabel}>
+                          {responsableLabel}
+                        </span>
                       </div>
                     </td>
 
-                    {/* Tiempo / Inicio (Sincronizado con Recetas, Hora Colombia y Tiempo Estimado) */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex flex-col text-xs space-y-1">
-                        <div className="flex items-center gap-1.5 font-bold text-gray-800 dark:text-gray-200">
-                          <Clock className="w-3.5 h-3.5 text-[#F05454] shrink-0" />
-                          <span title="Tiempo total de cocción en cocina según recetas">{timings.tiempoPreparacion}</span>
+                    {/* Tiempo / Inicio */}
+                    <td className="px-2.5 py-3 align-middle">
+                      <div className="flex flex-col text-xs space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200 flex-wrap">
+                          <Clock className="w-3 h-3 text-[#F05454] shrink-0" />
+                          <span className="truncate" title="Tiempo total de cocción en cocina según recetas">{timings.tiempoPreparacion}</span>
                           {timings.elapsedInfo && (
                             <span
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                              className={`text-[9.5px] font-bold px-1 py-0.2 rounded border shrink-0 ${
                                 timings.elapsedInfo.level === "fresh"
                                   ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
                                   : timings.elapsedInfo.level === "warning"
@@ -414,27 +445,25 @@ export function ProduccionTable({
                             </span>
                           )}
                         </div>
-                        <div className="text-gray-500 dark:text-gray-400 font-mono text-[11px] flex items-center gap-1.5">
-                          <span>Pedido: {timings.horaPedido}</span>
+                        <div className="text-gray-500 dark:text-gray-400 font-mono text-[10.5px] truncate">
+                          <span>{timings.horaPedido}</span>
                           {!timings.esDeHoy && timings.fechaColombia && (
-                            <span className="text-[10px] px-1 py-0.2 rounded bg-gray-100 dark:bg-gray-800 text-gray-500">
-                              {timings.fechaColombia}
-                            </span>
+                            <span className="ml-1 text-[9.5px] text-gray-400">{timings.fechaColombia}</span>
                           )}
                         </div>
                         {timings.tiempoEstimadoEntrega && (
-                          <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
-                            Entrega est.: {timings.tiempoEstimadoEntrega}
+                          <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate" title={`Entrega est.: ${timings.tiempoEstimadoEntrega}`}>
+                            Est.: {timings.tiempoEstimadoEntrega}
                           </div>
                         )}
                       </div>
                     </td>
 
-                    {/* Prioridad Secuencial (Turno de Preparación en Cocina) */}
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                    {/* Prioridad Secuencial */}
+                    <td className="px-2 py-3 text-center align-middle">
                       {o.prioridad ? (
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black shadow-2xs ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black shadow-2xs ${
                             o.prioridad === 1
                               ? "bg-red-500 text-white ring-2 ring-red-300 dark:ring-red-900"
                               : o.prioridad === 2
@@ -442,20 +471,18 @@ export function ProduccionTable({
                               : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                           }`}
                         >
-                          <span>Turno #{o.prioridad}</span>
+                          #{o.prioridad}
                         </span>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs font-medium">
-                          -
-                        </span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs font-medium">-</span>
                       )}
                     </td>
 
-                    {/* Estado de Cocina + HISTORIAL ACUMULATIVO DE HORA POR CADA ESTADO (Requisitos 2 y 5) */}
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <div className="flex flex-col items-center gap-1.5">
+                    {/* Estado de Cocina + Historial */}
+                    <td className="px-2 py-3 text-center align-middle">
+                      <div className="flex flex-col items-center gap-1 min-w-0">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold max-w-full truncate ${
                             o.estado === "En Preparación"
                               ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                               : o.estado === "Listo" || o.estado === "Listos"
@@ -466,42 +493,29 @@ export function ProduccionTable({
                               ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                               : "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                           }`}
+                          title={o.estado}
                         >
-                          {o.estado === "En Cola" && <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
-                          {o.estado === "En Preparación" && <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />}
-                          {(o.estado === "Listo" || o.estado === "Listos") && <Check className="w-3 h-3 text-green-600 dark:text-green-400" />}
-                          {o.estado === "Despachado" && <ArrowRight className="w-3 h-3 text-purple-600 dark:text-purple-400" />}
-                          {o.estado === "Entregado" && <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />}
-                          <span>{o.estado}</span>
+                          <span className="truncate">{o.estado}</span>
                         </span>
 
-                        {/* Registro acumulativo de tiempos por cada estado alcanzado en zona horaria Colombia */}
-                        <div className="flex flex-col items-stretch gap-0.5 bg-gray-50/90 dark:bg-gray-800/70 px-2 py-1 rounded-lg border border-gray-200/70 dark:border-gray-700/70 min-w-[142px] text-left">
+                        <div className="flex flex-col items-stretch gap-0.5 bg-gray-50/90 dark:bg-gray-800/70 px-1.5 py-1 rounded-lg border border-gray-200/70 dark:border-gray-700/70 w-full text-left overflow-hidden">
                           {Array.isArray(timings.estadosAlcanzados) && timings.estadosAlcanzados.length > 0 ? (
-                            timings.estadosAlcanzados.map((st) => (
+                            timings.estadosAlcanzados.slice(-2).map((st) => (
                               <div
                                 key={st.key}
-                                className={`flex items-center justify-between gap-2 text-[10px] font-mono leading-tight ${
+                                className={`flex items-center justify-between gap-1 text-[9.5px] font-mono leading-tight ${
                                   st.current
                                     ? "font-extrabold text-gray-900 dark:text-white"
                                     : "font-semibold text-gray-500 dark:text-gray-400"
                                 }`}
                               >
-                                <span className="inline-flex items-center gap-1">
-                                  {st.current ? (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#F05454] shrink-0" />
-                                  ) : (
-                                    <Check className="w-2.5 h-2.5 text-emerald-500 shrink-0 stroke-[3]" />
-                                  )}
-                                  <span>{st.label}:</span>
-                                </span>
-                                <span>{st.hora}</span>
+                                <span className="truncate">{st.label}:</span>
+                                <span className="shrink-0">{st.hora}</span>
                               </div>
                             ))
                           ) : (
-                            <span className="text-[10px] font-mono font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1">
-                              <Clock className="w-2.5 h-2.5 text-gray-400" />
-                              <span>{timings.etiquetaHoraEstado}</span>
+                            <span className="text-[9.5px] font-mono font-bold text-gray-600 dark:text-gray-300 truncate">
+                              {timings.etiquetaHoraEstado}
                             </span>
                           )}
                         </div>
@@ -509,52 +523,46 @@ export function ProduccionTable({
                     </td>
 
                     {/* Avanza a */}
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                    <td className="px-2 py-3 text-center align-middle">
                       {nextConfig && canEdit ? (
                         <button
                           type="button"
                           onClick={() => onUpdateEstado && onUpdateEstado(o.id, nextConfig.next, o)}
                           title={nextConfig.next === "Listo" ? "Abrir Checklist de Verificación y pasar a Listo" : `Avanzar estado a: ${nextConfig.next}`}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95 ${nextConfig.color}`}
+                          className={`inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer shadow-2xs max-w-full ${nextConfig.color}`}
                         >
-                          {nextConfig.next === "Listo" && <ClipboardCheck className="w-3.5 h-3.5" />}
-                          <span>{nextConfig.next === "Listo" ? "Verificar y Listo" : nextConfig.label}</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span className="truncate">{nextConfig.next === "Listo" ? "Listo" : nextConfig.label}</span>
+                          <ArrowRight className="w-3 h-3 shrink-0" />
                         </button>
                       ) : !nextConfig ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Completado</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 max-w-full truncate">
+                          <CheckCircle2 className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Listo</span>
                         </span>
                       ) : (
                         <span className="text-gray-400 text-xs">—</span>
                       )}
                     </td>
 
-                    {/* Acciones (Eye, Imprimir Comanda, Trash) */}
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1">
-                        {/* Imprimir Comanda (Requisito 6) */}
+                    {/* Acciones */}
+                    <td className="px-2 py-3 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
                         <button
                           type="button"
                           onClick={() => imprimirComanda(o)}
                           title="Imprimir comanda para cocina"
                           className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-600 dark:text-amber-400 transition-colors cursor-pointer"
                         >
-                          <Printer className="w-4 h-4" />
+                          <Printer className="w-3.5 h-3.5" />
                         </button>
-
-                        {/* View details (Eye) */}
                         <button
                           type="button"
                           onClick={() => onViewDetails && onViewDetails(o)}
                           title="Ver detalles de la orden"
                           className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors cursor-pointer"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </button>
-
-                        {/* Delete */}
                         {canDelete && (
                           <button
                             type="button"
@@ -562,7 +570,7 @@ export function ProduccionTable({
                             title="Eliminar orden"
                             className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors cursor-pointer"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -575,16 +583,13 @@ export function ProduccionTable({
         </table>
       </div>
 
-      {/* Paginador Compacto (Requisito 1: Poner paginador y ajustarlo mejor para evitar el scroll) */}
+      {/* Paginador Compacto */}
       <div className="p-3 px-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-50/30 dark:bg-gray-800/20">
         <div className="flex items-center gap-2">
           <span>Mostrar:</span>
           <select
             value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
             className="px-2 py-1 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium outline-none focus:ring-2 focus:ring-[#F05454]/40 cursor-pointer text-xs"
           >
             <option value={5}>5</option>

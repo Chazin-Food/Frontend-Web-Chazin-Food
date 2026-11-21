@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth, getLoginErrorToast } from "@/features/autenticacion/hooks/useAuth";
+import { loadPrefs } from "@/shared/utils/secureStorage";
 const GoogleAuthButton = lazy(() => import("@/features/autenticacion/componentes/GoogleAuthButton").then((m) => ({ default: m.GoogleAuthButton })));
 import {
   Lock,
@@ -104,7 +105,7 @@ export function Login() {
     const wasDark = document.documentElement.classList.contains("dark");
     if (wasDark) document.documentElement.classList.remove("dark");
     return () => {
-      if (localStorage.getItem("chazin-dark") === "true") {
+      if (loadPrefs().darkMode) {
         document.documentElement.classList.add("dark");
       }
     };

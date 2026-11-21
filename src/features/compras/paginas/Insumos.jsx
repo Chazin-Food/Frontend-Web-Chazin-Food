@@ -36,12 +36,20 @@ export function Insumos() {
     categorias,
     proveedores,
     loading,
+    viewMode,
+    setViewMode,
     searchTerm,
     setSearchTerm,
     filterCategoria,
     setFilterCategoria,
     filterEstado,
     setFilterEstado,
+    filterTipo,
+    setFilterTipo,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     insumosVencidos = [],
     eventos,
     unreadCount,
@@ -71,8 +79,6 @@ export function Insumos() {
     }
   }, [insumosVencidos, notify]);
 
-  const [viewMode, setViewMode] = useState("activos"); // "activos" | "papelera"
-  const [filterTipo, setFilterTipo] = useState("Todos los tipos");
   const [trazabilidadOpen, setTrazabilidadOpen] = useState(false);
   const [modalInsumoOpen, setModalInsumoOpen] = useState(false);
   const [editingInsumo, setEditingInsumo] = useState(null);
@@ -429,7 +435,7 @@ export function Insumos() {
               </div>
 
               <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
-                <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+                <div className="relative w-full sm:w-auto" ref={exportRef}>
                   <button
                     type="button"
                     onClick={() => setExportMenuOpen((prev) => !prev)}
@@ -588,6 +594,10 @@ export function Insumos() {
               }
               canEdit={canEdit}
               canDelete={canDelete}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
             />
           )}
         </div>

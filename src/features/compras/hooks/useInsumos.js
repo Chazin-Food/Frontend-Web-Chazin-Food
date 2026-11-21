@@ -7,17 +7,43 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 import { apiClient } from "@/shared/api/apiClient";
 import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
 import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const INSUMOS_URL_DEFAULTS = {
+  view: "activos",
+  q: "",
+  categoria: "Todas",
+  estado: "Todos",
+  tipo: "Todos los tipos",
+  page: 1,
+  limit: 10
+};
 
 export function useInsumos() {
   const notify = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(INSUMOS_URL_DEFAULTS);
+
   const [insumos, setInsumos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategoria, setFilterCategoria] = useState("Todas");
-  const [filterEstado, setFilterEstado] = useState("Todos");
   const [insumosVencidos, setInsumosVencidos] = useState([]);
+
+  const viewMode = filters.view;
+  const searchTerm = filters.q;
+  const filterCategoria = filters.categoria;
+  const filterEstado = filters.estado;
+  const filterTipo = filters.tipo;
+  const currentPage = filters.page;
+  const pageSize = filters.limit;
+
+  const setViewMode = useCallback((v) => setFilters({ view: v, page: 1 }), [setFilters]);
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterCategoria = useCallback((v) => setFilter("categoria", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setFilterTipo = useCallback((v) => setFilter("tipo", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setPageSize = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
 
   // Traceability & Papelera State from backend
   const [eventos, setEventos] = useState([]);
@@ -709,12 +735,20 @@ export function useInsumos() {
     categorias,
     proveedores,
     loading,
+    viewMode,
+    setViewMode,
     searchTerm,
     setSearchTerm,
     filterCategoria,
     setFilterCategoria,
     filterEstado,
     setFilterEstado,
+    filterTipo,
+    setFilterTipo,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     insumosVencidos,
     eventos,
     unreadCount,

@@ -24,6 +24,13 @@ export function GestionCompras() {
   const {
     compras,
     filteredCompras,
+    pagination,
+    summary,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     loading,
     searchTerm,
     setSearchTerm,
@@ -52,6 +59,7 @@ export function GestionCompras() {
   }, [location.state]);
 
   const stats = useMemo(() => {
+    if (summary) return summary;
     const total = compras.length;
     const completadas = compras.filter((c) => {
       const e = String(c.estado || "").toUpperCase();
@@ -68,7 +76,7 @@ export function GestionCompras() {
       })
       .reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
     return { total, completadas, anuladas, montoTotal };
-  }, [compras]);
+  }, [compras, summary]);
 
   const handleViewDetail = (c) => {
     setSelectedCompra(c);
@@ -291,6 +299,12 @@ export function GestionCompras() {
           onViewDetail={handleViewDetail}
           onCancelar={canCancel ? handleCancelar : null}
           procesandoId={procesandoId}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={serverPaginated ? pagination.total : filteredCompras.length}
+          serverPaginated={serverPaginated}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
         />
       )}
 

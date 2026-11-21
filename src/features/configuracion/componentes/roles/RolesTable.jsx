@@ -135,18 +135,18 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
         )}
       </div>
 
-      {/* Desktop Table (md+) */}
-      <div className="hidden md:block overflow-x-auto touch-scroll-x">
-        <table className="w-full text-left border-collapse">
+      {/* Desktop Table (md+) — sin scroll horizontal */}
+      <div className="hidden md:block w-full overflow-hidden">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-[#1e293b] dark:text-gray-200 tracking-wider uppercase">
-              <th className="px-6 py-4 w-16">ID</th>
-              <th className="px-6 py-4">ROL</th>
-              <th className="px-6 py-4">DESCRIPCIÓN</th>
-              <th className="px-6 py-4 text-center">USUARIOS</th>
-              <th className="px-6 py-4 text-center">PERMISOS</th>
-              <th className="px-6 py-4">ESTADO</th>
-              <th className="px-6 py-4 text-center">ACCIONES</th>
+              <th className="px-4 py-3.5 w-[7%]">ID</th>
+              <th className="px-4 py-3.5 w-[20%]">ROL</th>
+              <th className="px-4 py-3.5 w-[25%]">DESCRIPCIÓN</th>
+              <th className="px-3 py-3.5 text-center w-[11%]">USUARIOS</th>
+              <th className="px-3 py-3.5 text-center w-[13%]">PERMISOS</th>
+              <th className="px-3 py-3.5 w-[10%]">ESTADO</th>
+              <th className="px-3 py-3.5 text-center w-[14%]">ACCIONES</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
@@ -168,13 +168,13 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                       <td className="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium">
                         {r.id || startIndex + index + 1}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                      <td className="px-4 py-3.5 align-middle">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-gray-700">
                             <Shield className="w-5 h-5" />
                           </div>
-                          <div>
-                            <p className="font-bold text-[#1e293b] dark:text-gray-100">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-[#1e293b] dark:text-gray-100 truncate" title={r.nombre}>
                               {r.nombre}
                             </p>
                             {isAdministrador && (
@@ -185,7 +185,7 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-600 dark:text-gray-300 max-w-xs truncate">
+                      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300 truncate align-middle" title={r.descripcion || "Sin descripción"}>
                         {r.descripcion || "Sin descripción"}
                       </td>
                       <td className="px-6 py-4 text-center">

@@ -147,16 +147,18 @@ export function UsuariosTable({
   onChangePassword,
   onView,
   currentPage = 1,
-  pageSize = 5,
+  pageSize = 10,
+  totalItems: controlledTotalItems,
+  serverPaginated = false,
   onPageChange,
   onPageSizeChange,
   canEdit = true,
   canDelete = true
 }) {
-  const totalItems = usuarios.length;
+  const totalItems = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : usuarios.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginated = usuarios.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const safePage = Math.min(Math.max(1, Number(currentPage) || 1), totalPages);
+  const paginated = serverPaginated ? usuarios : usuarios.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <>
@@ -294,38 +296,25 @@ export function UsuariosTable({
         </div>
       </div>
 
-      {/* Desktop Table View (lg+) */}
+      {/* Desktop Table View (lg+) — sin scroll horizontal */}
       <div className="hidden lg:block bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden mb-6">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="w-full overflow-hidden">
+          <table className="w-full table-fixed text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  USUARIO
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  DOCUMENTO
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  EMAIL
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  TELÉFONO
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  ROL
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  ESTADO
-                </th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">
-                  ACCIONES
-                </th>
+                <th className="px-4 py-3.5 w-[22%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">USUARIO</th>
+                <th className="px-3 py-3.5 w-[13%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">DOCUMENTO</th>
+                <th className="px-3 py-3.5 w-[21%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">EMAIL</th>
+                <th className="px-3 py-3.5 w-[12%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">TELÉFONO</th>
+                <th className="px-3 py-3.5 w-[12%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ROL</th>
+                <th className="px-2.5 py-3.5 w-[9%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ESTADO</th>
+                <th className="px-3 py-3.5 w-[11%] text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ACCIONES</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
               {paginated.map((usuario) => {
                 const iniciales = usuario.iniciales || getIniciales(usuario.nombre, usuario.apellidos);
+                const fullName = formatNombreCompleto(usuario.nombre, usuario.apellidos) || "Usuario";
 
                 return (
                   <tr
@@ -333,20 +322,20 @@ export function UsuariosTable({
                     className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors"
                   >
                     {/* USUARIO */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3.5">
+                    <td className="px-4 py-3.5 align-middle">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`w-10 h-10 ${getAvatarBg(
+                          className={`w-9 h-9 ${getAvatarBg(
                             usuario.rolNombre
                           )} rounded-2xl flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-xs`}
                         >
                           {iniciales}
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight">
-                            {formatNombreCompleto(usuario.nombre, usuario.apellidos) || "Usuario"}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight truncate" title={fullName}>
+                            {fullName}
                           </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 font-normal mt-0.5">
+                          <p className="text-xs text-gray-400 dark:text-gray-500 font-normal mt-0.5 truncate">
                             ID #{usuario.id || usuario.idUsuario}
                           </p>
                         </div>
@@ -354,59 +343,60 @@ export function UsuariosTable({
                     </td>
 
                     {/* DOCUMENTO */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-slate-600 dark:text-gray-300 whitespace-nowrap">
+                    <td className="px-3 py-3.5 align-middle">
+                      <div className="text-xs xl:text-sm text-slate-600 dark:text-gray-300 truncate">
                         {isCedulaValida(usuario.documento, usuario.tipoDocumento) ? (
-                          <>
+                          <span title={`${usuario.tipoDocumento || ""} ${usuario.documento}`}>
                             {usuario.tipoDocumento && (
                               <span className="text-xs text-gray-400 font-medium mr-1">{usuario.tipoDocumento}</span>
                             )}
                             <span className="font-medium">{usuario.documento}</span>
-                          </>
+                          </span>
                         ) : (
                           <span
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60"
                             title="Cédula no registrada o pendiente de validación"
                           >
                             <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
-                            Sin registrar
+                            <span className="truncate">Sin reg.</span>
                           </span>
                         )}
                       </div>
                     </td>
 
                     {/* EMAIL */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-300 whitespace-nowrap">
-                        <Mail className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span>{usuario.email}</span>
+                    <td className="px-3 py-3.5 align-middle">
+                      <div className="flex items-center gap-1.5 text-xs xl:text-sm text-slate-600 dark:text-gray-300 min-w-0">
+                        <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="truncate block min-w-0 flex-1" title={usuario.email}>{usuario.email}</span>
                       </div>
                     </td>
 
                     {/* TELÉFONO */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-gray-300 whitespace-nowrap">
+                    <td className="px-3 py-3.5 align-middle">
+                      <div className="flex items-center gap-1.5 text-xs xl:text-sm text-slate-600 dark:text-gray-300 min-w-0">
                         <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                        <span className="font-medium">{usuario.telefono || "-"}</span>
+                        <span className="font-medium truncate" title={usuario.telefono || "-"}>{usuario.telefono || "-"}</span>
                       </div>
                     </td>
 
                     {/* ROL */}
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3.5 align-middle">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getRolStyle(
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium max-w-full truncate ${getRolStyle(
                           usuario.rolNombre
                         )}`}
+                        title={usuario.rolNombre}
                       >
-                        <Shield className="w-3.5 h-3.5 stroke-[2]" />
-                        {usuario.rolNombre}
+                        <Shield className="w-3 h-3 stroke-[2] shrink-0" />
+                        <span className="truncate">{usuario.rolNombre}</span>
                       </span>
                     </td>
 
                     {/* ESTADO */}
-                    <td className="px-6 py-4">
+                    <td className="px-2.5 py-3.5 align-middle">
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                           usuario.estado === "Activo"
                             ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
                             : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
@@ -417,8 +407,8 @@ export function UsuariosTable({
                     </td>
 
                     {/* ACCIONES */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-3 py-3.5 align-middle">
+                      <div className="flex items-center gap-1">
                         {onView && (
                           <button
                             onClick={() => onView(usuario)}

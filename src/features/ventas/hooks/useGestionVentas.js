@@ -3,26 +3,90 @@ import { ventasService } from "../servicios/ventasService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchVentaMultiCriteria } from "@/shared/utils/searchUtils";
 import { recordLocalDeliveryTimeMode } from "@/features/produccion/utils/tiempoProduccionUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const VENTAS_URL_DEFAULTS = {
+  tab: "pedidos_pagados",
+  vista: "table",
+  q: "",
+  estado: "Todos",
+  periodo: "personalizado",
+  fecha: "",
+  desde: "",
+  hasta: "",
+  pago: "Todos",
+  origen: "Todos",
+  entrega: "Todos",
+  fidelidad: "Todos",
+  min: "",
+  max: "",
+  page: 1,
+  limit: 10
+};
 
 export function useGestionVentas() {
   const notify = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(VENTAS_URL_DEFAULTS);
+
   const [ventas, setVentas] = useState([]);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [serverPaginated, setServerPaginated] = useState(false);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Criterios de búsqueda y filtrado multicriterio
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState("Todos");
-  const [selectedPeriod, setSelectedPeriod] = useState("personalizado");
-  const [filterFecha, setFilterFecha] = useState("");
-  const [filterFechaInicio, setFilterFechaInicio] = useState("");
-  const [filterFechaFin, setFilterFechaFin] = useState("");
-  const [filterMetodoPago, setFilterMetodoPago] = useState("Todos");
-  const [filterOrigen, setFilterOrigen] = useState("Todos");
-  const [filterTipoEntrega, setFilterTipoEntrega] = useState("Todos");
-  const [filterFidelidad, setFilterFidelidad] = useState("Todos");
-  const [montoMin, setMontoMin] = useState("");
-  const [montoMax, setMontoMax] = useState("");
+  // URL como única fuente de la verdad para filtros, pestañas y paginación
+  const activeTab = filters.tab;
+  const historialViewMode = filters.vista;
+  const searchTerm = filters.q;
+  const filterEstado = filters.estado;
+  const selectedPeriod = filters.periodo;
+  const filterFecha = filters.fecha;
+  const filterFechaInicio = filters.desde;
+  const filterFechaFin = filters.hasta;
+  const filterMetodoPago = filters.pago;
+  const filterOrigen = filters.origen;
+  const filterTipoEntrega = filters.entrega;
+  const filterFidelidad = filters.fidelidad;
+  const montoMin = filters.min;
+  const montoMax = filters.max;
+  const currentPage = filters.page;
+  const pageSize = filters.limit;
+
+  const setActiveTab = useCallback((v) => setFilters({ tab: v, page: 1 }), [setFilters]);
+  const setHistorialViewMode = useCallback((v) => setFilter("vista", v, { resetPage: false }), [setFilter]);
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setSelectedPeriod = useCallback((v) => setFilter("periodo", v), [setFilter]);
+  const setFilterFecha = useCallback((v) => setFilter("fecha", v), [setFilter]);
+  const setFilterFechaInicio = useCallback((v) => setFilter("desde", v), [setFilter]);
+  const setFilterFechaFin = useCallback((v) => setFilter("hasta", v), [setFilter]);
+  const setFilterMetodoPago = useCallback((v) => setFilter("pago", v), [setFilter]);
+  const setFilterOrigen = useCallback((v) => setFilter("origen", v), [setFilter]);
+  const setFilterTipoEntrega = useCallback((v) => setFilter("entrega", v), [setFilter]);
+  const setFilterFidelidad = useCallback((v) => setFilter("fidelidad", v), [setFilter]);
+  const setMontoMin = useCallback((v) => setFilter("min", v), [setFilter]);
+  const setMontoMax = useCallback((v) => setFilter("max", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setPageSize = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
+
+  // Debounce ligero del texto de búsqueda para consultas SQL paginadas
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const hasClientOnlyFilters = Boolean(
+    filterFecha ||
+    filterFidelidad !== "Todos" ||
+    montoMin !== "" ||
+    montoMax !== ""
+  );
+
+  // Paginación real en servidor cuando estamos en la tabla principal o historial sin filtros exclusivos de cliente
+  const shouldUseServerPagination =
+    (activeTab === "pedidos_pagados" || activeTab === "historial") &&
+    !hasClientOnlyFilters;
 
   const fetchVentas = useCallback(async () => {
     try {
@@ -30,16 +94,45 @@ export function useGestionVentas() {
       const validInicio = /^\d{4}-\d{2}-\d{2}$/.test(filterFechaInicio) ? filterFechaInicio : undefined;
       const validFin = /^\d{4}-\d{2}-\d{2}$/.test(filterFechaFin) ? filterFechaFin : undefined;
       const useCustomDates = selectedPeriod === "personalizado" && (validInicio || validFin);
-      const queryParams = {
+      const effectiveEstado =
+        activeTab === "historial" && filterEstado === "Todos"
+          ? "Completada"
+          : filterEstado;
+
+      const baseQueryParams = {
         periodo: selectedPeriod,
         ...(useCustomDates && validInicio ? { fechaInicio: validInicio } : {}),
         ...(useCustomDates && validFin ? { fechaFin: validFin } : {})
       };
-      const [data, statsData] = await Promise.all([
-        ventasService.getVentas(queryParams),
-        ventasService.getStats(queryParams).catch(() => null)
+
+      const listParams = shouldUseServerPagination
+        ? {
+            ...baseQueryParams,
+            ...(effectiveEstado && effectiveEstado !== "Todos" ? { estado: effectiveEstado } : {}),
+            ...(filterOrigen && filterOrigen !== "Todos" ? { origen: filterOrigen } : {}),
+            ...(filterTipoEntrega && filterTipoEntrega !== "Todos" ? { tipoEntrega: filterTipoEntrega } : {}),
+            ...(filterMetodoPago && filterMetodoPago !== "Todos" ? { metodoPago: filterMetodoPago } : {}),
+            ...(debouncedSearch && debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+            page: currentPage,
+            limit: pageSize
+          }
+        : baseQueryParams;
+
+      const [resList, statsData] = await Promise.all([
+        ventasService.getVentas(listParams),
+        ventasService.getStats(baseQueryParams).catch(() => null)
       ]);
-      setVentas(data || []);
+
+      if (resList && !Array.isArray(resList) && Array.isArray(resList.data)) {
+        setVentas(resList.data);
+        setPagination(resList.pagination || { total: resList.data.length, page: currentPage, limit: pageSize, totalPages: 1 });
+        setServerPaginated(true);
+      } else {
+        const arr = Array.isArray(resList) ? resList : [];
+        setVentas(arr);
+        setPagination({ total: arr.length, page: currentPage, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
+        setServerPaginated(false);
+      }
       setStats(statsData);
     } catch (err) {
       console.error(err);
@@ -47,14 +140,28 @@ export function useGestionVentas() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPeriod, filterFechaInicio, filterFechaFin]);
+  }, [
+    selectedPeriod,
+    filterFechaInicio,
+    filterFechaFin,
+    activeTab,
+    filterEstado,
+    filterOrigen,
+    filterTipoEntrega,
+    filterMetodoPago,
+    debouncedSearch,
+    currentPage,
+    pageSize,
+    shouldUseServerPagination
+  ]);
 
   useEffect(() => {
     fetchVentas();
   }, [fetchVentas]);
 
-  // Filtrado multicriterio exhaustivo en tiempo real
+  // Filtrado multicriterio (si ya vino paginado desde SQL, devolvemos el slice servidor tal cual)
   const filteredVentas = useMemo(() => {
+    if (serverPaginated) return ventas;
     const criteria = {
       searchTerm,
       filterEstado,
@@ -71,6 +178,7 @@ export function useGestionVentas() {
 
     return ventas.filter((v) => matchVentaMultiCriteria(v, criteria));
   }, [
+    serverPaginated,
     ventas,
     searchTerm,
     filterEstado,
@@ -86,18 +194,21 @@ export function useGestionVentas() {
   ]);
 
   const clearAllFilters = useCallback(() => {
-    setSearchTerm("");
-    setFilterEstado("Todos");
-    setFilterFecha("");
-    setFilterFechaInicio("");
-    setFilterFechaFin("");
-    setFilterMetodoPago("Todos");
-    setFilterOrigen("Todos");
-    setFilterTipoEntrega("Todos");
-    setFilterFidelidad("Todos");
-    setMontoMin("");
-    setMontoMax("");
-  }, []);
+    setFilters({
+      q: "",
+      estado: "Todos",
+      fecha: "",
+      desde: "",
+      hasta: "",
+      pago: "Todos",
+      origen: "Todos",
+      entrega: "Todos",
+      fidelidad: "Todos",
+      min: "",
+      max: "",
+      page: 1
+    });
+  }, [setFilters]);
 
   const hasActiveFilters = useMemo(() => {
     return (
@@ -241,6 +352,16 @@ export function useGestionVentas() {
   return {
     ventas,
     filteredVentas,
+    pagination,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    activeTab,
+    setActiveTab,
+    historialViewMode,
+    setHistorialViewMode,
     stats,
     loading,
     searchTerm,

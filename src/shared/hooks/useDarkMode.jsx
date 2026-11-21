@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { loadPrefs, savePref } from '@/shared/utils/secureStorage';
 
 export function useDarkMode() {
   const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('chazin-dark') === 'true';
+    return Boolean(loadPrefs().darkMode);
   });
 
   useEffect(() => {
@@ -11,7 +12,7 @@ export function useDarkMode() {
     } else {
       document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('chazin-dark', String(darkMode));
+    savePref('darkMode', darkMode);
   }, [darkMode]);
 
   return [darkMode, () => setDarkMode(d => !d)];

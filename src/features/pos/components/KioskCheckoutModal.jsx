@@ -117,8 +117,9 @@ export default function KioskCheckoutModal({
                 <input
                   id="kiosk-client-name"
                   type="text"
+                  maxLength={80}
                   value={clienteNombre}
-                  onChange={(e) => setClienteNombre(e.target.value)}
+                  onChange={(e) => setClienteNombre(e.target.value.slice(0, 80))}
                   placeholder="Tu nombre (o déjalo en blanco para 'Cliente Kiosco')"
                   className="w-full h-14 pl-12 pr-4 rounded-2xl bg-gray-50 border-2 border-gray-200 text-base font-bold text-gray-800 placeholder:text-gray-400 focus:outline-hidden focus:border-red-500 focus:bg-white transition-colors"
                 />

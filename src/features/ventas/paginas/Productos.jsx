@@ -25,12 +25,18 @@ export function Productos() {
     filteredProductos,
     categorias,
     loading,
+    viewMode,
+    setViewMode,
     searchTerm,
     setSearchTerm,
     filterCategoria,
     setFilterCategoria,
     filterEstado,
     setFilterEstado,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     lastDeletedProducto,
     dismissLastDeleted,
     createProducto,
@@ -42,7 +48,6 @@ export function Productos() {
     refetch
   } = useProductos();
 
-  const [viewMode, setViewMode] = useState("activos"); // "activos" | "papelera"
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState(null);
   const [isViewMode, setIsViewMode] = useState(false);
@@ -164,8 +169,28 @@ export function Productos() {
   };
 
   const handleCreateEvento = (producto, existingEvento = null) => {
+    let hydratedEvento = existingEvento || null;
+    if (existingEvento) {
+      const targetId = Number(existingEvento.id || existingEvento.idEvento);
+      const fullMatch = (eventos || []).find((e) => Number(e.id || e.idEvento) === targetId);
+      if (fullMatch) {
+        hydratedEvento = { ...existingEvento, ...fullMatch };
+      }
+      if (!hydratedEvento.producto && producto) {
+        hydratedEvento = {
+          ...hydratedEvento,
+          producto: {
+            id: producto.id || producto.idProducto,
+            idProducto: producto.idProducto || producto.id,
+            nombre: producto.nombre,
+            precio: producto.precio,
+            imagen: producto.imagen
+          }
+        };
+      }
+    }
     setProductoParaEvento(producto);
-    setEventoParaEditar(existingEvento);
+    setEventoParaEditar(hydratedEvento);
     setCrearEventoModalOpen(true);
   };
 
@@ -364,6 +389,7 @@ export function Productos() {
           ) : (
             <ProductosTable
               productos={filteredProductos}
+              eventos={eventos}
               onEdit={handleOpenEdit}
               onDelete={(id, nombre) =>
                 deleteProducto(id, nombre, {
@@ -376,6 +402,10 @@ export function Productos() {
               onCreateEvento={handleCreateEvento}
               canEdit={canEdit}
               canDelete={canDelete}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
             />
           )}
         </div>

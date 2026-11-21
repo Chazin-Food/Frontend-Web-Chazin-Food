@@ -679,10 +679,11 @@ export function PosCheckoutModal({
                   <input
                     type="text"
                     required
+                    maxLength={80}
                     value={clienteNombre}
                     onChange={(e) => {
                       setClienteTouched(true);
-                      setClienteNombre(e.target.value);
+                      setClienteNombre(e.target.value.slice(0, 80));
                     }}
                     onBlur={() => setClienteTouched(true)}
                     placeholder="Ingresa el nombre del cliente (Obligatorio)"
@@ -733,10 +734,11 @@ export function PosCheckoutModal({
                     <input
                       type="text"
                       required
+                      maxLength={80}
                       value={clienteNombre}
                       onChange={(e) => {
                         setClienteTouched(true);
-                        setClienteNombre(e.target.value);
+                        setClienteNombre(e.target.value.slice(0, 80));
                       }}
                       onBlur={() => setClienteTouched(true)}
                       className={`w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-750 border rounded-xl text-xs font-semibold text-gray-900 dark:text-gray-100 outline-none transition ${

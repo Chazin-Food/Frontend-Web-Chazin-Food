@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
+import { loadPrefs, savePref } from "@/shared/utils/secureStorage";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import logoImg from "@/shared/assets/logo_optimized.webp";
 import { produccionService } from "@/features/produccion/servicios/produccionService";
@@ -343,14 +344,15 @@ export function CocineroDashboard() {
 
   // ── Ajustes de KDS & Multimedia ──
   const [soundEnabled, setSoundEnabled] = useState(() => {
-    return localStorage.getItem("kds_sound_enabled") !== "false";
+    const prefs = loadPrefs();
+    return prefs.kdsSound !== undefined ? Boolean(prefs.kdsSound) : true;
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // ── Configuración de Auto-desvanecimiento de comandas listas ──
   const [autoFadeSegundos, setAutoFadeSegundos] = useState(() => {
-    const saved = localStorage.getItem("kds_auto_fade_sec");
-    return saved !== null ? Number(saved) : 0; // 0 (Manual sin temporizador) por defecto
+    const prefs = loadPrefs();
+    return prefs.kdsAutoFadeSec !== undefined ? Number(prefs.kdsAutoFadeSec) : 0; // 0 (Manual sin temporizador) por defecto
   });
   const [showConfigFade, setShowConfigFade] = useState(false);
   const configFadeRef = useRef(null);
@@ -414,13 +416,13 @@ export function CocineroDashboard() {
   const handleSoundToggle = () => {
     const next = !soundEnabled;
     setSoundEnabled(next);
-    localStorage.setItem("kds_sound_enabled", String(next));
+    savePref("kdsSound", next);
     if (next) playKitchenDing();
   };
 
   const handleAutoFadeConfigChange = (seconds) => {
     setAutoFadeSegundos(seconds);
-    localStorage.setItem("kds_auto_fade_sec", String(seconds));
+    savePref("kdsAutoFadeSec", seconds);
     setShowConfigFade(false);
   };
 

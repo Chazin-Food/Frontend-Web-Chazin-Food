@@ -27,20 +27,44 @@ export function InsumosTable({
   onRegistrarCompra,
   onReabastecer,
   canEdit = true,
-  canDelete = true
+  canDelete = true,
+  currentPage: controlledPage,
+  pageSize: controlledPageSize,
+  totalItems: controlledTotalItems,
+  onPageChange,
+  onPageSizeChange,
+  serverPaginated = false
 }) {
-  const [pageSize, setPageSize] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPage, setInternalPage] = useState(1);
 
-  // Reset pagination when insumos length changes (#51)
+  // Reset pagination when insumos length changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [insumos.length]);
+    if (!onPageChange) setInternalPage(1);
+  }, [insumos.length, onPageChange]);
 
-  const totalRecords = insumos.length;
-  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-  const startIndex = (currentPage - 1) * pageSize;
-  const paginatedInsumos = insumos.slice(startIndex, startIndex + pageSize);
+  const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : insumos.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const paginatedInsumos = serverPaginated ? insumos : insumos.slice(startIndex, startIndex + pageSize);
+
+  const setCurrentPage = (updater) => {
+    const nextVal = typeof updater === "function" ? updater(safePage) : updater;
+    const clamped = Math.min(Math.max(1, Number(nextVal) || 1), totalPages);
+    if (onPageChange) onPageChange(clamped);
+    else setInternalPage(clamped);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    if (onPageSizeChange) onPageSizeChange(newSize);
+    else {
+      setInternalPageSize(newSize);
+      setInternalPage(1);
+    }
+  };
 
   const todayStr = getColombiaDateISO();
 
@@ -288,36 +312,21 @@ export function InsumosTable({
         )}
       </div>
 
-      {/* Desktop Table (lg+) */}
-      <div className="hidden lg:block w-full overflow-x-auto touch-scroll-x focus:outline-none">
-        <table className="w-full min-w-[860px] text-left border-collapse table-auto">
+      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      <div className="hidden lg:block w-full overflow-hidden focus:outline-none">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-[10px] sm:text-[11px] font-bold text-[#1e293b] dark:text-gray-200 tracking-wider uppercase">
-              <th className="px-2 py-2.5 w-10 text-center">ID</th>
-              <th className="px-2.5 py-2.5 min-w-[150px]">NOMBRE</th>
-              <th className="px-2 py-2.5">CATEGORÍA</th>
-              <th className="px-2 py-2.5 whitespace-nowrap">STOCK</th>
-              <th
-                className="px-1.5 py-2.5 text-center whitespace-nowrap"
-                title="Cantidad Mínima de Alerta"
-              >
-                MÍN.
-              </th>
-              <th
-                className="px-1.5 py-2.5 text-center whitespace-nowrap"
-                title="Cantidad Máxima de Capacidad"
-              >
-                MÁX.
-              </th>
-              <th
-                className="px-2 py-2.5 whitespace-nowrap"
-                title="Precio de Compra o Costo Unitario"
-              >
-                PRECIO / UND
-              </th>
-              <th className="px-1.5 py-2.5 text-center whitespace-nowrap" title="Estado del Nivel de Stock">ESTADO STOCK</th>
-              <th className="px-1.5 py-2.5 text-center whitespace-nowrap">ESTADO</th>
-              <th className="px-2 py-2.5 text-center w-24">ACCIONES</th>
+              <th className="px-2 py-2.5 w-[5%] text-center">ID</th>
+              <th className="px-2.5 py-2.5 w-[22%]">NOMBRE</th>
+              <th className="px-2 py-2.5 w-[13%]">CATEGORÍA</th>
+              <th className="px-2 py-2.5 w-[10%]">STOCK</th>
+              <th className="px-1.5 py-2.5 text-center w-[6%]" title="Cantidad Mínima de Alerta">MÍN.</th>
+              <th className="px-1.5 py-2.5 text-center w-[6%]" title="Cantidad Máxima de Capacidad">MÁX.</th>
+              <th className="px-2 py-2.5 w-[10%]" title="Precio de Compra o Costo Unitario">PRECIO</th>
+              <th className="px-1.5 py-2.5 text-center w-[9%]" title="Estado del Nivel de Stock">NIVEL</th>
+              <th className="px-1.5 py-2.5 text-center w-[8%]">ESTADO</th>
+              <th className="px-2 py-2.5 text-center w-[11%]">ACCIONES</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
@@ -571,10 +580,7 @@ export function InsumosTable({
           <span>Mostrar:</span>
           <select
             value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
             className="px-2.5 py-1 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium text-xs outline-none"
           >
             <option value={5}>5</option>
@@ -594,31 +600,31 @@ export function InsumosTable({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
+            disabled={safePage === 1}
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
+            disabled={safePage === 1}
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="w-7 h-7 rounded-full bg-[#F05454] text-white flex items-center justify-center font-bold text-xs mx-1">
-            {currentPage}
+            {safePage}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages}
+            disabled={safePage === totalPages}
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
+            disabled={safePage === totalPages}
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronsRight className="w-4 h-4" />

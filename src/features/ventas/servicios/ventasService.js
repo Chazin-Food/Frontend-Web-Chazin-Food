@@ -4,10 +4,15 @@ export const ventasService = {
   getVentas: async (params = {}) => {
     const query = new URLSearchParams();
     if (params.periodo) query.append("periodo", params.periodo);
-    if (params.estado) query.append("estado", params.estado);
+    if (params.estado && params.estado !== "Todos") query.append("estado", params.estado);
     if (params.search) query.append("search", params.search);
     if (params.fechaInicio) query.append("fechaInicio", params.fechaInicio);
     if (params.fechaFin) query.append("fechaFin", params.fechaFin);
+    if (params.origen && params.origen !== "Todos") query.append("origen", params.origen);
+    if (params.tipoEntrega && params.tipoEntrega !== "Todos") query.append("tipoEntrega", params.tipoEntrega);
+    if (params.metodoPago && params.metodoPago !== "Todos") query.append("metodoPago", params.metodoPago);
+    if (params.page !== undefined && params.page !== null) query.append("page", String(params.page));
+    if (params.limit !== undefined && params.limit !== null) query.append("limit", String(params.limit));
     const qs = query.toString();
     return await apiClient.get(`/ventas${qs ? `?${qs}` : ""}`);
   },

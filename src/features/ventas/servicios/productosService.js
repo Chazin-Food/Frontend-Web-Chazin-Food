@@ -1,8 +1,12 @@
 import { apiClient } from "@/shared/api/apiClient";
+import { notifyCatalogUpdated } from "@/shared/utils/secureStorage";
 
 export const productosService = {
-  getProductos: async () => {
-    return await apiClient.get("/productos");
+  getProductos: async (params = null) => {
+    const query = params && typeof params === "object"
+      ? `?${new URLSearchParams(params).toString()}`
+      : "";
+    return await apiClient.get(`/productos${query}`);
   },
 
   getPapeleraProductos: async () => {
@@ -14,26 +18,38 @@ export const productosService = {
   },
 
   createProducto: async (data) => {
-    return await apiClient.post("/productos", data);
+    const res = await apiClient.post("/productos", data);
+    notifyCatalogUpdated();
+    return res;
   },
 
   updateProducto: async (id, data) => {
-    return await apiClient.put(`/productos/${id}`, data);
+    const res = await apiClient.put(`/productos/${id}`, data);
+    notifyCatalogUpdated();
+    return res;
   },
 
   deleteProducto: async (id) => {
-    return await apiClient.delete(`/productos/${id}`);
+    const res = await apiClient.delete(`/productos/${id}`);
+    notifyCatalogUpdated();
+    return res;
   },
 
   restoreProducto: async (id) => {
-    return await apiClient.put(`/productos/${id}/restaurar`);
+    const res = await apiClient.put(`/productos/${id}/restaurar`);
+    notifyCatalogUpdated();
+    return res;
   },
 
   hardDeleteProducto: async (id) => {
-    return await apiClient.delete(`/productos/${id}/fisico`);
+    const res = await apiClient.delete(`/productos/${id}/fisico`);
+    notifyCatalogUpdated();
+    return res;
   },
 
   toggleVarianteEstado: async (idProducto, idVariante, estado) => {
-    return await apiClient.patch(`/productos/${idProducto}/variantes/${idVariante}/estado`, { estado });
+    const res = await apiClient.patch(`/productos/${idProducto}/variantes/${idVariante}/estado`, { estado });
+    notifyCatalogUpdated();
+    return res;
   }
 };

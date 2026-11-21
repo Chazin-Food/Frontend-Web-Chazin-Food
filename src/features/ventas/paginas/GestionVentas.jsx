@@ -24,6 +24,7 @@ import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { formatTime12h, formatDateSafe, getColombiaDateISO, extractDateOnlyISO, COLOMBIA_TZ } from "@/shared/utils/dateUtils";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import { exportTableToExcel } from "@/shared/utils/excelExport";
+import { ventasService } from "../servicios/ventasService";
 
 const VentasReportesView = lazy(() => import("../componentes/gestion/VentasReportesView").then((m) => ({ default: m.VentasReportesView })));
 const VentaDetalleModal = lazy(() => import("../componentes/gestion/VentaDetalleModal").then((m) => ({ default: m.VentaDetalleModal })));
@@ -33,6 +34,16 @@ export function GestionVentas() {
   const {
     ventas,
     filteredVentas,
+    pagination,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    activeTab,
+    setActiveTab,
+    historialViewMode,
+    setHistorialViewMode,
     stats,
     loading,
     searchTerm,
@@ -71,8 +82,6 @@ export function GestionVentas() {
   const canEdit = hasPrivilege(user, "Gestión de Ventas", "editar");
   const canCancel = hasPrivilege(user, "Gestión de Ventas", "eliminar");
 
-  const [activeTab, setActiveTab] = useState("pedidos_pagados");
-  const [historialViewMode, setHistorialViewMode] = useState("table"); // "cards" | "table"
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [selectedVentaDetail, setSelectedVentaDetail] = useState(null);
 
@@ -97,8 +106,8 @@ export function GestionVentas() {
   };
 
   const historialTotalCount = useMemo(
-    () => ventas.filter(isCompletedSale).length,
-    [ventas]
+    () => (serverPaginated && activeTab === "historial" ? pagination.total : ventas.filter(isCompletedSale).length),
+    [serverPaginated, activeTab, pagination.total, ventas]
   );
 
   // Historial de transacciones: únicamente ventas completadas (solo lectura, con método Wompi en ventas online)
@@ -126,9 +135,29 @@ export function GestionVentas() {
     setSelectedVentaDetail(v);
   };
 
-  // Export to Excel (.xlsx) con los datos filtrados actualmente
+  const resolveFullExportSource = async () => {
+    if (!serverPaginated) {
+      return activeTab === "historial" ? historialVentas : filteredVentas;
+    }
+    try {
+      const fullRes = await ventasService.getVentas({
+        periodo: selectedPeriod,
+        ...(filterEstado && filterEstado !== "Todos" ? { estado: filterEstado } : (activeTab === "historial" ? { estado: "Completada" } : {})),
+        ...(filterOrigen && filterOrigen !== "Todos" ? { origen: filterOrigen } : {}),
+        ...(filterTipoEntrega && filterTipoEntrega !== "Todos" ? { tipoEntrega: filterTipoEntrega } : {}),
+        ...(filterMetodoPago && filterMetodoPago !== "Todos" ? { metodoPago: filterMetodoPago } : {}),
+        ...(searchTerm && searchTerm.trim() ? { search: searchTerm.trim() } : {})
+      });
+      const fullArr = Array.isArray(fullRes) ? fullRes : (Array.isArray(fullRes?.data) ? fullRes.data : []);
+      return activeTab === "historial" ? fullArr.filter(isCompletedSale).map(normalizeOnlineWompi) : fullArr;
+    } catch {
+      return activeTab === "historial" ? historialVentas : filteredVentas;
+    }
+  };
+
+  // Export to Excel (.xlsx) con todos los datos filtrados actualmente
   const handleExportExcel = async () => {
-    const exportSource = activeTab === "historial" ? historialVentas : filteredVentas;
+    const exportSource = await resolveFullExportSource();
     const headers = [
       "N° Factura / Venta",
       "Cliente",
@@ -174,9 +203,9 @@ export function GestionVentas() {
     });
   };
 
-  // Export to Printable PDF Window con los datos filtrados actualmente
-  const handleExportPDF = () => {
-    const exportSource = activeTab === "historial" ? historialVentas : filteredVentas;
+  // Export to Printable PDF Window con todos los datos filtrados actualmente
+  const handleExportPDF = async () => {
+    const exportSource = await resolveFullExportSource();
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
@@ -518,6 +547,12 @@ export function GestionVentas() {
               <VentasHistorialTableView
                 ventas={historialVentas}
                 onViewDetail={handleViewDetail}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={serverPaginated ? pagination.total : historialVentas.length}
+                serverPaginated={serverPaginated}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
               />
             ) : (
               <VentasHistorialCardsView
@@ -530,7 +565,11 @@ export function GestionVentas() {
           /* TAB 3: PEDIDOS PAGADOS */
           <div className="space-y-6 pt-1">
             {/* Buscador Multicriterio en Pedidos Pagados */}
-            <VentasBuscadorMulticriterio {...buscadorProps} />
+            <VentasBuscadorMulticriterio
+              {...buscadorProps}
+              totalRecords={serverPaginated ? pagination.total : ventas.length}
+              filteredRecords={serverPaginated ? pagination.total : filteredVentas.length}
+            />
 
             {/* Content View: Table or Empty State */}
             {loading ? (
@@ -563,6 +602,12 @@ export function GestionVentas() {
                 onUpdateEstado={canEdit ? updateEstado : null}
                 onAprobarPago={canEdit ? aprobarPago : null}
                 canEdit={canEdit}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={serverPaginated ? pagination.total : filteredVentas.length}
+                serverPaginated={serverPaginated}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
               />
             )}
           </div>

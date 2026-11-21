@@ -1,7 +1,32 @@
-import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
+import { loadStoredCart, saveStoredCart, clearStoredCart } from "@/shared/utils/secureStorage";
+import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
+import { isVariantActive } from "@/shared/utils/productVariantUtils";
 
 export const IVA_RATE = 0.19;
 const CartContext = createContext(undefined);
+
+function resolveLiveEventPrice(basePrice, evt, prodId) {
+  if (!evt) return null;
+  let asociacion = null;
+  if (evt.productosAsociados) {
+    try {
+      const list = typeof evt.productosAsociados === "string"
+        ? JSON.parse(evt.productosAsociados)
+        : evt.productosAsociados;
+      if (Array.isArray(list)) {
+        asociacion = list.find((a) => String(a?.idProducto || a?.id) === String(prodId)) || null;
+      }
+    } catch (_) {}
+  }
+  const nuevoPrecio = Number(asociacion?.nuevoPrecio ?? evt.nuevoPrecio ?? 0);
+  if (Number.isFinite(nuevoPrecio) && nuevoPrecio > 0) return nuevoPrecio;
+  const descuento = Number(asociacion?.descuento ?? evt.descuento ?? 0);
+  if (Number.isFinite(descuento) && descuento > 0 && descuento < 100) {
+    return Math.max(0, Math.round(basePrice * (1 - descuento / 100)));
+  }
+  return null;
+}
 
 /**
  * Generates a unique, deterministic ID for an item in the cart based on:
@@ -30,9 +55,7 @@ export function generateCartItemId(item) {
 export function CartProvider({ children }) {
   const [cart, setCart] = useState(() => {
     try {
-      const saved = localStorage.getItem("chazin_cart");
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
+      const parsed = loadStoredCart();
       if (Array.isArray(parsed)) {
         return parsed.map((it) => ({
           ...it,
@@ -51,13 +74,9 @@ export function CartProvider({ children }) {
     cartRef.current = cart;
   }, [cart]);
 
-  // Persist cart on changes
+  // Persist cart on changes (codificado y organizado bajo `cf_cart`)
   useEffect(() => {
-    try {
-      localStorage.setItem("chazin_cart", JSON.stringify(cart));
-    } catch (e) {
-      console.warn("Error guardando carrito en localStorage:", e);
-    }
+    saveStoredCart(cart);
   }, [cart]);
 
   /**
@@ -202,10 +221,206 @@ export function CartProvider({ children }) {
   const clearCart = () => {
     cartRef.current = [];
     setCart([]);
-    try {
-      localStorage.removeItem("chazin_cart");
-    } catch (e) {}
+    clearStoredCart();
   };
+
+  /**
+   * Reconcilia los ítems persistidos en localStorage contra el catálogo vivo del backend
+   * para que cambios en nombre, precio, imagen, stock, variantes, eventos o adiciones
+   * se reflejen de inmediato en el carrito y ventas.
+   */
+  const syncCartWithCatalog = useCallback((productosCatalogo = [], eventosActivos = [], adicionesCatalogo = []) => {
+    if (!Array.isArray(productosCatalogo) || productosCatalogo.length === 0) {
+      return { changed: false, removedCount: 0, updatedCount: 0 };
+    }
+
+    const current = cartRef.current || [];
+    if (current.length === 0) {
+      return { changed: false, removedCount: 0, updatedCount: 0 };
+    }
+
+    const prodMap = new Map();
+    productosCatalogo.forEach((p) => {
+      const pid = p?.id ?? p?.idProducto;
+      if (pid !== undefined && pid !== null) prodMap.set(String(pid), p);
+    });
+
+    const adicMap = new Map();
+    (Array.isArray(adicionesCatalogo) ? adicionesCatalogo : []).forEach((a) => {
+      const aid = a?.idAdicion ?? a?.id;
+      if (aid !== undefined && aid !== null) adicMap.set(String(aid), a);
+    });
+
+    const nowMs = Date.now();
+    const activeGlobalEvents = (Array.isArray(eventosActivos) ? eventosActivos : []).filter((e) =>
+      isEventActiveInColombia(e, nowMs)
+    );
+
+    const usedQtyByProd = new Map();
+    const nextCart = [];
+    let removedCount = 0;
+    let updatedCount = 0;
+
+    for (const item of current) {
+      const prodId = String(item.id || item.idProducto || "");
+      const liveProd = prodMap.get(prodId);
+
+      // Si el producto fue eliminado, desactivado o quedó sin stock, retirar del carrito
+      if (!liveProd) {
+        removedCount++;
+        continue;
+      }
+      const isInactive = liveProd.estado === "Inactivo" || liveProd.estado === 0 || liveProd.estado === false;
+      const liveStock = isInactive
+        ? 0
+        : Number(liveProd.stock !== undefined ? liveProd.stock : (liveProd.stockActual !== undefined ? liveProd.stockActual : 0));
+
+      if (isInactive || liveStock <= 0) {
+        removedCount++;
+        continue;
+      }
+
+      // Validar variante si el ítem corresponde a una variante específica no base
+      let matchedVariant = null;
+      const liveVariantes = Array.isArray(liveProd.variantes) ? liveProd.variantes : [];
+      const hasCustomVariant =
+        !item.esVarianteBase &&
+        item.idVariante &&
+        String(item.idVariante) !== String(liveProd.id || liveProd.idProducto) &&
+        String(item.idVariante) !== String(liveProd.idVarianteBase || "");
+
+      if (hasCustomVariant) {
+        matchedVariant = liveVariantes.find(
+          (v) => String(v.idVariante || v.id) === String(item.idVariante) && isVariantActive(v)
+        );
+        if (!matchedVariant) {
+          removedCount++;
+          continue;
+        }
+      }
+
+      // Calcular precio base vivo (variante o producto)
+      const liveBasePrice = matchedVariant
+        ? Number(matchedVariant.precio !== undefined ? matchedVariant.precio : liveProd.precio) || 0
+        : Number(liveProd.precio) || 0;
+
+      // Resolver evento activo aplicable (si aplica)
+      const prodEvents = [
+        ...(Array.isArray(liveProd.eventos) ? liveProd.eventos : []),
+        ...activeGlobalEvents.filter((e) => {
+          if (String(e.idProducto) === prodId) return true;
+          if (!e.productosAsociados) return false;
+          try {
+            const list = typeof e.productosAsociados === "string" ? JSON.parse(e.productosAsociados) : e.productosAsociados;
+            return Array.isArray(list) && list.some((a) => String(a?.idProducto || a?.id) === prodId);
+          } catch (_) {
+            return false;
+          }
+        })
+      ].filter((e) => isEventActiveInColombia(e, nowMs));
+
+      const itemEvtId = item.eventoInfo?.idEvento || item.eventoInfo?.id;
+      const matchedEvent = itemEvtId
+        ? prodEvents.find((e) => String(e.idEvento || e.id) === String(itemEvtId)) || null
+        : (prodEvents.find((e) => resolveLiveEventPrice(liveBasePrice, e, prodId) !== null) || null);
+
+      let livePrice = liveBasePrice;
+      let nextEventoInfo = item.eventoInfo || null;
+      let nextIsEvento = Boolean(item.isEvento);
+      let nextPrecioOriginal = item.precioOriginal;
+
+      if (matchedEvent) {
+        const eventPromoPrice = resolveLiveEventPrice(liveBasePrice, matchedEvent, prodId);
+        if (eventPromoPrice !== null) {
+          livePrice = eventPromoPrice;
+          nextPrecioOriginal = liveBasePrice;
+          nextIsEvento = true;
+          nextEventoInfo = {
+            ...(item.eventoInfo || {}),
+            idEvento: matchedEvent.idEvento || matchedEvent.id,
+            titulo: matchedEvent.titulo || matchedEvent.nombre || item.eventoInfo?.titulo,
+            tipoEvento: matchedEvent.tipoEvento || item.eventoInfo?.tipoEvento,
+            descuento: matchedEvent.descuento ?? item.eventoInfo?.descuento
+          };
+        }
+      } else if (item.isEvento || item.eventoInfo) {
+        // El evento expiró o fue desactivado: volver al precio vigente del producto
+        livePrice = liveBasePrice;
+        nextEventoInfo = null;
+        nextIsEvento = false;
+        nextPrecioOriginal = undefined;
+      }
+
+      // Sincronizar adiciones vivas (nombre y precio actual)
+      let nextAdiciones = item.adiciones || [];
+      if (Array.isArray(item.adiciones) && item.adiciones.length > 0 && adicMap.size > 0) {
+        nextAdiciones = item.adiciones
+          .map((ad) => {
+            const aid = String(ad.idAdicion || ad.id || "");
+            const liveAd = adicMap.get(aid);
+            if (!liveAd) return null;
+            if (liveAd.estado === 0 || liveAd.estado === "Inactivo" || liveAd.estado === false) return null;
+            return {
+              ...ad,
+              nombre: liveAd.nombre || ad.nombre,
+              precio: Number(liveAd.precio !== undefined ? liveAd.precio : ad.precio) || 0
+            };
+          })
+          .filter(Boolean);
+      }
+
+      // Respetar stock disponible acumulado entre líneas del mismo producto
+      const alreadyUsed = usedQtyByProd.get(prodId) || 0;
+      const availableForLine = Math.max(0, liveStock - alreadyUsed);
+      if (availableForLine <= 0) {
+        removedCount++;
+        continue;
+      }
+      const nextCantidad = Math.min(Number(item.cantidad || 1), availableForLine);
+      usedQtyByProd.set(prodId, alreadyUsed + nextCantidad);
+
+      const nextNombre = liveProd.nombre || item.nombre;
+      const nextImagen = liveProd.imagen || item.imagen;
+      const nextDescripcion = liveProd.descripcion !== undefined ? liveProd.descripcion : item.descripcion;
+      const nextVarianteNombre = matchedVariant ? (matchedVariant.nombre || item.varianteNombre) : item.varianteNombre;
+
+      const updatedItem = {
+        ...item,
+        nombre: nextNombre,
+        precio: livePrice,
+        precioOriginal: nextPrecioOriginal,
+        imagen: nextImagen,
+        descripcion: nextDescripcion,
+        stock: liveStock,
+        stockActual: liveStock,
+        cantidad: nextCantidad,
+        varianteNombre: nextVarianteNombre,
+        adiciones: nextAdiciones,
+        isEvento: nextIsEvento,
+        eventoInfo: nextEventoInfo
+      };
+
+      const itemChanged =
+        updatedItem.nombre !== item.nombre ||
+        Number(updatedItem.precio) !== Number(item.precio) ||
+        updatedItem.imagen !== item.imagen ||
+        Number(updatedItem.stock) !== Number(item.stock) ||
+        Number(updatedItem.cantidad) !== Number(item.cantidad) ||
+        updatedItem.varianteNombre !== item.varianteNombre ||
+        Boolean(updatedItem.isEvento) !== Boolean(item.isEvento) ||
+        JSON.stringify(updatedItem.adiciones || []) !== JSON.stringify(item.adiciones || []);
+
+      if (itemChanged) updatedCount++;
+      nextCart.push(updatedItem);
+    }
+
+    const changed = removedCount > 0 || updatedCount > 0 || nextCart.length !== current.length;
+    if (changed) {
+      cartRef.current = nextCart;
+      setCart(nextCart);
+    }
+    return { changed, removedCount, updatedCount };
+  }, []);
 
   const getTotalItems = () => {
     return cart.reduce((total, item) => total + Number(item.cantidad || 0), 0);
@@ -233,6 +448,7 @@ export function CartProvider({ children }) {
         removeFromCart,
         updateQuantity,
         clearCart,
+        syncCartWithCatalog,
         getTotalItems,
         getSubtotal,
         getIVA,

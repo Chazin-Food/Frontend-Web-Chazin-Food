@@ -2,19 +2,47 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { produccionService } from "../servicios/produccionService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 import {
   recordLocalOrderTransition,
   getLocalOrderTransition
 } from "../utils/tiempoProduccionUtils";
 import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
 
+const PRODUCCION_URL_DEFAULTS = {
+  q: "",
+  estado: "Todos",
+  page: 1,
+  limit: 10
+};
+
 export function useGestionProduccion() {
   const { user } = useAuth();
   const notify = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(PRODUCCION_URL_DEFAULTS);
+
   const [ordenes, setOrdenes] = useState([]);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [summary, setSummary] = useState(null);
+  const [serverPaginated, setServerPaginated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState("Todos");
+
+  const searchTerm = filters.q;
+  const filterEstado = filters.estado;
+  const currentPage = filters.page;
+  const pageSize = filters.limit;
+
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setPageSize = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
   const isFetchingRef = useRef(false);
   const consecutiveFailuresRef = useRef(0);
 
@@ -25,8 +53,18 @@ export function useGestionProduccion() {
     isFetchingRef.current = true;
     try {
       if (!isSilent) setLoading(true);
-      const data = await produccionService.getOrdenes();
-      const merged = (data || []).map((o) => {
+      const res = await produccionService.getOrdenes({
+        page: currentPage,
+        limit: pageSize,
+        estado: filterEstado,
+        search: debouncedSearch
+      });
+
+      const rawList = res && !Array.isArray(res) && Array.isArray(res.data)
+        ? res.data
+        : (Array.isArray(res) ? res : []);
+
+      const merged = rawList.map((o) => {
         const local = getLocalOrderTransition(o.id || o.idVenta);
         if (!local) return o;
 
@@ -35,7 +73,6 @@ export function useGestionProduccion() {
           ...(local.tiemposEstados || {})
         };
 
-        // Si el usuario marcó "Despachado" y un backend anterior lo mapeó a "Entregado" sin haber marcado "Entregado" aún
         let resolvedEstado = o.estado;
         if (
           local.estadoActual === "Despachado" &&
@@ -52,7 +89,17 @@ export function useGestionProduccion() {
           fechaCambioEstado: local.updatedAt || o.fechaCambioEstado
         };
       });
+
       setOrdenes(merged);
+      if (res && !Array.isArray(res) && res.pagination) {
+        setPagination(res.pagination);
+        setSummary(res.summary || null);
+        setServerPaginated(true);
+      } else {
+        setPagination({ total: merged.length, page: currentPage, limit: pageSize, totalPages: Math.max(1, Math.ceil(merged.length / pageSize)) });
+        setSummary(null);
+        setServerPaginated(false);
+      }
       consecutiveFailuresRef.current = 0;
     } catch (err) {
       consecutiveFailuresRef.current = Math.min(consecutiveFailuresRef.current + 1, 3);
@@ -64,7 +111,7 @@ export function useGestionProduccion() {
       isFetchingRef.current = false;
       if (!isSilent) setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, filterEstado, debouncedSearch]);
 
   useEffect(() => {
     let active = true;
@@ -90,8 +137,10 @@ export function useGestionProduccion() {
     };
   }, [fetchOrdenes]);
 
-  // Buscador generalizado que busca por TODAS las columnas y atributos (Ítems 8, 17, 20 y Comandas)
-  const filteredOrdenes = ordenes.filter((o) => {
+  // Si el servidor ya filtró y paginó el slice, devolverlo directamente
+  const filteredOrdenes = serverPaginated
+    ? ordenes
+    : ordenes.filter((o) => {
     const hasSearch = Boolean(searchTerm && searchTerm.trim());
 
     const prodsString = Array.isArray(o.productos)
@@ -230,6 +279,13 @@ export function useGestionProduccion() {
   return {
     ordenes,
     filteredOrdenes,
+    pagination,
+    summary,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     loading,
     searchTerm,
     setSearchTerm,

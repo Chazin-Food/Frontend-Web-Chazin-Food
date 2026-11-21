@@ -3,15 +3,29 @@ import { proveedoresService } from "../servicios/proveedoresService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { apiClient } from "@/shared/api/apiClient";
 import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const PROVEEDORES_URL_DEFAULTS = {
+  q: "",
+  estado: "Todos",
+  tipo: "Todos"
+};
 
 export function useProveedores() {
   const notify = useNotifications();
+  const { filters, setFilter } = useUrlFilters(PROVEEDORES_URL_DEFAULTS);
+
   const [proveedores, setProveedores] = useState([]);
   const [papeleraProveedores, setPapeleraProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState("Todos");
-  const [filterTipo, setFilterTipo] = useState("Todos");
+
+  const searchTerm = filters.q;
+  const filterEstado = filters.estado;
+  const filterTipo = filters.tipo;
+
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setFilterTipo = useCallback((v) => setFilter("tipo", v), [setFilter]);
 
   // Traceability State from backend
   const [eventos, setEventos] = useState([]);

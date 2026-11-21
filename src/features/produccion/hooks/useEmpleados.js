@@ -3,6 +3,13 @@ import { empleadosService } from "../servicios/empleadosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch } from "@/shared/utils/searchUtils";
 import { getColombiaDateISO, extractDateOnlyISO, formatDateLong } from "@/shared/utils/dateUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const EMPLEADOS_URL_DEFAULTS = {
+  q: "",
+  estado: "Todos",
+  rol: "Todos"
+};
 
 const cleanMojibake = (str) => {
   if (!str || typeof str !== "string") return str;
@@ -75,12 +82,18 @@ const sanitizeEmpleado = (emp) => {
 
 export function useEmpleados() {
   const notify = useNotifications();
+  const { filters, setFilter } = useUrlFilters(EMPLEADOS_URL_DEFAULTS);
   const [empleados, setEmpleados] = useState([]);
   const [papeleraEmpleados, setPapeleraEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState("Todos");
-  const [filterRol, setFilterRol] = useState("Todos");
+
+  const searchTerm = filters.q;
+  const filterEstado = filters.estado;
+  const filterRol = filters.rol;
+
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setFilterRol = useCallback((v) => setFilter("rol", v), [setFilter]);
 
   const fetchEmpleados = useCallback(async () => {
     try {

@@ -376,17 +376,17 @@ export function HistorialComandasLista({
             })}
           </div>
 
-          {/* Desktop Table (lg+) */}
-          <div className="hidden lg:block overflow-x-auto touch-scroll-x flex-1">
-            <table className="w-full text-left border-collapse">
+          {/* Desktop Table (lg+) — sin scroll horizontal */}
+          <div className="hidden lg:block w-full overflow-hidden flex-1">
+            <table className="w-full table-fixed text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 text-[11px] font-black text-gray-400 uppercase tracking-wider">
-                  <th className="py-3 px-4">Comanda / Canal</th>
-                  <th className="py-3 px-4">Cliente</th>
-                  <th className="py-3 px-4">Fecha & Hora</th>
-                  <th className="py-3 px-4">Platillos Principales</th>
-                  <th className="py-3 px-4 text-center">Estado</th>
-                  <th className="py-3 px-4 text-right">Acciones</th>
+                  <th className="py-3 px-3 w-[18%]">Comanda / Canal</th>
+                  <th className="py-3 px-3 w-[18%]">Cliente</th>
+                  <th className="py-3 px-3 w-[15%]">Fecha & Hora</th>
+                  <th className="py-3 px-3 w-[27%]">Platillos Principales</th>
+                  <th className="py-3 px-3 w-[12%] text-center">Estado</th>
+                  <th className="py-3 px-3 w-[10%] text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs font-medium">

@@ -129,18 +129,18 @@ export function ProveedoresTable({ proveedores = [], onEdit, onDelete, onToggleE
         )}
       </div>
 
-      {/* Desktop Table (lg+) */}
-      <div className="hidden lg:block overflow-x-auto touch-scroll-x focus:outline-none">
-        <table className="w-full text-left border-collapse table-auto">
+      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      <div className="hidden lg:block w-full overflow-hidden focus:outline-none">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="px-3.5 sm:px-4 py-3.5 w-[26%]">Proveedor / Documento</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[10%]">Tipo</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[14%]">Contacto</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[18%]">Correo / Teléfono</th>
-              <th className="px-3.5 sm:px-4 py-3.5 w-[16%]">Dirección</th>
-              <th className="px-3.5 sm:px-4 py-3.5 text-center w-[8%]">Estado</th>
-              <th className="px-3.5 sm:px-4 py-3.5 text-center w-[8%]">Acciones</th>
+              <th className="px-3 py-3.5 w-[23%]">Proveedor / Documento</th>
+              <th className="px-2.5 py-3.5 w-[11%]">Tipo</th>
+              <th className="px-2.5 py-3.5 w-[13%]">Contacto</th>
+              <th className="px-2.5 py-3.5 w-[18%]">Correo / Teléfono</th>
+              <th className="px-2.5 py-3.5 w-[15%]">Dirección</th>
+              <th className="px-2 py-3.5 text-center w-[9%]">Estado</th>
+              <th className="px-2 py-3.5 text-center w-[11%]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs sm:text-sm">
@@ -158,23 +158,23 @@ export function ProveedoresTable({ proveedores = [], onEdit, onDelete, onToggleE
 
                 return (
                   <tr key={p.id || p.idProveedor} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="px-3.5 sm:px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
+                    <td className="px-3 py-3.5 align-middle">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                           <Building className="w-4 h-4" />
                         </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-gray-100">{p.nombre}</div>
-                          <div className="text-[11px] text-gray-400 font-mono mt-0.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100 truncate" title={p.nombre}>{p.nombre}</div>
+                          <div className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">
                             <span className="font-semibold text-gray-500 dark:text-gray-400">{docLabel}:</span>{" "}
                             {p.nit || p.numeroDocumento || "N/A"}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3.5 sm:px-4 py-3.5">
-                      <div className="flex flex-col gap-0.5 items-start">
-                        <span className="inline-flex items-center px-2 py-0.2 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                    <td className="px-2.5 py-3.5 align-middle">
+                      <div className="flex flex-col gap-0.5 items-start min-w-0">
+                        <span className="inline-flex items-center px-2 py-0.2 rounded-md text-[11px] font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 max-w-full truncate">
                           {p.tipoProveedor || p.tipoProveedorNombre || "Mayorista"}
                         </span>
                         <span className="inline-flex items-center px-1.5 py-0.2 rounded-md text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
@@ -182,27 +182,31 @@ export function ProveedoresTable({ proveedores = [], onEdit, onDelete, onToggleE
                         </span>
                       </div>
                     </td>
-                    <td className="px-3.5 sm:px-4 py-3.5 font-medium text-gray-800 dark:text-gray-200">
-                      {p.contacto || p.nombreContacto || "N/A"}
+                    <td className="px-2.5 py-3.5 font-medium text-gray-800 dark:text-gray-200 align-middle">
+                      <span className="block truncate" title={p.contacto || p.nombreContacto || "N/A"}>
+                        {p.contacto || p.nombreContacto || "N/A"}
+                      </span>
                     </td>
-                    <td className="px-3.5 sm:px-4 py-3.5">
-                      <div className="text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                    <td className="px-2.5 py-3.5 align-middle">
+                      <div className="text-xs text-gray-600 dark:text-gray-300 space-y-0.5 min-w-0">
                         {(p.email || p.correo) && (
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-3 h-3 text-gray-400" /> {p.email || p.correo}
+                          <div className="flex items-center gap-1 min-w-0">
+                            <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate" title={p.email || p.correo}>{p.email || p.correo}</span>
                           </div>
                         )}
                         {p.telefono && (
-                          <div className="flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-gray-400" /> {p.telefono}
+                          <div className="flex items-center gap-1 min-w-0">
+                            <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate">{p.telefono}</span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-3.5 sm:px-4 py-3.5 text-gray-600 dark:text-gray-300 text-xs">
-                      <div className="flex items-center gap-1">
+                    <td className="px-2.5 py-3.5 text-gray-600 dark:text-gray-300 text-xs align-middle">
+                      <div className="flex items-center gap-1 min-w-0">
                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                        <span className="truncate max-w-xs">{p.direccion || "N/A"}</span>
+                        <span className="truncate" title={p.direccion || "N/A"}>{p.direccion || "N/A"}</span>
                       </div>
                     </td>
                     <td className="px-3.5 sm:px-4 py-3.5 text-center">

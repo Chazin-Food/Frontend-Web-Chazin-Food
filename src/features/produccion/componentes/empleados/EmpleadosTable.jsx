@@ -277,27 +277,27 @@ export function EmpleadosTable({
         })}
       </div>
 
-      {/* Desktop Table (lg+) con overflow-x-auto seguro */}
-      <div className={`hidden lg:block w-full overflow-x-auto touch-scroll-x ${hasVerticalScroll ? "max-h-[420px] overflow-y-auto" : ""}`}>
-        <table className="w-full min-w-[920px] text-left border-collapse table-auto">
+      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      <div className={`hidden lg:block w-full overflow-x-hidden ${hasVerticalScroll ? "max-h-[420px] overflow-y-auto" : "overflow-hidden"}`}>
+        <table className="w-full table-fixed text-left border-collapse">
           <thead className={hasVerticalScroll ? "sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 shadow-2xs" : ""}>
             <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-800/50 text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">
               {/* 1. DOCUMENTO DE IDENTIDAD DE PRIMERO */}
-              <th className="py-3 px-3 sm:px-4 w-[13%]">Documento</th>
+              <th className="py-3 px-2.5 w-[13%]">Documento</th>
               {/* 2. EMPLEADO */}
-              <th className="py-3 px-3 sm:px-4 w-[21%]">Empleado</th>
+              <th className="py-3 px-2.5 w-[19%]">Empleado</th>
               {/* 3. ROL & TURNO */}
-              <th className="py-3 px-3 sm:px-4 w-[14%]">Rol & Turno</th>
+              <th className="py-3 px-2.5 w-[13%]">Rol & Turno</th>
               {/* 4. CONTACTO */}
-              <th className="py-3 px-3 sm:px-4 w-[16%]">Contacto</th>
+              <th className="py-3 px-2.5 w-[16%]">Contacto</th>
               {/* 5. CONTRATACIÓN (FECHAS DE INICIO Y FIN) */}
-              <th className="py-3 px-3 sm:px-4 w-[14%]">Contratación</th>
+              <th className="py-3 px-2.5 w-[14%]">Contratación</th>
               {/* 6. SALARIO */}
-              <th className="py-3 px-3 sm:px-4 w-[10%]">Salario</th>
+              <th className="py-3 px-2.5 w-[10%]">Salario</th>
               {/* 7. ESTADO */}
-              <th className="py-3 px-3 sm:px-4 w-[6%]">Estado</th>
+              <th className="py-3 px-2 w-[7%]">Estado</th>
               {/* 8. ACCIONES */}
-              <th className="py-3 px-2 sm:px-3 text-center w-[6%]">Acciones</th>
+              <th className="py-3 px-2 text-center w-[8%]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
@@ -341,11 +341,11 @@ export function EmpleadosTable({
                           initials || "EM"
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <span className="font-bold text-gray-900 dark:text-white block leading-tight text-xs sm:text-sm truncate">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-gray-900 dark:text-white block leading-tight text-xs sm:text-sm truncate" title={`${emp.nombre || ""} ${emp.apellidos || ""}`.trim()}>
                           {emp.nombre} {emp.apellidos}
                         </span>
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500 block">
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500 block truncate">
                           ID #{emp.idEmpleado}
                         </span>
                       </div>

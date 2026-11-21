@@ -84,9 +84,9 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
         )}
       </div>
 
-      {/* Desktop Table (md+) */}
-      <div className="hidden md:block overflow-x-auto touch-scroll-x focus:outline-none">
-        <table className="w-full text-left border-collapse table-auto">
+      {/* Desktop Table (md+) — sin scroll horizontal */}
+      <div className="hidden md:block w-full overflow-hidden focus:outline-none">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-[#1e293b] dark:text-gray-200 uppercase tracking-wider">
               <th className="px-4 sm:px-6 py-3.5 w-[28%] text-left">Nombre</th>
@@ -115,8 +115,8 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
                           <FoodIcon name={c.icon || c.nombre || "bread"} category={c.nombre} size={20} stroke={1.75} />
                         )}
                       </div>
-                      <div>
-                        <span className="font-bold text-[#1e293b] dark:text-gray-100 block">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-[#1e293b] dark:text-gray-100 block truncate" title={c.nombre}>
                           {c.nombre}
                         </span>
                         <span className="text-[11px] text-gray-400 font-normal">

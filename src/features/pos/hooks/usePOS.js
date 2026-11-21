@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { posService } from "../servicios/posService";
+import { subscribeCatalogUpdates } from "@/shared/utils/secureStorage";
+import { isVariantActive } from "@/shared/utils/productVariantUtils";
 
 function findCartItemIndex(cart, productoId, varianteId, adicionIds, observacion = "", ingredientesRemovidos = [], esVarianteBase = false) {
   const normObs = String(observacion || "").trim().toLowerCase();
@@ -36,58 +38,145 @@ export function usePOS({ initialClienteId = null } = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const [resCategorias, resProductos] = await Promise.all([
-          posService.getCategorias(),
-          posService.getProductos()
-        ]);
-        if (!active) return;
+  const lastCatalogFetchRef = useRef(0);
+  const fetchCatalogPOS = useCallback(async ({ silent = false, forceRefresh = false } = {}) => {
+    try {
+      if (!silent) setLoading(true);
+      lastCatalogFetchRef.current = Date.now();
+      const [resCategorias, resProductos] = await Promise.all([
+        posService.getCategorias(),
+        posService.getProductos(forceRefresh ? { refresh: "true" } : undefined)
+      ]);
 
-        const rawCats = Array.isArray(resCategorias)
-          ? resCategorias
-          : (Array.isArray(resCategorias?.data) ? resCategorias.data : (resCategorias?.data?.data || resCategorias?.data?.categorias || []));
+      const rawCats = Array.isArray(resCategorias)
+        ? resCategorias
+        : (Array.isArray(resCategorias?.data) ? resCategorias.data : (resCategorias?.data?.data || resCategorias?.data?.categorias || []));
 
-        const activeCategorias = rawCats.filter(c =>
-          (c.estado === 'Activo' || c.estado === 1) &&
-          c.id !== 0 &&
-          c.idCategoriaProducto !== 0 &&
-          !c.nombre?.startsWith('__SISTEMA')
-        );
-        setCategorias(activeCategorias);
+      const activeCategorias = rawCats.filter(c =>
+        (c.estado === 'Activo' || c.estado === 1) &&
+        c.id !== 0 &&
+        c.idCategoriaProducto !== 0 &&
+        !c.nombre?.startsWith('__SISTEMA')
+      );
+      setCategorias(activeCategorias);
 
-        const rawProds = Array.isArray(resProductos)
-          ? resProductos
-          : (Array.isArray(resProductos?.data) ? resProductos.data : (resProductos?.data?.data || resProductos?.data?.productos || []));
+      const rawProds = Array.isArray(resProductos)
+        ? resProductos
+        : (Array.isArray(resProductos?.data) ? resProductos.data : (resProductos?.data?.data || resProductos?.data?.productos || []));
 
-        const activeProductos = rawProds
-          .filter(p =>
-            p.id !== 0 &&
-            p.idProducto !== 0 &&
-            !p.nombre?.startsWith('__SISTEMA')
-          )
-          .map(p => {
-            const isInactive = p.estado === 'Inactivo' || p.estado === 0;
-            const rawStock = Number(p.stock !== undefined ? p.stock : (p.stockActual !== undefined ? p.stockActual : 0));
-            const finalStock = isInactive ? 0 : rawStock;
-            return {
-              ...p,
-              stock: finalStock,
-              agotado: Boolean(p.agotado || isInactive || finalStock <= 0)
-            };
-          });
-        setProductos(activeProductos);
-      } catch (e) {
-        console.error('Error al cargar catálogo POS:', e);
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
+      const activeProductos = rawProds
+        .filter(p =>
+          p.id !== 0 &&
+          p.idProducto !== 0 &&
+          !p.nombre?.startsWith('__SISTEMA')
+        )
+        .map(p => {
+          const isInactive = p.estado === 'Inactivo' || p.estado === 0;
+          const rawStock = Number(p.stock !== undefined ? p.stock : (p.stockActual !== undefined ? p.stockActual : 0));
+          const finalStock = isInactive ? 0 : rawStock;
+          return {
+            ...p,
+            stock: finalStock,
+            agotado: Boolean(p.agotado || isInactive || finalStock <= 0)
+          };
+        });
+      setProductos(activeProductos);
+    } catch (e) {
+      console.error('Error al cargar catálogo POS:', e);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchCatalogPOS({ silent: false, forceRefresh: false });
+    const unsub = subscribeCatalogUpdates(() => {
+      fetchCatalogPOS({ silent: true, forceRefresh: true });
+    });
+    const onFocus = () => {
+      if (Date.now() - lastCatalogFetchRef.current > 15000) {
+        fetchCatalogPOS({ silent: true, forceRefresh: true });
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      unsub();
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [fetchCatalogPOS]);
+
+  // Sincronizar carrito POS si un producto cambia de precio, nombre, estado, variante o stock
+  useEffect(() => {
+    if (!Array.isArray(productos) || productos.length === 0) return;
+    setCart((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev;
+      const prodMap = new Map(productos.map((p) => [String(p.id || p.idProducto), p]));
+      let changed = false;
+      const usedQty = new Map();
+      const next = [];
+
+      for (const it of prev) {
+        const pid = String(it.productoId || "");
+        const liveProd = prodMap.get(pid);
+        if (!liveProd) {
+          changed = true;
+          continue;
+        }
+        const liveStock = Number(liveProd.stock ?? 0);
+        if (liveProd.agotado || liveStock <= 0) {
+          changed = true;
+          continue;
+        }
+
+        let livePrice = Number(liveProd.precio) || 0;
+        let liveVarName = it.varianteNombre;
+        if (!it.esVarianteBase && it.varianteId && String(it.varianteId) !== pid) {
+          const liveVar = (liveProd.variantes || []).find(
+            (v) => String(v.idVariante || v.id) === String(it.varianteId) && isVariantActive(v)
+          );
+          if (!liveVar) {
+            changed = true;
+            continue;
+          }
+          if (liveVar.precio !== undefined) livePrice = Number(liveVar.precio) || livePrice;
+          if (liveVar.nombre) liveVarName = liveVar.nombre;
+        }
+
+        const used = usedQty.get(pid) || 0;
+        const avail = Math.max(0, liveStock - used);
+        if (avail <= 0) {
+          changed = true;
+          continue;
+        }
+        const nextQty = Math.min(Number(it.cantidad || 1), avail);
+        usedQty.set(pid, used + nextQty);
+
+        const nextNombre = liveProd.nombre || it.nombre;
+        const nextCocina = it.is2x1Promo ? nextQty * 2 : nextQty;
+        if (
+          nextNombre !== it.nombre ||
+          Number(livePrice) !== Number(it.precio) ||
+          liveStock !== Number(it.stock) ||
+          nextQty !== Number(it.cantidad) ||
+          liveVarName !== it.varianteNombre
+        ) {
+          changed = true;
+          next.push({
+            ...it,
+            nombre: nextNombre,
+            precio: livePrice,
+            stock: liveStock,
+            cantidad: nextQty,
+            cantidadCocina: nextCocina,
+            varianteNombre: liveVarName
+          });
+        } else {
+          next.push(it);
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [productos]);
 
   const subtotal = useMemo(() => {
     return cart.reduce((acc, it) => {

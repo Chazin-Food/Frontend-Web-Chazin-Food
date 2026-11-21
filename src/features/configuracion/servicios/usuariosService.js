@@ -1,8 +1,15 @@
 import { apiClient } from "@/shared/api/apiClient";
 
 export const usuariosService = {
-  getUsuarios: async () => {
-    return await apiClient.get("/usuarios");
+  getUsuarios: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.page !== undefined && params.page !== null) query.append("page", String(params.page));
+    if (params.limit !== undefined && params.limit !== null) query.append("limit", String(params.limit));
+    if (params.search && String(params.search).trim()) query.append("search", String(params.search).trim());
+    if (params.rol && params.rol !== "Todos") query.append("rol", params.rol);
+    if (params.estado && params.estado !== "Todos") query.append("estado", params.estado);
+    const qs = query.toString();
+    return await apiClient.get(`/usuarios${qs ? `?${qs}` : ""}`);
   },
 
   getRoles: async () => {

@@ -69,7 +69,8 @@ const normalizeTipoEvento = (raw) => {
   if (low.includes("2x1") || low.includes("dos por uno")) return "2x1 / Combo Especial";
   if (low.includes("combo")) return "2x1 / Combo Especial";
   if (low.includes("descuento") || low.includes("discount") || low.includes("%")) return "Descuento";
-  if (low.includes("precio") || low.includes("flash") || low.includes("relampago") || low.includes("relámpago")) return "Promoción Precio";
+  if (low.includes("hora feliz") || low.includes("flash") || low.includes("relampago") || low.includes("relámpago")) return "Hora Feliz / Oferta Relámpago";
+  if (low.includes("precio")) return "Promoción Precio";
   if (low.includes("insumo") || low.includes("topping") || low.includes("cortesia") || low.includes("cortesía")) return "Añadir Insumos";
   if (low.includes("edicion") || low.includes("edición") || low.includes("festival") || low.includes("limitada")) return "Edición Especial";
   return "2x1 / Combo Especial";
@@ -161,7 +162,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
   useEffect(() => {
     if (!isOpen) return;
 
-    setActiveStep(1);
+    setActiveStep(eventoToEdit ? 3 : 1);
     setFormErrors({});
     setTouched({});
     setSubmitted(false);
@@ -190,23 +191,50 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
 
       let parsedProds = [];
       try {
-        parsedProds = typeof eventoToEdit.productosAsociados === "string" ? JSON.parse(eventoToEdit.productosAsociados) : (eventoToEdit.productos || []);
+        if (Array.isArray(eventoToEdit.productosAsociados)) {
+          parsedProds = eventoToEdit.productosAsociados;
+        } else if (typeof eventoToEdit.productosAsociados === "string" && eventoToEdit.productosAsociados.trim()) {
+          const tmp = JSON.parse(eventoToEdit.productosAsociados);
+          parsedProds = Array.isArray(tmp) ? tmp : [];
+        } else if (Array.isArray(eventoToEdit.productos)) {
+          parsedProds = eventoToEdit.productos;
+        }
       } catch (e) {
         parsedProds = [];
       }
-      if (Array.isArray(parsedProds) && parsedProds.length === 0 && (eventoToEdit.idProducto || eventoToEdit.producto)) {
-        const pObj = eventoToEdit.producto;
-        parsedProds = [{
-          id: eventoToEdit.idProducto || pObj?.id || pObj?.idProducto,
-          nombre: pObj?.nombre || 'Producto Principal',
-          precioBase: pObj?.precio || 0,
-          nuevoPrecio: eventoToEdit.nuevoPrecio != null ? String(eventoToEdit.nuevoPrecio) : '',
-          descuento: eventoToEdit.descuento != null ? String(eventoToEdit.descuento) : ''
-        }];
-      }
-      setProductosSeleccionados(Array.isArray(parsedProds) ? parsedProds : []);
 
-      const existingImg = eventoToEdit.imagen || eventoToEdit.producto?.imagen || "";
+      const fallbackProd = currentProducto || eventoToEdit.producto || null;
+      parsedProds = parsedProds
+        .filter((item) => item && (item.id || item.idProducto))
+        .map((item) => {
+          const pid = Number(item.id || item.idProducto);
+          const isFallbackMatch = fallbackProd && Number(fallbackProd.id || fallbackProd.idProducto) === pid;
+          return {
+            id: pid,
+            idProducto: pid,
+            nombre: item.nombre || (isFallbackMatch ? fallbackProd.nombre : `Producto #${pid}`),
+            precioBase: Number(item.precioBase ?? item.precio ?? (isFallbackMatch ? fallbackProd.precio : 0)),
+            nuevoPrecio: item.nuevoPrecio != null ? String(item.nuevoPrecio) : (eventoToEdit.nuevoPrecio != null ? String(eventoToEdit.nuevoPrecio) : ""),
+            descuento: item.descuento != null ? String(item.descuento) : (eventoToEdit.descuento != null ? String(eventoToEdit.descuento) : "")
+          };
+        });
+
+      if (parsedProds.length === 0 && (eventoToEdit.idProducto || fallbackProd)) {
+        const pid = Number(eventoToEdit.idProducto || fallbackProd?.id || fallbackProd?.idProducto || 0);
+        if (pid > 0) {
+          parsedProds = [{
+            id: pid,
+            idProducto: pid,
+            nombre: fallbackProd?.nombre || "Producto Principal",
+            precioBase: Number(fallbackProd?.precio || 0),
+            nuevoPrecio: eventoToEdit.nuevoPrecio != null ? String(eventoToEdit.nuevoPrecio) : "",
+            descuento: eventoToEdit.descuento != null ? String(eventoToEdit.descuento) : ""
+          }];
+        }
+      }
+      setProductosSeleccionados(parsedProds);
+
+      const existingImg = eventoToEdit.imagen || fallbackProd?.imagen || "";
       setEventoImagen(existingImg);
       setImagePreviewUrl(existingImg);
     } else {
@@ -1288,7 +1316,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                       </p>
                     </div>
 
-                    {!producto && (
+                    {(!producto || isEditing) && (
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] font-black uppercase text-gray-400 mr-1">Añadir Categoría:</span>
                         {["Hamburguesas", "Perros Calientes", "Salchipapas Gourmet", "Combos", "Bebidas"].map(cat => (
@@ -1305,7 +1333,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                     )}
                   </div>
 
-                  {!producto && (
+                  {(!producto || isEditing) && (
                     <div className="relative">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
@@ -3225,7 +3253,7 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
               </button>
             )}
 
-            {activeStep < 3 ? (
+            {activeStep < 3 && (
               <button
                 type="button"
                 onClick={handleNextStep}
@@ -3234,7 +3262,9 @@ export function CrearEventoModal({ isOpen, onClose, producto, onCreated, eventoT
                 <span>Siguiente Paso</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
-            ) : (
+            )}
+
+            {(activeStep === 3 || isEditing) && (
               <button
                 type="button"
                 onClick={handleSubmit}

@@ -138,16 +138,16 @@ export function CategoriaProductosTable({
         )}
       </div>
 
-      {/* Desktop Table (md+) */}
-      <div className="hidden md:block overflow-x-auto touch-scroll-x">
-        <table className="w-full text-left border-collapse">
+      {/* Desktop Table (md+) — sin scroll horizontal */}
+      <div className="hidden md:block w-full overflow-hidden">
+        <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="px-6 py-4">Categoría</th>
-              <th className="px-6 py-4">Descripción</th>
-              <th className="px-6 py-4">Productos en Menú</th>
-              <th className="px-6 py-4">Estado</th>
-              <th className="px-6 py-4 text-right">Acciones</th>
+              <th className="px-5 py-4 w-[28%]">Categoría</th>
+              <th className="px-5 py-4 w-[32%]">Descripción</th>
+              <th className="px-4 py-4 w-[16%]">Productos en Menú</th>
+              <th className="px-4 py-4 w-[12%]">Estado</th>
+              <th className="px-5 py-4 w-[12%] text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
@@ -183,8 +183,8 @@ export function CategoriaProductosTable({
                             <FoodIcon name={c.icon || c.nombre || "burger"} category={c.nombre} size={20} stroke={1.75} />
                           )}
                         </div>
-                        <div>
-                          <span className="font-bold text-gray-900 dark:text-gray-100 block">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-gray-900 dark:text-gray-100 block truncate" title={c.nombre}>
                             {c.nombre}
                           </span>
                           <span className="text-[11px] text-gray-400 font-normal">
@@ -193,8 +193,10 @@ export function CategoriaProductosTable({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 text-gray-600 dark:text-gray-300">
-                      {c.descripcion || "Sin descripción"}
+                    <td className="px-5 py-3.5 text-gray-600 dark:text-gray-300">
+                      <span className="line-clamp-2 break-words" title={c.descripcion || "Sin descripción"}>
+                        {c.descripcion || "Sin descripción"}
+                      </span>
                     </td>
                     <td className="px-6 py-3.5 text-gray-900 dark:text-gray-100 font-bold">
                       <span className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">

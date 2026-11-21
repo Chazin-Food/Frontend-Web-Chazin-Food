@@ -3,6 +3,15 @@ import { usuariosService } from "../servicios/usuariosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
 import { isCedulaValida } from "@/shared/utils/validationUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const USUARIOS_URL_DEFAULTS = {
+  q: "",
+  rol: "Todos",
+  estado: "Todos",
+  page: 1,
+  limit: 10
+};
 
 function getIniciales(nombre = "") {
   return nombre.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 2);
@@ -10,12 +19,23 @@ function getIniciales(nombre = "") {
 
 export function useUsuarios() {
   const { success, error: notifError, warning, confirmDelete, confirmAction } = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(USUARIOS_URL_DEFAULTS);
+
   const [usuarios, setUsuarios] = useState([]);
   const [rolesList, setRolesList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterRol, setFilterRol] = useState("Todos");
-  const [filterEstado, setFilterEstado] = useState("Todos");
+
+  const searchTerm = filters.q;
+  const filterRol = filters.rol;
+  const filterEstado = filters.estado;
+  const currentPage = filters.page;
+  const pageSize = filters.limit;
+
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterRol = useCallback((v) => setFilter("rol", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setPageSize = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -239,6 +259,10 @@ export function useUsuarios() {
     setFilterRol,
     filterEstado,
     setFilterEstado,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     refetch: fetchUsers,
     createUsuario,
     updateUsuario,

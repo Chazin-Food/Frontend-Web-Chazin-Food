@@ -3,32 +3,76 @@ import { comprasService } from "../servicios/comprasService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
 import { COLOMBIA_TZ, parseDateOnlySafe } from "@/shared/utils/dateUtils";
+import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
+
+const COMPRAS_URL_DEFAULTS = {
+  q: "",
+  estado: "Todos",
+  page: 1,
+  limit: 10
+};
 
 export function useGestionCompras() {
   const notify = useNotifications();
+  const { filters, setFilter, setFilters } = useUrlFilters(COMPRAS_URL_DEFAULTS);
+
   const [compras, setCompras] = useState([]);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [summary, setSummary] = useState(null);
+  const [serverPaginated, setServerPaginated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState("Todos");
+
+  const searchTerm = filters.q;
+  const filterEstado = filters.estado;
+  const currentPage = filters.page;
+  const pageSize = filters.limit;
+
+  const setSearchTerm = useCallback((v) => setFilter("q", v), [setFilter]);
+  const setFilterEstado = useCallback((v) => setFilter("estado", v), [setFilter]);
+  const setCurrentPage = useCallback((v) => setFilter("page", v, { resetPage: false }), [setFilter]);
+  const setPageSize = useCallback((v) => setFilters({ limit: v, page: 1 }), [setFilters]);
+
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
   const fetchCompras = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await comprasService.getCompras();
-      setCompras(data || []);
+      const res = await comprasService.getCompras({
+        page: currentPage,
+        limit: pageSize,
+        estado: filterEstado,
+        search: debouncedSearch
+      });
+      if (res && !Array.isArray(res) && Array.isArray(res.data)) {
+        setCompras(res.data);
+        setPagination(res.pagination || { total: res.data.length, page: currentPage, limit: pageSize, totalPages: 1 });
+        setSummary(res.summary || null);
+        setServerPaginated(true);
+      } else {
+        const arr = Array.isArray(res) ? res : [];
+        setCompras(arr);
+        setPagination({ total: arr.length, page: currentPage, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
+        setSummary(null);
+        setServerPaginated(false);
+      }
     } catch (err) {
       console.error(err);
       notify.error("Error", err.message || "Error al cargar las compras");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, pageSize, filterEstado, debouncedSearch]);
 
   useEffect(() => {
     fetchCompras();
   }, [fetchCompras]);
 
   const filteredCompras = useMemo(() => {
+    if (serverPaginated) return compras;
     const hasSearch = Boolean(searchTerm && searchTerm.trim());
 
     const list = compras.filter((c) => {
@@ -233,6 +277,13 @@ export function useGestionCompras() {
   return {
     compras,
     filteredCompras,
+    pagination,
+    summary,
+    serverPaginated,
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
     loading,
     searchTerm,
     setSearchTerm,

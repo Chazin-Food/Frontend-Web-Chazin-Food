@@ -4,9 +4,28 @@
  * estimación híbrida (Automática Inteligente + Manual) y trazabilidad acumulativa de hora por cada estado.
  */
 
-const LOCAL_TRANSITIONS_STORAGE_KEY = "chazin_tiempos_estados_v2";
-const LOCAL_DELIVERY_MODE_STORAGE_KEY = "chazin_modo_tiempo_entrega_v1";
 import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
+import { getClientMeta, setClientMeta } from "@/shared/utils/secureStorage";
+
+const LEGACY_TRANSITIONS_KEY = "chazin_tiempos_estados_v2";
+const LEGACY_DELIVERY_MODE_KEY = "chazin_modo_tiempo_entrega_v1";
+
+function readMetaSectionWithLegacy(section, legacyKey) {
+  const existing = getClientMeta(section, "__store", null);
+  if (existing && typeof existing === "object") return existing;
+  try {
+    const raw = window.localStorage.getItem(legacyKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        setClientMeta(section, "__store", parsed);
+        window.localStorage.removeItem(legacyKey);
+        return parsed;
+      }
+    }
+  } catch (_) {}
+  return {};
+}
 
 export function evaluateProductionSemaphore(minutes, targetMin = 12) {
   const safeTarget = Number(targetMin) > 0 ? Number(targetMin) : 12;
@@ -18,8 +37,7 @@ export function evaluateProductionSemaphore(minutes, targetMin = 12) {
 export function recordLocalDeliveryTimeMode(orderId, mode = "AUTO", customTime = null) {
   if (!orderId || typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(LOCAL_DELIVERY_MODE_STORAGE_KEY);
-    const store = raw ? JSON.parse(raw) : {};
+    const store = { ...readMetaSectionWithLegacy("deliveryMode", LEGACY_DELIVERY_MODE_KEY) };
     const key = String(orderId);
     const normalizedMode = String(mode || "AUTO").toUpperCase() === "MANUAL" ? "MANUAL" : "AUTO";
     store[key] = {
@@ -27,7 +45,7 @@ export function recordLocalDeliveryTimeMode(orderId, mode = "AUTO", customTime =
       value: customTime ? String(customTime).trim() : null,
       updatedAt: new Date().toISOString()
     };
-    window.localStorage.setItem(LOCAL_DELIVERY_MODE_STORAGE_KEY, JSON.stringify(store));
+    setClientMeta("deliveryMode", "__store", store);
     return store[key];
   } catch (e) {
     return null;
@@ -37,9 +55,7 @@ export function recordLocalDeliveryTimeMode(orderId, mode = "AUTO", customTime =
 export function getLocalDeliveryTimeMode(orderId) {
   if (!orderId || typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(LOCAL_DELIVERY_MODE_STORAGE_KEY);
-    if (!raw) return null;
-    const store = JSON.parse(raw);
+    const store = readMetaSectionWithLegacy("deliveryMode", LEGACY_DELIVERY_MODE_KEY);
     return store[String(orderId)] || null;
   } catch (e) {
     return null;
@@ -92,8 +108,7 @@ function normalizeStateKey(rawState = "") {
 export function recordLocalOrderTransition(orderId, nuevoEstado, baseOrder = null) {
   if (!orderId || typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(LOCAL_TRANSITIONS_STORAGE_KEY);
-    const store = raw ? JSON.parse(raw) : {};
+    const store = { ...readMetaSectionWithLegacy("orderTransitions", LEGACY_TRANSITIONS_KEY) };
     const key = String(orderId);
     const existing = store[key] || { tiemposEstados: {} };
 
@@ -123,7 +138,7 @@ export function recordLocalOrderTransition(orderId, nuevoEstado, baseOrder = nul
     };
 
     store[key] = existing;
-    window.localStorage.setItem(LOCAL_TRANSITIONS_STORAGE_KEY, JSON.stringify(store));
+    setClientMeta("orderTransitions", "__store", store);
     return existing;
   } catch (e) {
     return null;
@@ -133,9 +148,7 @@ export function recordLocalOrderTransition(orderId, nuevoEstado, baseOrder = nul
 export function getLocalOrderTransition(orderId) {
   if (!orderId || typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(LOCAL_TRANSITIONS_STORAGE_KEY);
-    if (!raw) return null;
-    const store = JSON.parse(raw);
+    const store = readMetaSectionWithLegacy("orderTransitions", LEGACY_TRANSITIONS_KEY);
     return store[String(orderId)] || null;
   } catch (e) {
     return null;
