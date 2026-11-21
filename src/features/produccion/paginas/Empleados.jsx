@@ -143,14 +143,6 @@ export function Empleados() {
     });
   };
 
-  if (loading && empleados.length === 0) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
-        <ChazinLoader size="lg" text="Cargando Gestión de Empleados..." />
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 w-full space-y-6 animate-in fade-in duration-300">
       
@@ -341,7 +333,11 @@ export function Empleados() {
       </div>
 
       {/* Vista de Tabla a Ancho Completo */}
-      {viewMode === "papelera" ? (
+      {loading && empleados.length === 0 ? (
+        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xs py-12 flex items-center justify-center">
+          <ChazinLoader text="CARGANDO EMPLEADOS" size="md" />
+        </div>
+      ) : viewMode === "papelera" ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 p-4 rounded-2xl border border-amber-200 dark:border-amber-800/60">
             <div>

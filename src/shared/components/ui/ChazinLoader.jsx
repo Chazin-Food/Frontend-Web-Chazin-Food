@@ -84,10 +84,11 @@ export const ChazinLoader = ({
     };
   }, [size]);
 
-  // Dimensiones según tamaño (sm, md, lg)
+  // Dimensiones según tamaño (sm, md, lg) con espacio superior reservado para el salto vertical
   const sizeConfig = {
     sm: {
       slimeJumpH: "-38px",
+      jumpHeadroom: "pt-10",
       logoSize: "w-20 h-20",
       shadowSize: "w-16 h-1.5 mt-1.5",
       textClass: "text-[10px] tracking-[0.24em] mt-4",
@@ -96,6 +97,7 @@ export const ChazinLoader = ({
     },
     md: {
       slimeJumpH: "-65px",
+      jumpHeadroom: "pt-16",
       logoSize: "w-32 h-32 sm:w-36 sm:h-36",
       shadowSize: "w-28 sm:w-32 h-2.5 mt-2",
       textClass: "text-[11px] tracking-[0.28em] mt-7",
@@ -104,6 +106,7 @@ export const ChazinLoader = ({
     },
     lg: {
       slimeJumpH: "-115px",
+      jumpHeadroom: "pt-28",
       logoSize: "w-52 h-52 sm:w-60 sm:h-60",
       shadowSize: "w-44 sm:w-52 h-3.5 mt-3",
       textClass: "text-[13px] tracking-[0.32em] mt-12",
@@ -112,6 +115,7 @@ export const ChazinLoader = ({
     }
   }[size] || {
     slimeJumpH: "-115px",
+    jumpHeadroom: "pt-28",
     logoSize: "w-52 h-52 sm:w-60 sm:h-60",
     shadowSize: "w-44 sm:w-52 h-3.5 mt-3",
     textClass: "text-[13px] tracking-[0.32em] mt-12",
@@ -121,7 +125,7 @@ export const ChazinLoader = ({
 
   const content = (
     <div
-      className={`relative flex flex-col items-center justify-center select-none ${className}`}
+      className={`relative flex flex-col items-center justify-center select-none ${fullScreen ? "pt-14" : sizeConfig.jumpHeadroom} ${className}`}
       style={{ "--slime-jump-h": sizeConfig.slimeJumpH }}
     >
       {/* Contenedor del Slime con Animación Física de Salto */}
