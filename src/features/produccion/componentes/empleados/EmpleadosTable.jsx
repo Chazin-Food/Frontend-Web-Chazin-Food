@@ -48,10 +48,10 @@ export function EmpleadosTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5); // Inicia con 5 registros
 
-  // Reset page to 1 when dataset changes (e.g. search or filter applied)
+  // Reset page to 1 whenever filtered dataset changes (search or filter applied)
   useEffect(() => {
     setCurrentPage(1);
-  }, [empleados.length]);
+  }, [empleados]);
 
   const totalRecords = empleados.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));

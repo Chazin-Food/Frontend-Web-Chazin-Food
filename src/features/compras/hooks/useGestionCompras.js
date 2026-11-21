@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { comprasService } from "../servicios/comprasService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens, formatCurrencyTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
 import { COLOMBIA_TZ, parseDateOnlySafe } from "@/shared/utils/dateUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
@@ -38,25 +38,35 @@ export function useGestionCompras() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
+  const hasClientSearch = Boolean(debouncedSearch && debouncedSearch.trim());
+  const serverPage = hasClientSearch ? 1 : currentPage;
+  const serverLimit = hasClientSearch ? 0 : pageSize;
+  const serverEstado = hasClientSearch ? "Todos" : filterEstado;
+
   const fetchCompras = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await comprasService.getCompras({
-        page: currentPage,
-        limit: pageSize,
-        estado: filterEstado,
-        search: debouncedSearch
-      });
-      if (res && !Array.isArray(res) && Array.isArray(res.data)) {
+      // Cuando el usuario busca texto, traer el conjunto completo una sola vez para filtrar al instante en cliente con searchUtils
+      const requestParams = hasClientSearch
+        ? {}
+        : {
+            page: serverPage,
+            limit: serverLimit,
+            estado: serverEstado
+          };
+      const res = await comprasService.getCompras(requestParams);
+      if (!hasClientSearch && res && !Array.isArray(res) && Array.isArray(res.data)) {
         setCompras(res.data);
-        setPagination(res.pagination || { total: res.data.length, page: currentPage, limit: pageSize, totalPages: 1 });
+        setPagination(res.pagination || { total: res.data.length, page: serverPage, limit: serverLimit, totalPages: 1 });
         setSummary(res.summary || null);
         setServerPaginated(true);
       } else {
-        const arr = Array.isArray(res) ? res : [];
+        const arr = res && !Array.isArray(res) && Array.isArray(res.data)
+          ? res.data
+          : (Array.isArray(res) ? res : []);
         setCompras(arr);
-        setPagination({ total: arr.length, page: currentPage, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
-        setSummary(null);
+        setPagination({ total: arr.length, page: 1, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
+        setSummary((res && !Array.isArray(res) && res.summary) ? res.summary : null);
         setServerPaginated(false);
       }
     } catch (err) {
@@ -65,7 +75,7 @@ export function useGestionCompras() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, filterEstado, debouncedSearch]);
+  }, [hasClientSearch, serverPage, serverLimit, serverEstado]);
 
   useEffect(() => {
     fetchCompras();
@@ -91,47 +101,63 @@ export function useGestionCompras() {
       // Recopilar todos los textos de la compra de manera segura
       const searchTokens = [];
 
-      // IDs y códigos
-      if (c.id !== undefined && c.id !== null) searchTokens.push(String(c.id), `#${c.id}`, `id: ${c.id}`);
-      if (c.idCompra !== undefined && c.idCompra !== null) searchTokens.push(String(c.idCompra), `#${c.idCompra}`);
+      // IDs y códigos (con #, -, /, OC-XXXX)
+      const compraId = c.id || c.idCompra;
+      if (compraId !== undefined && compraId !== null) {
+        searchTokens.push(...formatIdTokens(compraId));
+        searchTokens.push(`OC-${String(compraId).padStart(4, "0")}`);
+      }
       if (c.numeroFactura) {
         searchTokens.push(String(c.numeroFactura));
       } else {
         searchTokens.push("sin_factura sin factura");
       }
 
-      // Proveedor
+      // Proveedor y tipo de proveedor
       const provNombre = c.proveedorNombre || (typeof c.proveedor === "string" ? c.proveedor : c.proveedor?.nombre) || "";
-      if (provNombre && provNombre !== "Proveedor Genérico" && provNombre !== "Proveedor Desconocido" && provNombre !== "Sin proveedor") {
+      if (provNombre && !["Proveedor Genérico", "Proveedor Desconocido", "Sin proveedor"].includes(provNombre)) {
         searchTokens.push(provNombre);
       } else {
-        searchTokens.push("sin_proveedor sin proveedor compra_directa sin_prov directa");
+        searchTokens.push("Sin proveedor", "sin_proveedor sin proveedor compra_directa sin_prov directa");
       }
       if (c.proveedor && typeof c.proveedor === "object") {
+        if (c.proveedor.tipoProveedor) searchTokens.push(String(c.proveedor.tipoProveedor));
+        if (c.proveedor.tipoPersona) searchTokens.push(String(c.proveedor.tipoPersona));
         if (c.proveedor.nombreContacto) searchTokens.push(String(c.proveedor.nombreContacto));
         if (c.proveedor.telefono) searchTokens.push(String(c.proveedor.telefono));
         if (c.proveedor.correo) searchTokens.push(String(c.proveedor.correo));
         if (c.proveedor.nit) searchTokens.push(String(c.proveedor.nit));
       }
 
-      // Estado y etiquetas de estado con tokens semánticos
+      // Estado y etiqueta visible renderizada en tabla (Confirmada, Devuelta Parcial, Cancelada, Anulada)
       if (c.estado !== undefined && c.estado !== null) {
-        searchTokens.push(formatStatusTokens(c.estado));
+        const estUp = String(c.estado).toUpperCase();
+        const renderedLabel =
+          estUp === "RECIBIDA" || estUp === "COMPLETADA"
+            ? "Confirmada"
+            : estUp === "DEVUELTA_PARCIAL"
+            ? "Devuelta Parcial"
+            : estUp === "CANCELADA"
+            ? "Cancelada"
+            : estUp === "ANULADA"
+            ? "Anulada"
+            : String(c.estado);
+        searchTokens.push(renderedLabel, formatStatusTokens(c.estado));
       }
 
-      // Totales y montos numéricos
+      // Totales y montos numéricos flexibles ($ / sin $ / con puntos / sin puntos)
       if (c.total !== undefined && c.total !== null) {
-        const totNum = Number(c.total);
-        searchTokens.push(
-          String(c.total),
-          String(totNum),
-          totNum.toLocaleString("es-CO"),
-          `$${totNum.toLocaleString("es-CO")}`,
-          String(Math.round(totNum))
-        );
+        searchTokens.push(...formatCurrencyTokens(c.total));
       }
-      if (c.subtotal) searchTokens.push(String(c.subtotal));
-      if (c.iva) searchTokens.push(String(c.iva));
+      if (c.subtotal) searchTokens.push(...formatCurrencyTokens(c.subtotal));
+      if (c.iva) searchTokens.push(...formatCurrencyTokens(c.iva));
+
+      // Cantidad de ítems y lista de insumos incluidos
+      const detallesList = Array.isArray(c.detalles) ? c.detalles : (Array.isArray(c.items) ? c.items : []);
+      const numItems = detallesList.length;
+      if (numItems > 0) {
+        searchTokens.push(String(numItems), `${numItems} ${numItems === 1 ? "ítem" : "ítems"}`, `${numItems} item`, `${numItems} items`);
+      }
 
       // Fechas (compra, factura, cancelación)
       const procesarFecha = (f) => {
@@ -141,25 +167,26 @@ export function useGestionCompras() {
         if (d && !isNaN(d.getTime())) {
           searchTokens.push(
             d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ }),
+            d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, day: "2-digit", month: "2-digit", year: "numeric" }),
             d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, day: "2-digit", month: "short", year: "numeric" }),
             d.toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ, month: "long" })
           );
         }
       };
-      procesarFecha(c.fechaCompra);
+      procesarFecha(c.fechaCompra || c.fecha);
       procesarFecha(c.fechaFactura);
       procesarFecha(c.fechaCancelacion);
 
       // Insumos y lotes incluidos en la compra
-      if (Array.isArray(c.detalles)) {
-        c.detalles.forEach((d) => {
+      if (detallesList.length > 0) {
+        detallesList.forEach((d) => {
           if (d.insumo?.nombre) searchTokens.push(d.insumo.nombre);
           if (d.insumoNombre) searchTokens.push(d.insumoNombre);
           if (d.nombre) searchTokens.push(d.nombre);
           if (d.insumo?.unidadMedida) searchTokens.push(d.insumo.unidadMedida);
           if (d.numeroLote) searchTokens.push(String(d.numeroLote));
           if (d.cantidad) searchTokens.push(String(d.cantidad));
-          if (d.precioUnitario) searchTokens.push(String(d.precioUnitario));
+          if (d.precioUnitario) searchTokens.push(...formatCurrencyTokens(d.precioUnitario));
           if (Array.isArray(d.lotes)) {
             d.lotes.forEach((l) => {
               if (l.numeroLote) searchTokens.push(String(l.numeroLote));
@@ -216,7 +243,7 @@ export function useGestionCompras() {
 
       return extra;
     });
-  }, [compras, filterEstado, searchTerm]);
+  }, [serverPaginated, compras, filterEstado, searchTerm]);
 
   const createCompra = async (data) => {
     try {

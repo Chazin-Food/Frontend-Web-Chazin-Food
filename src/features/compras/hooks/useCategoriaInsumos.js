@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { categoriaInsumosService } from "../servicios/categoriaInsumosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
 
 export function useCategoriaInsumos() {
   const notify = useNotifications();
@@ -55,9 +55,7 @@ export function useCategoriaInsumos() {
           String(count),
           `${count} insumos`,
           `${count} insumo`,
-          c.id,
-          c.idCategoriaInsumo,
-          `#${c.id || c.idCategoriaInsumo}`,
+          ...formatIdTokens(c.id || c.idCategoriaInsumo),
           insumosNames
         ],
         searchTerm

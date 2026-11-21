@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { productosService } from "../servicios/productosService";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens, formatCurrencyTokens, formatNumericWithUnit } from "@/shared/utils/searchUtils";
+import { getProductVariantSummary } from "@/shared/utils/productVariantUtils";
+import { getActiveProductEvent } from "../componentes/productos/ProductosTable";
+import { getEventBadgeConfig } from "@/shared/components/ui/FoodIcon";
+import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
 const PRODUCTOS_URL_DEFAULTS = {
@@ -14,7 +18,7 @@ const PRODUCTOS_URL_DEFAULTS = {
   limit: 5
 };
 
-export function useProductos() {
+export function useProductos(allEventos = []) {
   const notify = useNotifications();
   const { filters, setFilter, setFilters } = useUrlFilters(PRODUCTOS_URL_DEFAULTS);
 
@@ -105,32 +109,105 @@ export function useProductos() {
     fetchProductos();
   }, [fetchProductos]);
 
-  // Buscador generalizado por todas las columnas (unidades, inactivos, variantes, adiciones, combos, precio, etc.)
+  // Buscador generalizado por todas las columnas (nombre, variantes, gramajes, precios, categoría, stock, unidades, estado, tipo de evento/venta)
   const filteredProductos = useMemo(() => {
     return productos.filter((p) => {
       if (!p) return false;
 
-      const variantesText = Array.isArray(p.variantes)
-        ? p.variantes.map((v) => v.nombre || "").join(" ")
-        : "";
+      const variantSummary = getProductVariantSummary(p, { includeInactive: true });
+      const rawVariantes = Array.isArray(p.variantes) ? p.variantes : [];
+      const variantTokens = [];
+      if (variantSummary.hasVariants) {
+        variantTokens.push(
+          String(variantSummary.count),
+          `${variantSummary.count} ${variantSummary.count === 1 ? "variante" : "variantes"}`,
+          `${variantSummary.count} variante`,
+          `${variantSummary.count} variantes`,
+          "variantes"
+        );
+        if (variantSummary.hasDifferentPrices) {
+          variantTokens.push(...formatCurrencyTokens(variantSummary.minPrice), ...formatCurrencyTokens(variantSummary.maxPrice));
+        }
+      }
+
+      // Indexar nombre, precio y gramaje/cantidad (con o sin paréntesis) de TODAS las variantes
+      const seenVarKeys = new Set();
+      [...variantSummary.variants, ...rawVariantes].forEach((v) => {
+        if (!v || typeof v !== "object") return;
+        const vKey = String(v.idVariante || v.id || v.nombre || "");
+        if (seenVarKeys.has(vKey)) return;
+        seenVarKeys.add(vKey);
+
+        const vNombre = String(v.nombre || "").trim();
+        if (vNombre) {
+          variantTokens.push(vNombre);
+          // Extraer gramajes/medidas dentro del nombre (ej: "(300g)", "150g", "400ml", "2.5 Litros")
+          const matches = vNombre.matchAll(/\(?\s*(\d+(?:[.,]\d+)?)\s*(g|gr|grs|gramos?|kg|kgs|kilogramos?|ml|l|lt|lts|litros?|oz|lb|und|unidades?)\s*\)?/gi);
+          for (const m of matches) {
+            variantTokens.push(...formatNumericWithUnit(m[1], m[2]));
+          }
+        }
+        if (v.precio !== undefined && v.precio !== null && Number(v.precio) > 0) {
+          variantTokens.push(...formatCurrencyTokens(v.precio));
+        }
+        const extraGramaje = v.gramaje ?? v.peso ?? v.cantidad ?? v.porcion;
+        if (extraGramaje !== undefined && extraGramaje !== null && String(extraGramaje).trim() !== "") {
+          const gStr = String(extraGramaje).trim();
+          const unitStr = v.unidad || v.unidadMedida || "g";
+          variantTokens.push(gStr, `(${gStr})`, ...formatNumericWithUnit(gStr, unitStr));
+        }
+      });
+
       const adicionesText = Array.isArray(p.adiciones)
         ? p.adiciones.map((a) => (typeof a === "object" ? a.nombre : String(a))).join(" ")
         : "";
-      
+
       let comboItemsText = "";
+      let isCombo = false;
       if (p.configuracionCombo) {
         try {
           const cfg = typeof p.configuracionCombo === "string" ? JSON.parse(p.configuracionCombo) : p.configuracionCombo;
+          if (cfg?.esCombo) isCombo = true;
           if (Array.isArray(cfg?.productosAsociados)) {
             comboItemsText = cfg.productosAsociados.map(a => a.nombre || "").join(" ");
           }
         } catch (_) {}
       }
 
-      const isAgotado = (p.stock || 0) === 0;
+      // Evento activo y tipo de venta / evento
+      const activeEvt = getActiveProductEvent(p, allEventos);
+      const eventTokens = [];
+      if (activeEvt) {
+        const badgeCfg = getEventBadgeConfig(activeEvt, p);
+        if (badgeCfg?.label) eventTokens.push(badgeCfg.label);
+        if (badgeCfg?.fullLabel) eventTokens.push(badgeCfg.fullLabel);
+        if (activeEvt.tipoEvento) eventTokens.push(activeEvt.tipoEvento);
+        if (activeEvt.nombreEvento) eventTokens.push(activeEvt.nombreEvento);
+        if (activeEvt.nombre) eventTokens.push(activeEvt.nombre);
+        if (activeEvt.descuento) {
+          const dPct = Number(activeEvt.descuento);
+          eventTokens.push(`-${dPct}%`, `${dPct}%`, `${dPct}% off`, `(-${dPct}% OFF)`, "descuento");
+          const finalP = Math.round(Number(p.precio || 0) * (1 - dPct / 100));
+          eventTokens.push(...formatCurrencyTokens(finalP));
+        }
+        if (activeEvt.nuevoPrecio && Number(activeEvt.nuevoPrecio) > 0) {
+          eventTokens.push("promo", "promocion", ...formatCurrencyTokens(activeEvt.nuevoPrecio));
+        }
+        const toppings = parseEventoInsumos(activeEvt);
+        if (toppings.length > 0) {
+          eventTokens.push(formatEventoToppingsText(toppings), "topping", "toppings");
+        }
+        eventTokens.push("evento", "promocion activa");
+      }
+
+      // Stock exacto renderizado en ProductosTable (priorizando stockDisponible)
+      const effectiveStock = Number(
+        p.stockDisponible !== undefined ? p.stockDisponible : (p.stock !== undefined ? p.stock : 0)
+      );
+      const isAgotado = effectiveStock <= 0;
       const stockStatus = isAgotado
-        ? "Agotado agotada sin_stock sin stock cero 0 agotados agotadas"
-        : "disponible en stock en_stock suficiente";
+        ? "Agotado (0) Agotado agotada sin_stock sin stock cero 0 agotados agotadas"
+        : `${effectiveStock} unidades ${effectiveStock} unidad disponible en stock en_stock suficiente`;
 
       const precioNum = Number(p.precio || 0);
 
@@ -142,25 +219,23 @@ export function useProductos() {
       const matchSearch = matchesSmartSearch(
         [
           p.nombre,
-          p.codigo,
-          p.id,
-          p.idProducto,
-          `#${p.id || p.idProducto}`,
+          p.codigo || `PRD-${p.id || p.idProducto}`,
+          ...formatIdTokens(p.id || p.idProducto),
           p.categoria,
           p.categoriaNombre,
           catText,
           descText,
-          p.precio,
-          String(p.precio ?? ""),
-          precioNum > 0 ? `$${precioNum.toLocaleString("es-CO")}` : "",
-          precioNum > 0 ? `$ ${precioNum.toLocaleString("es-CO")}` : "",
+          ...formatCurrencyTokens(precioNum),
           formatStatusTokens(p.estado),
           stockStatus,
-          p.stock,
-          String(p.stock ?? ""),
-          p.stock !== undefined ? `${p.stock} unidades` : "",
+          effectiveStock,
+          String(effectiveStock),
           p.ventas !== undefined ? `${p.ventas} ventas` : "",
-          variantesText,
+          p.tipoVenta,
+          p.tipo,
+          isCombo ? "combo paquete" : "",
+          ...variantTokens,
+          ...eventTokens,
           adicionesText,
           comboItemsText
         ],
@@ -179,7 +254,7 @@ export function useProductos() {
 
       return matchSearch && matchCategoria && matchEstado;
     });
-  }, [productos, searchTerm, filterCategoria, filterEstado]);
+  }, [productos, allEventos, searchTerm, filterCategoria, filterEstado]);
 
   const createProducto = async (data) => {
     try {

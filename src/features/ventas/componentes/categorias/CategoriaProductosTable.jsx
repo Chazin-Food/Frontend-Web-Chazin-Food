@@ -20,7 +20,7 @@ export function CategoriaProductosTable({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [categorias.length]);
+  }, [categorias]);
 
   const totalRecords = categorias.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));

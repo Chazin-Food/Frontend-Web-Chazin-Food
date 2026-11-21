@@ -1,14 +1,14 @@
 import React from "react";
-import { Sparkles, Crown, Award, Star, Sprout, AlertCircle, Clock } from "lucide-react";
+import { Crown, Award, Star, Sprout, Clock } from "lucide-react";
 
-export function FidelidadBadge({
-  tipo = "Nuevo",
-  descuento = null,
-  enGracia = false,
-  size = "md",
-  showDiscount = true,
-  className = ""
-}) {
+/**
+ * Paleta oficial y consistente de niveles de fidelidad en toda la aplicación:
+ * - VIP: Oro / Dorado (15% descuento)
+ * - Frecuente: Azul (10% descuento)
+ * - Regular: Verde / Esmeralda (5% descuento)
+ * - Nuevo: Gris (0% descuento)
+ */
+export function getFidelidadConfig(tipo = "Nuevo", descuento = null) {
   const normTipo = String(tipo || "Nuevo").toLowerCase();
 
   let config = {
@@ -16,10 +16,15 @@ export function FidelidadBadge({
     shortLabel: "Nuevo",
     desc: 0,
     icon: Sprout,
-    slug: "sprout",
-    bgCls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60",
-    pillCls: "bg-emerald-600 text-white",
-    glowCls: ""
+    slug: "gray",
+    bgCls: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+    pillCls: "bg-gray-600 text-white shadow-2xs",
+    glowCls: "",
+    cardBgCls: "bg-gray-50/80 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700",
+    iconTextCls: "text-gray-500 dark:text-gray-400",
+    iconFillCls: "text-gray-500 dark:text-gray-400",
+    tagCls: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700",
+    accentBarCls: "bg-gray-400 dark:bg-gray-600"
   };
 
   if (normTipo.includes("vip")) {
@@ -31,33 +36,63 @@ export function FidelidadBadge({
       slug: "gold",
       bgCls: "bg-gradient-to-r from-amber-500/15 via-yellow-500/20 to-orange-500/15 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700/80 shadow-xs",
       pillCls: "bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-2xs",
-      glowCls: "ring-2 ring-amber-400/40 dark:ring-amber-500/30"
+      glowCls: "ring-2 ring-amber-400/40 dark:ring-amber-500/30",
+      cardBgCls: "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60",
+      iconTextCls: "text-amber-500 dark:text-amber-400",
+      iconFillCls: "fill-amber-400 text-amber-500 dark:fill-amber-400 dark:text-amber-400",
+      tagCls: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700/70",
+      accentBarCls: "bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500"
     };
   } else if (normTipo.includes("frecuente")) {
     config = {
       label: "Cliente Frecuente",
       shortLabel: "Frecuente",
-      desc: 0,
+      desc: 10,
       icon: Award,
-      slug: "silver",
-      bgCls: "bg-gradient-to-r from-indigo-50 dark:from-indigo-950/40 to-purple-50 dark:purple-950/40 text-indigo-900 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800/60",
-      pillCls: "bg-indigo-600 text-white shadow-2xs",
-      glowCls: "ring-1 ring-indigo-400/30"
+      slug: "blue",
+      bgCls: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60 shadow-2xs",
+      pillCls: "bg-blue-600 text-white shadow-2xs",
+      glowCls: "ring-1 ring-blue-400/30 dark:ring-blue-500/25",
+      cardBgCls: "bg-blue-50/75 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60",
+      iconTextCls: "text-blue-600 dark:text-blue-400",
+      iconFillCls: "fill-blue-500 text-blue-600 dark:fill-blue-400 dark:text-blue-400",
+      tagCls: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60",
+      accentBarCls: "bg-blue-500"
     };
   } else if (normTipo.includes("regular")) {
     config = {
       label: "Cliente Regular",
       shortLabel: "Regular",
-      desc: 0,
+      desc: 5,
       icon: Star,
-      slug: "bronze",
-      bgCls: "bg-orange-50 dark:bg-orange-950/40 text-orange-900 dark:text-orange-200 border-orange-200 dark:border-orange-800/60",
-      pillCls: "bg-orange-500 text-white shadow-2xs",
-      glowCls: "ring-1 ring-orange-300/40"
+      slug: "green",
+      bgCls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60 shadow-2xs",
+      pillCls: "bg-emerald-600 text-white shadow-2xs",
+      glowCls: "ring-1 ring-emerald-400/30 dark:ring-emerald-500/25",
+      cardBgCls: "bg-emerald-50/75 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60",
+      iconTextCls: "text-emerald-600 dark:text-emerald-400",
+      iconFillCls: "fill-emerald-500 text-emerald-600 dark:fill-emerald-400 dark:text-emerald-400",
+      tagCls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60",
+      accentBarCls: "bg-emerald-500"
     };
   }
 
-  const finalDesc = descuento !== null && descuento !== undefined ? Number(descuento) : config.desc;
+  const parsedDesc = descuento !== null && descuento !== undefined && descuento !== "" ? Number(descuento) : NaN;
+  const finalDesc = Number.isFinite(parsedDesc) && parsedDesc > 0 ? parsedDesc : config.desc;
+
+  return { ...config, finalDesc };
+}
+
+export function FidelidadBadge({
+  tipo = "Nuevo",
+  descuento = null,
+  enGracia = false,
+  size = "md",
+  showDiscount = true,
+  className = ""
+}) {
+  const config = getFidelidadConfig(tipo, descuento);
+  const { finalDesc } = config;
   const IconComp = config.icon;
 
   if (size === "sm") {

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { proveedoresService } from "../servicios/proveedoresService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { apiClient } from "@/shared/api/apiClient";
-import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
 const PROVEEDORES_URL_DEFAULTS = {
@@ -96,14 +96,19 @@ export function useProveedores() {
       const clasifArr = Array.isArray(p.clasificacion) ? p.clasificacion : Array.isArray(p.tiposProveedor) ? p.tiposProveedor : [];
       const clasifText = clasifArr.join(" ");
 
+      const docNumber = p.nit || p.numeroDocumento || p.documento || "";
+      const tipoProveedorDisplay = p.tipoProveedor || p.tipoProveedorNombre || "Mayorista";
+
       const matchSearch = matchesSmartSearch(
         [
           p.nombre,
           p.nit,
           p.numeroDocumento,
           p.documento,
+          p.tipoDocumento,
           docLabel,
-          `${docLabel}: ${p.nit || p.numeroDocumento || ""}`,
+          `${docLabel}: ${docNumber}`,
+          `${docLabel} ${docNumber}`,
           p.contacto,
           p.nombreContacto,
           contactoText,
@@ -115,15 +120,14 @@ export function useProveedores() {
           telText,
           p.direccion,
           direccionText,
+          tipoProveedorDisplay,
           p.tipoProveedor,
           p.tipoProveedorNombre,
           clasifText,
           p.tipoPersona,
           tipoPersonaStr,
           formatStatusTokens(p.estado),
-          p.id,
-          p.idProveedor,
-          `#${p.id || p.idProveedor}`,
+          ...formatIdTokens(p.id || p.idProveedor),
           p.descripcion,
           p.observaciones,
           descText

@@ -1,13 +1,16 @@
-import { X, Mail, Phone, MapPin, TrendingUp, Clock, Calendar, Star, AlertCircle } from "lucide-react";
+import { X, Mail, Phone, MapPin, TrendingUp, Clock, Calendar, AlertCircle } from "lucide-react";
 import { formatNombreCompleto, formatDireccion } from "@/shared/utils/validationUtils";
+import { FidelidadBadge, getFidelidadConfig } from "@/shared/components/ui/FidelidadBadge";
 
 export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
   if (!isOpen || !cliente) return null;
 
-  const tipoCliente = cliente.tipo || (cliente.esVip ? "VIP" : "Regular");
+  const tipoCliente = cliente.tipo || (cliente.esVip ? "VIP" : "Nuevo");
   const tieneCuenta = cliente.tieneCuenta !== false && !!cliente.idUsuario;
+  const fidelidadTheme = getFidelidadConfig(tipoCliente, cliente.descuentoPorcentaje);
+  const TierIcon = fidelidadTheme.icon;
   
-  // Color scheme helpers for Avatar & Badges
+  // Color scheme helpers for Avatar
   const getAvatarBg = (nombre = "") => {
     const firstChar = nombre.charAt(0).toUpperCase();
     if (["A", "B", "C"].includes(firstChar)) return "bg-emerald-500 text-white";
@@ -16,34 +19,6 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
     if (["L", "M", "N"].includes(firstChar)) return "bg-indigo-500 text-white";
     if (["O", "P", "Q", "R"].includes(firstChar)) return "bg-amber-500 text-white";
     return "bg-slate-500 text-white";
-  };
-
-  const getTipoBadge = (tipo) => {
-    switch (tipo) {
-      case "VIP":
-        return "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300";
-      case "Frecuente":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300";
-      case "Regular":
-        return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
-      case "Nuevo":
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
-    }
-  };
-
-  const getDescuentoTexto = (tipo) => {
-    switch (tipo) {
-      case "VIP":
-        return "15% de descuento";
-      case "Frecuente":
-        return "10% de descuento";
-      case "Regular":
-        return "5% de descuento";
-      case "Nuevo":
-      default:
-        return null;
-    }
   };
 
   // Real transactions from database (or empty if client has 0 orders)
@@ -57,12 +32,15 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
   const comprasMes = cliente.comprasMes || (totalComprasCount > 0 ? (totalComprasCount / 3).toFixed(1) : "0.0");
   const frecuenciaTipo = cliente.frecuenciaTipo || (totalComprasCount > 10 ? "Frecuente" : totalComprasCount > 2 ? "Mensual" : "Esporádico");
   const ultimaCompraFecha = cliente.ultimaCompra || (transacciones.length > 0 ? transacciones[0].fecha : "Sin compras");
-  const descuentoTag = getDescuentoTexto(tipoCliente);
+  const descuentoTag = fidelidadTheme.finalDesc > 0 ? `${fidelidadTheme.finalDesc}% de descuento` : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-6 relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto">
-        
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-xl w-full shadow-2xl relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto overflow-x-hidden">
+        {/* Acento visual superior dinámico por nivel de fidelidad */}
+        <div className={`h-1.5 w-full ${fidelidadTheme.accentBarCls}`} />
+
+        <div className="p-6 space-y-6">
         {/* Banner: Client without user account */}
         {!tieneCuenta && (
           <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-2xl flex items-start gap-3">
@@ -76,27 +54,30 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
           </div>
         )}
 
-        {/* Header: Avatar, Name, Type Badge & Close Button */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3.5">
+        {/* Header: Avatar, Name, Dynamic Fidelity Badge & Close Button */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3.5 min-w-0">
             <div className={`w-12 h-12 rounded-full font-bold text-lg flex items-center justify-center shrink-0 shadow-sm ${getAvatarBg(cliente.nombre)}`}>
               {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : "C"}
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight truncate">
                 {formatNombreCompleto(cliente.nombre, cliente.apellidos) || "Cliente General"}
               </h2>
               <p className="text-xs text-gray-400 font-medium">Cliente #{cliente.id || cliente.idCliente || 1}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold ${getTipoBadge(tipoCliente)}`}>
-              {tipoCliente}
-            </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <FidelidadBadge
+              tipo={tipoCliente}
+              descuento={fidelidadTheme.finalDesc}
+              enGracia={cliente.fidelidad?.enGracia}
+              size="sm"
+            />
             <button
               onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -187,25 +168,25 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
         </div>
 
 
-        {/* 5. BENEFICIOS ACTIVOS */}
+        {/* 5. BENEFICIOS ACTIVOS (color dinámico por nivel de fidelidad) */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-extrabold tracking-wider text-gray-700 dark:text-gray-300 uppercase">
               Beneficios Activos
             </h3>
             {descuentoTag && (
-              <span className="px-2.5 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 rounded-full text-[11px] font-bold">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${fidelidadTheme.tagCls}`}>
                 {descuentoTag}
               </span>
             )}
           </div>
-          <div className="p-4 bg-rose-50/70 dark:bg-rose-950/30 rounded-2xl border border-rose-100 dark:border-rose-900/40 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white dark:bg-gray-800 text-rose-500 flex items-center justify-center shrink-0 shadow-2xs">
-              <Star className="w-5 h-5 fill-rose-500 text-rose-500" />
+          <div className={`p-4 rounded-2xl border flex items-center gap-3 ${fidelidadTheme.cardBgCls}`}>
+            <div className={`w-9 h-9 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center shrink-0 shadow-2xs ${fidelidadTheme.iconTextCls}`}>
+              <TierIcon className={`w-5 h-5 ${fidelidadTheme.iconFillCls}`} />
             </div>
             <div>
               <p className="text-sm font-bold text-gray-800 dark:text-gray-100">
-                Cliente {tipoCliente}
+                {fidelidadTheme.label}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {transacciones.length > 0 ? `Última compra: ${ultimaCompraFecha}` : "Sin compras registradas aún"}
@@ -218,12 +199,13 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
         <div className="pt-2 flex justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl transition-colors"
+            className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             Cerrar
           </button>
         </div>
 
+        </div>
       </div>
     </div>
   );

@@ -5,10 +5,10 @@ export function ProveedoresTable({ proveedores = [], onEdit, onDelete, onToggleE
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Reset pagination when proveedores length changes (#65)
+  // Reset pagination whenever filtered proveedores changes (#65)
   useEffect(() => {
     setCurrentPage(1);
-  }, [proveedores.length]);
+  }, [proveedores]);
 
   const totalRecords = proveedores.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { rolesService } from "../servicios/rolesService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useConfirm } from "@/shared/context/ConfirmContext";
-import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens } from "@/shared/utils/searchUtils";
 import { validateNombreRol } from "@/shared/utils/validationUtils";
 import { AlertTriangle, AlertCircle } from "lucide-react";
 
@@ -30,56 +30,62 @@ export function useRoles() {
     fetchRoles();
   }, [fetchRoles]);
 
-  const filteredRoles = roles.filter((r) => {
-    const permisosText = Array.isArray(r.permisos)
-      ? r.permisos.map((p) => (typeof p === "string" ? p : p.nombre || p.permiso || "")).join(" ")
-      : "";
+  const filteredRoles = useMemo(() => {
+    return roles.filter((r) => {
+      const isAdministrador = (r.nombre || "").toLowerCase() === "administrador" || String(r.id || r.idRol) === "1";
+      const rolAliases = isAdministrador ? "Admin Administrador Rol del Sistema Rol del sistema" : "";
 
-    const privilegiosGranularesCount = (r.permisos || []).filter((p) => {
-      const name = typeof p === "string" ? p : p.nombre || p.permiso || "";
-      return name.includes(":");
-    }).length;
+      const permisosText = Array.isArray(r.permisos)
+        ? r.permisos.map((p) => (typeof p === "string" ? p : p.nombre || p.permiso || "")).join(" ")
+        : "";
 
-    const modulosBaseCount = (r.permisos || []).filter((p) => {
-      const name = typeof p === "string" ? p : p.nombre || p.permiso || "";
-      return !name.includes(":") && name !== "Vendedor";
-    }).length;
+      const privilegiosGranularesCount = (r.permisos || []).filter((p) => {
+        const name = typeof p === "string" ? p : p.nombre || p.permiso || "";
+        return name.includes(":");
+      }).length;
 
-    const hasDesc = Boolean(r.descripcion && String(r.descripcion).trim());
-    const descText = hasDesc ? `${r.descripcion} con_descripcion con descripcion` : "sin_descripcion sin descripcion";
+      const modulosBaseCount = (r.permisos || []).filter((p) => {
+        const name = typeof p === "string" ? p : p.nombre || p.permiso || "";
+        return !name.includes(":") && name !== "Vendedor";
+      }).length;
 
-    const numUsuarios = r.usuarios ?? 0;
-    const usuariosText = numUsuarios === 0
-      ? "0 usuarios sin_usuarios sin usuarios"
-      : `${numUsuarios} usuarios ${numUsuarios} usuario`;
+      const hasDesc = Boolean(r.descripcion && String(r.descripcion).trim());
+      const descText = hasDesc ? `${r.descripcion} con_descripcion con descripcion` : "sin_descripcion sin descripcion";
 
-    const modulosText = modulosBaseCount === 0
-      ? "0 módulos 0 modulos sin_modulos sin modulos sin_permisos sin permisos"
-      : `${modulosBaseCount} módulos ${modulosBaseCount} modulos ${modulosBaseCount} módulo ${modulosBaseCount} modulo`;
+      const numUsuarios = Number(r.usuarios ?? 0);
+      const usuariosText = numUsuarios === 0
+        ? "0 usuarios sin_usuarios sin usuarios"
+        : `${numUsuarios} usuarios ${numUsuarios} usuario`;
 
-    return matchesSmartSearch(
-      [
-        r.nombre,
-        descText,
-        formatStatusTokens(r.estado),
-        r.id,
-        r.idRol,
-        `#${r.id || r.idRol}`,
-        numUsuarios,
-        String(numUsuarios),
-        usuariosText,
-        modulosBaseCount,
-        String(modulosBaseCount),
-        modulosText,
-        privilegiosGranularesCount,
-        String(privilegiosGranularesCount),
-        `${privilegiosGranularesCount} privilegios`,
-        `${privilegiosGranularesCount} privilegio`,
-        permisosText
-      ],
-      searchTerm
-    );
-  });
+      const modulosText = modulosBaseCount === 0
+        ? "0 módulos 0 modulos sin_modulos sin modulos sin_permisos sin permisos"
+        : `${modulosBaseCount} módulos ${modulosBaseCount} modulos ${modulosBaseCount} módulo ${modulosBaseCount} modulo ${modulosBaseCount} permisos`;
+
+      const privilegiosText = privilegiosGranularesCount > 0
+        ? `${privilegiosGranularesCount} privilegios ${privilegiosGranularesCount} privilegio privilegios`
+        : "";
+
+      return matchesSmartSearch(
+        [
+          r.nombre,
+          rolAliases,
+          descText,
+          formatStatusTokens(r.estado),
+          ...formatIdTokens(r.id || r.idRol),
+          numUsuarios,
+          String(numUsuarios),
+          usuariosText,
+          modulosBaseCount,
+          String(modulosBaseCount),
+          modulosText,
+          privilegiosGranularesCount > 0 ? privilegiosGranularesCount : "",
+          privilegiosText,
+          permisosText
+        ],
+        searchTerm
+      );
+    });
+  }, [roles, searchTerm]);
 
   const createRol = async (nombre, descripcion, permisos = []) => {
     try {

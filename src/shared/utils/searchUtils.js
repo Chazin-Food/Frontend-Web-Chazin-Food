@@ -11,6 +11,7 @@ import {
   extractDateOnlyISO,
   parseDateOnlySafe
 } from "@/shared/utils/dateUtils";
+import { resolveHybridDeliveryEstimate, formatColombiaTime } from "@/features/produccion/utils/tiempoProduccionUtils";
 
 /**
  * Normaliza un texto removiendo diacríticos/acentos, espacios extra y en minúsculas.
@@ -20,10 +21,124 @@ export function normalizeSearchText(val) {
   if (val === null || val === undefined) return "";
   const str = typeof val === "string" ? val : String(val);
   return str
-    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
     .trim();
+}
+
+/**
+ * Genera tokens consistentes para IDs renderizados como "ID #12", "#12", "12".
+ */
+export function formatIdTokens(id, prefix = "") {
+  if (id === null || id === undefined || id === "") return [];
+  const raw = String(id).trim();
+  if (!raw) return [];
+  const out = [raw, `#${raw}`, `ID #${raw}`, `ID: #${raw}`, `ID ${raw}`];
+  if (prefix) {
+    out.push(`${prefix}${raw}`);
+  }
+  return out;
+}
+
+/**
+ * Genera variantes flexibles de un monto monetario (con/sin $, con/sin separadores de miles).
+ */
+export function formatCurrencyTokens(val) {
+  if (val === null || val === undefined || val === "") return [];
+  const num = typeof val === "number" ? val : Number(String(val).replace(/[^\d.-]/g, ""));
+  if (!Number.isFinite(num)) return [String(val)];
+  const intVal = Math.round(num);
+  const formatted = intVal.toLocaleString("es-CO");
+  return [
+    String(num),
+    String(intVal),
+    formatted,
+    `$${formatted}`,
+    `$ ${formatted}`,
+    `$${intVal}`,
+    `${formatted} cop`,
+    `${intVal} cop`
+  ];
+}
+
+const UNIT_SYNONYMS = {
+  kg: "kg kgs kilo kilos kilogramo kilogramos",
+  kgs: "kg kgs kilo kilos kilogramo kilogramos",
+  kilo: "kg kgs kilo kilos kilogramo kilogramos",
+  kilos: "kg kgs kilo kilos kilogramo kilogramos",
+  kilogramo: "kg kgs kilo kilos kilogramo kilogramos",
+  kilogramos: "kg kgs kilo kilos kilogramo kilogramos",
+  g: "g gr grs gramo gramos",
+  gr: "g gr grs gramo gramos",
+  grs: "g gr grs gramo gramos",
+  gramo: "g gr grs gramo gramos",
+  gramos: "g gr grs gramo gramos",
+  mg: "mg miligramo miligramos",
+  ml: "ml mililitro mililitros",
+  l: "l lt lts litro litros",
+  lt: "l lt lts litro litros",
+  lts: "l lt lts litro litros",
+  litro: "l lt lts litro litros",
+  litros: "l lt lts litro litros",
+  und: "und unds u ud uds unidad unidades",
+  u: "und unds u ud uds unidad unidades",
+  ud: "und unds u ud uds unidad unidades",
+  unidad: "und unds u ud uds unidad unidades",
+  unidades: "und unds u ud uds unidad unidades",
+  lb: "lb lbs libra libras",
+  oz: "oz onza onzas",
+  paq: "paq paquete paquetes",
+  paquete: "paq paquete paquetes",
+  caja: "caja cajas",
+  bolsa: "bolsa bolsas",
+  botella: "botella botellas",
+  lata: "lata latas",
+  porcion: "porcion porciones",
+  porciones: "porcion porciones"
+};
+
+/**
+ * Expande una unidad de medida a sus sinónimos exactos (ej: "Kg" -> "kg kilo kilogramo kilogramos").
+ */
+export function expandUnitTokens(unit = "") {
+  const norm = normalizeSearchText(unit).replace(/\./g, "");
+  if (!norm) return "";
+  return UNIT_SYNONYMS[norm] || norm;
+}
+
+/**
+ * Indexa un valor numérico junto a su unidad en todas las representaciones visibles
+ * (ej: 4 + "Kg" -> ["4", "4 Kg", "4Kg", "4 kilogramos", "kg kilo kilogramo kilogramos"]).
+ */
+export function formatNumericWithUnit(value, unit = "") {
+  const out = [];
+  const hasVal = value !== null && value !== undefined && value !== "";
+  const valStr = hasVal ? String(value).trim() : "";
+  const unitStr = String(unit || "").trim();
+  const unitExpanded = expandUnitTokens(unitStr);
+
+  if (valStr) {
+    out.push(valStr);
+    if (valStr.includes(".")) out.push(valStr.replace(".", ","));
+  }
+  if (unitStr) {
+    out.push(unitStr);
+    if (unitExpanded) out.push(unitExpanded);
+  }
+  if (valStr && unitStr) {
+    out.push(`${valStr} ${unitStr}`, `${valStr}${unitStr}`, `(${valStr}${unitStr})`, `(${valStr} ${unitStr})`);
+    if (valStr.includes(".")) {
+      const commaVal = valStr.replace(".", ",");
+      out.push(`${commaVal} ${unitStr}`, `${commaVal}${unitStr}`);
+    }
+    if (unitExpanded) {
+      unitExpanded.split(/\s+/).forEach((uSyn) => {
+        if (uSyn) out.push(`${valStr} ${uSyn}`, `${valStr}${uSyn}`);
+      });
+    }
+  }
+  return out;
 }
 
 export const SPANISH_DIGIT_WORDS = {
@@ -87,6 +202,8 @@ export function tokenizeSearchQuery(query = "") {
   return normalized
     .replace(/(?:^|\s)(?:id\s*[:#-]?\s*|#\s*)(\d+)(?=\s|$|[^\w#])/gi, " #$1 ")
     .replace(/(?:^|\s)(?:usuario\s*[:#-]?\s*|user\s*[:#-]?\s*)(\d+)(?=\s|$|[^\w#])/gi, " user_$1 ")
+    .replace(/\b([0-3])\s*(?:\/|de)\s*3\b/g, "$1/3")
+    .replace(/\bno\s+aprobad[oa]s?\b/g, "no_aprobado")
     .replace(/\bsin\s+descripci[oó]n\b/g, "sin_descripcion")
     .replace(/\bsin\s+categor[ií]a\b/g, "sin_categoria")
     .replace(/\bsin\s+proveedor\b/g, "sin_proveedor")
@@ -102,7 +219,7 @@ export function tokenizeSearchQuery(query = "") {
     .replace(/\bsin\s+direcci[oó]n\b/g, "sin_direccion")
     .replace(/\bsin\s+documento\b/g, "sin_documento")
     .replace(/\bsin\s+c[eé]dula\b/g, "sin_documento")
-    .replace(/\bsin\s+registrar\b/g, "sin_registrar")
+    .replace(/\bsin\s+reg(?:istrar|\.)?(?=\s|$)/g, "sin_registrar")
     .replace(/\bsin\s+ficha(\s+t[eé]cnica)?\b/g, "sin_ficha")
     .replace(/\bsin\s+receta\b/g, "sin_ficha")
     .replace(/\bsin\s+factura\b/g, "sin_factura")
@@ -235,7 +352,7 @@ export function hasStatusSearchIntent(query = "") {
   const norm = normalizeSearchText(query);
   if (!norm) return false;
   return (
-    /\b(inactiv[oa]?s?|activ[oa]?s?|deshabilitad[oa]?s?|habilitad[oa]?s?|vencid[oa]?s?|vencit[oa]?s?|caducad[oa]?s?|expirad[oa]?s?|agotad[oa]?s?|cancelad[oa]?s?|anulad[oa]?s?|recibid[oa]?s?|completad[oa]?s?|pendient[es]?|preparand[oa]|cocina|list[oa]?s?|entregad[oa]?s?|aprobad[oa]?s?|rechazad[oa]?s?)\b/.test(norm)
+    /\b(inactiv[oa]?s?|activ[oa]?s?|deshabilitad[oa]?s?|habilitad[oa]?s?|vencid[oa]?s?|vencit[oa]?s?|caducad[oa]?s?|expirad[oa]?s?|agotad[oa]?s?|cancelad[oa]?s?|anulad[oa]?s?|recibid[oa]?s?|completad[oa]?s?|pendient[es]?|preparand[oa]|cocina|list[oa]?s?|entregad[oa]?s?|no\s+aprobad[oa]?s?|aprobad[oa]?s?|aprobar|rechazad[oa]?s?)\b/.test(norm)
   );
 }
 
@@ -252,6 +369,13 @@ export function matchTokenInCorpus(corpus = "", token = "") {
   if (/^#\d+$/.test(token)) {
     const idNum = token.slice(1);
     const regex = new RegExp(`(^|[^a-z0-9])(?:id\\s*#?|#)${idNum}(?![0-9])`, "i");
+    return regex.test(corpus);
+  }
+
+  // Búsqueda específica por racha de fidelidad (0/3, 1/3, 2/3, 3/3) evitando falsos positivos con fechas (ej: 21/3)
+  if (/^[0-3]\/3$/.test(token)) {
+    const streakNum = token[0];
+    const regex = new RegExp(`(^|[^0-9/])${streakNum}\\/3(?![0-9/])`);
     return regex.test(corpus);
   }
 
@@ -272,9 +396,9 @@ export function matchTokenInCorpus(corpus = "", token = "") {
     );
   }
 
-  // Activo / activos / activa / activas (NO debe coincidir con "inactivo" ni "deshabilitado")
+  // Activo / activos / activa / activas (ESTRICTO por límite de palabra: NO debe coincidir con "inactivo" ni "actividad")
   if (/^activ[oa]?s?$/.test(token)) {
-    return /(^|[^a-z0-9])activ/.test(corpus);
+    return /(^|[^a-z0-9])activ[oa]s?(?=$|[^a-z0-9])/.test(corpus);
   }
 
   // Habilitado / habilitada
@@ -324,9 +448,25 @@ export function matchTokenInCorpus(corpus = "", token = "") {
     );
   }
 
-  // Aprobado / aprobada (devoluciones)
+  // No aprobado / pendiente de aprobación (ventas / devoluciones)
+  if (token === "no_aprobado") {
+    return (
+      corpus.includes("no_aprobado") ||
+      /(^|[^a-z0-9])no\s+aprobad/.test(corpus) ||
+      corpus.includes("pendiente de aprobacion")
+    );
+  }
+
+  // Botón visible "Aprobar" (ESTRICTO: no confundir con registros ya "Aprobado")
+  if (token === "aprobar") {
+    return /(^|[^a-z0-9])aprobar(?=$|[^a-z0-9])/.test(corpus);
+  }
+
+  // Aprobado / aprobada (ESTRICTO: nunca debe coincidir con "no aprobado" / "no_aprobado")
   if (/^(aprobad[oa]?s?|aprobacion)$/.test(token)) {
-    return corpus.includes("aprobad") || corpus.includes("aprobacion");
+    const hasAprob = /(^|[^a-z0-9_])aprobad[oa]?s?(?=$|[^a-z0-9_])/.test(corpus) || /(^|[^a-z0-9_])aprobacion(?=$|[^a-z0-9_])/.test(corpus);
+    const hasNeg = corpus.includes("no_aprobado") || /(^|[^a-z0-9])no\s+aprobad/.test(corpus);
+    return hasAprob && !hasNeg;
   }
 
   // Rechazado / rechazada (devoluciones)
@@ -367,14 +507,19 @@ export function matchTokenInCorpus(corpus = "", token = "") {
     }
   }
 
-  // Tokens compuestos negativos "sin ..."
+  // Tokens compuestos negativos "sin ..." (coinciden con versión con guion bajo O espacio)
   if (/^sin_(descripcion|categoria|proveedor|telefono|correo|lote|usuarios|permisos|modulos|iva|contacto|direccion|documento|registrar|ficha|factura|motivo)$/.test(token)) {
-    return corpus.includes(token);
+    const spaced = token.replace(/_/g, " ");
+    if (token === "sin_registrar") {
+      return corpus.includes("sin_registrar") || corpus.includes("sin registrar") || corpus.includes("sin reg");
+    }
+    return corpus.includes(token) || corpus.includes(spaced);
   }
 
   // Tokens compuestos positivos "con ..."
   if (/^con_(descripcion|categoria|proveedor|telefono|correo|lote|usuarios|permisos|modulos|iva|contacto|direccion|documento|ficha|factura)$/.test(token)) {
-    return corpus.includes(token);
+    const spaced = token.replace(/_/g, " ");
+    return corpus.includes(token) || corpus.includes(spaced);
   }
 
   // Descripción / descripciones (NO debe coincidir si solo tiene "sin_descripcion" o "sin descripcion")
@@ -450,6 +595,44 @@ export function matchTokenInCorpus(corpus = "", token = "") {
   // Coincidencia directa exacta de substring
   if (corpus.includes(token)) return true;
 
+  // Indicadores estrictos de 1 carácter entre paréntesis como "(a)" o "(m)" (NO eliminar paréntesis)
+  if (/^\([a-z0-9]\)$/i.test(token)) {
+    return false;
+  }
+
+  // Limpiar puntuación de borde (ej: comas en "carnes, pollos y verduras" o puntos finales "est.")
+  const strippedPunct = token.replace(/^[,;:]+|[,;:.]+$/g, "");
+  if (strippedPunct && strippedPunct !== token && corpus.includes(strippedPunct)) {
+    return true;
+  }
+
+  // Paréntesis alrededor de gramajes o medidas (ej: "(300g)" <-> "300g" <-> "300 g")
+  const unwrapped = token.replace(/^\((.+)\)$/, "$1").trim();
+  if (unwrapped && unwrapped !== token && unwrapped.length >= 2) {
+    if (corpus.includes(unwrapped)) return true;
+  }
+
+  // Número pegado a unidad de medida (ej: "300g" <-> "300 g", "(300g)", "5kg" <-> "5 kg", "15min" <-> "15 min")
+  const qtyUnitMatch = (unwrapped || token).match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|grs|gramos?|kg|kgs|kilos?|kilogramos?|ml|l|lt|lts|litros?|oz|lb|und|unds|unidades?|min|mins|minutos?)$/i);
+  if (qtyUnitMatch) {
+    const qtyRaw = qtyUnitMatch[1];
+    const qtyDot = qtyRaw.replace(",", ".");
+    const qtyComma = qtyRaw.replace(".", ",");
+    const unitRaw = qtyUnitMatch[2].toLowerCase();
+    const unitExpanded = expandUnitTokens(unitRaw) || unitRaw;
+    const unitVariants = Array.from(new Set([unitRaw, ...unitExpanded.split(/\s+/).filter(Boolean)]));
+    if (unitRaw === "min" || unitRaw === "mins" || unitRaw.startsWith("minut")) {
+      unitVariants.push("min", "mins", "minuto", "minutos");
+    }
+    for (const qv of [qtyDot, qtyComma]) {
+      for (const uv of unitVariants) {
+        if (corpus.includes(`${qv}${uv}`) || corpus.includes(`${qv} ${uv}`) || corpus.includes(`(${qv}${uv})`) || corpus.includes(`(${qv} ${uv})`)) {
+          return true;
+        }
+      }
+    }
+  }
+
   // Si el token tiene símbolo de moneda ($1.300.000, $5000), verificar coincidencia sin el símbolo
   const tokenNoCurrency = token.replace(/^[$€£]/, "").trim();
   if (tokenNoCurrency && tokenNoCurrency !== token && corpus.includes(tokenNoCurrency)) {
@@ -457,17 +640,18 @@ export function matchTokenInCorpus(corpus = "", token = "") {
   }
 
   // Variación plural en español (ej: "hamburguesas" coincide con "hamburguesa", "proveedores" con "proveedor")
-  if (token.endsWith("es") && token.length > 3) {
-    const singular = token.slice(0, -2);
+  const baseForPlural = strippedPunct || token;
+  if (baseForPlural.endsWith("es") && baseForPlural.length > 3) {
+    const singular = baseForPlural.slice(0, -2);
     if (corpus.includes(singular)) return true;
   }
-  if (token.endsWith("s") && token.length > 2) {
-    const singular = token.slice(0, -1);
+  if (baseForPlural.endsWith("s") && baseForPlural.length > 2) {
+    const singular = baseForPlural.slice(0, -1);
     if (corpus.includes(singular)) return true;
   }
 
   // Coincidencia numérica con o sin símbolo de moneda ($) y separadores de miles/decimales (ej: "1.300.000", "$1.300.000", "5.000" -> "5000")
-  const numericToken = tokenNoCurrency || token;
+  const numericToken = (tokenNoCurrency || strippedPunct || token).replace(/[,.;]+$/, "");
   if (/^\d[\d.,]*\d$/.test(numericToken) && /[.,]/.test(numericToken)) {
     const cleanDigits = numericToken.replace(/[.,]/g, "");
     const corpusWithoutDots = corpus.replace(/(?<=\d)[.,](?=\d)/g, "");
@@ -637,15 +821,20 @@ const DIAS_ES = [
 export function buildVentaSearchCorpus(v = {}) {
   const parts = [];
 
-  // 1. Identificadores
+  // 1. Identificadores completos (guiones, numerales y prefijos)
   const idStr = String(v.id || v.idVenta || "");
   if (idStr) {
-    parts.push(idStr, `#${idStr}`);
+    parts.push(...formatIdTokens(idStr));
     parts.push(`ped-${idStr.padStart(3, "0")}`, `ven-${idStr.padStart(4, "0")}`);
+  }
+  const codigoPedido = v.numeroVenta || v.codigoPedido || (idStr ? `PED-${String(idStr).padStart(3, "0")}` : "");
+  if (codigoPedido) {
+    parts.push(codigoPedido, `#${codigoPedido}`);
   }
   if (v.numeroVenta) parts.push(v.numeroVenta);
   if (v.codigoPedido) parts.push(v.codigoPedido);
   if (v.idTrans) parts.push(v.idTrans);
+  if (v.esDevolucion) parts.push("reposicion", "devolucion");
 
   // 2. Cliente
   const rawClient = typeof v.cliente === "string" ? v.cliente : (v.clienteNombre || v.cliente?.nombre || "");
@@ -737,51 +926,130 @@ export function buildVentaSearchCorpus(v = {}) {
     parts.push("en mesa", "mesa");
   }
 
-  // 6. Canal y Tipo de Entrega
-  const tipoEntrega = String(v.tipoEntrega || obsMeta.tipoEntrega || "");
-  if (tipoEntrega) parts.push(tipoEntrega);
-  const origen = String(v.origen || v.origenNombre || (tipoEntrega.toLowerCase().includes("domicilio") ? "ONLINE" : "PUNTO_FISICO"));
-  parts.push(origen);
-  if (origen.toUpperCase().includes("ONLINE")) {
-    parts.push("venta online", "online", "web", "domicilio");
+  // 6. Canal, Origen, Entrega y Tiempo Estimado Híbrido (A)/(M) exactamente como en VentasTable
+  const tipoEntregaRaw = String(v.tipoEntrega || obsMeta.tipoEntrega || "");
+  const isDomicilioEntrega =
+    tipoEntregaRaw.toLowerCase().includes("domicilio") ||
+    tipoEntregaRaw.toLowerCase().includes("delivery");
+  if (tipoEntregaRaw) parts.push(tipoEntregaRaw);
+  if (isDomicilioEntrega) {
+    parts.push("domicilio", "delivery");
+  } else {
+    parts.push("en mesa", "mesa");
   }
-  if (origen.toUpperCase().includes("PUNTO") || origen.toUpperCase().includes("FISICO")) {
-    parts.push("punto fisico", "local", "mostrador", "en local");
-  }
-  if (tipoEntrega.toLowerCase().includes("recoger") || tipoEntrega.toLowerCase().includes("llevar")) {
+  if (tipoEntregaRaw.toLowerCase().includes("recoger") || tipoEntregaRaw.toLowerCase().includes("llevar")) {
     parts.push("para llevar", "llevar", "recoger");
   }
 
-  // 7. Método de Pago y Estado de Pago
-  const isOnlineSale = Boolean(
-    (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
-    !v.esDevolucion
-  );
-  const rawMetodoPago = String(v.metodoPago || v.metodo_pago || v.medioPago || obsMeta.metodoPago || "").trim();
-  const metodoPago = isOnlineSale && (!rawMetodoPago || rawMetodoPago.toLowerCase() === "efectivo")
-    ? "Wompi"
-    : rawMetodoPago;
-  if (metodoPago) {
-    parts.push(metodoPago);
-    const mLower = metodoPago.toLowerCase();
-    if (mLower.includes("wompi") || mLower.includes("pasarela") || mLower.includes("pse")) {
-      parts.push("wompi", "pasarela", "pago en linea", "pago online", "tarjeta");
+  const isOnlineOrigen =
+    v.origen === "ONLINE" ||
+    v.tipoVenta === "DOMICILIO" ||
+    v.origenNombre === "Venta Online";
+  if (isOnlineOrigen) {
+    parts.push("online", "venta online", "web");
+  } else {
+    parts.push("punto fisico", "fisico", "pos", "local", "mostrador", "en local");
+  }
+
+  // Tiempo estimado híbrido (A) Automático / (M) Manual
+  let hybridEst = null;
+  try {
+    hybridEst = resolveHybridDeliveryEstimate(v);
+  } catch (_) {
+    hybridEst = null;
+  }
+  if (hybridEst && hybridEst.effectiveEstimate) {
+    const estText = String(hybridEst.effectiveEstimate).trim();
+    const modeTag = hybridEst.isManual ? "(m)" : "(a)";
+    const modeWord = hybridEst.isManual ? "manual" : "auto automatico";
+    parts.push(estText, `${estText} ${modeTag}`, modeTag, modeWord);
+    // Expandir "min" <-> "minutos" (ej: "15-20 min" -> "15-20 minutos" y "15-20")
+    if (/\bmin\b/i.test(estText)) {
+      parts.push(estText.replace(/\bmin\b/gi, "minutos"), "min", "minutos");
     }
-    if (mLower.includes("transf") || mLower.includes("nequi") || mLower.includes("davi")) {
-      parts.push("transferencia", "nequi", "daviplata", "bancolombia");
-    }
-    if (mLower.includes("tarjeta")) {
-      parts.push("tarjeta", "debito", "credito", "pos");
-    }
-    if (mLower.includes("efectivo")) {
-      parts.push("efectivo", "cash");
+    const rangeMatch = estText.match(/(\d+\s*[-–]\s*\d+)/);
+    if (rangeMatch) {
+      const compactRange = rangeMatch[1].replace(/\s+/g, "");
+      parts.push(compactRange, `${compactRange} min`, `${compactRange} minutos`);
     }
   }
+
+  // 7. Método de Pago y Estado de Pago
+  const isOnlineSale = Boolean(isOnlineOrigen && !v.esDevolucion);
+  const rawMetodoPago = String(v.metodoPago || v.metodo_pago || v.medioPago || obsMeta.metodoPago || "").trim();
+  const mLowerRaw = rawMetodoPago.toLowerCase();
+  const isWompiPago =
+    mLowerRaw.includes("wompi") ||
+    mLowerRaw.includes("pasarela") ||
+    mLowerRaw.includes("pse") ||
+    (isOnlineSale && (!mLowerRaw || mLowerRaw === "efectivo"));
+
+  if (isWompiPago) {
+    parts.push("wompi", "pasarela", "pago en linea", "pago online");
+  } else if (mLowerRaw.includes("tarjeta")) {
+    parts.push("tarjeta", "debito", "credito");
+  } else if (mLowerRaw.includes("transf") || mLowerRaw.includes("nequi") || mLowerRaw.includes("davi")) {
+    parts.push("transferencia", "nequi", "daviplata", "bancolombia");
+  } else {
+    parts.push("efectivo", "cash");
+  }
+  if (rawMetodoPago) parts.push(rawMetodoPago);
   if (v.estadoPago) parts.push(v.estadoPago);
 
-  // 8. Estado del Pedido / Venta
+  // 8. Estado del Pedido, Estado de Aprobación y Botón Visible "Aprobar" (misma lógica exacta que VentasTable / isVentaFisicaOPos)
   const estadoStr = String(v.estado || "");
   const estadoEntregaStr = String(v.estadoEntrega || "");
+  const estadoPagoStr = String(v.estadoPago || "");
+  const estadoAprobStr = String(v.estadoAprobacion || "");
+  const origUp = String(v.origen || "").toUpperCase().trim();
+  const tipoVUp = String(v.tipoVenta || "").toUpperCase().trim();
+  const origNomLow = String(v.origenNombre || "").toLowerCase().trim();
+  const isVentaFisica = Boolean(
+    origUp === "PUNTO_FISICO" ||
+    origUp === "POS" ||
+    origUp === "VENTA_RAPIDA" ||
+    tipoVUp === "PUNTO_DE_VENTA" ||
+    tipoVUp === "POS" ||
+    tipoVUp === "VENTA_RAPIDA" ||
+    tipoVUp === "MOSTRADOR" ||
+    origNomLow.includes("físico") ||
+    origNomLow.includes("fisico") ||
+    origNomLow.includes("pos") ||
+    origNomLow.includes("mostrador") ||
+    origNomLow.includes("rápida") ||
+    origNomLow.includes("rapida") ||
+    mLowerRaw.includes("efectivo") ||
+    Boolean(v.idVendedor) ||
+    Boolean(v.vendedor) ||
+    !isOnlineOrigen
+  );
+  const canAprobarPago = Boolean(
+    !isVentaFisica &&
+    (estadoStr.toUpperCase() === "PENDIENTE" ||
+      estadoPagoStr.toUpperCase() === "PENDIENTE" ||
+      estadoAprobStr.toUpperCase() === "PENDIENTE")
+  );
+
+  if (canAprobarPago) {
+    parts.push(
+      "no_aprobado",
+      "no aprobado",
+      "pendiente",
+      "pendiente de aprobacion",
+      "aprobar",
+      "aprobar pago"
+    );
+  } else if (
+    estadoAprobStr.toUpperCase() === "RECHAZADO" ||
+    estadoStr.toLowerCase().includes("cancel") ||
+    estadoStr.toLowerCase().includes("anul") ||
+    estadoEntregaStr.toLowerCase().includes("cancel")
+  ) {
+    parts.push("no_aprobado", "no aprobado", "rechazado", "cancelado", "anulado");
+  } else {
+    parts.push("aprobado", "aprobada", "pago aprobado");
+  }
+
   if (v.estado !== undefined && v.estado !== null) {
     parts.push(formatStatusTokens(v.estado));
   }
@@ -796,10 +1064,13 @@ export function buildVentaSearchCorpus(v = {}) {
   if (eLower.includes("entreg") || eLower.includes("complet")) parts.push("entregado", "completada", "cerrada");
   if (eLower.includes("cancel") || eLower.includes("anul")) parts.push("cancelado", "cancelada", "anulada", "anulado");
 
-  // 9. Fechas, Horas y Períodos
+  // 9. Fechas, Horas y Períodos (incluyendo formato exacto 12h con cero inicial y AM/PM)
   const rawFecha = v.fecha || v.fechaVenta;
   if (rawFecha) {
     try {
+      const colRenderedTime = formatColombiaTime(rawFecha);
+      if (colRenderedTime) parts.push(colRenderedTime);
+
       const d = parseDateOnlySafe(rawFecha);
       const colParts = d ? getColombiaDateParts(d) : null;
       if (colParts) {
@@ -818,10 +1089,18 @@ export function buildVentaSearchCorpus(v = {}) {
 
         const minStr = String(minutes).padStart(2, "0");
         const hours12 = hours24 % 12 || 12;
+        const hours12Padded = String(hours12).padStart(2, "0");
         const isPm = hours24 >= 12;
         const ampm = isPm ? "pm" : "am";
 
-        parts.push(`${hours12}:${minStr}`, `${hours12}:${minStr} ${ampm}`, `${hours12}:${minStr}${ampm}`);
+        parts.push(
+          `${hours12}:${minStr}`,
+          `${hours12}:${minStr} ${ampm}`,
+          `${hours12}:${minStr}${ampm}`,
+          `${hours12Padded}:${minStr}`,
+          `${hours12Padded}:${minStr} ${ampm}`,
+          `${hours12Padded}:${minStr}${ampm}`
+        );
         parts.push(`${String(hours24).padStart(2, "0")}:${minStr}`);
         parts.push(`:${minStr}`, `${minStr} min`, `${minStr} minutos`);
         parts.push(ampm, isPm ? "tarde" : "manana");
@@ -835,14 +1114,10 @@ export function buildVentaSearchCorpus(v = {}) {
 
   // 10. Valores Financieros y Descuentos
   const totalNum = Number(v.total || v.subtotal || 0);
-  parts.push(String(totalNum));
-  parts.push(`$${totalNum.toLocaleString("es-CO")}`);
-  parts.push(totalNum.toLocaleString("es-CO"));
-  parts.push(`${totalNum} cop`, `$${totalNum}`);
+  parts.push(...formatCurrencyTokens(totalNum));
 
   if (v.subtotal) {
-    const subNum = Number(v.subtotal);
-    parts.push(String(subNum), `$${subNum.toLocaleString("es-CO")}`);
+    parts.push(...formatCurrencyTokens(v.subtotal));
   }
 
   const descPct = Number(v.descuentoPorcentaje || 0);
@@ -866,7 +1141,7 @@ export function buildClienteSearchCorpus(c = {}) {
 
   // ID
   const idStr = String(c.id || c.idCliente || "");
-  if (idStr) parts.push(idStr, `#${idStr}`);
+  if (idStr) parts.push(...formatIdTokens(idStr));
 
   // Nombre y apellidos
   const nombre = c.nombre || "";
@@ -880,7 +1155,7 @@ export function buildClienteSearchCorpus(c = {}) {
   if (c.email) {
     parts.push(c.email);
   } else {
-    parts.push("sin_correo sin correo sin_email sin email");
+    parts.push("sin_correo sin correo sin_email sin email sin cuenta");
   }
 
   // Teléfono
@@ -903,33 +1178,73 @@ export function buildClienteSearchCorpus(c = {}) {
     parts.push("sin_documento sin documento sin_cedula sin cedula sin_registrar sin registrar");
   }
 
-  // Dirección
+  // Dirección (limpiar si viene serializada en JSON)
+  let cleanDir = "";
   if (c.direccion && c.direccion !== "-") {
-    parts.push(c.direccion);
+    const dirStr = String(c.direccion).trim();
+    if (dirStr.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(dirStr);
+        cleanDir = parsed.direccion || parsed.d || dirStr;
+      } catch (_) {
+        cleanDir = dirStr;
+      }
+    } else {
+      cleanDir = dirStr;
+    }
+  }
+  if (cleanDir) {
+    parts.push(cleanDir);
   } else {
     parts.push("sin_direccion sin direccion");
   }
 
-  // Fidelidad
+  // Fidelidad + porcentaje de descuento
   const clientTipo = c.tipo || (c.esVip ? "VIP" : "Nuevo");
   if (clientTipo) {
     parts.push(clientTipo);
+    const tLow = String(clientTipo).toLowerCase();
+    const fallbackDesc = tLow.includes("vip") ? 15 : tLow.includes("frecuente") ? 10 : tLow.includes("regular") ? 5 : 0;
+    const descPct = Number(c.descuentoPorcentaje) > 0 ? Number(c.descuentoPorcentaje) : fallbackDesc;
+    if (descPct > 0) {
+      parts.push(`-${descPct}%`, `${descPct}%`, `${descPct}% off`, `${clientTipo} -${descPct}%`);
+    }
   }
 
-  // Estado
-  parts.push(formatStatusTokens(c.estado !== undefined ? c.estado : (c.activo === false ? "Inactivo" : "Activo")));
+  // Estado exacto renderizado en ClientesTable
+  const tieneCuenta = c.tieneCuenta !== false && !!c.idUsuario;
+  const isPendiente = c.estado === "PENDIENTE" || c.estado === "Pendiente" || c.estadoUsuario === "PENDIENTE";
+  const isActivo = tieneCuenta && !isPendiente && (
+    c.estado === "Activo" ||
+    c.estado === 1 ||
+    c.estado === "1" ||
+    c.activo === true ||
+    (c.activo === undefined && c.estado !== "Inactivo" && c.estado !== 0 && c.estado !== "0")
+  );
+  const renderedEstado = isPendiente ? "Pendiente" : isActivo ? "Activo" : "Inactivo";
+  parts.push(formatStatusTokens(renderedEstado));
 
-  // Compras
+  // Compras totales y racha actual (0/3, 1/3, 2/3, 3/3 y "0 de 3" .. "3 de 3")
   const comprasCount = Number(c.compras ?? 0);
-  parts.push(String(comprasCount), `${comprasCount} compras`, `${comprasCount} compra`);
+  const ciclo = c.fidelidad?.comprasCiclo !== undefined
+    ? Number(c.fidelidad.comprasCiclo)
+    : (comprasCount % 3);
+  parts.push(
+    String(comprasCount),
+    `${comprasCount} compras`,
+    `${comprasCount} compra`,
+    `${ciclo}/3`,
+    `${ciclo} / 3`,
+    `${ciclo} de 3`,
+    `racha ${ciclo}/3`,
+    `racha ${ciclo} de 3`
+  );
 
-  // Total consumido
+  // Total consumido (con y sin $ y separadores de miles)
   const rawTotalStr = String(c.totalConsumido || c.totalGastado || "");
   if (rawTotalStr) parts.push(rawTotalStr);
   const totalNum = Number(c.totalConsumidoRaw || c.totalGastadoRaw) || Number(rawTotalStr.replace(/[^\d]/g, "")) || 0;
-  if (totalNum > 0) {
-    parts.push(String(totalNum), `$${totalNum.toLocaleString("es-CO")}`, totalNum.toLocaleString("es-CO"));
-  }
+  parts.push(...formatCurrencyTokens(totalNum));
 
   // Transacciones / Productos comprados previamente en historial
   if (Array.isArray(c.transacciones)) {

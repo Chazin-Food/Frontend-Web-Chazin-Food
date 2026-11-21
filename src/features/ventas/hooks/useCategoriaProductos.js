@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { categoriaProductosService } from "../servicios/categoriaProductosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens } from "@/shared/utils/searchUtils";
 
 export function useCategoriaProductos() {
   const notify = useNotifications();
@@ -31,8 +31,8 @@ export function useCategoriaProductos() {
     if (!searchTerm || !searchTerm.trim()) return categorias;
 
     return categorias.filter((c) => {
-      const count = Number(c.totalProductos ?? c.cantidadProductos ?? c.productosCount ?? c.productos?.length ?? 0);
-      const unidadesText = `${count} productos ${count} unidades ${count} platillos`;
+      const count = Number(c.cantidad ?? c.totalProductos ?? c.cantidadProductos ?? c.productosCount ?? c.productos?.length ?? 0);
+      const unidadesText = `${count} platillos ${count} platillo ${count} productos ${count} producto ${count} unidades ${count} unidad`;
 
       const productosNombres = Array.isArray(c.productos)
         ? c.productos.map((p) => (typeof p === "string" ? p : p.nombre || "")).join(" ")
@@ -49,9 +49,7 @@ export function useCategoriaProductos() {
           count,
           String(count),
           unidadesText,
-          c.id,
-          c.idCategoriaProducto,
-          `#${c.id || c.idCategoriaProducto}`,
+          ...formatIdTokens(c.id || c.idCategoriaProducto),
           productosNombres
         ],
         searchTerm

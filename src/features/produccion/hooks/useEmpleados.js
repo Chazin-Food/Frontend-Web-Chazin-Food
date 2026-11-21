@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { empleadosService } from "../servicios/empleadosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { matchesSmartSearch } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens, formatCurrencyTokens } from "@/shared/utils/searchUtils";
 import { getColombiaDateISO, extractDateOnlyISO, formatDateLong } from "@/shared/utils/dateUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
@@ -146,61 +146,71 @@ export function useEmpleados() {
 
       const rawQuery = searchTerm.trim();
 
-      // 1. Detección directa de ID explícito (ej: "ID # 1", "id # 1", "ID 1", "id 1", "#1", "# 1", "id#1", "ID: 1")
-      const idMatch = rawQuery.match(/^(?:id\s*[:#-]?\s*|#\s*)(\d+)$/i);
-      if (idMatch) {
-        const targetId = Number(idMatch[1]);
-        return emp.idEmpleado === targetId;
-      }
-
       const numSalario = Number(emp.salario) || 0;
-      const formattedSalario = numSalario > 0 ? Math.round(numSalario).toLocaleString("es-CO") : "";
-      const currencySalario = numSalario > 0 ? `$ ${formattedSalario}` : "";
+      const formatCompactDate = (dateVal) => {
+        if (!dateVal) return "";
+        const str = String(dateVal).split("T")[0];
+        const parts = str.split("-");
+        if (parts.length === 3) {
+          const [y, m, d] = parts;
+          return `${d}/${m}/${y} ${Number(d)}/${Number(m)}/${y} ${str}`;
+        }
+        return str;
+      };
 
       const fechaInicioStr = emp.fechaInicio ? formatDateLong(emp.fechaInicio, "") : "";
       const fechaFinStr = emp.fechaFin ? formatDateLong(emp.fechaFin, "") : "";
+      const fechaInicioCompact = formatCompactDate(emp.fechaInicio);
+      const fechaFinCompact = formatCompactDate(emp.fechaFin);
+
+      const rolVal = emp.rol || emp.cargo || "Cocinero";
+      const turnoVal = emp.turno || "Completo";
+      const rolAliases = rolVal.toLowerCase() === "administrador" ? "Admin Administrador" : rolVal;
+      const tipoContratoVal = emp.tipoContrato || "Término Fijo";
 
       return matchesSmartSearch(
         [
-          // Documento de primero
+          // Documento
           emp.numeroDocumento,
           emp.tipoDocumento,
-          `${emp.tipoDocumento} ${emp.numeroDocumento}`,
-          `${emp.tipoDocumento}. ${emp.numeroDocumento}`,
-          // Empleado
-          emp.idEmpleado,
-          `ID #${emp.idEmpleado}`,
-          `#${emp.idEmpleado}`,
+          `${emp.tipoDocumento || "C.C."} ${emp.numeroDocumento || ""}`,
+          `${emp.tipoDocumento || "C.C."}. ${emp.numeroDocumento || ""}`,
+          // Empleado + ID
+          ...formatIdTokens(emp.idEmpleado),
           emp.nombre,
           emp.apellidos,
-          `${emp.nombre} ${emp.apellidos}`,
-          // Rol y turno
-          emp.rol,
+          `${emp.nombre || ""} ${emp.apellidos || ""}`.trim(),
+          // Rol y Turno (por separado y combinados exactamente como se visualizan)
+          rolVal,
+          rolAliases,
           emp.cargo,
-          emp.turno,
+          turnoVal,
+          `Rol ${rolVal}`,
+          `Turno ${turnoVal}`,
+          `${rolVal} ${turnoVal}`,
+          `Rol ${rolVal} Turno ${turnoVal}`,
           // Contacto
           emp.correo,
           emp.telefono,
           emp.telefono ? String(emp.telefono).replace(/\D/g, "") : "",
           emp.direccion,
-          // Contratación
-          emp.tipoContrato,
+          // Contratación (tipo y fechas en todos los formatos mostrados)
+          tipoContratoVal,
+          !emp.fechaFin ? "Indefinido (Indef.) Indef" : "",
           emp.fechaInicio,
           emp.fechaFin,
+          fechaInicioCompact,
+          fechaFinCompact,
           fechaInicioStr,
           fechaFinStr,
-          emp.contratoVencido ? "Contrato Vencido" : "",
-          // Estado
+          emp.contratoVencido ? "Contrato Vencido Vencido" : "",
+          // Estado (estricto Activo / Inactivo / Incapacitado)
+          formatStatusTokens(emp.estado),
           emp.estado,
-          // Salario en formatos numérico, con puntos y con divisa
-          emp.salario,
-          numSalario,
-          String(Math.round(numSalario)),
-          formattedSalario,
-          currencySalario,
-          `$${formattedSalario}`,
-          `COP ${formattedSalario}`,
-          "COP Mensual"
+          // Salario flexible + periodicidad
+          ...formatCurrencyTokens(numSalario),
+          "COP Mensual",
+          "Mensual"
         ],
         rawQuery
       );

@@ -188,8 +188,8 @@ export function UsuariosTable({
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 font-medium">
                       {isCedulaValida(usuario.documento, usuario.tipoDocumento)
-                        ? `Doc: ${usuario.documento}`
-                        : `ID #${usuario.id || usuario.idUsuario} (Doc. pendiente)`}
+                        ? `ID #${usuario.id || usuario.idUsuario} · Doc: ${usuario.documento}`
+                        : `ID #${usuario.id || usuario.idUsuario} · Sin reg.`}
                     </p>
                   </div>
                 </div>
@@ -209,12 +209,14 @@ export function UsuariosTable({
                   <Mail className="w-4 h-4 text-gray-400 shrink-0" />
                   <span className="truncate">{usuario.email}</span>
                 </div>
-                {usuario.telefono && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  {usuario.telefono && String(usuario.telefono).trim() && String(usuario.telefono).trim() !== "-" ? (
                     <span>{[t1, t2, t3].filter(Boolean).join(" ")}</span>
-                  </div>
-                )}
+                  ) : (
+                    <span className="italic text-gray-400 dark:text-gray-500">- Sin registrar</span>
+                  )}
+                </div>
                 {usuario.rolNombre === "Cliente" && usuario.direccion && (
                   <div className="flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
@@ -374,10 +376,17 @@ export function UsuariosTable({
 
                     {/* TELÉFONO */}
                     <td className="px-3 py-3.5 align-middle">
-                      <div className="flex items-center gap-1.5 text-xs xl:text-sm text-slate-600 dark:text-gray-300 min-w-0">
-                        <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                        <span className="font-medium truncate" title={usuario.telefono || "-"}>{usuario.telefono || "-"}</span>
-                      </div>
+                      {usuario.telefono && String(usuario.telefono).trim() && String(usuario.telefono).trim() !== "-" ? (
+                        <div className="flex items-center gap-1.5 text-xs xl:text-sm text-slate-600 dark:text-gray-300 min-w-0">
+                          <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="font-medium truncate" title={usuario.telefono}>{usuario.telefono}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs xl:text-sm text-gray-400 dark:text-gray-500 min-w-0">
+                          <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="italic truncate" title="- Sin registrar">- Sin registrar</span>
+                        </div>
+                      )}
                     </td>
 
                     {/* ROL */}

@@ -5,7 +5,7 @@ import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fich
 import { normalizeFichaWithVersions } from "@/features/fichas-tecnicas/utils/fichaVersionUtils";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { apiClient } from "@/shared/api/apiClient";
-import { matchesSmartSearch, formatStatusTokens, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens, formatCurrencyTokens, formatNumericWithUnit, rankSearchResults, normalizeSearchText } from "@/shared/utils/searchUtils";
 import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
@@ -318,24 +318,14 @@ export function useInsumos() {
           item.tipo,
           isPrep ? "Insumo Preparado Preparado receta" : "Insumo Base Base ingrediente",
           descText,
-          item.unidadMedida,
-          item.id,
-          item.idInsumo,
-          `#${item.id || item.idInsumo}`,
-          item.stock,
-          String(item.stock ?? ""),
-          item.stock !== undefined && item.stock !== null ? `${item.stock} ${item.unidadMedida || ""}` : "",
+          ...formatIdTokens(item.id || item.idInsumo),
+          ...formatNumericWithUnit(item.stock, item.unidadMedida),
           `stock ${item.stock ?? ""}`,
-          item.stockMinimo,
-          String(item.stockMinimo ?? ""),
+          ...formatNumericWithUnit(item.stockMinimo, item.unidadMedida),
           `minimo ${item.stockMinimo ?? ""}`,
-          item.stockMaximo,
-          String(item.stockMaximo ?? ""),
+          ...formatNumericWithUnit(item.stockMaximo, item.unidadMedida),
           `maximo ${item.stockMaximo ?? ""}`,
-          precioNum,
-          String(precioNum),
-          `$${precioNum.toLocaleString("es-CO")}`,
-          `$ ${precioNum.toLocaleString("es-CO")}`,
+          ...formatCurrencyTokens(precioNum),
           precioAdicionNum > 0 ? precioAdicionNum : "",
           precioAdicionNum > 0 ? String(precioAdicionNum) : "",
           precioAdicionNum > 0 ? `$${precioAdicionNum.toLocaleString("es-CO")}` : "",

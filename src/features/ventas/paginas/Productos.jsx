@@ -19,6 +19,16 @@ export function Productos() {
   const canEdit = hasPrivilege(user, "Productos", "editar");
   const canDelete = hasPrivilege(user, "Productos", "eliminar");
 
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingProducto, setEditingProducto] = useState(null);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
+  const [eventosModalOpen, setEventosModalOpen] = useState(false);
+  const [crearEventoModalOpen, setCrearEventoModalOpen] = useState(false);
+  const [productoParaEvento, setProductoParaEvento] = useState(null);
+  const [eventoParaEditar, setEventoParaEditar] = useState(null);
+  const [eventos, setEventos] = useState([]);
+
   const {
     productos,
     papeleraProductos,
@@ -46,17 +56,7 @@ export function Productos() {
     restoreProducto,
     deleteDefinitivoProducto,
     refetch
-  } = useProductos();
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingProducto, setEditingProducto] = useState(null);
-  const [isViewMode, setIsViewMode] = useState(false);
-  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
-  const [eventosModalOpen, setEventosModalOpen] = useState(false);
-  const [crearEventoModalOpen, setCrearEventoModalOpen] = useState(false);
-  const [productoParaEvento, setProductoParaEvento] = useState(null);
-  const [eventoParaEditar, setEventoParaEditar] = useState(null);
-  const [eventos, setEventos] = useState([]);
+  } = useProductos(eventos);
 
   const fetchEventos = useCallback(async () => {
     try {

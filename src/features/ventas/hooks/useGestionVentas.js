@@ -76,17 +76,26 @@ export function useGestionVentas() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
+  // Cuando hay búsqueda activa o filtros exclusivos de cliente, usar searchUtils centralizado sobre todo el periodo (soporta (A)/(M), Aprobar, No aprobado, AM/PM, etc.)
   const hasClientOnlyFilters = Boolean(
+    (debouncedSearch && debouncedSearch.trim()) ||
     filterFecha ||
     filterFidelidad !== "Todos" ||
     montoMin !== "" ||
     montoMax !== ""
   );
 
-  // Paginación real en servidor cuando estamos en la tabla principal o historial sin filtros exclusivos de cliente
+  // Paginación real en servidor cuando estamos en la tabla principal o historial sin búsqueda ni filtros exclusivos de cliente
   const shouldUseServerPagination =
     (activeTab === "pedidos_pagados" || activeTab === "historial") &&
     !hasClientOnlyFilters;
+
+  const serverPage = shouldUseServerPagination ? currentPage : 1;
+  const serverLimit = shouldUseServerPagination ? pageSize : 0;
+  const serverEstado = shouldUseServerPagination ? filterEstado : "Todos";
+  const serverOrigen = shouldUseServerPagination ? filterOrigen : "Todos";
+  const serverTipoEntrega = shouldUseServerPagination ? filterTipoEntrega : "Todos";
+  const serverMetodoPago = shouldUseServerPagination ? filterMetodoPago : "Todos";
 
   const fetchVentas = useCallback(async () => {
     try {
@@ -95,9 +104,9 @@ export function useGestionVentas() {
       const validFin = /^\d{4}-\d{2}-\d{2}$/.test(filterFechaFin) ? filterFechaFin : undefined;
       const useCustomDates = selectedPeriod === "personalizado" && (validInicio || validFin);
       const effectiveEstado =
-        activeTab === "historial" && filterEstado === "Todos"
+        activeTab === "historial" && serverEstado === "Todos"
           ? "Completada"
-          : filterEstado;
+          : serverEstado;
 
       const baseQueryParams = {
         periodo: selectedPeriod,
@@ -109,12 +118,11 @@ export function useGestionVentas() {
         ? {
             ...baseQueryParams,
             ...(effectiveEstado && effectiveEstado !== "Todos" ? { estado: effectiveEstado } : {}),
-            ...(filterOrigen && filterOrigen !== "Todos" ? { origen: filterOrigen } : {}),
-            ...(filterTipoEntrega && filterTipoEntrega !== "Todos" ? { tipoEntrega: filterTipoEntrega } : {}),
-            ...(filterMetodoPago && filterMetodoPago !== "Todos" ? { metodoPago: filterMetodoPago } : {}),
-            ...(debouncedSearch && debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-            page: currentPage,
-            limit: pageSize
+            ...(serverOrigen && serverOrigen !== "Todos" ? { origen: serverOrigen } : {}),
+            ...(serverTipoEntrega && serverTipoEntrega !== "Todos" ? { tipoEntrega: serverTipoEntrega } : {}),
+            ...(serverMetodoPago && serverMetodoPago !== "Todos" ? { metodoPago: serverMetodoPago } : {}),
+            page: serverPage,
+            limit: serverLimit
           }
         : baseQueryParams;
 
@@ -123,14 +131,16 @@ export function useGestionVentas() {
         ventasService.getStats(baseQueryParams).catch(() => null)
       ]);
 
-      if (resList && !Array.isArray(resList) && Array.isArray(resList.data)) {
+      if (shouldUseServerPagination && resList && !Array.isArray(resList) && Array.isArray(resList.data)) {
         setVentas(resList.data);
-        setPagination(resList.pagination || { total: resList.data.length, page: currentPage, limit: pageSize, totalPages: 1 });
+        setPagination(resList.pagination || { total: resList.data.length, page: serverPage, limit: serverLimit, totalPages: 1 });
         setServerPaginated(true);
       } else {
-        const arr = Array.isArray(resList) ? resList : [];
+        const arr = resList && !Array.isArray(resList) && Array.isArray(resList.data)
+          ? resList.data
+          : (Array.isArray(resList) ? resList : []);
         setVentas(arr);
-        setPagination({ total: arr.length, page: currentPage, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
+        setPagination({ total: arr.length, page: 1, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
         setServerPaginated(false);
       }
       setStats(statsData);
@@ -145,13 +155,12 @@ export function useGestionVentas() {
     filterFechaInicio,
     filterFechaFin,
     activeTab,
-    filterEstado,
-    filterOrigen,
-    filterTipoEntrega,
-    filterMetodoPago,
-    debouncedSearch,
-    currentPage,
-    pageSize,
+    serverEstado,
+    serverOrigen,
+    serverTipoEntrega,
+    serverMetodoPago,
+    serverPage,
+    serverLimit,
     shouldUseServerPagination
   ]);
 

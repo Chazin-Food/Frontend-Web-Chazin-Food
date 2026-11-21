@@ -50,32 +50,44 @@ export function useClientes() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  const hasClientOnlyFilters = Boolean(comprasMin !== "" || montoMin !== "" || montoMax !== "");
+  // Cuando el usuario escribe en el buscador, usar searchUtils centralizado sobre todo el conjunto (racha 0/3..3/3, "1 de 3", moneda flexible, Activo/Inactivo estricto)
+  const hasClientOnlyFilters = Boolean(
+    (debouncedSearch && debouncedSearch.trim()) ||
+    comprasMin !== "" ||
+    montoMin !== "" ||
+    montoMax !== ""
+  );
+
+  const serverPage = hasClientOnlyFilters ? 1 : currentPage;
+  const serverLimit = hasClientOnlyFilters ? 0 : pageSize;
+  const serverTipo = hasClientOnlyFilters ? "Todos" : filterTipo;
+  const serverEstado = hasClientOnlyFilters ? "Todos" : filterEstado;
 
   const fetchClientes = useCallback(async () => {
     try {
       setLoading(true);
       const listParams = !hasClientOnlyFilters
         ? {
-            page: currentPage,
-            limit: pageSize,
-            ...(debouncedSearch && debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-            ...(filterTipo && filterTipo !== "Todos" ? { tipo: filterTipo } : {}),
-            ...(filterEstado && filterEstado !== "Todos" ? { estado: filterEstado } : {})
+            page: serverPage,
+            limit: serverLimit,
+            ...(serverTipo && serverTipo !== "Todos" ? { tipo: serverTipo } : {}),
+            ...(serverEstado && serverEstado !== "Todos" ? { estado: serverEstado } : {})
           }
         : {};
       const [resList, statsData] = await Promise.all([
         clientesService.getClientes(listParams),
         clientesService.getStats().catch(() => null)
       ]);
-      if (resList && !Array.isArray(resList) && Array.isArray(resList.data)) {
+      if (!hasClientOnlyFilters && resList && !Array.isArray(resList) && Array.isArray(resList.data)) {
         setClientes(resList.data);
-        setPagination(resList.pagination || { total: resList.data.length, page: currentPage, limit: pageSize, totalPages: 1 });
+        setPagination(resList.pagination || { total: resList.data.length, page: serverPage, limit: serverLimit, totalPages: 1 });
         setServerPaginated(true);
       } else {
-        const arr = Array.isArray(resList) ? resList : [];
+        const arr = resList && !Array.isArray(resList) && Array.isArray(resList.data)
+          ? resList.data
+          : (Array.isArray(resList) ? resList : []);
         setClientes(arr);
-        setPagination({ total: arr.length, page: currentPage, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
+        setPagination({ total: arr.length, page: 1, limit: pageSize, totalPages: Math.max(1, Math.ceil(arr.length / pageSize)) });
         setServerPaginated(false);
       }
       setStats(statsData);
@@ -85,7 +97,7 @@ export function useClientes() {
     } finally {
       setLoading(false);
     }
-  }, [hasClientOnlyFilters, currentPage, pageSize, debouncedSearch, filterTipo, filterEstado]);
+  }, [hasClientOnlyFilters, serverPage, serverLimit, serverTipo, serverEstado]);
 
   useEffect(() => {
     fetchClientes();

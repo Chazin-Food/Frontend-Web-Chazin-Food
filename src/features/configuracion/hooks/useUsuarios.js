@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { usuariosService } from "../servicios/usuariosService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { matchesSmartSearch, formatStatusTokens } from "@/shared/utils/searchUtils";
-import { isCedulaValida } from "@/shared/utils/validationUtils";
+import { matchesSmartSearch, formatStatusTokens, formatIdTokens } from "@/shared/utils/searchUtils";
+import { isCedulaValida, formatNombreCompleto } from "@/shared/utils/validationUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
 const USUARIOS_URL_DEFAULTS = {
@@ -81,15 +81,22 @@ export function useUsuarios() {
     const isNotAdmin = (u.rolNombre || u.rol || "").toLowerCase() !== "administrador" && String(u.idRol || u.id_rol) !== "1";
     if (!isNotAdmin) return false;
 
-    const fullName = `${u.nombre || ""} ${u.apellidos || ""}`.trim();
+    const fullName = formatNombreCompleto(u.nombre, u.apellidos) || `${u.nombre || ""} ${u.apellidos || ""}`.trim();
 
     const hasDoc = isCedulaValida(u.documento, u.tipoDocumento);
     const docText = hasDoc
-      ? `${u.documento} ${u.tipoDocumento || ""} con_documento con documento con_cedula con cedula`
-      : "sin_documento sin documento sin_registrar sin registrar pendiente documento pendiente sin cedula sin_cedula";
+      ? `${u.documento} ${u.tipoDocumento || ""} ${u.tipoDocumento ? `${u.tipoDocumento} ${u.documento}` : ""} con_documento con documento con_cedula con cedula`
+      : "sin_documento sin documento sin_registrar sin registrar Sin reg. Sin reg pendiente documento pendiente sin cedula sin_cedula";
 
-    const hasTel = Boolean(u.telefono && String(u.telefono).trim() && u.telefono !== "-");
-    const telText = hasTel ? `${u.telefono} con_telefono con telefono` : "sin_telefono sin telefono";
+    const rawTel = String(u.telefono || "").trim();
+    const hasTel = Boolean(rawTel && rawTel !== "-");
+    const cleanTelDigits = hasTel ? rawTel.replace(/\D/g, "") : "";
+    const formattedTelSpaced = cleanTelDigits.length >= 10
+      ? `${cleanTelDigits.slice(0, 3)} ${cleanTelDigits.slice(3, 6)} ${cleanTelDigits.slice(6)}`
+      : rawTel;
+    const telText = hasTel
+      ? `${rawTel} ${formattedTelSpaced} ${cleanTelDigits} con_telefono con telefono`
+      : "- Sin registrar - sin_registrar sin registrar sin_telefono sin telefono";
 
     const hasEmail = Boolean(u.email && String(u.email).trim() && u.email !== "-");
     const emailText = hasEmail ? `${u.email} con_correo con correo con_email con email` : "sin_correo sin correo sin_email sin email";
@@ -104,19 +111,17 @@ export function useUsuarios() {
         fullName,
         u.email,
         emailText,
-        u.documento,
-        u.numeroDocumento,
+        hasDoc ? u.documento : "",
+        hasDoc ? u.numeroDocumento : "",
         docText,
-        u.telefono,
+        hasTel ? rawTel : "",
         telText,
         u.direccion,
         dirText,
         u.rolNombre,
         u.rol,
         formatStatusTokens(u.estado),
-        u.id,
-        u.idUsuario,
-        `#${u.id || u.idUsuario}`
+        ...formatIdTokens(u.id || u.idUsuario)
       ],
       searchTerm
     );

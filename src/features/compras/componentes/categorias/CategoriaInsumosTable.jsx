@@ -6,10 +6,10 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Reset pagination when categorias length changes (#51)
+  // Reset pagination whenever filtered dataset changes (#51)
   useEffect(() => {
     setCurrentPage(1);
-  }, [categorias.length]);
+  }, [categorias]);
 
   const totalRecords = categorias.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
