@@ -32,7 +32,7 @@ export const dashboardService = {
   },
 
   getDevolucionesPendientes: async () => {
-    const res = await apiClient.get("/dashboard/devoluciones-pendientes");
+    const res = await apiClient.get("/dashboard/devoluciones-pendientes", { noCache: true });
     if (Array.isArray(res)) return res;
     return Array.isArray(res?.data) ? res.data : [];
   }

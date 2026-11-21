@@ -491,24 +491,38 @@ export function Dashboard() {
 
       </div>
 
-      {/* ── Solicitudes de Devolución Pendientes por Revisión (aparece cuando existen solicitudes en espera) ── */}
-      {pendingDevoluciones.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 p-4 sm:p-5 rounded-2xl shadow-xs border border-amber-200/90 dark:border-amber-800/60 min-w-0">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-            <div className="flex items-start gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-amber-100/90 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200/70 dark:border-amber-800/50">
-                <RotateCcw className="w-4 h-4 stroke-[2.3]" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base leading-tight">
-                  Solicitudes de Devolución en Espera de Revisión
-                </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Haz clic en una solicitud para abrirla directamente en Devoluciones y confirmarla, rechazarla o revisarla
-                </p>
-              </div>
+      {/* ── Solicitudes de Devolución Pendientes por Revisión ── */}
+      <div
+        className={`bg-white dark:bg-gray-900 rounded-2xl shadow-xs border min-w-0 transition-colors ${
+          pendingDevoluciones.length > 0
+            ? "p-4 sm:p-5 border-amber-200/90 dark:border-amber-800/60"
+            : "px-4 py-3.5 sm:px-5 border-gray-100 dark:border-gray-800"
+        }`}
+      >
+        <div className={`flex flex-wrap items-center justify-between gap-3 ${pendingDevoluciones.length > 0 ? "mb-4" : ""}`}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                pendingDevoluciones.length > 0
+                  ? "bg-amber-100/90 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200/70 dark:border-amber-800/50"
+                  : "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40"
+              }`}
+            >
+              <RotateCcw className="w-4 h-4 stroke-[2.3]" />
             </div>
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="min-w-0">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 text-sm sm:text-base leading-tight">
+                Solicitudes de Devolución en Espera de Revisión
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {pendingDevoluciones.length > 0
+                  ? "Haz clic en una solicitud para abrirla directamente en Devoluciones y confirmarla, rechazarla o revisarla"
+                  : "Al día · Cuando un cliente genere una solicitud pendiente por revisión aparecerá aquí"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            {pendingDevoluciones.length > 0 ? (
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800/60 whitespace-nowrap">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 <span>
@@ -516,18 +530,25 @@ export function Dashboard() {
                   {pendingDevoluciones.length === 1 ? "pendiente por revisar" : "pendientes por revisar"}
                 </span>
               </span>
-              {canViewDevoluciones && (
-                <Link
-                  to="/ventas/devoluciones?estado=PENDIENTE"
-                  className="text-xs text-red-600 dark:text-red-400 inline-flex items-center gap-0.5 hover:underline font-bold whitespace-nowrap"
-                >
-                  <span>Ver todas</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              )}
-            </div>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/80 dark:border-emerald-800/60 whitespace-nowrap">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>0 pendientes</span>
+              </span>
+            )}
+            {canViewDevoluciones && (
+              <Link
+                to={pendingDevoluciones.length > 0 ? "/ventas/devoluciones?estado=PENDIENTE" : "/ventas/devoluciones"}
+                className="text-xs text-red-600 dark:text-red-400 inline-flex items-center gap-0.5 hover:underline font-bold whitespace-nowrap"
+              >
+                <span>{pendingDevoluciones.length > 0 ? "Ver todas" : "Ir a Devoluciones"}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
+        </div>
 
+        {pendingDevoluciones.length > 0 && (
           <div
             className={`grid grid-cols-1 ${pendingDevoluciones.length > 1 ? "lg:grid-cols-2" : ""} gap-3 max-h-[290px] overflow-y-auto custom-modal-scrollbar pr-1`}
           >
@@ -642,8 +663,8 @@ export function Dashboard() {
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── Charts Grid (Ítems 32 y 33) ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">

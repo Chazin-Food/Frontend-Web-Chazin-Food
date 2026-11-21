@@ -82,7 +82,19 @@ export function useDashboardStats() {
       fetchDashboardData(true);
     }, 20000);
 
-    return () => clearInterval(interval);
+    const handleVisibilityOrFocus = () => {
+      if (typeof document === "undefined" || !document.hidden) {
+        fetchDashboardData(true);
+      }
+    };
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
   }, [fetchDashboardData]);
 
   return {
