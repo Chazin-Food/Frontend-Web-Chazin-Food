@@ -88,7 +88,13 @@ export function ProduccionTable({
     return pages;
   };
 
-  const getNextStatusConfig = (currentStatus) => {
+  const isOrderDomicilio = (orden) => {
+    if (!orden) return false;
+    const raw = `${orden.tipoEntrega || ""} ${orden.tipoVenta || ""} ${orden.mesa || ""}`.toLowerCase();
+    return raw.includes("domicilio") || String(orden.origen || "").toUpperCase() === "ONLINE";
+  };
+
+  const getNextStatusConfig = (currentStatus, orden = null) => {
     switch (currentStatus) {
       case "En Cola":
         return {
@@ -104,10 +110,18 @@ export function ProduccionTable({
         };
       case "Listo":
       case "Listos":
+        // Ficha SENA 3209616: Domicilio pasa por "Despachado" -> "Entregado"; Presencial pasa directo a "Entregado"
+        if (isOrderDomicilio(orden)) {
+          return {
+            next: "Despachado",
+            label: "Despachar Domicilio",
+            color: "bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+          };
+        }
         return {
-          next: "Despachado",
-          label: "Despachado",
-          color: "bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+          next: "Entregado",
+          label: "Marcar Entregado",
+          color: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
         };
       case "Despachado":
         return {
@@ -130,7 +144,7 @@ export function ProduccionTable({
           </div>
         ) : (
           paginatedOrdenes.map((o) => {
-            const nextConfig = getNextStatusConfig(o.estado);
+            const nextConfig = getNextStatusConfig(o.estado, o);
             const timings = resolveOrderTimings(o, nowMs);
 
             return (
@@ -297,7 +311,7 @@ export function ProduccionTable({
               </tr>
             ) : (
               paginatedOrdenes.map((o) => {
-                const nextConfig = getNextStatusConfig(o.estado);
+                const nextConfig = getNextStatusConfig(o.estado, o);
                 const timings = resolveOrderTimings(o, nowMs);
 
                 return (

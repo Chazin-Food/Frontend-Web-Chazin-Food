@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/shared/context/ToastContext";
 import { validateContrasena, validateConfirmarContrasena } from "@/shared/utils/validationUtils";
-import apiClient from "@/shared/api/apiClient";
+import { apiClient } from "@/shared/api/apiClient";
 
 export function ActivarCuenta() {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export function ActivarCuenta() {
     const checkToken = async () => {
       try {
         const response = await apiClient.get(`/auth/verificar-activacion?token=${encodeURIComponent(token)}`);
-        setUserData(response.data?.user || response.data || null);
+        setUserData(response?.user || response?.data?.user || response?.data || response || null);
       } catch (err) {
         setTokenError(err?.data?.message || err?.message || "El enlace de activación ha expirado o ya fue utilizado.");
       } finally {

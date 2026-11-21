@@ -22,6 +22,8 @@ import { VentasHistorialTableView } from "../componentes/gestion/VentasHistorial
 import { VentasBuscadorMulticriterio } from "../componentes/gestion/VentasBuscadorMulticriterio";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { formatTime12h, formatDateSafe, getColombiaDateISO, extractDateOnlyISO, COLOMBIA_TZ } from "@/shared/utils/dateUtils";
+import { escapeHtml } from "@/shared/utils/htmlSanitizer";
+import { exportTableToExcel } from "@/shared/utils/excelExport";
 
 const VentasReportesView = lazy(() => import("../componentes/gestion/VentasReportesView").then((m) => ({ default: m.VentasReportesView })));
 const VentaDetalleModal = lazy(() => import("../componentes/gestion/VentaDetalleModal").then((m) => ({ default: m.VentaDetalleModal })));
@@ -126,7 +128,6 @@ export function GestionVentas() {
 
   // Export to Excel (.xlsx) con los datos filtrados actualmente
   const handleExportExcel = async () => {
-    const XLSX = await import("xlsx");
     const exportSource = activeTab === "historial" ? historialVentas : filteredVentas;
     const headers = [
       "N° Factura / Venta",
@@ -164,27 +165,13 @@ export function GestionVentas() {
       ];
     });
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-    worksheet["!cols"] = [
-      { wch: 22 }, // N° Factura / Venta
-      { wch: 24 }, // Cliente
-      { wch: 14 }, // Fecha
-      { wch: 16 }, // Horario
-      { wch: 14 }, // Entrega
-      { wch: 18 }, // Método de Pago
-      { wch: 16 }, // Subtotal
-      { wch: 12 }, // Descuento
-      { wch: 16 }, // Total
-      { wch: 16 }  // Estado
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Historial de Ventas");
-    XLSX.writeFile(
-      workbook,
-      `Historial_Ventas_${selectedPeriod}_${getColombiaDateISO()}.xlsx`
-    );
+    await exportTableToExcel({
+      sheetName: "Historial de Ventas",
+      fileName: `Historial_Ventas_${selectedPeriod}_${getColombiaDateISO()}.xlsx`,
+      headers,
+      rows,
+      colWidths: [22, 24, 14, 16, 14, 18, 16, 12, 16, 16]
+    });
   };
 
   // Export to Printable PDF Window con los datos filtrados actualmente
@@ -197,6 +184,7 @@ export function GestionVentas() {
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8" />
           <title>Historial de Ventas - Chazin Food</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
@@ -212,7 +200,7 @@ export function GestionVentas() {
         </head>
         <body>
           <h1>Chazin Food — Historial de Ventas</h1>
-          <h2>Período: ${periodText} | Registros: ${exportSource.length} | Generado el: ${new Date().toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ })} ${formatTime12h(new Date())}</h2>
+          <h2>Período: ${escapeHtml(periodText)} | Registros: ${escapeHtml(exportSource.length)} | Generado el: ${escapeHtml(new Date().toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ }))} ${escapeHtml(formatTime12h(new Date()))}</h2>
           <table>
             <thead>
               <tr>
@@ -237,13 +225,13 @@ export function GestionVentas() {
                     : (rawMetodo || "Efectivo");
                 return `
                 <tr>
-                  <td><strong>${v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`}</strong></td>
-                  <td>${v.clienteNombre || v.cliente || "Cliente General"}</td>
-                  <td>${formatDateSafe(v.fecha || v.fechaVenta, "—")} (${formatTime12h(v.horario || v.fecha || v.fechaVenta, "—")})</td>
-                  <td>${v.tipoEntrega || "En Mesa"}</td>
-                  <td>${metodoLabel}</td>
-                  <td><strong>$${Number(v.total || v.subtotal || 0).toLocaleString("es-CO")}</strong></td>
-                  <td><span class="badge">${v.estado || "Completada"}</span></td>
+                  <td><strong>${escapeHtml(v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`)}</strong></td>
+                  <td>${escapeHtml(v.clienteNombre || v.cliente || "Cliente General")}</td>
+                  <td>${escapeHtml(formatDateSafe(v.fecha || v.fechaVenta, "—"))} (${escapeHtml(formatTime12h(v.horario || v.fecha || v.fechaVenta, "—"))})</td>
+                  <td>${escapeHtml(v.tipoEntrega || "En Mesa")}</td>
+                  <td>${escapeHtml(metodoLabel)}</td>
+                  <td><strong>$${escapeHtml(Number(v.total || v.subtotal || 0).toLocaleString("es-CO"))}</strong></td>
+                  <td><span class="badge">${escapeHtml(v.estado || "Completada")}</span></td>
                 </tr>
               `;
               }).join("")}
@@ -257,6 +245,7 @@ export function GestionVentas() {
       </html>
     `;
 
+    printWindow.opener = null;
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   };

@@ -1,4 +1,5 @@
 import { resolveOrderTimings } from "./tiempoProduccionUtils";
+import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 
 /**
  * Utilidad para imprimir la comanda de cocina (Ticket térmico o estándar de producción)
@@ -29,7 +30,7 @@ export function imprimirComanda(orden) {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Comanda de Cocina - ${orden.codigo || `OP-00${orden.id}`}</title>
+  <title>Comanda de Cocina - ${escapeHtml(orden.codigo || `OP-00${orden.id}`)}</title>
   <style>
     @page {
       margin: 4mm;
@@ -175,38 +176,38 @@ export function imprimirComanda(orden) {
   <div class="header">
     <h1 class="title">CHAZIN FOOD</h1>
     <p class="subtitle">COMANDA DE COCINA / PRODUCCIÓN</p>
-    <div class="order-code">${orden.codigo || `OP-00${orden.id}`}</div>
+    <div class="order-code">${escapeHtml(orden.codigo || `OP-00${orden.id}`)}</div>
   </div>
 
   <div class="meta-box">
     <div class="meta-row">
       <span class="meta-label">CLIENTE:</span>
-      <span><strong>${orden.cliente || orden.responsable || "Cliente Mostrador"}</strong></span>
+      <span><strong>${escapeHtml(orden.cliente || orden.responsable || "Cliente Mostrador")}</strong></span>
     </div>
     <div class="meta-row">
       <span class="meta-label">COCINERO / CHEF:</span>
-      <span>${orden.cocinero || orden.responsableCocina || orden.responsable || "Chef de Turno"}</span>
+      <span>${escapeHtml(orden.cocinero || orden.responsableCocina || orden.responsable || "Chef de Turno")}</span>
     </div>
     <div class="meta-row">
       <span class="meta-label">UBICACIÓN / TIPO:</span>
-      <span><strong>${orden.mesa || orden.tipo || "En Local"}</strong></span>
+      <span><strong>${escapeHtml(orden.mesa || orden.tipo || "En Local")}</strong></span>
     </div>
     <div class="meta-row">
       <span class="meta-label">FECHA / HORA PEDIDO:</span>
-      <span>${timings.fechaColombia} · ${timings.horaPedido}</span>
+      <span>${escapeHtml(timings.fechaColombia)} · ${escapeHtml(timings.horaPedido)}</span>
     </div>
     <div class="meta-row">
       <span class="meta-label">TIEMPO COCCIÓN / ENTREGA:</span>
-      <span>${timings.tiempoPreparacion} (${timings.tiempoEstimadoEntrega})</span>
+      <span>${escapeHtml(timings.tiempoPreparacion)} (${escapeHtml(timings.tiempoEstimadoEntrega)})</span>
     </div>
     <div class="meta-row">
-      <span class="meta-label">HORA ESTADO (${orden.estado}):</span>
-      <span><strong>${timings.horaEstado}</strong></span>
+      <span class="meta-label">HORA ESTADO (${escapeHtml(orden.estado)}):</span>
+      <span><strong>${escapeHtml(timings.horaEstado)}</strong></span>
     </div>
     ${orden.prioridad ? `
     <div class="meta-row" style="margin-top: 4px;">
       <span class="meta-label">TURNO DE PREPARACIÓN:</span>
-      <span class="badge-turno">TURNO #${orden.prioridad}</span>
+      <span class="badge-turno">TURNO #${escapeHtml(orden.prioridad)}</span>
     </div>` : ''}
   </div>
 
@@ -231,19 +232,19 @@ export function imprimirComanda(orden) {
           .join(" • ");
         return `
         <tr class="item-row">
-          <td class="item-qty">x${qty}</td>
+          <td class="item-qty">x${escapeHtml(qty)}</td>
           <td>
-            <div class="item-name">${p.nombre}</div>
-            ${p.varianteNombre && !p.esVarianteBase ? `<div class="item-adds">Variante: <strong>${p.varianteNombre}</strong>${p.esVarianteDeEvento ? " (Evento)" : ""}</div>` : ''}
-            ${varCambios.length > 0 ? `<div class="item-adds">Cambios: ${varCambios.map(c => c.texto || c.insumoNombre).join(', ')}</div>` : ''}
-            ${ings.length > 0 ? `<div class="item-notes">Insumos: ${ings.map(ing => `${ing.nombre} (${ing.cantidad})`).join(', ')}</div>` : ''}
-            ${specsStr ? `<div class="item-notes">Specs: ${specsStr}</div>` : ''}
+            <div class="item-name">${escapeHtml(p.nombre)}</div>
+            ${p.varianteNombre && !p.esVarianteBase ? `<div class="item-adds">Variante: <strong>${escapeHtml(p.varianteNombre)}</strong>${p.esVarianteDeEvento ? " (Evento)" : ""}</div>` : ''}
+            ${varCambios.length > 0 ? `<div class="item-adds">Cambios: ${varCambios.map(c => escapeHtml(c.texto || c.insumoNombre)).join(', ')}</div>` : ''}
+            ${ings.length > 0 ? `<div class="item-notes">Insumos: ${ings.map(ing => `${escapeHtml(ing.nombre)} (${escapeHtml(ing.cantidad)})`).join(', ')}</div>` : ''}
+            ${specsStr ? `<div class="item-notes">Specs: ${escapeHtml(specsStr)}</div>` : ''}
             ${adds.length > 0 ? `
               <div class="item-adds">
-                + Adiciones: ${adds.map(a => typeof a === 'object' ? `${a.cantidad > 1 ? `x${a.cantidad} ` : ''}${a.nombre || a.nombreAdicion}` : a).join(', ')}
+                + Adiciones: ${adds.map(a => typeof a === 'object' ? `${a.cantidad > 1 ? `x${escapeHtml(a.cantidad)} ` : ''}${escapeHtml(a.nombre || a.nombreAdicion)}` : escapeHtml(a)).join(', ')}
               </div>
             ` : ''}
-            ${obs ? `<div class="item-notes">Nota: "${obs}"</div>` : ''}
+            ${obs ? `<div class="item-notes">Nota: &quot;${escapeHtml(obs)}&quot;</div>` : ''}
           </td>
           <td style="text-align: center; vertical-align: middle; font-size: 16px;">
             [ &nbsp; ]
@@ -258,19 +259,19 @@ export function imprimirComanda(orden) {
     <div class="checklist-title">Checklist de Verificación (${orden.pedidoCompleto ? "COMPLETO ✅" : "INCOMPLETO ⚠️"})</div>
     ${orden.checklistPreparacion.map(c => `
       <div class="chk-item">
-        <span>${c.cantidad} ${c.nombre}</span>
-        <span>${c.completado ? "✅" : "❌"} ${!c.completado && c.motivo ? `(${c.motivo})` : ''}</span>
+        <span>${escapeHtml(c.cantidad)} ${escapeHtml(c.nombre)}</span>
+        <span>${c.completado ? "✅" : "❌"} ${!c.completado && c.motivo ? `(${escapeHtml(c.motivo)})` : ''}</span>
       </div>
     `).join('')}
   </div>` : ''}
 
   ${orden.observacionCocina ? `
   <div style="margin-top: 6px; font-size: 11px; font-style: italic;">
-    <strong>Nota de Cocina:</strong> "${orden.observacionCocina}"
+    <strong>Nota de Cocina:</strong> &quot;${escapeHtml(orden.observacionCocina)}&quot;
   </div>` : ''}
 
   <div class="footer">
-    <p style="margin: 0 0 4px 0; font-weight: bold;">TOTAL UNIDADES: ${orden.cantidad || productos.length}</p>
+    <p style="margin: 0 0 4px 0; font-weight: bold;">TOTAL UNIDADES: ${escapeHtml(orden.cantidad || productos.length)}</p>
     <p style="margin: 0; font-size: 10px; color: #555;">*** FIN DE COMANDA ***</p>
   </div>
 
@@ -291,6 +292,7 @@ export function imprimirComanda(orden) {
 </html>
   `;
 
+  printWindow.opener = null;
   printWindow.document.write(html);
   printWindow.document.close();
 }

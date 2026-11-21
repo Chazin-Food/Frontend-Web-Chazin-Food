@@ -155,6 +155,7 @@ export function Dashboard() {
     stats,
     ventasChart,
     productosPopulares,
+    productosFavoritos,
     alertasStock,
     ventasRecientes,
     comentariosObservaciones,
@@ -191,7 +192,10 @@ export function Dashboard() {
 
       const unitPrice = Number(p.precioUnitario || 0);
       const totalIngresos = Number(p.ingresos > 0 ? p.ingresos : (qty * unitPrice));
-      const pct = totalPopularesUnidades > 0 ? Number(((qty / totalPopularesUnidades) * 100).toFixed(1)) : 0;
+      const backendPct = Number(p.porcentaje);
+      const pct = Number.isFinite(backendPct) && backendPct > 0
+        ? backendPct
+        : (totalPopularesUnidades > 0 ? Number(((qty / totalPopularesUnidades) * 100).toFixed(1)) : 0);
 
       return {
         ...p,
@@ -441,9 +445,13 @@ export function Dashboard() {
               <Users className="w-5 h-5 stroke-[2.2]" />
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between text-xs">
-            <StatVariation value={stats.clientesVariacion} />
-            <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px]">Usuarios registrados</span>
+          <div className="mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between text-xs gap-2">
+            <span className="text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md text-[11px] truncate">
+              {Number(stats.usuariosTotal || 0).toLocaleString("es-CO")} usuarios
+            </span>
+            <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px] truncate">
+              {Number(stats.clientesTotal || 0).toLocaleString("es-CO")} clientes
+            </span>
           </div>
         </div>
 
@@ -522,12 +530,12 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* 2. Productos más vendidos y favoritos - Ejes X e Y etiquetados con escala entera */}
+        {/* 2. Productos más vendidos - Ejes X e Y etiquetados con escala entera */}
         <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div>
-              <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">Productos más vendidos y favoritos</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Top 5 platos más vendidos y favoritos de los clientes</p>
+              <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">Productos más vendidos</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Top 5 platos con mayor volumen de ventas en el período</p>
             </div>
             <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">
               Unidades Vendidas
@@ -599,6 +607,76 @@ export function Dashboard() {
           )}
         </div>
 
+      </div>
+
+      {/* ── Productos favoritos de los clientes (Ficha SENA 3209616: basado en calificaciones reales y preferencia por clientes únicos) ── */}
+      <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base flex items-center gap-2">
+              <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
+              <span>Productos favoritos de los clientes</span>
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Ranking por calificación real en reseñas y preferencia de clientes únicos
+            </p>
+          </div>
+          <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-0.5 rounded-md border border-rose-200/70 dark:border-rose-900/50">
+            Top {Array.isArray(productosFavoritos) ? productosFavoritos.length : 0} Favoritos
+          </span>
+        </div>
+
+        {Array.isArray(productosFavoritos) && productosFavoritos.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            {productosFavoritos.map((fav, idx) => (
+              <div
+                key={fav.idProducto || fav.id || idx}
+                className="p-3.5 rounded-xl bg-gray-50/80 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 flex flex-col justify-between gap-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg text-xs font-black bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 shrink-0">
+                    #{idx + 1}
+                  </span>
+                  {fav.totalResenas > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-black">
+                      <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                      <span>{Number(fav.promedioCalificacion).toFixed(1)}</span>
+                      <span className="font-semibold opacity-75">({fav.totalResenas})</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-[10.5px] font-bold">
+                      {fav.clientesUnicos} {fav.clientesUnicos === 1 ? "cliente" : "clientes"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate" title={fav.nombre}>
+                    {fav.nombre}
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    {fav.clientesUnicos} {fav.clientesUnicos === 1 ? "cliente distinto" : "clientes distintos"} · {fav.pedidos} {fav.pedidos === 1 ? "pedido" : "pedidos"}
+                  </p>
+                </div>
+
+                <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-500"
+                    style={{ width: `${Math.max(12, Math.min(100, Number(fav.porcentajeFavorito || 0)))}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-6 text-center bg-gray-50/50 dark:bg-gray-800/20 rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
+            <Heart className="w-5 h-5 text-rose-400 mb-1.5" />
+            <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Sin datos de favoritos en este período</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Se calculará automáticamente con las reseñas y compras recurrentes de los clientes.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── Recent Activity Grid (Ítems 34, 35 y 36) ── */}

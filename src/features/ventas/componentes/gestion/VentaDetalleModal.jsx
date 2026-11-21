@@ -25,6 +25,7 @@ import {
 import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
 import { formatTime12h } from "@/shared/utils/dateUtils";
+import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import { ventasService, isVentaFisicaOPos } from "../../servicios/ventasService";
 import { resolveHybridDeliveryEstimate, recordLocalDeliveryTimeMode } from "@/features/produccion/utils/tiempoProduccionUtils";
 
@@ -295,21 +296,21 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
 
     const productosHtml = productos.map((p) => {
       const pNombre = p.nombre || p.observaciones || "Platillo";
-      const pCant = p.cantidad || 1;
+      const pCant = Number(p.cantidad) || 1;
       const pPrecioUnit = Number(p.precioUnitario || p.precio || 0);
       const pTotal = pPrecioUnit * pCant;
       const itemAdiciones = Array.isArray(p.adiciones) ? p.adiciones : [];
       const adicionesHtml = itemAdiciones.map(adc => {
         const aName = typeof adc === "object" ? adc.nombre : String(adc);
         const aPrice = typeof adc === "object" && Number(adc.precio) > 0 ? ` (+${Number(adc.precio).toLocaleString("es-CO")})` : "";
-        return `<div style="font-size: 10px; color: #444; padding-left: 8px;">+ ${aName}${aPrice}</div>`;
+        return `<div style="font-size: 10px; color: #444; padding-left: 8px;">+ ${escapeHtml(aName)}${escapeHtml(aPrice)}</div>`;
       }).join("");
 
       return `
         <div style="margin-bottom: 6px;">
           <div style="display: flex; justify-content: space-between; font-size: 11px;">
-            <span>${pCant}x ${pNombre}</span>
-            <span style="font-weight: bold;">$${pTotal.toLocaleString("es-CO")}</span>
+            <span>${escapeHtml(pCant)}x ${escapeHtml(pNombre)}</span>
+            <span style="font-weight: bold;">$${escapeHtml(pTotal.toLocaleString("es-CO"))}</span>
           </div>
           ${adicionesHtml}
         </div>
@@ -320,7 +321,8 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Comprobante ${codigo} - Chazin Food</title>
+          <meta charset="UTF-8" />
+          <title>Comprobante ${escapeHtml(codigo)} - Chazin Food</title>
           <style>
             @page { size: 80mm auto; margin: 4mm; }
             body {
@@ -350,29 +352,29 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
             <div style="font-size: 9px;">Tel: +57 319 202 8562</div>
             <div class="divider"></div>
             <div class="bold" style="font-size: 12px;">FACTURA / COMPROBANTE POS</div>
-            <div class="bold" style="font-size: 13px;">${codigo}</div>
-            <div style="font-size: 10px;">${fecha} - ${horario}</div>
+            <div class="bold" style="font-size: 13px;">${escapeHtml(codigo)}</div>
+            <div style="font-size: 10px;">${escapeHtml(fecha)} - ${escapeHtml(horario)}</div>
           </div>
 
           <div class="divider"></div>
-          <div class="row"><span>Cliente:</span><span class="bold">${cliente}</span></div>
-          <div class="row"><span>Tipo:</span><span>${tipoEntrega}</span></div>
-          <div class="row"><span>Pago:</span><span>${metodoPago}</span></div>
-          <div class="row"><span>Origen:</span><span>${origen}</span></div>
+          <div class="row"><span>Cliente:</span><span class="bold">${escapeHtml(cliente)}</span></div>
+          <div class="row"><span>Tipo:</span><span>${escapeHtml(tipoEntrega)}</span></div>
+          <div class="row"><span>Pago:</span><span>${escapeHtml(metodoPago)}</span></div>
+          <div class="row"><span>Origen:</span><span>${escapeHtml(origen)}</span></div>
 
           <div class="divider"></div>
           <div class="bold" style="font-size: 10px; margin-bottom: 4px;">DESCRIPCIÓN / CANT / TOTAL</div>
           ${productosHtml}
 
           <div class="divider"></div>
-          <div class="row"><span>Subtotal:</span><span>$${subtotal.toLocaleString("es-CO")}</span></div>
-          ${descuentoMonto > 0 ? `<div class="row"><span>Descuento (${descuentoPorcentaje}%):</span><span>-$${descuentoMonto.toLocaleString("es-CO")}</span></div>` : ""}
-          <div class="row"><span>IVA (19% inc.):</span><span>$${iva.toLocaleString("es-CO")}</span></div>
+          <div class="row"><span>Subtotal:</span><span>$${escapeHtml(subtotal.toLocaleString("es-CO"))}</span></div>
+          ${descuentoMonto > 0 ? `<div class="row"><span>Descuento (${escapeHtml(descuentoPorcentaje)}%):</span><span>-$${escapeHtml(descuentoMonto.toLocaleString("es-CO"))}</span></div>` : ""}
+          <div class="row"><span>IVA (19% inc.):</span><span>$${escapeHtml(iva.toLocaleString("es-CO"))}</span></div>
           
           <div class="double-divider"></div>
           <div class="row" style="font-size: 13px;">
             <span class="bold">TOTAL:</span>
-            <span class="bold">$${total.toLocaleString("es-CO")} COP</span>
+            <span class="bold">$${escapeHtml(total.toLocaleString("es-CO"))} COP</span>
           </div>
           <div class="double-divider"></div>
 
@@ -392,6 +394,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
       </html>
     `;
 
+    printWin.opener = null;
     printWin.document.write(ticketHtml);
     printWin.document.close();
   };

@@ -31,13 +31,15 @@ const crypto = require('crypto');
 const BACKEND_URL = 'http://localhost:5000';
 const API_BASE = `${BACKEND_URL}/api`;
 
-// Claves Sandbox oficiales de Wompi (deben coincidir con backend/.env)
+// Claves Sandbox de Wompi leídas estrictamente desde variables de entorno (AUD-009: nunca hardcodear secretos en Frontend)
+// En ejecución unitaria offline se usan valores sintéticos locales sin credenciales reales.
 const WOMPI_CONFIG = {
-  publicKey: 'pub_test_aqlt5Kk6gDrCW296IVkf1n0De21AEr2I',
-  privateKey: 'prv_test_lC7vjgEhCHxrEVXxNrX0clriOP8A7GTn',
-  integritySecret: 'test_integrity_PmDpwSH12VSL2jObpWg292PnYgUqGYzG',
-  eventsSecret: 'test_events_xkK5fK3O7ohj5Pz1iINFecLOTOyNPJC7'
+  publicKey: process.env.WOMPI_PUBLIC_KEY || 'pub_test_synthetic_placeholder',
+  privateKey: process.env.WOMPI_PRIVATE_KEY || 'prv_test_synthetic_placeholder',
+  integritySecret: process.env.WOMPI_INTEGRITY_SECRET || 'test_integrity_synthetic_placeholder',
+  eventsSecret: process.env.WOMPI_EVENTS_SECRET || 'test_events_synthetic_placeholder'
 };
+const AUTH_TOKEN = process.env.TEST_AUTH_TOKEN || '';
 
 // Datos de prueba de tarjeta Sandbox oficial de Wompi
 const TARJETA_PRUEBA = {

@@ -47,6 +47,10 @@ export const ventasService = {
 
   aprobarPago: async (id) => {
     return await apiClient.put(`/ventas/${id}/aprobar-pago`);
+  },
+
+  confirmarEntregaCliente: async (id) => {
+    return await apiClient.put(`/ventas/${id}/confirmar-entrega`);
   }
 };
 

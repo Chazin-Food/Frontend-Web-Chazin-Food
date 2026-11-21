@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { apiClient, clearApiCache } from "@/shared/api/apiClient";
+import API_BASE_URL, { apiClient, clearApiCache } from "@/shared/api/apiClient";
 
 export const AuthContext = createContext(undefined);
 
@@ -102,7 +102,10 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async (credential, options = {}) => {
     try {
-      const payload = typeof credential === "object" ? { ...credential, ...options } : { credential, ...options };
+      const tokenStr = typeof credential === "string"
+        ? credential
+        : (credential?.credential || credential?.token || "");
+      const payload = { credential: tokenStr, ...options };
       const userData = await apiClient.post("/usuarios/google", payload);
       if (userData) {
         clearApiCache();
@@ -118,6 +121,20 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Seguridad (AUD-021): revocar el JWT en el servidor antes de limpiar la sesión local
+    try {
+      const saved = JSON.parse(localStorage.getItem("chazin_user") || "{}");
+      if (saved?.token) {
+        fetch(`${API_BASE_URL}/autenticacion/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${saved.token}`
+          },
+          keepalive: true
+        }).catch(() => {});
+      }
+    } catch (_) {}
     clearApiCache();
     setUser(null);
     localStorage.removeItem("chazin_user");

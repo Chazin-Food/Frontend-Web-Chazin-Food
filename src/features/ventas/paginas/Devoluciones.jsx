@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Filter, X, RotateCcw } from "lucide-react";
+import { useState, lazy, Suspense } from "react";
+import { Search, Filter, X, RotateCcw, Plus } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/shared/utils/privilegiosUtils";
 import { useDevoluciones } from "../hooks/useDevoluciones";
@@ -8,8 +8,13 @@ import { DevolucionesTable } from "../componentes/devoluciones/DevolucionesTable
 import { DevolucionDetalleModal } from "../componentes/devoluciones/DevolucionDetalleModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 
+const NuevaDevolucionModal = lazy(() =>
+  import("../componentes/devoluciones/NuevaDevolucionModal").then((m) => ({ default: m.NuevaDevolucionModal }))
+);
+
 export default function Devoluciones() {
   const { user } = useAuth();
+  const canCreate = hasPrivilege(user, "Devoluciones", "crear") || hasPrivilege(user, "Gestión de Ventas", "crear");
   const canManage = hasPrivilege(user, "Devoluciones", "editar") || hasPrivilege(user, "Gestión de Ventas", "editar");
 
   const {
@@ -37,6 +42,7 @@ export default function Devoluciones() {
   } = useDevoluciones();
 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [nuevaModalOpen, setNuevaModalOpen] = useState(false);
   const [selectedDevolucion, setSelectedDevolucion] = useState(null);
   const activeSelectedDevolucion = selectedDevolucion
     ? devoluciones.find((item) => item.idDevolucion === selectedDevolucion.idDevolucion) || selectedDevolucion
@@ -64,6 +70,16 @@ export default function Devoluciones() {
             Gestión, revisión, aprobación y resolución de solicitudes de devolución enviadas por los clientes
           </p>
         </div>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => setNuevaModalOpen(true)}
+            className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-xs transition-colors flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Nueva Devolución</span>
+          </button>
+        )}
       </div>
 
       {/* 4 Stat KPI Cards */}
@@ -179,6 +195,23 @@ export default function Devoluciones() {
         onActualizarReembolso={actualizarReembolso}
         canManage={canManage}
       />
+
+      {/* Modal Nueva Devolución para Staff */}
+      {nuevaModalOpen && (
+        <Suspense fallback={null}>
+          <NuevaDevolucionModal
+            isOpen={nuevaModalOpen}
+            onClose={() => setNuevaModalOpen(false)}
+            onSubmit={async (payload) => {
+              const ok = await crearDevolucion(payload);
+              if (ok) setNuevaModalOpen(false);
+              return ok;
+            }}
+            onCheckElegibilidad={verificarElegibilidadVenta}
+            politicas={politicas}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

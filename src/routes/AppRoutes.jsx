@@ -174,7 +174,9 @@ export function AppRoutes() {
             <Route path="ventas/fichas-tecnicas" element={<FichasTecnicas />} />
             <Route path="configuracion/roles" element={<Roles />} />
             <Route path="configuracion/usuarios" element={<Usuarios />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     );
@@ -187,7 +189,7 @@ export function AppRoutes() {
       allowedRoutesMap.set(routeConfig.path, routeConfig);
     }
   }
-  const isVendedor = userRol === "vendedor" || userRol.includes("vendedor") || user?.idRol === 2;
+  const isVendedor = userRol === "vendedor" || userRol.includes("vendedor") || user?.idRol === 3;
   if (isVendedor) {
     // El rol Vendedor tiene acceso completo a los módulos de Ventas y Producción
     const vendedorPerms = [

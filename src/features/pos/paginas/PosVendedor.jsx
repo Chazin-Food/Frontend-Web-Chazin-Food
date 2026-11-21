@@ -469,7 +469,7 @@ export default function PosVendedor() {
         </Suspense>
       )}
 
-      {/* Modal de Pago Anterior: PosCheckoutModal (clientes, fidelidad, cálculo de vuelto, 16 dígitos de tarjeta) */}
+      {/* Modal de Pago: PosCheckoutModal (clientes, fidelidad, pago en efectivo y cálculo de vuelto) */}
       {isCheckoutOpen && (
         <Suspense fallback={null}>
           <PosCheckoutModal

@@ -495,7 +495,7 @@ export function CocineroDashboard() {
     prevOrdersCountRef.current = pedidos.length;
   }, [pedidos.length, soundEnabled]);
 
-  // Despachar / Archivar Comanda (con desvanecimiento suave)
+  // Despachar / Archivar Comanda (con desvanecimiento suave; respeta Presencial vs Domicilio — Ficha SENA 3209616)
   const despacharOrden = async (orderId, options = {}) => {
     // 1. Iniciar animación de desvanecimiento CSS
     setFadingOrders((prev) => ({ ...prev, [orderId]: true }));
@@ -503,21 +503,35 @@ export function CocineroDashboard() {
     setTimeout(async () => {
       try {
         const targetObj = pedidos.find((p) => String(p.id) === String(orderId) || String(p.idVenta) === String(orderId));
-        recordLocalOrderTransition(orderId, "Entregado", targetObj);
-        await produccionService.updateEstadoOrden(orderId, "Entregado");
+        const rawEntrega = `${targetObj?.tipoEntrega || ""} ${targetObj?.tipoVenta || ""} ${targetObj?.mesa || ""}`.toLowerCase();
+        const esDomicilio = rawEntrega.includes("domicilio") || String(targetObj?.origen || "").toUpperCase() === "ONLINE";
+        const targetEstado = esDomicilio ? "Despachado" : "Entregado";
+
+        recordLocalOrderTransition(orderId, targetEstado, targetObj);
+        await produccionService.updateEstadoOrden(orderId, targetEstado);
         setPedidos((prev) =>
           prev.map((p) =>
             String(p.id) === String(orderId) || String(p.idVenta) === String(orderId)
-              ? { ...p, estado: "Entregado", estadoEntrega: "ENTREGADO" }
+              ? {
+                  ...p,
+                  estado: targetEstado,
+                  estadoEntrega: esDomicilio ? "LISTO" : "ENTREGADO",
+                  estadoCocina: esDomicilio ? "DESPACHADO" : "ENTREGADO"
+                }
               : p
           )
         );
         delete readyTimestamps.current[orderId];
         if (!options.silent) {
-          success("Comanda Despachada", `Comanda #${orderId} trasladada al historial`);
+          success(
+            esDomicilio ? "Pedido Despachado a Domicilio" : "Comanda Entregada",
+            esDomicilio
+              ? `Comanda #${orderId} despachada para entrega a domicilio`
+              : `Comanda #${orderId} entregada y trasladada al historial`
+          );
         }
       } catch (err) {
-        notifyError("Error", "No se pudo archivar la comanda");
+        notifyError("Error", err?.message || "No se pudo actualizar la comanda");
       } finally {
         setFadingOrders((prev) => {
           const next = { ...prev };
@@ -1625,7 +1639,7 @@ export function CocineroDashboard() {
                             className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                           >
                             <CheckCheck className="w-4 h-4" />
-                            <span>Despachar Ahora</span>
+                            <span>{isDelivery ? "Despachar a Domicilio" : "Marcar Entregado"}</span>
                           </button>
 
                           <button

@@ -19,6 +19,7 @@ import { VerEmpleadoModal } from "../componentes/empleados/VerEmpleadoModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { useConfirm } from "@/shared/context/ConfirmContext";
 import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
+import { exportTableToExcel } from "@/shared/utils/excelExport";
 
 export function Empleados() {
   const {
@@ -95,7 +96,6 @@ export function Empleados() {
   const exportarExcel = async () => {
     const listToExport = viewMode === "papelera" ? papeleraEmpleados : filteredEmpleados;
     if (listToExport.length === 0) return;
-    const XLSX = await import("xlsx");
 
     // Documento de identidad de primero en el reporte
     const headers = [
@@ -130,35 +130,17 @@ export function Empleados() {
       e.telefono || "",
       e.correo || "",
       e.direccion || "",
-      e.salario || 0,
+      Number(e.salario || 0),
       e.estado || "Activo"
     ]);
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
-    worksheet["!cols"] = [
-      { wch: 15 },
-      { wch: 18 },
-      { wch: 8 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 16 },
-      { wch: 25 },
-      { wch: 25 },
-      { wch: 15 },
-      { wch: 14 }
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Empleados");
-    XLSX.writeFile(
-      workbook,
-      `empleados_chazinfood_${getColombiaDateISO()}.xlsx`
-    );
+    await exportTableToExcel({
+      sheetName: "Empleados",
+      fileName: `empleados_chazinfood_${getColombiaDateISO()}.xlsx`,
+      headers,
+      rows: data,
+      colWidths: [15, 18, 8, 20, 20, 20, 16, 18, 15, 15, 16, 25, 25, 15, 14]
+    });
   };
 
   if (loading && empleados.length === 0) {

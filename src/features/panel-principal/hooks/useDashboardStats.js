@@ -14,6 +14,8 @@ export function useDashboardStats() {
     frecuenciaVentas: 0,
     clientesTotal: 0,
     clientesActivos: 0,
+    usuariosTotal: 0,
+    usuariosActivos: 0,
     clientesVariacion: 0,
     productosTotal: 0,
     insumosBajoStock: 0,
@@ -21,6 +23,7 @@ export function useDashboardStats() {
   });
   const [ventasChart, setVentasChart] = useState([]);
   const [productosPopulares, setProductosPopulares] = useState([]);
+  const [productosFavoritos, setProductosFavoritos] = useState([]);
   const [alertasStock, setAlertasStock] = useState([]);
   const [ventasRecientes, setVentasRecientes] = useState([]);
   const [comentariosObservaciones, setComentariosObservaciones] = useState({
@@ -40,10 +43,11 @@ export function useDashboardStats() {
     try {
       if (!isSilent) setLoading(true);
       const params = { periodo, year };
-      const [statsRes, chartRes, popRes, alertasRes, recientesRes, feedbackRes] = await Promise.all([
+      const [statsRes, chartRes, popRes, favRes, alertasRes, recientesRes, feedbackRes] = await Promise.all([
         dashboardService.getStats(params).catch(() => null),
         dashboardService.getVentasChart(params).catch(() => []),
         dashboardService.getProductosPopulares(params).catch(() => []),
+        dashboardService.getProductosFavoritos(params).catch(() => []),
         dashboardService.getAlertasStock(params).catch(() => []),
         dashboardService.getVentasRecientes(params).catch(() => []),
         dashboardService.getComentariosObservaciones(params).catch(() => null)
@@ -52,6 +56,7 @@ export function useDashboardStats() {
       if (statsRes) setStats(statsRes);
       if (Array.isArray(chartRes)) setVentasChart(chartRes);
       if (Array.isArray(popRes)) setProductosPopulares(popRes);
+      if (Array.isArray(favRes)) setProductosFavoritos(favRes);
       if (Array.isArray(alertasRes)) setAlertasStock(alertasRes);
       if (Array.isArray(recientesRes)) setVentasRecientes(recientesRes);
       if (feedbackRes && typeof feedbackRes === "object") {
@@ -84,6 +89,7 @@ export function useDashboardStats() {
     stats,
     ventasChart,
     productosPopulares,
+    productosFavoritos,
     alertasStock,
     ventasRecientes,
     comentariosObservaciones,

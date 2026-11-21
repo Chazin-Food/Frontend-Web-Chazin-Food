@@ -77,15 +77,28 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
 
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2">
                   {canEdit ? (
-                    <button
-                      type="button"
-                      onClick={() => onEdit(r)}
-                      title="Editar rol"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#F05454] text-xs font-bold hover:bg-red-100 transition cursor-pointer"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                      <span>Editar</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(r)}
+                        title="Editar rol"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#F05454] text-xs font-bold hover:bg-red-100 transition cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Editar</span>
+                      </button>
+                      {onOpenPermisos && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenPermisos(r)}
+                          title="Gestionar permisos del rol"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 transition cursor-pointer"
+                        >
+                          <Key className="w-3.5 h-3.5" />
+                          <span>Permisos</span>
+                        </button>
+                      )}
+                    </div>
                   ) : <div />}
 
                   <div className="flex items-center gap-1.5">
@@ -204,6 +217,15 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-3">
+                          {canEdit && onOpenPermisos && (
+                            <button
+                              onClick={() => onOpenPermisos(r)}
+                              title="Gestionar permisos y privilegios"
+                              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors p-1 cursor-pointer"
+                            >
+                              <Key className="w-4 h-4 stroke-[2]" />
+                            </button>
+                          )}
                           {canEdit && (
                             <button
                               onClick={() => onEdit(r)}

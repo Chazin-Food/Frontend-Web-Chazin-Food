@@ -99,7 +99,6 @@ export function MiPerfilModal({ isOpen, onClose }) {
       case "direccion":
         return validateDireccionMedellin(val, { required: false }).error || "";
       case "passwordActual":
-        if (isGoogleUser) return "";
         return !val ? "Ingresa tu contraseña actual." : "";
       case "passwordNueva":
         return !val ? "Ingresa la nueva contraseña." : val.length < 6 ? "Mínimo 6 caracteres." : "";
@@ -175,7 +174,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
 
   const validatePass = () => {
     const errs = {};
-    if (!isGoogleUser && !passForm.passwordActual) errs.passwordActual = "Ingresa tu contraseña actual.";
+    if (!passForm.passwordActual) errs.passwordActual = "Ingresa tu contraseña actual.";
     if (!passForm.passwordNueva) errs.passwordNueva = "Ingresa la nueva contraseña.";
     else if (passForm.passwordNueva.length < 6) errs.passwordNueva = "Mínimo 6 caracteres.";
     if (passForm.passwordNueva !== passForm.passwordConfirm) errs.passwordConfirm = "Las contraseñas no coinciden.";
@@ -227,19 +226,14 @@ export function MiPerfilModal({ isOpen, onClose }) {
     setSaving(true);
     try {
       const payload = {
+        passwordActual: passForm.passwordActual,
         passwordNueva: passForm.passwordNueva,
-        crearPasswordDirecta: isGoogleUser,
       };
-      if (!isGoogleUser && passForm.passwordActual) {
-        payload.passwordActual = passForm.passwordActual;
-      }
       const result = await updateProfile(payload);
       if (result.success) {
         notify.success(
-          isGoogleUser ? "¡Contraseña creada con éxito!" : "¡Contraseña cambiada!",
-          isGoogleUser
-            ? "Ahora puedes iniciar sesión también directamente ingresando tu correo y contraseña."
-            : "Tu contraseña ha sido actualizada correctamente."
+          "¡Contraseña cambiada!",
+          "Tu contraseña ha sido actualizada correctamente."
         );
         setPassForm({ passwordActual: "", passwordNueva: "", passwordConfirm: "" });
       } else {
@@ -514,7 +508,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
                   <div>
                     <p className="font-bold">Cuenta vinculada con Google OAuth 2.0</p>
                     <p className="text-blue-700 dark:text-blue-300/90 mt-0.5 leading-relaxed">
-                      Puedes crear una contraseña para ingresar también escribiendo tu correo y contraseña directamente en el formulario de inicio de sesión tradicional.
+                      Por seguridad se requiere tu contraseña actual para modificarla. Si aún no tienes contraseña local, utiliza la opción &quot;¿Olvidaste tu contraseña?&quot; en el inicio de sesión para establecerla por correo electrónico.
                     </p>
                   </div>
                 </div>
@@ -524,28 +518,26 @@ export function MiPerfilModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Contraseña actual (solo para cuentas no-Google) */}
-              {!isGoogleUser && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">Contraseña Actual <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type={showPass ? "text" : "password"}
-                      name="passwordActual"
-                      value={passForm.passwordActual}
-                      onBlur={() => handleBlur("passwordActual", true)}
-                      onChange={handlePassChange}
-                      placeholder="Tu contraseña actual"
-                      className={`w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm font-medium bg-gray-50 dark:bg-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-[#f05454]/40 transition ${errors.passwordActual ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400" : "border-gray-200 dark:border-gray-700"}`}
-                    />
-                    <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? "Ocultar contraseña actual" : "Mostrar contraseña actual"} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
-                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <FieldError msg={errors.passwordActual} />
+              {/* Contraseña actual (obligatoria por seguridad AUD-018) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">Contraseña Actual <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type={showPass ? "text" : "password"}
+                    name="passwordActual"
+                    value={passForm.passwordActual}
+                    onBlur={() => handleBlur("passwordActual", true)}
+                    onChange={handlePassChange}
+                    placeholder="Tu contraseña actual"
+                    className={`w-full pl-9 pr-10 py-2.5 rounded-xl border text-sm font-medium bg-gray-50 dark:bg-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-[#f05454]/40 transition ${errors.passwordActual ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400" : "border-gray-200 dark:border-gray-700"}`}
+                  />
+                  <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? "Ocultar contraseña actual" : "Mostrar contraseña actual"} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-              )}
+                <FieldError msg={errors.passwordActual} />
+              </div>
 
               {/* Nueva contraseña */}
               <div>

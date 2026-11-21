@@ -24,7 +24,9 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary capturó un error:", error, errorInfo);
+    if (import.meta.env.DEV) {
+      console.error("ErrorBoundary capturó un error:", error, errorInfo);
+    }
   }
 
   handleReset = () => {
@@ -34,6 +36,7 @@ class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const showDebugDetails = import.meta.env.DEV;
       return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif", background: "#f9fafb" }}>
           <div style={{ maxWidth: "600px", width: "100%", background: "white", padding: "32px", borderRadius: "24px", boxShadow: "0 10px 25px rgba(0,0,0,0.08)", textAlign: "center" }}>
@@ -44,12 +47,16 @@ class ErrorBoundary extends Component {
             </div>
             <h2 style={{ fontSize: "20px", fontWeight: "bold", color: "#1f2937", marginBottom: "8px" }}>Chazin Food</h2>
             <p style={{ fontSize: "14px", color: "#6b7280", marginBottom: "16px" }}>
-              Detalle del error capturado:
+              {showDebugDetails
+                ? "Detalle del error capturado (modo desarrollo):"
+                : "Ocurrió un inconveniente inesperado al cargar la pantalla. Por favor recarga para continuar."}
             </p>
-            <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px", borderRadius: "12px", fontSize: "12px", textAlign: "left", overflowX: "auto", marginBottom: "20px", fontFamily: "monospace" }}>
-              <strong>{this.state.error?.toString()}</strong>
-              <pre style={{ marginTop: "8px", whiteSpace: "pre-wrap" }}>{this.state.error?.stack}</pre>
-            </div>
+            {showDebugDetails && (
+              <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px", borderRadius: "12px", fontSize: "12px", textAlign: "left", overflowX: "auto", marginBottom: "20px", fontFamily: "monospace" }}>
+                <strong>{this.state.error?.toString()}</strong>
+                <pre style={{ marginTop: "8px", whiteSpace: "pre-wrap" }}>{this.state.error?.stack}</pre>
+              </div>
+            )}
             <button
               onClick={this.handleReset}
               style={{ width: "100%", padding: "12px 24px", background: "#f05454", color: "white", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "bold", cursor: "pointer" }}

@@ -152,8 +152,8 @@ export default {
             if (id.includes('recharts') || id.includes('d3-')) {
               return 'charts';
             }
-            if (id.includes('xlsx')) {
-              return 'xlsx';
+            if (id.includes('write-excel-file')) {
+              return 'excel-export';
             }
             if (id.includes('sweetalert2')) {
               return 'sweetalert';

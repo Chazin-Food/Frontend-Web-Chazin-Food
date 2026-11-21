@@ -70,6 +70,7 @@ export const GRUPOS_PERMISOS = [
     subPermisos: [
       { id: "Categoría Productos", nombre: "Categoría Productos", descripcion: "Familias de productos del menú y bebidas", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] },
       { id: "Productos", nombre: "Productos", descripcion: "Catálogo de productos, combos, fichas técnicas y eventos", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] },
+      { id: "Empleados", nombre: "Gestión de Empleados", descripcion: "Registro, consulta y administración del personal del restaurante", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] },
       { id: "Gestión de Producción", nombre: "Gestión de Producción", descripcion: "Control de órdenes de preparación y cocción en cocina", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] }
     ]
   },
@@ -117,6 +118,10 @@ export function hasPrivilege(user, modulo, accion = "ver") {
     modulosEquivalentes.push("Gestión de Ventas", "Ventas");
   } else if (modulo === "Fichas Técnicas") {
     modulosEquivalentes.push("Productos", "Insumos");
+  } else if (modulo === "Empleados" || modulo === "Gestión de Empleados") {
+    modulosEquivalentes.push("Empleados", "Gestión de Empleados");
+  } else if (modulo === "Producción") {
+    modulosEquivalentes.push("Gestión de Producción");
   }
 
   for (const mod of modulosEquivalentes) {

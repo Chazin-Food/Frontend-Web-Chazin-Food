@@ -37,7 +37,7 @@ export function FidelidadBadge({
     config = {
       label: "Cliente Frecuente",
       shortLabel: "Frecuente",
-      desc: 10,
+      desc: 0,
       icon: Award,
       slug: "silver",
       bgCls: "bg-gradient-to-r from-indigo-50 dark:from-indigo-950/40 to-purple-50 dark:purple-950/40 text-indigo-900 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800/60",
@@ -48,7 +48,7 @@ export function FidelidadBadge({
     config = {
       label: "Cliente Regular",
       shortLabel: "Regular",
-      desc: 5,
+      desc: 0,
       icon: Star,
       slug: "bronze",
       bgCls: "bg-orange-50 dark:bg-orange-950/40 text-orange-900 dark:text-orange-200 border-orange-200 dark:border-orange-800/60",
@@ -57,7 +57,7 @@ export function FidelidadBadge({
     };
   }
 
-  const finalDesc = descuento !== null ? Number(descuento) : config.desc;
+  const finalDesc = descuento !== null && descuento !== undefined ? Number(descuento) : config.desc;
   const IconComp = config.icon;
 
   if (size === "sm") {
@@ -99,7 +99,7 @@ export function FidelidadBadge({
               )}
             </div>
             <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate">
-              {finalDesc > 0 ? `Beneficio activo de ${finalDesc}% OFF en pedidos` : "Realiza compras para subir de nivel"}
+              {finalDesc > 0 ? `Beneficio activo de ${finalDesc}% OFF en tu próxima compra` : "Completa 3 compras para desbloquear 15% OFF"}
             </p>
           </div>
         </div>

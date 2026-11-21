@@ -304,7 +304,10 @@ export function usePOS({ initialClienteId = null } = {}) {
           clienteNombre,
           efectivoConCuanto: datosPago.efectivoConCuanto || null,
           vueltoEfectivo: datosPago.vueltoEfectivo || null,
-          tarjetaNumero: datosPago.tarjetaNumero || null,
+          tarjetaNumero: datosPago.tarjetaUltimos4
+            ? `**** ${String(datosPago.tarjetaUltimos4).replace(/\D/g, "").slice(-4)}`
+            : (datosPago.tarjetaNumero ? `**** ${String(datosPago.tarjetaNumero).replace(/\D/g, "").slice(-4)}` : null),
+          tarjetaVoucher: datosPago.tarjetaVoucher || null,
           transferBanco: datosPago.transferBanco || null,
           transferenciaReferencia: datosPago.transferReferencia || null,
           especificaciones: observacion || observacionOrden || "",

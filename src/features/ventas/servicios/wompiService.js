@@ -67,7 +67,7 @@ export const wompiService = {
    * Consulta en el backend el estado verificado de una transacción Wompi
    */
   async verificarTransaccion(idTransaccion) {
-    return await apiClient.get(`/wompi/verificar/${idTransaccion}`);
+    return await apiClient.get(`/wompi/verificar/${encodeURIComponent(idTransaccion)}`);
   },
 
   /**

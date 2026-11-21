@@ -521,6 +521,10 @@ export function ClientePerfil() {
 
             currentEstado = "En Preparación";
 
+          } else if (matched.estadoEntrega === "EN_CAMINO" || String(matched.estadoCocina || "").toUpperCase() === "DESPACHADO") {
+
+            currentEstado = "Despachado";
+
           } else if (matched.estadoEntrega === "LISTO") {
 
             currentEstado = "Listo";
@@ -690,6 +694,10 @@ export function ClientePerfil() {
           } else if (o.estadoEntrega === "PREPARANDO") {
 
             currentEstado = "En Preparación";
+
+          } else if (o.estadoEntrega === "EN_CAMINO" || String(o.estadoCocina || "").toUpperCase() === "DESPACHADO") {
+
+            currentEstado = "Despachado";
 
           } else if (o.estadoEntrega === "LISTO") {
 
@@ -973,6 +981,66 @@ export function ClientePerfil() {
 
   };
 
+  const [confirmandoEntregaId, setConfirmandoEntregaId] = useState(null);
+
+  const puedeConfirmarEntrega = (ped) => {
+
+    if (!ped) return false;
+
+    const est = String(ped.estado || "").toLowerCase();
+
+    const ent = String(ped.estadoEntrega || "").toUpperCase();
+
+    const coc = String(ped.estadoCocina || "").toUpperCase();
+
+    if (ent === "ENTREGADO" || ent === "CANCELADO" || est.includes("completad") || est.includes("entregad") || est.includes("anulad")) {
+
+      return false;
+
+    }
+
+    if (String(ped.estadoAprobacion || "").toUpperCase() === "PENDIENTE" || String(ped.estadoAprobacion || "").toUpperCase() === "RECHAZADO") {
+
+      return false;
+
+    }
+
+    return ent === "LISTO" || ent === "EN_CAMINO" || coc === "LISTO" || coc === "DESPACHADO" || est.includes("listo") || est.includes("despach") || est.includes("camino");
+
+  };
+
+  const handleConfirmarEntregaCliente = async (ped) => {
+
+    const orderId = ped?.idVenta || ped?.id;
+
+    if (!orderId) return;
+
+    try {
+
+      setConfirmandoEntregaId(orderId);
+
+      await ventasService.confirmarEntregaCliente(orderId);
+
+      const nowIso = new Date().toISOString();
+
+      setPedidos((prev) => prev.map((item) => (String(item.idVenta || item.id) === String(orderId) ? { ...item, estado: "Completada", estadoEntrega: "ENTREGADO", estadoCocina: "ENTREGADO", confirmadoPorCliente: true, fechaEntrega: nowIso } : item)));
+
+      setSelectedPedidoDetalle((prev) => (prev && String(prev.idVenta || prev.id) === String(orderId) ? { ...prev, estado: "Completada", estadoEntrega: "ENTREGADO", estadoCocina: "ENTREGADO", confirmadoPorCliente: true, fechaEntrega: nowIso } : prev));
+
+      success("¡Pedido Confirmado!", "Gracias por confirmar la recepción de tu pedido.");
+
+    } catch (err) {
+
+      notifyError("No se pudo confirmar", err?.message || "Inténtalo de nuevo en unos momentos.");
+
+    } finally {
+
+      setConfirmandoEntregaId(null);
+
+    }
+
+  };
+
   // Sincronizar y verificar retorno de transacción Wompi si viene en los query params
 
   useEffect(() => {
@@ -1155,7 +1223,7 @@ export function ClientePerfil() {
 
     const errs = {};
 
-    if (!isGoogleUser && !passForm.passwordActual) {
+    if (!passForm.passwordActual) {
 
       errs.passwordActual = "Ingresa tu contraseña actual.";
 
@@ -1197,17 +1265,11 @@ export function ClientePerfil() {
 
       const payload = {
 
+        passwordActual: passForm.passwordActual,
+
         passwordNueva: passForm.passwordNueva,
 
-        crearPasswordDirecta: isGoogleUser,
-
       };
-
-      if (!isGoogleUser && passForm.passwordActual) {
-
-        payload.passwordActual = passForm.passwordActual;
-
-      }
 
       const res = await updateProfile(payload);
 
@@ -1215,13 +1277,9 @@ export function ClientePerfil() {
 
         success(
 
-          isGoogleUser ? "¡Contraseña creada con éxito!" : "¡Contraseña actualizada!",
+          "¡Contraseña actualizada!",
 
-          isGoogleUser
-
-            ? "Ahora puedes iniciar sesión ingresando tu correo y tu nueva contraseña."
-
-            : "Tu contraseña ha sido actualizada correctamente."
+          "Tu contraseña ha sido actualizada correctamente."
 
         );
 
@@ -1467,17 +1525,31 @@ export function ClientePerfil() {
 
   }, [pedidos]);
 
-  // Fidelity Data extraction
+  // Fidelity Data extraction (Ficha SENA 3209616: 15% OFF en la compra siguiente tras cada 3 compras)
 
   const fidelidad = user?.fidelidad || {};
 
   const realOrdersCount = stats.totalPedidosCount || 0;
 
+  const beneficioFidelidadActivo = Boolean(
+
+    fidelidad.descuentoDisponible ??
+
+      (fidelidad.descuentoPorcentaje !== undefined
+
+        ? Number(fidelidad.descuentoPorcentaje) > 0
+
+        : realOrdersCount > 0 && realOrdersCount % 3 === 0)
+
+  );
+
   const tipoFidelidad =
 
-    fidelidad.tipo && fidelidad.tipo !== "Nuevo"
+    fidelidad.tipo ||
 
-      ? fidelidad.tipo
+    (beneficioFidelidadActivo
+
+      ? "VIP"
 
       : realOrdersCount >= 9
 
@@ -1491,49 +1563,33 @@ export function ClientePerfil() {
 
             ? "Regular"
 
-            : (fidelidad.tipo || user?.tipo || "Nuevo");
+            : (user?.tipo || "Nuevo"));
 
-  const descuentoPorcentaje =
+  const descuentoPorcentaje = beneficioFidelidadActivo
 
-    fidelidad.descuentoPorcentaje !== undefined && fidelidad.descuentoPorcentaje > 0
+    ? Math.min(15, Math.max(0, Number(fidelidad.descuentoPorcentaje ?? 15)))
 
-      ? fidelidad.descuentoPorcentaje
-
-      : tipoFidelidad === "VIP"
-
-        ? 15
-
-        : tipoFidelidad === "Frecuente"
-
-          ? 10
-
-          : tipoFidelidad === "Regular"
-
-            ? 5
-
-            : 0;
+    : 0;
 
   const comprasCiclo =
 
-    fidelidad.comprasCiclo !== undefined && fidelidad.comprasCiclo > 0
+    fidelidad.comprasCiclo !== undefined
 
-      ? fidelidad.comprasCiclo
+      ? Number(fidelidad.comprasCiclo)
 
       : (realOrdersCount % 3);
 
-  const comprasFaltantes =
+  const comprasFaltantes = beneficioFidelidadActivo
 
-    fidelidad.comprasFaltantes !== undefined && fidelidad.comprasFaltantes > 0
+    ? 0
 
-      ? fidelidad.comprasFaltantes
-
-      : (3 - (comprasCiclo % 3));
+    : (fidelidad.comprasFaltantes !== undefined ? Number(fidelidad.comprasFaltantes) : (3 - (comprasCiclo % 3)));
 
   const siguienteNivel =
 
     fidelidad.siguienteNivel ||
 
-    (tipoFidelidad === "Nuevo" ? "Regular" : tipoFidelidad === "Regular" ? "Frecuente" : "VIP");
+    (beneficioFidelidadActivo ? "15% OFF disponible en tu próxima compra" : "15% OFF al completar 3 compras");
 
   const enGracia = Boolean(fidelidad.enGracia);
 
@@ -3443,6 +3499,28 @@ export function ClientePerfil() {
 
                             })()}
 
+                            {puedeConfirmarEntrega(ped) && (
+
+                              <button
+
+                                type="button"
+
+                                disabled={confirmandoEntregaId === (ped.idVenta || ped.id)}
+
+                                onClick={() => handleConfirmarEntregaCliente(ped)}
+
+                                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+
+                              >
+
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+
+                                <span>{confirmandoEntregaId === (ped.idVenta || ped.id) ? "Confirmando..." : "Confirmar Pedido Recibido"}</span>
+
+                              </button>
+
+                            )}
+
                             <button
 
                               type="button"
@@ -4092,7 +4170,7 @@ export function ClientePerfil() {
 
                           <p className="text-blue-800 dark:text-blue-300/90 leading-relaxed">
 
-                            Actualmente accedes mediante Google. Si deseas ingresar también directamente ingresando tu correo electrónico en el login tradicional, crea tu contraseña a continuación (no se requiere contraseña actual).
+                            Actualmente accedes mediante Google. Por seguridad se requiere tu contraseña actual para modificarla; si aún no has creado una contraseña local, usa la opción "¿Olvidaste tu contraseña?" en el inicio de sesión para establecerla por correo electrónico.
 
                           </p>
 
@@ -4103,8 +4181,6 @@ export function ClientePerfil() {
                     )}
 
                     <form onSubmit={handlePassSubmit} className="space-y-4" noValidate>
-
-                      {!isGoogleUser && (
 
                         <div>
 
@@ -4168,15 +4244,13 @@ export function ClientePerfil() {
 
                         </div>
 
-                      )}
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                         <div>
 
                           <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
 
-                            {isGoogleUser ? "Crear Contraseña" : "Nueva Contraseña"} <span className="text-red-500">*</span>
+                            Nueva Contraseña <span className="text-red-500">*</span>
 
                           </label>
 
@@ -5147,6 +5221,28 @@ export function ClientePerfil() {
 
               {selectedPedidoDetalle?.esDevolucion && (<ClientePedidoDevolucionDetalle devInfo={getDevolucionInfo(selectedPedidoDetalle)} ped={selectedPedidoDetalle} />)}
               {/* Close Button */}
+
+              {puedeConfirmarEntrega(selectedPedidoDetalle) && (
+
+                <button
+
+                  type="button"
+
+                  disabled={confirmandoEntregaId === (selectedPedidoDetalle?.idVenta || selectedPedidoDetalle?.id)}
+
+                  onClick={() => handleConfirmarEntregaCliente(selectedPedidoDetalle)}
+
+                  className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-98 shadow-md"
+
+                >
+
+                  <CheckCircle2 className="w-4 h-4" />
+
+                  <span>{confirmandoEntregaId === (selectedPedidoDetalle?.idVenta || selectedPedidoDetalle?.id) ? "Confirmando recepción..." : "Confirmar Pedido Recibido"}</span>
+
+                </button>
+
+              )}
 
               <button
 

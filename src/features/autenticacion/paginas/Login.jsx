@@ -70,12 +70,8 @@ export function Login() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const handleGoogleSuccess = (userData) => {
-    if (userData?.rol && userData.rol.toLowerCase() !== "cliente") {
-      navigate("/admin/dashboard");
-    } else {
-      navigate("/");
-    }
+  const handleGoogleSuccess = () => {
+    navigate("/", { replace: true });
   };
 
   // Cerrar dropdown al hacer clic fuera

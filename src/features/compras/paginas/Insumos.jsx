@@ -9,6 +9,8 @@ import { InsumosStatsCards } from "../componentes/insumos/InsumosStatsCards";
 import { InsumosTable } from "../componentes/insumos/InsumosTable";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { getColombiaDateISO } from "@/shared/utils/dateUtils";
+import { escapeHtml } from "@/shared/utils/htmlSanitizer";
+import { exportTableToExcel } from "@/shared/utils/excelExport";
 
 const InsumoModal = lazy(() => import("../componentes/insumos/InsumoModal").then((m) => ({ default: m.InsumoModal })));
 const TrazabilidadModal = lazy(() => import("../componentes/insumos/TrazabilidadModal").then((m) => ({ default: m.TrazabilidadModal })));
@@ -95,13 +97,13 @@ export function Insumos() {
   const exportarExcel = async () => {
     const rows = filteredInsumos;
     if (rows.length === 0) return;
-    const XLSX = await import("xlsx");
 
     const headers = [
       "ID",
       "Nombre",
       "Tipo",
       "Categoría",
+      "Control Stock",
       "Stock Actual",
       "Unidad de Medida",
       "Stock Mínimo",
@@ -117,35 +119,24 @@ export function Insumos() {
       i.nombre || "",
       i.tipo === "Preparado" ? "Insumo Preparado" : "Insumo Base",
       i.categoriaNombre || (typeof i.categoria === "string" ? i.categoria : i.categoria?.nombre) || "Sin categoría",
-      i.stock ?? 0,
+      i.controlarStock === false ? "Sin control (Disponibilidad)" : "Controlado",
+      i.controlarStock === false ? "N/A" : (i.stock ?? 0),
       i.unidadMedida || "und",
-      i.stockMinimo ?? 0,
-      i.stockMaximo ?? 100,
+      i.controlarStock === false ? "N/A" : (i.stockMinimo ?? 0),
+      i.controlarStock === false ? "N/A" : (i.stockMaximo ?? 100),
       Number(i.precioUnitario || i.costo || 0),
       (i.esAdicion === 1 || i.esAdicion === true) ? "Sí" : "No",
       Number(i.precioAdicion || 0),
       i.estado || "Activo"
     ]);
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
-    worksheet["!cols"] = [
-      { wch: 8 },
-      { wch: 28 },
-      { wch: 18 },
-      { wch: 20 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 12 },
-      { wch: 16 },
-      { wch: 12 }
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Insumos");
-    XLSX.writeFile(workbook, `reporte_insumos_${getColombiaDateISO()}.xlsx`);
+    await exportTableToExcel({
+      sheetName: "Insumos",
+      fileName: `reporte_insumos_${getColombiaDateISO()}.xlsx`,
+      headers,
+      rows: data,
+      colWidths: [8, 28, 18, 20, 22, 14, 16, 14, 14, 16, 12, 16, 12]
+    });
     setExportMenuOpen(false);
   };
 
@@ -160,22 +151,24 @@ export function Insumos() {
       .map(
         (i, idx) => `
       <tr>
-        <td>${i.id || i.idInsumo || idx + 1}</td>
-        <td><strong>${i.nombre || ""}</strong></td>
+        <td>${escapeHtml(i.id || i.idInsumo || idx + 1)}</td>
+        <td><strong>${escapeHtml(i.nombre || "")}</strong></td>
         <td>${i.tipo === "Preparado" ? "Insumo Preparado" : "Insumo Base"}</td>
-        <td>${i.categoriaNombre || (typeof i.categoria === "string" ? i.categoria : i.categoria?.nombre) || "Sin categoría"}</td>
-        <td>${i.stock ?? 0} ${i.unidadMedida || "und"}</td>
-        <td>${i.stockMinimo ?? 0} ${i.unidadMedida || "und"}</td>
-        <td>${Number(i.precioUnitario || i.costo || 0).toLocaleString("es-CO")}</td>
-        <td>${i.estado || "Activo"}</td>
+        <td>${escapeHtml(i.categoriaNombre || (typeof i.categoria === "string" ? i.categoria : i.categoria?.nombre) || "Sin categoría")}</td>
+        <td>${escapeHtml(i.stock ?? 0)} ${escapeHtml(i.unidadMedida || "und")}</td>
+        <td>${escapeHtml(i.stockMinimo ?? 0)} ${escapeHtml(i.unidadMedida || "und")}</td>
+        <td>${escapeHtml(Number(i.precioUnitario || i.costo || 0).toLocaleString("es-CO"))}</td>
+        <td>${escapeHtml(i.estado || "Activo")}</td>
       </tr>`
       )
       .join("");
 
+    printWindow.opener = null;
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8" />
           <title>Reporte de Insumos - Chazin Food</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
@@ -436,6 +429,37 @@ export function Insumos() {
               </div>
 
               <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
+                <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setExportMenuOpen((prev) => !prev)}
+                    className="w-full sm:w-auto px-3.5 sm:px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-slate-700 dark:text-gray-200 font-medium text-xs sm:text-sm shadow-xs flex items-center justify-center gap-1.5 sm:gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer shrink-0"
+                  >
+                    <Download className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
+                    <span>Exportar</span>
+                  </button>
+                  {exportMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl py-1.5 z-40">
+                      <button
+                        type="button"
+                        onClick={exportarExcel}
+                        className="w-full px-3.5 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                        <span>Excel (.xlsx)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={exportarPDF}
+                        className="w-full px-3.5 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4 text-red-500" />
+                        <span>Imprimir / PDF</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="relative w-full sm:w-auto">
                   <button
                     type="button"

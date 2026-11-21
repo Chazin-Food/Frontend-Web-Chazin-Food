@@ -88,7 +88,7 @@ export function Layout() {
   const rawRol = typeof user?.rol === "object" ? user?.rol?.nombre : user?.rol;
   const userRol = String(rawRol || "").toLowerCase().trim();
   const isAdmin = userRol === "administrador" || userRol === "admin" || user?.idRol === 1;
-  const isVendedor = userRol === "vendedor" || userRol.includes("vendedor") || user?.idRol === 2;
+  const isVendedor = userRol === "vendedor" || userRol.includes("vendedor") || user?.idRol === 3;
 
   const handleNavClick = () => {
     setSidebarOpen(false);

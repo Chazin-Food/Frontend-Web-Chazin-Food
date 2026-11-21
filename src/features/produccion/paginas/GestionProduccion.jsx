@@ -10,8 +10,8 @@ import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 
 export function GestionProduccion() {
   const { user } = useAuth();
-  const canEdit = hasPrivilege(user, "Producción", "editar");
-  const canDelete = hasPrivilege(user, "Producción", "eliminar");
+  const canEdit = hasPrivilege(user, "Gestión de Producción", "editar");
+  const canDelete = hasPrivilege(user, "Gestión de Producción", "eliminar");
 
   const {
     ordenes,

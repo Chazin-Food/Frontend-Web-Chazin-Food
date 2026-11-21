@@ -1685,24 +1685,35 @@ export function ClienteLanding() {
   const clientSubtotal = getSubtotal();
   const fidelidadCliente = user?.fidelidad || {};
   const pedidosCount = pedidos.length;
-  const tipoFidelidad =
-    fidelidadCliente.tipo && fidelidadCliente.tipo !== "Nuevo"
-      ? fidelidadCliente.tipo
-      : (pedidosCount >= 9 ? "VIP" : pedidosCount >= 6 ? "Frecuente" : pedidosCount >= 3 ? "Regular" : (fidelidadCliente.tipo || user?.tipo || "Nuevo"));
-  const discountPercent = Number(
-    fidelidadCliente.descuentoPorcentaje !== undefined && fidelidadCliente.descuentoPorcentaje > 0
-      ? fidelidadCliente.descuentoPorcentaje
-      : (tipoFidelidad === "VIP" ? 15 : tipoFidelidad === "Frecuente" ? 10 : tipoFidelidad === "Regular" ? 5 : 0)
+  // Ficha SENA 3209616: 15% OFF en la compra siguiente tras cada 3 compras
+  const beneficioFidelidadActivo = Boolean(
+    fidelidadCliente.descuentoDisponible ??
+      (fidelidadCliente.descuentoPorcentaje !== undefined
+        ? Number(fidelidadCliente.descuentoPorcentaje) > 0
+        : pedidosCount > 0 && pedidosCount % 3 === 0)
   );
+  const tipoFidelidad =
+    fidelidadCliente.tipo ||
+    (beneficioFidelidadActivo
+      ? "VIP"
+      : pedidosCount >= 9
+      ? "VIP"
+      : pedidosCount >= 6
+      ? "Frecuente"
+      : pedidosCount >= 3
+      ? "Regular"
+      : user?.tipo || "Nuevo");
+  const discountPercent = beneficioFidelidadActivo
+    ? Math.min(15, Math.max(0, Number(fidelidadCliente.descuentoPorcentaje ?? 15)))
+    : 0;
   const comprasCiclo =
-    fidelidadCliente.comprasCiclo !== undefined && fidelidadCliente.comprasCiclo > 0
-      ? fidelidadCliente.comprasCiclo
+    fidelidadCliente.comprasCiclo !== undefined
+      ? Number(fidelidadCliente.comprasCiclo)
       : (pedidosCount % 3);
-  const comprasFaltantes =
-    fidelidadCliente.comprasFaltantes !== undefined && fidelidadCliente.comprasFaltantes > 0
-      ? fidelidadCliente.comprasFaltantes
-      : (3 - (comprasCiclo % 3));
-  const siguienteNivel = fidelidadCliente.siguienteNivel || (tipoFidelidad === "Nuevo" ? "Regular" : tipoFidelidad === "Regular" ? "Frecuente" : "VIP");
+  const comprasFaltantes = beneficioFidelidadActivo
+    ? 0
+    : (fidelidadCliente.comprasFaltantes !== undefined ? Number(fidelidadCliente.comprasFaltantes) : (3 - (comprasCiclo % 3)));
+  const siguienteNivel = fidelidadCliente.siguienteNivel || (beneficioFidelidadActivo ? "15% OFF disponible en tu próxima compra" : "15% OFF al completar 3 compras");
 
   // Dynamic real-time calculation of remaining days and seconds in hero banner
   const rawHeroVence = fidelidadCliente.fechaVencimientoNivel || fidelidadCliente.vence;
@@ -2003,7 +2014,7 @@ export function ClienteLanding() {
 
         let win = null;
         try {
-          win = window.open(directUrl, "_blank");
+          win = window.open(directUrl, "_blank", "noopener,noreferrer");
         } catch (e) {
           win = null;
         }

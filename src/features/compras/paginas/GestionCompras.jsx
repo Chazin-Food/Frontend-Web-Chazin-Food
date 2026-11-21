@@ -13,8 +13,12 @@ import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 
 export function GestionCompras() {
   const { user } = useAuth();
+  const rawRol = typeof user?.rol === "object" ? user?.rol?.nombre : user?.rol;
+  const userRol = String(rawRol || "").toLowerCase().trim();
+  const isAdmin = userRol === "administrador" || userRol === "admin" || Number(user?.idRol) === 1;
   const canCreate = hasPrivilege(user, "Gestión de Compras", "crear");
-  const canCancel = hasPrivilege(user, "Gestión de Compras", "eliminar");
+  // Ficha SENA 3209616: la anulación de compras es exclusiva del Administrador
+  const canCancel = isAdmin;
 
   const notify = useNotifications();
   const {
@@ -305,8 +309,8 @@ export function GestionCompras() {
         isOpen={!!selectedCompra && !modalOpen}
         onClose={() => setSelectedCompra(null)}
         compra={selectedCompra}
-        onCancelar={handleCancelar}
-        onEditarCancelacion={handleEditarCancelacion}
+        onCancelar={canCancel ? handleCancelar : null}
+        onEditarCancelacion={null}
       />
 
       <CancelarCompraModal

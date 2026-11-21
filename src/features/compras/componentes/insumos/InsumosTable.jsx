@@ -118,15 +118,23 @@ export function InsumosTable({
         ) : (
           paginatedInsumos.map((i, index) => {
             const isPreparado = i.tipo === "Preparado";
-            const isBajo = (i.stock || 0) <= (i.stockMinimo || 0) && (i.stock || 0) > 0;
-            const isAgotado = (i.stock || 0) === 0;
+            const controlarStock = i.controlarStock !== false;
+            const isActivo = i.estado === "Activo" || i.estado === 1 || i.estado === "1";
+            const isBajo = controlarStock && (i.stock || 0) <= (i.stockMinimo || 0) && (i.stock || 0) > 0;
+            const isAgotado = controlarStock ? (i.stock || 0) === 0 : !isActivo;
             const tieneLoteVencido = (i.lotes || []).some(
               (l) => l.estado === "VENCIDO" || isExpiredOnColDate(l.fechaVencimiento)
             );
             const vencidoDirecto = isExpiredOnColDate(i.fechaVencimiento);
             const estaVencido = tieneLoteVencido || vencidoDirecto;
-            const stockLabel = isAgotado ? "Agotado" : isBajo ? "Bajo" : "Normal";
-            const stockBadgeClass = isAgotado
+            const stockLabel = !controlarStock
+              ? (isActivo ? "Disponible" : "Agotado")
+              : isAgotado ? "Agotado" : isBajo ? "Bajo" : "Normal";
+            const stockBadgeClass = !controlarStock
+              ? (isActivo
+                  ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                  : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300")
+              : isAgotado
               ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
               : isBajo
               ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
@@ -138,7 +146,7 @@ export function InsumosTable({
               : i.categoriaNombre || i.categoria?.nombre || "Sin categoría";
             const esAdicion = i.esAdicion === 1 || i.esAdicion === true || i.esAdicion === "1";
             const stockNum = Number(i.stock || 0);
-            const tieneStockActivo = stockNum > 0;
+            const tieneStockActivo = controlarStock && stockNum > 0;
             const tieneCompras = Boolean(i.tieneCompras || (i.totalCompras && i.totalCompras > 0));
             const noSePuedeEliminar = tieneStockActivo || tieneCompras || i.puedeEliminarse === false;
             const motivoBloqueoEliminacion = tieneStockActivo
@@ -193,14 +201,18 @@ export function InsumosTable({
                 <div className="grid grid-cols-3 gap-2 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl p-2.5 text-center">
                   <div>
                     <span className="block text-[10px] text-gray-400 uppercase font-bold">Stock</span>
-                    <span className="text-xs font-black text-gray-900 dark:text-gray-100">
-                      {i.stock ?? 0} <span className="font-normal text-gray-500">{i.unidadMedida || "und"}</span>
-                    </span>
+                    {controlarStock ? (
+                      <span className="text-xs font-black text-gray-900 dark:text-gray-100">
+                        {i.stock ?? 0} <span className="font-normal text-gray-500">{i.unidadMedida || "und"}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Sin control</span>
+                    )}
                   </div>
                   <div className="border-x border-gray-200/70 dark:border-gray-700/70">
                     <span className="block text-[10px] text-gray-400 uppercase font-bold">Mín / Máx</span>
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                      {i.stockMinimo ?? 0} / {i.stockMaximo ?? 100}
+                      {controlarStock ? `${i.stockMinimo ?? 0} / ${i.stockMaximo ?? 100}` : "—"}
                     </span>
                   </div>
                   <div>
@@ -321,9 +333,11 @@ export function InsumosTable({
             ) : (
               paginatedInsumos.map((i, index) => {
                 const isPreparado = i.tipo === "Preparado";
+                const controlarStock = i.controlarStock !== false;
+                const isActivo = i.estado === "Activo" || i.estado === 1 || i.estado === "1";
                 const isBajo =
-                  (i.stock || 0) <= (i.stockMinimo || 0) && (i.stock || 0) > 0;
-                const isAgotado = (i.stock || 0) === 0;
+                  controlarStock && (i.stock || 0) <= (i.stockMinimo || 0) && (i.stock || 0) > 0;
+                const isAgotado = controlarStock ? (i.stock || 0) === 0 : !isActivo;
                 const tieneLoteVencido = (i.lotes || []).some(
                   (l) =>
                     l.estado === "VENCIDO" ||
@@ -332,12 +346,18 @@ export function InsumosTable({
                 const vencidoDirecto = isExpiredOnColDate(i.fechaVencimiento);
                 const estaVencido = tieneLoteVencido || vencidoDirecto;
 
-                const stockLabel = isAgotado
+                const stockLabel = !controlarStock
+                  ? (isActivo ? "Disponible" : "Agotado")
+                  : isAgotado
                   ? "Agotado"
                   : isBajo
                     ? "Bajo"
                     : "Normal";
-                const stockBadgeClass = isAgotado
+                const stockBadgeClass = !controlarStock
+                  ? (isActivo
+                      ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                      : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300")
+                  : isAgotado
                   ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
                   : isBajo
                     ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
@@ -356,7 +376,7 @@ export function InsumosTable({
                   i.esAdicion === 1 || i.esAdicion === true || i.esAdicion === "1";
 
                 const stockNum = Number(i.stock || 0);
-                const tieneStockActivo = stockNum > 0;
+                const tieneStockActivo = controlarStock && stockNum > 0;
                 const tieneCompras = Boolean(i.tieneCompras || (i.totalCompras && i.totalCompras > 0));
                 const noSePuedeEliminar = tieneStockActivo || tieneCompras || i.puedeEliminarse === false;
                 const motivoBloqueoEliminacion = tieneStockActivo
@@ -424,20 +444,28 @@ export function InsumosTable({
                       {catNombre}
                     </td>
                     <td className="px-2 py-2 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap text-xs">
-                      {i.stock ?? 0}{" "}
-                      <span className="text-[10px] text-gray-500 font-normal">
-                        {i.unidadMedida || "und"}
-                      </span>
+                      {controlarStock ? (
+                        <>
+                          {i.stock ?? 0}{" "}
+                          <span className="text-[10px] text-gray-500 font-normal">
+                            {i.unidadMedida || "und"}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                          Sin control
+                        </span>
+                      )}
                     </td>
                     <td className="px-1.5 py-2 text-gray-700 dark:text-gray-300 font-medium text-center whitespace-nowrap text-xs">
-                      {i.stockMinimo !== undefined && i.stockMinimo !== null
-                        ? i.stockMinimo
-                        : 0}
+                      {controlarStock
+                        ? (i.stockMinimo !== undefined && i.stockMinimo !== null ? i.stockMinimo : 0)
+                        : "—"}
                     </td>
                     <td className="px-1.5 py-2 text-gray-700 dark:text-gray-300 font-medium text-center whitespace-nowrap text-xs">
-                      {i.stockMaximo !== undefined && i.stockMaximo !== null
-                        ? i.stockMaximo
-                        : 100}
+                      {controlarStock
+                        ? (i.stockMaximo !== undefined && i.stockMaximo !== null ? i.stockMaximo : 100)
+                        : "—"}
                     </td>
                     <td className="px-2 py-2 text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap text-xs">
                       ${Number(i.precioUnitario || i.costo || 0).toLocaleString("es-CO")}

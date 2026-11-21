@@ -80,6 +80,10 @@ export const dashboardService = {
     return await apiClient.get("/dashboard/productos-populares", { params });
   },
 
+  getProductosFavoritos: async (params = {}) => {
+    return await apiClient.get("/dashboard/productos-favoritos", { params });
+  },
+
   getAlertasStock: async (params = {}) => {
     return await apiClient.get("/dashboard/alertas-stock", { params });
   },

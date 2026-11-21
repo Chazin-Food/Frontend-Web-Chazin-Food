@@ -9,6 +9,8 @@ import { UsuarioPasswordModal } from "../componentes/usuarios/UsuarioPasswordMod
 import { UsuarioDetalleModal } from "../componentes/usuarios/UsuarioDetalleModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { getColombiaDateISO } from "@/shared/utils/dateUtils";
+import { escapeHtml } from "@/shared/utils/htmlSanitizer";
+import { exportTableToExcel } from "@/shared/utils/excelExport";
 
 export function Usuarios() {
   const { user } = useAuth();
@@ -107,14 +109,14 @@ export function Usuarios() {
   const exportarExcel = async () => {
     const rows = filteredUsuarios;
     if (rows.length === 0) return;
-    const XLSX = await import("xlsx");
 
-    const headers = ["ID", "Nombre", "Apellidos", "Tipo Doc", "Email", "Teléfono", "Dirección", "Rol", "Estado"];
+    const headers = ["ID", "Tipo Doc", "N.º Documento", "Nombre", "Apellidos", "Email", "Teléfono", "Dirección", "Rol", "Estado"];
     const data = rows.map((u) => [
       u.idUsuario || u.id,
+      u.tipoDocumento || "C.C.",
+      u.numeroDocumento || u.documento || "",
       u.nombre || "",
       u.apellidos || "",
-      u.tipoDocumento || "",
       u.email || "",
       u.telefono || "",
       u.direccion || "-",
@@ -122,25 +124,13 @@ export function Usuarios() {
       u.estado || ""
     ]);
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
-    worksheet["!cols"] = [
-      { wch: 8 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 26 },
-      { wch: 16 },
-      { wch: 24 },
-      { wch: 14 },
-      { wch: 12 }
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
-    XLSX.writeFile(
-      workbook,
-      `reporte_usuarios_${getColombiaDateISO()}.xlsx`
-    );
+    await exportTableToExcel({
+      sheetName: "Usuarios",
+      fileName: `reporte_usuarios_${getColombiaDateISO()}.xlsx`,
+      headers,
+      rows: data,
+      colWidths: [8, 10, 16, 18, 18, 26, 16, 24, 14, 12]
+    });
     setExportMenuOpen(false);
   };
 
@@ -153,21 +143,23 @@ export function Usuarios() {
 
     const tableRows = rows.map((u) => `
       <tr>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${u.idUsuario || u.id}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${u.nombre} ${u.apellidos || ''}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${u.email || '-'}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${u.telefono || '-'}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${u.rolNombre || u.rol?.nombre || u.rol || '-'}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(u.idUsuario || u.id)}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${escapeHtml(u.nombre)} ${escapeHtml(u.apellidos || '')}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(u.email || '-')}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(u.telefono || '-')}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(u.rolNombre || u.rol?.nombre || u.rol || '-')}</td>
         <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0;">
-          <span style="padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; ${u.estado === 'Activo' ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #475569;'}">${u.estado}</span>
+          <span style="padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; ${u.estado === 'Activo' ? 'background: #dcfce7; color: #166534;' : 'background: #f1f5f9; color: #475569;'}">${escapeHtml(u.estado)}</span>
         </td>
       </tr>
     `).join('');
 
+    printWindow.opener = null;
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8" />
           <title>Reporte de Usuarios - Chazin Food</title>
           <style>
             body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; color: #1e293b; }
@@ -291,7 +283,11 @@ export function Usuarios() {
           <div className="grid grid-cols-2 sm:flex gap-2 shrink-0">
             <button onClick={exportarExcel} className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap cursor-pointer">
               <Download className="w-4 h-4 shrink-0" />
-              <span>Exportar Excel</span>
+              <span>Excel</span>
+            </button>
+            <button onClick={exportarPDF} className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap cursor-pointer">
+              <Download className="w-4 h-4 shrink-0" />
+              <span>PDF</span>
             </button>
             {canCreate && (
               <button onClick={handleOpenCreate} className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-[#F05454] text-white rounded-xl hover:bg-[#c0392b] transition-colors text-xs sm:text-sm font-medium shadow-sm whitespace-nowrap cursor-pointer">

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Download, TrendingUp, Calendar, History, BarChart2, CheckCircle2 } from "lucide-react";
 import { getColombiaDateISO, getColombiaDateParts } from "@/shared/utils/dateUtils";
+import { exportMatrixToExcel } from "@/shared/utils/excelExport";
 import {
   ResponsiveContainer,
   BarChart,
@@ -365,7 +366,6 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
   }, [vistaTemporal, reportData]);
 
   const handleExport = async () => {
-    const XLSX = await import("xlsx");
     const data = [
       ["Reporte General y Estadísticas Históricas de Ventas - Chazin Food"],
       ["Generado el", new Date().toLocaleString("es-CO")],
@@ -375,7 +375,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
       [],
       ["Histórico Mensual de Ventas"],
       ["Mes", "Facturación (COP)", "Cantidad de Ventas"],
-      ...reportData.historicoMensual.map((m) => [m.mesCompleto, m.ventas, m.cantidadVentas]),
+      ...reportData.historicoMensual.map((m) => [m.mesCompleto, Number(m.ventas || 0), Number(m.cantidadVentas || 0)]),
       [],
       ["Productos Más Vendidos"],
       ["Producto", "Cantidad Vendida"],
@@ -383,17 +383,15 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
       [],
       ["Distribución por Método de Pago"],
       ["Método", "N° Ventas", "Porcentaje (%)"],
-      ...reportData.metodosPago.map((m) => [m.name, m.count, `${m.value}%`])
+      ...reportData.metodosPago.map((m) => [m.name, Number(m.count || 0), `${m.value}%`])
     ];
 
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    worksheet["!cols"] = [{ wch: 32 }, { wch: 26 }, { wch: 18 }];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte Histórico");
-    XLSX.writeFile(
-      workbook,
-      `Reporte_Ventas_Historico_${getColombiaDateISO()}.xlsx`
-    );
+    await exportMatrixToExcel({
+      sheetName: "Reporte Histórico",
+      fileName: `Reporte_Ventas_Historico_${getColombiaDateISO()}.xlsx`,
+      matrix: data,
+      colWidths: [32, 26, 18]
+    });
   };
 
   const productColors = ["#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5"];

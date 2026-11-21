@@ -5,7 +5,6 @@ import {
   Store,
   MapPin,
   Banknote,
-  CreditCard,
   Smartphone,
   CheckCircle2,
   ShoppingBag,
@@ -73,13 +72,8 @@ export function PosCheckoutModal({
     : "Vendedor Mostrador";
   const responsableRol = user?.rol || user?.rolInfo?.nombre || (user?.idRol === 1 ? "Administrador" : "Vendedor");
 
-  const [metodoPago, setMetodoPago] = useState("efectivo"); // "efectivo", "tarjeta"
-
-  // Pago en Efectivo
+  // Pago en Efectivo (único método en Punto de Venta Físico)
   const [efectivoPaga, setEfectivoPaga] = useState("");
-
-  // Pago con Tarjeta
-  const [tarjetaNumero, setTarjetaNumero] = useState("");
 
   // Touch tracking para validación en tiempo real
   const [clienteTouched, setClienteTouched] = useState(false);
@@ -104,9 +98,15 @@ export function PosCheckoutModal({
 
   if (!isOpen) return null;
 
-  // Compute discount and total dynamically based on selected client's fidelity tier
-  const discountPercent = selectedCliente 
-    ? Number(selectedCliente.descuentoPorcentaje || (selectedCliente.tipo === 'VIP' ? 15 : selectedCliente.tipo === 'Frecuente' ? 10 : selectedCliente.tipo === 'Regular' ? 5 : 0)) 
+  // Regla oficial Ficha SENA 3209616: 15% OFF en la compra siguiente tras cada 3 compras
+  const beneficioActivo = Boolean(
+    selectedCliente &&
+      (selectedCliente.fidelidad?.descuentoDisponible ??
+        selectedCliente.descuentoDisponible ??
+        Number(selectedCliente.descuentoPorcentaje || 0) >= 15)
+  );
+  const discountPercent = beneficioActivo
+    ? Math.min(15, Math.max(0, Number(selectedCliente?.fidelidad?.descuentoPorcentaje ?? selectedCliente?.descuentoPorcentaje ?? 15)))
     : 0;
   const calculatedDescuento = discountPercent > 0 ? Math.round(Number(subtotal || 0) * (discountPercent / 100)) : Number(descuento || 0);
   const finalTotal = Math.max(0, Number(subtotal || 0) - calculatedDescuento);
@@ -114,11 +114,9 @@ export function PosCheckoutModal({
   const montoPagaNum = Number(efectivoPaga) || 0;
   const vueltoEfectivo = montoPagaNum >= finalTotal ? montoPagaNum - finalTotal : 0;
 
-  // Cálculos de validación en vivo
-  const cleanCardDigits = tarjetaNumero.replace(/\s+/g, "");
-  const isCardComplete = cleanCardDigits.length === 16;
+  // Cálculos de validación en vivo (Solo Efectivo en Punto Físico)
   const isEfectivoValid = montoPagaNum >= finalTotal && vueltoEfectivo <= 100000;
-  const isPaymentValid = metodoPago === "efectivo" ? isEfectivoValid : isCardComplete;
+  const isPaymentValid = isEfectivoValid;
   const isClientValid = Boolean(clienteNombre && clienteNombre.trim().length >= 2);
   const isFormValid = isClientValid && isPaymentValid;
 
@@ -186,40 +184,29 @@ export function PosCheckoutModal({
       return;
     }
 
-    // Validaciones estrictas de Pago Obligatorio (primero el pago antes de entregar el producto)
-    if (metodoPago === "efectivo") {
-      if (!efectivoPaga || Number(efectivoPaga) <= 0) {
-        warning(
-          "Pago en efectivo obligatorio",
-          `Debes ingresar el monto recibido por el cliente (mínimo $${finalTotal.toLocaleString("es-CO")}).`
-        );
-        return;
-      }
-      if (Number(efectivoPaga) < finalTotal) {
-        warning(
-          "Monto insuficiente",
-          `El cliente debe pagar mínimo el total de la orden ($${finalTotal.toLocaleString("es-CO")}).`
-        );
-        return;
-      }
-      const vuelto = Number(efectivoPaga) - finalTotal;
-      const MAX_CAMBIO_PERMITIDO = 100000;
-      if (vuelto > MAX_CAMBIO_PERMITIDO) {
-        warning(
-          "Límite de cambio de caja",
-          `Por políticas de arqueo y seguridad de caja, el cambio máximo permitido es de $${MAX_CAMBIO_PERMITIDO.toLocaleString("es-CO")}. Si el cliente paga con montos mayores, registra el cobro por Tarjeta.`
-        );
-        return;
-      }
-    } else if (metodoPago === "tarjeta") {
-      const cleanCard = tarjetaNumero.replace(/\s+/g, "");
-      if (!cleanCard || cleanCard.length < 15) {
-        warning(
-          "Tarjeta incompleta",
-          "Por favor ingresa los 16 dígitos de la tarjeta para registrar el pago."
-        );
-        return;
-      }
+    // Validaciones estrictas de Pago en Efectivo Obligatorio (primero el pago antes de entregar el producto)
+    if (!efectivoPaga || Number(efectivoPaga) <= 0) {
+      warning(
+        "Pago en efectivo obligatorio",
+        `Debes ingresar el monto recibido por el cliente (mínimo $${finalTotal.toLocaleString("es-CO")}).`
+      );
+      return;
+    }
+    if (Number(efectivoPaga) < finalTotal) {
+      warning(
+        "Monto insuficiente",
+        `El cliente debe pagar mínimo el total de la orden ($${finalTotal.toLocaleString("es-CO")}).`
+      );
+      return;
+    }
+    const vuelto = Number(efectivoPaga) - finalTotal;
+    const MAX_CAMBIO_PERMITIDO = 100000;
+    if (vuelto > MAX_CAMBIO_PERMITIDO) {
+      warning(
+        "Límite de cambio de caja",
+        `Por políticas de arqueo y seguridad de caja, el cambio máximo permitido es de $${MAX_CAMBIO_PERMITIDO.toLocaleString("es-CO")}. Solicita un monto más cercano al total.`
+      );
+      return;
     }
 
     const payload = {
@@ -236,11 +223,10 @@ export function PosCheckoutModal({
       total: finalTotal,
       origen: "PUNTO_FISICO",
       tiempoEstimadoEntrega: "15-20 min",
-      metodoPago: metodoPago === "tarjeta" ? "Tarjeta" : "Efectivo",
+      metodoPago: "Efectivo",
       datosPago: {
         efectivoConCuanto: efectivoPaga ? Number(efectivoPaga) : null,
-        vueltoEfectivo: vueltoEfectivo > 0 ? vueltoEfectivo : null,
-        tarjetaNumero: tarjetaNumero || null
+        vueltoEfectivo: vueltoEfectivo > 0 ? vueltoEfectivo : null
       }
     };
 
@@ -790,192 +776,98 @@ export function PosCheckoutModal({
             </div>
           </div>
 
-          {/* 4. Método de Pago */}
+          {/* 4. Método de Pago (Solo Efectivo en Punto Físico) */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-[#f05454]" />
+              <Banknote className="w-4 h-4 text-[#f05454]" />
               <span>Método de Pago</span>
             </h4>
 
-            {/* Selector de Métodos (2 Columnas: Solo Efectivo y Tarjeta) */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Efectivo */}
-              <button
-                type="button"
-                onClick={() => setMetodoPago("efectivo")}
-                className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                  metodoPago === "efectivo"
-                    ? "border-[#f05454] bg-[#FFF5F5] dark:bg-red-950/20 text-[#f05454] shadow-xs"
-                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <Banknote className="w-5 h-5 text-inherit" />
-                <span className="text-xs font-bold text-inherit">Efectivo</span>
-                {metodoPago === "efectivo" && (
-                  <span className="w-4 h-4 rounded-full border border-[#f05454] flex items-center justify-center text-[#f05454] text-[10px] font-black"><Check className="w-3 h-3 stroke-[3]" /></span>
-                )}
-              </button>
-
-              {/* Tarjeta */}
-              <button
-                type="button"
-                onClick={() => setMetodoPago("tarjeta")}
-                className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                  metodoPago === "tarjeta"
-                    ? "border-[#f05454] bg-[#FFF5F5] dark:bg-red-950/20 text-[#f05454] shadow-xs"
-                    : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <CreditCard className="w-5 h-5 text-inherit" />
-                <span className="text-xs font-bold text-inherit">Tarjeta</span>
-                {metodoPago === "tarjeta" && (
-                  <span className="w-4 h-4 rounded-full border border-[#f05454] flex items-center justify-center text-[#f05454] text-[10px] font-black"><Check className="w-3 h-3 stroke-[3]" /></span>
-                )}
-              </button>
+            <div className="p-3.5 rounded-2xl border border-[#f05454] bg-[#FFF5F5] dark:bg-red-950/20 text-[#f05454] shadow-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <Banknote className="w-5 h-5 text-inherit shrink-0" />
+                <div>
+                  <span className="text-xs font-bold text-inherit block">Efectivo</span>
+                  <span className="text-[10.5px] text-gray-500 dark:text-gray-400 font-medium">
+                    Pago presencial en caja / mostrador físico
+                  </span>
+                </div>
+              </div>
+              <span className="w-5 h-5 rounded-full border border-[#f05454] flex items-center justify-center text-[#f05454] shrink-0">
+                <Check className="w-3 h-3 stroke-[3]" />
+              </span>
             </div>
 
             {/* Sub-formulario Efectivo */}
-            {metodoPago === "efectivo" && (
-              <div className="bg-[#F0FDF4] dark:bg-emerald-950/20 border border-[#DCFCE7] dark:border-emerald-900/40 rounded-2xl p-3.5 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-[#166534] dark:text-emerald-300">
-                    Monto en efectivo recibido por el cliente <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-[10px] font-black text-[#16A34A] dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md">
-                    Pago requerido
+            <div className="bg-[#F0FDF4] dark:bg-emerald-950/20 border border-[#DCFCE7] dark:border-emerald-900/40 rounded-2xl p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-[#166534] dark:text-emerald-300">
+                  Monto en efectivo recibido por el cliente <span className="text-red-500">*</span>
+                </label>
+                <span className="text-[10px] font-black text-[#16A34A] dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md">
+                  Pago requerido
+                </span>
+              </div>
+
+              <div className={`relative flex items-center bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 shadow-2xs transition ${
+                pagoTouched && (!efectivoPaga || montoPagaNum < finalTotal || vueltoEfectivo > 100000)
+                  ? "border-red-500 bg-red-50/40 dark:bg-red-950/20 text-red-900"
+                  : montoPagaNum >= finalTotal
+                  ? "border-emerald-500"
+                  : "border-[#86EFAC] dark:border-emerald-700"
+              }`}>
+                <Banknote className="w-4 h-4 text-[#16A34A] mr-2 shrink-0" />
+                <NumberInput
+                  formatThousands={true}
+                  showStepper={false}
+                  min={0}
+                  value={efectivoPaga}
+                  onChange={(e) => {
+                    setPagoTouched(true);
+                    const raw = e?.target ? e.target.value : e;
+                    setEfectivoPaga(raw);
+                  }}
+                  onBlur={() => setPagoTouched(true)}
+                  placeholder={`Mínimo: $${finalTotal.toLocaleString("es-CO")}`}
+                  className="w-full bg-transparent text-sm font-bold text-gray-900 dark:text-gray-100 outline-none"
+                />
+              </div>
+
+              {/* Live validation feedback for Cash */}
+              {!efectivoPaga ? (
+                pagoTouched ? (
+                  <p className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                    <span>Ingresa el valor entregado (mínimo ${finalTotal.toLocaleString("es-CO")}).</span>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Info className="w-3.5 h-3.5 text-gray-400" />
+                    <span>Ingresa el valor entregado (mínimo ${finalTotal.toLocaleString("es-CO")}).</span>
+                  </p>
+                )
+              ) : montoPagaNum < finalTotal ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg border border-red-200 dark:border-red-900/60">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  <span>Monto insuficiente: Faltan ${(finalTotal - montoPagaNum).toLocaleString("es-CO")} para cubrir el total.</span>
+                </div>
+              ) : vueltoEfectivo > 100000 ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg border border-red-200 dark:border-red-900/60">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <span>El cambio (${vueltoEfectivo.toLocaleString("es-CO")}) excede el límite de caja ($100.000 COP). Solicita un monto más cercano al total.</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 p-2 rounded-lg border border-emerald-300 dark:border-emerald-800">
+                  <span className="flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Cambio a devolver al cliente:</span>
+                  </span>
+                  <span className="text-sm font-black text-emerald-800 dark:text-emerald-200">
+                    ${vueltoEfectivo.toLocaleString("es-CO")}
                   </span>
                 </div>
-
-                <div className={`relative flex items-center bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 shadow-2xs transition ${
-                  pagoTouched && (!efectivoPaga || montoPagaNum < finalTotal || vueltoEfectivo > 100000)
-                    ? "border-red-500 bg-red-50/40 dark:bg-red-950/20 text-red-900"
-                    : montoPagaNum >= finalTotal
-                    ? "border-emerald-500"
-                    : "border-[#86EFAC] dark:border-emerald-700"
-                }`}>
-                  <Banknote className="w-4 h-4 text-[#16A34A] mr-2 shrink-0" />
-                  <NumberInput
-                    formatThousands={true}
-                    showStepper={false}
-                    min={0}
-                    value={efectivoPaga}
-                    onChange={(e) => {
-                      setPagoTouched(true);
-                      const raw = e?.target ? e.target.value : e;
-                      setEfectivoPaga(raw);
-                    }}
-                    onBlur={() => setPagoTouched(true)}
-                    placeholder={`Mínimo: $${finalTotal.toLocaleString("es-CO")}`}
-                    className="w-full bg-transparent text-sm font-bold text-gray-900 dark:text-gray-100 outline-none"
-                  />
-                </div>
-
-                {/* Live validation feedback for Cash */}
-                {!efectivoPaga ? (
-                  pagoTouched ? (
-                    <p className="text-[11px] text-red-600 font-medium flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
-                      <span>Ingresa el valor entregado (mínimo ${finalTotal.toLocaleString("es-CO")}).</span>
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <Info className="w-3.5 h-3.5 text-gray-400" />
-                      <span>Ingresa el valor entregado (mínimo ${finalTotal.toLocaleString("es-CO")}).</span>
-                    </p>
-                  )
-                ) : montoPagaNum < finalTotal ? (
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg border border-red-200 dark:border-red-900/60">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                    <span>Monto insuficiente: Faltan ${(finalTotal - montoPagaNum).toLocaleString("es-CO")} para cubrir el total.</span>
-                  </div>
-                ) : vueltoEfectivo > 100000 ? (
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg border border-red-200 dark:border-red-900/60">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                    <span>El cambio (${vueltoEfectivo.toLocaleString("es-CO")}) excede el límite de caja ($100.000 COP). Cobrar por tarjeta.</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 p-2 rounded-lg border border-emerald-300 dark:border-emerald-800">
-                    <span className="flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Cambio a devolver al cliente:</span>
-                    </span>
-                    <span className="text-sm font-black text-emerald-800 dark:text-emerald-200">
-                      ${vueltoEfectivo.toLocaleString("es-CO")}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Sub-formulario Tarjeta */}
-            {metodoPago === "tarjeta" && (
-              <div className="bg-[#F8FAFF] dark:bg-blue-950/20 border border-[#E0E7FF] dark:border-blue-900/40 rounded-2xl p-3.5 space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#1E40AF] dark:text-blue-300 mb-1">
-                    Número de tarjeta <span className="text-red-500">*</span>
-                  </label>
-                  <div className={`relative flex items-center bg-white dark:bg-gray-800 border rounded-xl px-3.5 py-2 shadow-2xs transition ${
-                    pagoTouched && !isCardComplete
-                      ? "border-red-500 bg-red-50/40 dark:bg-red-950/20 text-red-900"
-                      : isCardComplete
-                      ? "border-emerald-500"
-                      : "border-[#C7D2FE] dark:border-blue-700"
-                  }`}>
-                    <CreditCard className="w-4 h-4 text-[#3B82F6] mr-2 shrink-0" />
-                    <input
-                      type="text"
-                      required
-                      value={tarjetaNumero}
-                      onChange={(e) => {
-                        setPagoTouched(true);
-                        const v = e.target.value.replace(/[^\d]/g, "").slice(0, 16);
-                        setTarjetaNumero(v.replace(/(\d{4})(?=\d)/g, "$1 "));
-                      }}
-                      onBlur={() => setPagoTouched(true)}
-                      placeholder="0000 0000 0000 0000"
-                      className="w-full bg-transparent text-sm font-mono font-bold text-gray-900 dark:text-gray-100 outline-none tracking-widest"
-                    />
-                  </div>
-
-                  {/* Live Card Feedback */}
-                  {!cleanCardDigits ? (
-                    pagoTouched ? (
-                      <p className="text-[10.5px] text-red-600 font-medium mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
-                        <span>Ingresa los 16 dígitos para registrar la venta en datáfono.</span>
-                      </p>
-                    ) : (
-                      <p className="text-[10.5px] text-gray-400 mt-1 flex items-center gap-1">
-                        <Info className="w-3 h-3 text-gray-400" />
-                        <span>Ingresa los 16 dígitos para registrar la venta en datáfono.</span>
-                      </p>
-                    )
-                  ) : !isCardComplete ? (
-                    <p className="text-[10.5px] text-red-600 dark:text-red-400 font-semibold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
-                      <span>Faltan {16 - cleanCardDigits.length} dígitos para completar la tarjeta (16 dígitos requeridos).</span>
-                    </p>
-                  ) : (
-                    <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 flex items-center gap-1">
-                      <Check className="w-3 h-3 text-emerald-500" />
-                      <span>Tarjeta lista para cobro de ${finalTotal.toLocaleString("es-CO")}.</span>
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#1E40AF] dark:text-blue-300 mb-1">
-                    Monto a cargar (No editable)
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={`$ ${Number(total).toLocaleString("es-CO")}`}
-                    className="w-full px-3.5 py-2 bg-gray-100 dark:bg-gray-800/80 border border-[#C7D2FE] dark:border-blue-700 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 outline-none cursor-not-allowed"
-                  />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* 5. Productos y Observaciones del Carrito */}

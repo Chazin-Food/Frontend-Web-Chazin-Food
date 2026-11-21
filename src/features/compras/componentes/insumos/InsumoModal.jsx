@@ -92,6 +92,7 @@ export function InsumoModal({
     stock: 0,
     stockMinimo: 5,
     stockMaximo: 100,
+    controlarStock: true,
     descripcion: "",
     estado: "Activo",
     // Adición integrada
@@ -146,6 +147,7 @@ export function InsumoModal({
         stock: Math.max(0, Number(insumo.stock || 0)),
         stockMinimo: Math.max(0, Number(insumo.stockMinimo !== undefined && insumo.stockMinimo !== null ? insumo.stockMinimo : 5)),
         stockMaximo: Math.max(0, Number(insumo.stockMaximo !== undefined && insumo.stockMaximo !== null ? insumo.stockMaximo : 100)),
+        controlarStock: insumo.controlarStock !== false,
         descripcion: insumo.descripcion || "",
         estado: insumo.estado === 1 || insumo.estado === "Activo" || insumo.estado === "1" ? "Activo" : "Inactivo",
         esAdicion: esAdicionVal,
@@ -188,6 +190,7 @@ export function InsumoModal({
         stock: 0,
         stockMinimo: 5,
         stockMaximo: 100,
+        controlarStock: true,
         descripcion: "",
         estado: "Activo",
         esAdicion: esSalsaDefault,
@@ -223,6 +226,7 @@ export function InsumoModal({
       stock: form.stock,
       stockMinimo: form.stockMinimo,
       stockMaximo: form.stockMaximo,
+      controlarStock: form.controlarStock,
       estado: form.estado,
       esAdicion: form.esAdicion,
       precioAdicion: form.precioAdicion,
@@ -271,17 +275,17 @@ export function InsumoModal({
     } else if (field === "precioUnitario") {
       const res = validateMoneda(val, "precio o costo", { allowZero: true });
       if (!res.isValid) err = res.error;
-    } else if (field === "stock" && tipo === "Base") {
+    } else if (field === "stock" && tipo === "Base" && currentForm.controlarStock !== false) {
       const res = validateNumeroPositivo(val, "stock actual", { min: 0, allowZero: true });
       if (!res.isValid) err = res.error;
-    } else if (field === "stockMinimo" && tipo === "Base") {
+    } else if (field === "stockMinimo" && tipo === "Base" && currentForm.controlarStock !== false) {
       const res = validateNumeroPositivo(val, "stock mínimo", { min: 0, allowZero: true });
       if (!res.isValid) {
         err = res.error;
       } else if (currentForm.stockMaximo !== "" && Number(val) > Number(currentForm.stockMaximo)) {
         err = "El stock mínimo no puede ser superior al stock máximo.";
       }
-    } else if (field === "stockMaximo" && tipo === "Base") {
+    } else if (field === "stockMaximo" && tipo === "Base" && currentForm.controlarStock !== false) {
       const res = validateNumeroPositivo(val, "stock máximo", { min: 0, allowZero: true });
       if (!res.isValid) {
         err = res.error;
@@ -406,7 +410,7 @@ export function InsumoModal({
       const editErrors = {};
       const touchedFields = {};
 
-      if (tipo === "Base") {
+      if (tipo === "Base" && form.controlarStock !== false) {
         touchedFields.stockMinimo = true;
         touchedFields.stockMaximo = true;
 
@@ -465,8 +469,8 @@ export function InsumoModal({
         return;
       }
 
-      const minVal = tipo === "Base" ? Number(form.stockMinimo) : 0;
-      const maxVal = tipo === "Base" ? Number(form.stockMaximo) : 0;
+      const minVal = tipo === "Base" && form.controlarStock !== false ? Number(form.stockMinimo) : 0;
+      const maxVal = tipo === "Base" && form.controlarStock !== false ? Number(form.stockMaximo) : 0;
 
       const savePayload = async () => {
         if (insumo?.estado === "Activo" && form.estado === "Inactivo") {
@@ -480,6 +484,7 @@ export function InsumoModal({
 
         onSave({
           ...insumo,
+          controlarStock: form.controlarStock !== false,
           stockMinimo: minVal,
           stockMaximo: maxVal,
           descripcion: (form.descripcion || "").trim(),
@@ -498,7 +503,10 @@ export function InsumoModal({
 
     const fieldsToValidate = ["nombre"];
     if (tipo === "Base") {
-      fieldsToValidate.push("idCategoriaInsumo", "stock", "stockMinimo", "stockMaximo", "precioUnitario");
+      fieldsToValidate.push("idCategoriaInsumo", "precioUnitario");
+      if (form.controlarStock !== false) {
+        fieldsToValidate.push("stock", "stockMinimo", "stockMaximo");
+      }
     } else {
       fieldsToValidate.push("precioUnitario");
     }
@@ -657,9 +665,10 @@ export function InsumoModal({
         idCategoriaInsumo: defaultCatId,
         idProveedor: defaultProvId,
         precioUnitario: Math.max(0, form.precioUnitario === "" ? 0 : Number(form.precioUnitario)),
-        stock: Math.max(0, form.stock === "" ? 0 : Number(form.stock)),
-        stockMinimo: Math.max(0, form.stockMinimo === "" ? 0 : Number(form.stockMinimo)),
-        stockMaximo: Math.max(0, form.stockMaximo === "" ? 0 : Number(form.stockMaximo)),
+        controlarStock: form.controlarStock !== false,
+        stock: form.controlarStock !== false ? Math.max(0, form.stock === "" ? 0 : Number(form.stock)) : 0,
+        stockMinimo: form.controlarStock !== false ? Math.max(0, form.stockMinimo === "" ? 0 : Number(form.stockMinimo)) : 0,
+        stockMaximo: form.controlarStock !== false ? Math.max(0, form.stockMaximo === "" ? 0 : Number(form.stockMaximo)) : 0,
         fechaExpedicion: null, // #62: Eliminada fecha de expedición
         fechaVencimiento: null, // #62: Retirada de Insumo maestro, gestionada por Lote en Compras
         incluyeIva: form.incluyeIva ? 1 : 0,
@@ -920,6 +929,31 @@ export function InsumoModal({
                     ) : null}
                   </div>
 
+                  <div className="sm:col-span-2 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40 flex items-start justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <label htmlFor="insumo-controlar-stock" className="text-xs font-bold text-gray-800 dark:text-gray-100 cursor-pointer flex items-center gap-1.5">
+                        <span>Controlar stock numérico</span>
+                        {form.controlarStock === false && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                            Solo Disponible / Agotado
+                          </span>
+                        )}
+                      </label>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Desactívalo para salsas, verduras u otros insumos manejados únicamente por disponibilidad (Disponible / Agotado) sin alertas de stock mínimo.
+                      </p>
+                    </div>
+                    <input
+                      id="insumo-controlar-stock"
+                      type="checkbox"
+                      checked={form.controlarStock !== false}
+                      onChange={(e) => setForm((prev) => ({ ...prev, controlarStock: e.target.checked }))}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#F05454] focus:ring-[#F05454] cursor-pointer shrink-0"
+                    />
+                  </div>
+
+                  {form.controlarStock !== false && (
+                  <>
                   <div>
                     <label className={labelCls}>
                       Stock Actual ({getUnitShort(form.unidadMedida)}) {isEditing && <span className="text-gray-400 font-normal text-[11px]">(Inmutable)</span>}
@@ -1031,6 +1065,8 @@ export function InsumoModal({
                       </p>
                     ) : null}
                   </div>
+                  </>
+                  )}
 
                   <div className="sm:col-span-2">
                     <label className={labelCls}>Descripción</label>
