@@ -804,6 +804,25 @@ export function FastFoodProductModal({
     ];
   }, [producto]);
 
+  // Opción base garantizada para productos de comida (siempre opción #1 / por defecto = producto padre)
+  const defaultBaseFoodVariant = useMemo(() => {
+    if (isDrink || !producto) return null;
+    const vars = Array.isArray(producto?.variantes) ? producto.variantes : [];
+    const baseVar = vars.find((v) => isDummyOrBaseVariant(v.nombre, producto?.nombre));
+    return {
+      idVariante: baseVar?.idVariante || baseVar?.id || producto?.idVarianteBase || "BASE",
+      idProducto: producto?.id || producto?.idProducto,
+      nombre: "Preparación Clásica / Estándar",
+      descripcion: baseVar?.descripcion || "Receta tradicional con los ingredientes originales",
+      especificaciones: liveFicha?.especificaciones || producto?.fichaTecnica?.especificaciones || "",
+      precio: Number(producto?.precio || baseVar?.precio || 0),
+      imagen: producto?.imagen || baseVar?.imagen || null,
+      esOriginal: true,
+      esVarianteBase: true,
+      insumosModificados: []
+    };
+  }, [isDrink, producto, liveFicha]);
+
   // Variantes de fórmula/preparación para platos de comida (hamburguesas, perros calientes, etc.)
   const foodVariants = useMemo(() => {
     if (isDrink) return [];
@@ -811,21 +830,7 @@ export function FastFoodProductModal({
     const nonDummy = vars.filter((v) => !isDummyOrBaseVariant(v.nombre, producto?.nombre) && isVariantActive(v));
     if (nonDummy.length === 0) return [];
 
-    const baseVar = vars.find((v) => isDummyOrBaseVariant(v.nombre, producto?.nombre));
-    const result = [
-      {
-        idVariante: baseVar?.idVariante || baseVar?.id || producto?.idVarianteBase || "BASE",
-        idProducto: producto?.id || producto?.idProducto,
-        nombre: "Preparación Clásica / Estándar",
-        descripcion: baseVar?.descripcion || "Receta tradicional con los ingredientes originales",
-        especificaciones: liveFicha?.especificaciones || producto?.fichaTecnica?.especificaciones || "",
-        precio: Number(baseVar?.precio || producto?.precio || 0),
-        imagen: baseVar?.imagen || null,
-        esOriginal: true,
-        esVarianteBase: true,
-        insumosModificados: []
-      }
-    ];
+    const result = [defaultBaseFoodVariant].filter(Boolean);
 
     nonDummy.forEach((v) => {
       result.push({
@@ -835,7 +840,7 @@ export function FastFoodProductModal({
         descripcion: v.descripcion || "",
         especificaciones: v.fichaTecnica?.especificaciones || v.especificaciones || "",
         precio: Number(v.precio || producto?.precio || 0),
-        imagen: v.imagen || null,
+        imagen: typeof v.imagen === "string" && v.imagen.trim() ? v.imagen.trim() : null,
         esOriginal: false,
         esVarianteBase: false,
         estado: 1,
@@ -848,7 +853,7 @@ export function FastFoodProductModal({
     });
 
     return result;
-  }, [isDrink, producto, liveFicha]);
+  }, [isDrink, producto, defaultBaseFoodVariant]);
 
   // Variantes de fórmula o sabor para bebidas (excluyendo tamaños como 1.5L, 2.5L que pertenecen al selector de tamaños)
   const drinkFormulaVariants = useMemo(() => {
@@ -943,12 +948,14 @@ export function FastFoodProductModal({
         }
 
         const isDietFlag = cleanDisplayName.toLowerCase().includes("sin az") || cleanDisplayName.toLowerCase().includes("light") || cleanDisplayName.toLowerCase().includes("zero");
-        const fallbackImg = getDrinkBottleImage("400ml", producto, cleanDisplayName, isDietFlag) || v.imagen;
+        const uploadedCustomImg = typeof v.imagen === "string" && v.imagen.trim() ? v.imagen.trim() : null;
+        const fallbackImg = uploadedCustomImg || getDrinkBottleImage("400ml", producto, cleanDisplayName, isDietFlag);
         return {
           ...v,
           nombre: cleanDisplayName,
           idProducto: targetPid,
           imagen: fallbackImg,
+          customImagen: uploadedCustomImg,
           esOriginal: false
         };
       });
@@ -963,25 +970,32 @@ export function FastFoodProductModal({
     if (isDrink && drinkFormulaVariants.length > 0) {
       return drinkFormulaVariants[0];
     }
-    if (!isDrink && foodVariants.length > 0) {
-      return foodVariants[0];
+    if (!isDrink) {
+      return foodVariants[0] || defaultBaseFoodVariant;
     }
-    return realVariants[0];
+    return realVariants[0] || null;
   });
 
   useEffect(() => {
-    if (!isDrink && foodVariants.length > 0) {
+    if (isDrink) return;
+    const currentProdId = String(producto?.id || producto?.idProducto || "");
+    if (foodVariants.length > 0) {
       setSelectedVariant((prev) => {
+        if (!prev) return foodVariants[0];
+        const prevProdId = String(prev?.idProducto || "");
+        if (prevProdId && currentProdId && prevProdId !== currentProdId) {
+          return foodVariants[0];
+        }
         const found = foodVariants.find((v) =>
           (prev?.esOriginal && v.esOriginal) ||
           (!v.esOriginal && !prev?.esOriginal && (v.idVariante || v.id) === (prev?.idVariante || prev?.id))
         );
         return found || foodVariants[0];
       });
-    } else if (!isDrink && foodVariants.length === 0) {
-      setSelectedVariant(realVariants[0] || null);
+    } else {
+      setSelectedVariant(defaultBaseFoodVariant);
     }
-  }, [isDrink, foodVariants, realVariants]);
+  }, [isDrink, foodVariants, defaultBaseFoodVariant, producto?.id, producto?.idProducto]);
 
   const activeVariantSummary = useMemo(
     () =>
@@ -1068,8 +1082,9 @@ export function FastFoodProductModal({
     }
   }, [producto, selectedSizeId]);
 
-  // Sincronizar selectedVariant cuando cambia selectedSizeId o realVariants para bebidas
+  // Sincronizar selectedVariant cuando cambia selectedSizeId o realVariants SOLO para bebidas
   useEffect(() => {
+    if (!isDrink) return;
     if (!drinkHasSizes) {
       if (drinkFormulaVariants.length > 0) {
         setSelectedVariant((prev) => {
@@ -1128,7 +1143,7 @@ export function FastFoodProductModal({
         precio: defaultPrice
       });
     }
-  }, [selectedSizeId, drinkHasSizes, realVariants, drinkFormulaVariants, isPostobonDrink, producto]);
+  }, [isDrink, selectedSizeId, drinkHasSizes, realVariants, drinkFormulaVariants, isPostobonDrink, producto]);
 
   // Detección si el producto es acompañamiento o plato de papas
   const isPapaOrAccompaniment = useMemo(() => {
@@ -1178,10 +1193,12 @@ export function FastFoodProductModal({
   const [selectedFlavor, setSelectedFlavor] = useState(() => isDrink ? detectDefaultFlavor(producto) : null);
   const [customObservation, setCustomObservation] = useState("");
   const [imageError, setImageError] = useState(false);
+  const [heroFallbackToBase, setHeroFallbackToBase] = useState(false);
 
   // Reiniciar estado de error de imagen al cambiar presentación o variante
   useEffect(() => {
     setImageError(false);
+    setHeroFallbackToBase(false);
   }, [selectedSizeId, selectedVariant, producto]);
 
   // Detección y resolución de configuración de Combo con bebidas incluidas
@@ -1626,6 +1643,9 @@ export function FastFoodProductModal({
       if (drinkMode) {
         const defFlavor = detectDefaultFlavor(producto);
         setSelectedFlavor(defFlavor);
+        if (drinkFormulaVariants.length > 0) {
+          setSelectedVariant(drinkFormulaVariants[0]);
+        }
         if (hasSizes) {
           const defSize = detectDefaultDrinkSize(producto);
           setSelectedSizeId(defSize);
@@ -1634,6 +1654,7 @@ export function FastFoodProductModal({
           setActiveTab("presentacion");
         }
       } else {
+        setSelectedVariant(foodVariants[0] || defaultBaseFoodVariant);
         const canPersonalize = extractPersonalizables(producto, liveFicha).length > 0;
         const hasVarsOrIngs = canPersonalize || foodVariants.length > 0 || hasRecipeTabContent;
         const fallbackTab = isComboWithDrinks && availableBebidas.length > 0 ? "bebidas" : "adiciones";
@@ -1645,6 +1666,7 @@ export function FastFoodProductModal({
       setSelectedDrinks([]);
       setCustomObservation("");
       setImageError(false);
+      setHeroFallbackToBase(false);
       setShowWriteReview(false);
       setReviewFeedback(null);
       setReviewCommentTouched(false);
@@ -2010,16 +2032,46 @@ export function FastFoodProductModal({
       }) || null)
     : null;
 
-  // Determinar la imagen de la botella según tamaño y fórmula seleccionada
+  // Determinar la imagen principal respetando la imagen propia de la variante seleccionada (o del producto padre si es la opción base)
+  const isCustomVariantSelected = Boolean(
+    selectedVariant && !selectedVariant.esOriginal && !selectedVariant.esVarianteBase
+  );
+  const variantExplicitImage =
+    isCustomVariantSelected && typeof selectedVariant?.imagen === "string" && selectedVariant.imagen.trim()
+      ? selectedVariant.imagen.trim()
+      : null;
+
   const heroImage = (() => {
     if (isDrink && drinkHasSizes) {
+      if (isCustomVariantSelected && selectedVariant?.customImagen) {
+        return selectedVariant.customImagen;
+      }
+      if (typeof matchedSizeVariant?.imagen === "string" && matchedSizeVariant.imagen.trim()) {
+        return matchedSizeVariant.imagen.trim();
+      }
       return getDrinkBottleImage(selectedSizeId, producto, selectedVariant, isDietSelected) || productImage;
     } else if (isDrink) {
-      return getDrinkBottleImage("400ml", producto, selectedVariant, isDietSelected) || selectedVariant?.imagen || productImage;
+      return (
+        (isCustomVariantSelected && (selectedVariant?.customImagen || variantExplicitImage)) ||
+        getDrinkBottleImage("400ml", producto, selectedVariant, isDietSelected) ||
+        variantExplicitImage ||
+        productImage
+      );
     } else {
-      return selectedVariant?.imagen || productImage;
+      return variantExplicitImage || productImage;
     }
   })();
+
+  const effectiveHeroImage =
+    heroFallbackToBase && productImage && productImage !== heroImage
+      ? productImage
+      : heroImage;
+  const optimizedHeroImage = effectiveHeroImage ? getOptimizedImageUrl(effectiveHeroImage, 720) : "";
+
+  useEffect(() => {
+    setImageError(false);
+    setHeroFallbackToBase(false);
+  }, [heroImage]);
 
   // Título dinámico para bebidas que refleja fielmente la fórmula/sabor activo y la presentación seleccionada
   const displayDrinkTitle = (() => {
@@ -2329,7 +2381,7 @@ export function FastFoodProductModal({
         saborSeleccionado: formulaTitle || cleanBaseName,
         configuracionCombo: comboConfig,
         precio: basePrice,
-        imagen: heroImage,
+        imagen: effectiveHeroImage || heroImage,
         is2x1Promo,
         cantidadCocina: kitchenPrepQty
       },
@@ -2421,12 +2473,15 @@ export function FastFoodProductModal({
           {/* ═══ 1. LUXURY DUAL-STAGE HERO PHOTO (ENCUADRE PERFECTO & WOW EFFECT) ═══ */}
           <div className="relative w-full h-52 sm:h-64 bg-gray-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80">
             {/* Background Ambient Layer (Glow difuminado con los colores reales de la comida o refresco) */}
-            {heroImage && !imageError ? (
+            {optimizedHeroImage && !imageError ? (
               <>
                 <img
-                  src={heroImage}
+                  src={optimizedHeroImage}
                   alt=""
                   aria-hidden="true"
+                  width="640"
+                  height="256"
+                  decoding="async"
                   className="absolute inset-0 w-full h-full object-cover blur-3xl scale-125 opacity-40 dark:opacity-50 saturate-200 pointer-events-none transition-all duration-500"
                 />
                 {/* Spotlight radial central gastronómico adaptativo */}
@@ -2443,11 +2498,14 @@ export function FastFoodProductModal({
 
             {/* Foreground Crisp Centered Food Stage (Sin recortes, encuadre 100% perfecto) */}
             <div className="relative z-10 w-full h-full flex items-center justify-center p-3 sm:p-5">
-              {heroImage && !imageError ? (
+              {optimizedHeroImage && !imageError ? (
                 <img
-                  key={heroImage}
-                  src={heroImage}
-                  alt={producto.nombre}
+                  key={optimizedHeroImage}
+                  src={optimizedHeroImage}
+                  alt={isCustomVariantSelected && selectedVariant?.nombre ? `${producto.nombre} - ${selectedVariant.nombre}` : producto.nombre}
+                  width="320"
+                  height="200"
+                  decoding="async"
                   onError={(e) => {
                     if (isDrink) {
                       const fallback = isDietSelected ? OFFICIAL_DRINK_IMAGES.coca_cola_light : OFFICIAL_DRINK_IMAGES.coca_cola;
@@ -2455,6 +2513,9 @@ export function FastFoodProductModal({
                         e.currentTarget.src = fallback;
                         return;
                       }
+                    } else if (!heroFallbackToBase && productImage && effectiveHeroImage !== productImage) {
+                      setHeroFallbackToBase(true);
+                      return;
                     }
                     setImageError(true);
                   }}
@@ -2906,7 +2967,12 @@ export function FastFoodProductModal({
                                     ? Number(selectedVariant.precio)
                                     : (isPostobonDrink ? size.defaultPostobonPrice : size.defaultPremiumPrice))
                                 : (isPostobonDrink ? size.defaultPostobonPrice : size.defaultPremiumPrice)));
-                      const bottleImg = getOptimizedImageUrl(getDrinkBottleImage(size.id, producto, selectedVariant, isDietSelected), 120);
+                      const bottleImg = getOptimizedImageUrl(
+                        (typeof matchedVar?.imagen === "string" && matchedVar.imagen.trim())
+                          ? matchedVar.imagen.trim()
+                          : getDrinkBottleImage(size.id, producto, selectedVariant, isDietSelected),
+                        120
+                      );
 
                       return (
                         <div
@@ -2929,6 +2995,10 @@ export function FastFoodProductModal({
                                 <img
                                   src={bottleImg}
                                   alt={size.label}
+                                  width="44"
+                                  height="56"
+                                  loading="lazy"
+                                  decoding="async"
                                   onError={(e) => {
                                     if (size.id === "400ml") {
                                       e.currentTarget.src = isDietSelected ? OFFICIAL_DRINK_IMAGES.coca_cola_light : OFFICIAL_DRINK_IMAGES.coca_cola;
@@ -3042,8 +3112,18 @@ export function FastFoodProductModal({
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden shrink-0 border border-gray-200 dark:border-gray-700 flex items-center justify-center p-1">
                                 <img
-                                  src={varImg}
+                                  src={getOptimizedImageUrl(varImg, 120)}
                                   alt={variant.nombre}
+                                  width="40"
+                                  height="40"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={(e) => {
+                                    const fallback = productImage || OFFICIAL_DRINK_IMAGES.coca_cola;
+                                    if (fallback && e.currentTarget.src !== fallback) {
+                                      e.currentTarget.src = fallback;
+                                    }
+                                  }}
                                   className="w-full h-full object-contain"
                                 />
                               </div>

@@ -1536,7 +1536,14 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                     <img
                       src={v.previewUrl || v.imagen}
                       alt={v.nombre || "Variante"}
-                      className="w-full h-full object-contain p-0.5"
+                      width="44"
+                      height="44"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                       <Camera className="w-3.5 h-3.5" />
@@ -1558,7 +1565,7 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
                 <button
                   type="button"
                   onClick={() => handleRemoveVariantImageByKey(v._key)}
-                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-800 text-white hover:bg-red-600 opacity-0 group-hover:opacity-100 flex items-center justify-center transition shadow-xs cursor-pointer"
+                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-gray-800 text-white hover:bg-red-600 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center transition shadow-xs cursor-pointer"
                   title="Quitar foto"
                 >
                   <X className="w-2.5 h-2.5" />
@@ -2565,12 +2572,20 @@ export function ProductoModal({ isOpen, onClose, onSave, producto = null, catego
 
       const processedVariants = await Promise.all(
         variantes.map(async (v) => {
-          let varImg = v.imagen || "";
+          let varImg = typeof v.imagen === "string" ? v.imagen.trim() : "";
           if (v.fileToUpload) {
             try {
-              varImg = await uploadImageToCloudinary(v.fileToUpload);
+              const uploadedUrl = await uploadImageToCloudinary(v.fileToUpload);
+              if (uploadedUrl && typeof uploadedUrl === "string") {
+                varImg = uploadedUrl.trim();
+              } else {
+                throw new Error("No se recibió una URL válida desde Cloudinary.");
+              }
             } catch (err) {
-              console.warn(`Error al subir imagen de variante "${v.nombre}":`, err);
+              console.error(`Error al subir imagen de variante "${v.nombre}":`, err);
+              throw new Error(
+                `No se pudo subir la imagen de la variante "${v.nombre || "Sin nombre"}": ${err?.message || "Inténtalo nuevamente."}`
+              );
             }
           }
           const varName = v.nombre.trim();

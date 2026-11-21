@@ -283,16 +283,25 @@ export function CartProvider({ children }) {
       // Validar variante si el ítem corresponde a una variante específica no base
       let matchedVariant = null;
       const liveVariantes = Array.isArray(liveProd.variantes) ? liveProd.variantes : [];
-      const hasCustomVariant =
+      const matchedLiveVarById = (!item.esVarianteBase && item.idVariante)
+        ? liveVariantes.find((v) => String(v.idVariante || v.id) === String(item.idVariante))
+        : null;
+      const hasCustomVariant = Boolean(
         !item.esVarianteBase &&
         item.idVariante &&
-        String(item.idVariante) !== String(liveProd.id || liveProd.idProducto) &&
-        String(item.idVariante) !== String(liveProd.idVarianteBase || "");
+        (
+          matchedLiveVarById ||
+          (
+            String(item.idVariante) !== String(liveProd.id || liveProd.idProducto) &&
+            String(item.idVariante) !== String(liveProd.idVarianteBase || "")
+          )
+        )
+      );
 
       if (hasCustomVariant) {
-        matchedVariant = liveVariantes.find(
-          (v) => String(v.idVariante || v.id) === String(item.idVariante) && isVariantActive(v)
-        );
+        matchedVariant = matchedLiveVarById && isVariantActive(matchedLiveVarById)
+          ? matchedLiveVarById
+          : null;
         if (!matchedVariant) {
           removedCount++;
           continue;
@@ -380,7 +389,9 @@ export function CartProvider({ children }) {
       usedQtyByProd.set(prodId, alreadyUsed + nextCantidad);
 
       const nextNombre = liveProd.nombre || item.nombre;
-      const nextImagen = liveProd.imagen || item.imagen;
+      const nextImagen = (!item.esVarianteBase && matchedVariant?.imagen && String(matchedVariant.imagen).trim())
+        ? String(matchedVariant.imagen).trim()
+        : (liveProd.imagen || item.imagen);
       const nextDescripcion = liveProd.descripcion !== undefined ? liveProd.descripcion : item.descripcion;
       const nextVarianteNombre = matchedVariant ? (matchedVariant.nombre || item.varianteNombre) : item.varianteNombre;
 

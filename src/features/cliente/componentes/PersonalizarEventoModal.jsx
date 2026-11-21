@@ -31,6 +31,7 @@ import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components
 import { stripEmojis, formatTipoEvento, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { getDisplayProductVariants, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { buildVariantChangesSummary } from "@/features/ventas/utils/variantFichaUtils";
+import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import ProductVariantInspector from "@/shared/components/ui/ProductVariantInspector";
 
 const QUICK_KITCHEN_TAGS = [
@@ -206,31 +207,28 @@ export function PersonalizarEventoModal({
     [resolvedProduct]
   );
 
+  const [heroFallbackToBase, setHeroFallbackToBase] = useState(false);
+  const [heroImageError, setHeroImageError] = useState(false);
+
+  // Siempre iniciar en la primera opción (producto padre / receta base), nunca preseleccionando una variante hija
   useEffect(() => {
-    if (!isOpen || !resolvedProduct) {
-      setSelectedVariant(null);
-      return;
-    }
-    const evtId = evento?.id || evento?.idEvento;
-    const isVariantEvent = Boolean(
-      evento && (
-        evento.tipoEvento === "Añadir Insumos" ||
-        evento.tipoEvento === "Edición Especial" ||
-        String(evento.tipoEvento || "").toLowerCase().includes("topping") ||
-        String(evento.tipoEvento || "").toLowerCase().includes("edicion") ||
-        String(evento.tipoEvento || "").toLowerCase().includes("edición")
-      )
+    setSelectedVariant(null);
+  }, [isOpen, resolvedProduct?.id, resolvedProduct?.idProducto, evento?.id, evento?.idEvento]);
+
+  useEffect(() => {
+    if (!selectedVariant) return;
+    const stillExists = activeFoodVariants.some(
+      (v) => String(v.idVariante) === String(selectedVariant.idVariante)
     );
-    const matchedEvtVariant = (evtId && isVariantEvent)
-      ? activeFoodVariants.find((v) => Number(v.idEvento) === Number(evtId))
-      : null;
-    setSelectedVariant((prev) => {
-      if (prev && activeFoodVariants.some((v) => String(v.idVariante) === String(prev.idVariante))) {
-        return activeFoodVariants.find((v) => String(v.idVariante) === String(prev.idVariante)) || null;
-      }
-      return matchedEvtVariant || null;
-    });
-  }, [isOpen, resolvedProduct?.id, resolvedProduct?.idProducto, activeFoodVariants, evento]);
+    if (!stillExists) {
+      setSelectedVariant(null);
+    }
+  }, [activeFoodVariants, selectedVariant]);
+
+  useEffect(() => {
+    setHeroFallbackToBase(false);
+    setHeroImageError(false);
+  }, [isOpen, selectedProduct?.id, selectedProduct?.idProducto, selectedVariant]);
 
   // Nutritional and preparation specs
   const prodId = selectedProduct?.id || selectedProduct?.idProducto;
@@ -873,12 +871,23 @@ export function PersonalizarEventoModal({
   const inCart = getProductQuantityInCart ? getProductQuantityInCart(selectedProduct?.id || selectedProduct?.idProducto) : 0;
   const remainingStock = Math.max(0, stockTot - inCart);
 
-  const heroImage =
+  const baseProductImage =
     selectedProduct?.imagen ||
     selectedProduct?.imagenUrl ||
     selectedProduct?.urlImagen ||
     selectedProduct?.foto ||
-    selectedProduct?.img;
+    selectedProduct?.img ||
+    "";
+  const variantExplicitImage =
+    selectedVariant && typeof selectedVariant.imagen === "string" && selectedVariant.imagen.trim()
+      ? selectedVariant.imagen.trim()
+      : "";
+  const rawHeroImage = variantExplicitImage || baseProductImage;
+  const effectiveHeroImage =
+    heroFallbackToBase && baseProductImage && baseProductImage !== rawHeroImage
+      ? baseProductImage
+      : rawHeroImage;
+  const heroImage = effectiveHeroImage ? getOptimizedImageUrl(effectiveHeroImage, 720) : "";
 
   return (
     <div
@@ -928,12 +937,15 @@ export function PersonalizarEventoModal({
           {/* ═══ 2. LUXURY DUAL-STAGE HERO PHOTO (ENCUADRE IMPECABLE) ═══ */}
           <div className="relative w-full h-52 sm:h-64 bg-gray-950 flex items-center justify-center overflow-hidden border-b border-gray-150 dark:border-gray-800">
             {/* Background Ambient Layer */}
-            {heroImage ? (
+            {heroImage && !heroImageError ? (
               <>
                 <img
                   src={heroImage}
                   alt=""
                   aria-hidden="true"
+                  width="640"
+                  height="256"
+                  decoding="async"
                   className="absolute inset-0 w-full h-full object-cover blur-3xl scale-125 opacity-40 dark:opacity-50 saturate-200 pointer-events-none"
                 />
                 <div
@@ -952,10 +964,21 @@ export function PersonalizarEventoModal({
 
             {/* Dish Photo in Foreground */}
             <div className="relative z-10 w-full h-full flex items-center justify-center p-3 sm:p-5">
-              {heroImage ? (
+              {heroImage && !heroImageError ? (
                 <img
+                  key={heroImage}
                   src={heroImage}
-                  alt={selectedProduct?.nombre}
+                  alt={selectedVariant?.nombre ? `${selectedProduct?.nombre} - ${selectedVariant.nombre}` : selectedProduct?.nombre}
+                  width="320"
+                  height="200"
+                  decoding="async"
+                  onError={() => {
+                    if (!heroFallbackToBase && baseProductImage && effectiveHeroImage !== baseProductImage) {
+                      setHeroFallbackToBase(true);
+                      return;
+                    }
+                    setHeroImageError(true);
+                  }}
                   className="max-h-full max-w-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)] hover:scale-105 transition-transform duration-300"
                 />
               ) : (

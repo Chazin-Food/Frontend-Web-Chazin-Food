@@ -619,9 +619,10 @@ export function ClienteLanding() {
       return;
     }
     const res = addToCart({
-      id: item.idVariante || item.id || item.idProducto,
+      id: item.id || item.idProducto,
       idProducto: item.idProducto || item.id,
-      idVariante: item.idVariante || item.id || item.idProducto,
+      idVariante: item.esVarianteBase ? (item.idVariante || null) : (item.idVariante || item.id || item.idProducto),
+      esVarianteBase: Boolean(item.esVarianteBase ?? true),
       nombre: item.nombre,
       precio: Number(item.precio),
       cantidad: 1,
@@ -1070,9 +1071,8 @@ export function ClienteLanding() {
       return "";
     };
 
-    // Helper: convertir producto a objeto de complemento
+    // Helper: convertir producto a objeto de complemento (siempre usa el producto padre / base)
     const toComplemento = (p) => {
-      const firstVar = Array.isArray(p.variantes) && p.variantes.length > 0 ? p.variantes[0] : null;
       const pId = p.idProducto || p.id;
       let compImg = p.imagen;
       if (!compImg || typeof compImg !== "string" || (!compImg.startsWith("http") && !compImg.startsWith("/") && !compImg.startsWith("data:"))) {
@@ -1090,7 +1090,8 @@ export function ClienteLanding() {
       return {
         id: p.id || p.idProducto,
         idProducto: pId,
-        idVariante: firstVar?.idVariante || p.id || pId,
+        idVariante: p.idVarianteBase || null,
+        esVarianteBase: true,
         nombre: p.nombre,
         descripcion: getDescripcion(p),
         tamano: getTamano(p),

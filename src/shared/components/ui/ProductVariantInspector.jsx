@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Layers,
   Sparkles,
@@ -12,8 +12,51 @@ import {
 } from "lucide-react";
 import { buildVariantChangesSummary } from "../../../features/ventas/utils/variantFichaUtils";
 import { isVariantFromEvent } from "../../utils/productVariantUtils";
+import { getOptimizedImageUrl } from "../../utils/imageUtils";
 
 const defaultFormatCOP = (val) => `$${Math.round(Number(val || 0)).toLocaleString("es-CO")}`;
+
+function VariantThumbnail({ src, fallbackSrc, alt, isDrink = false, hasDedicatedPhoto = false }) {
+  const cleanSrc = typeof src === "string" && src.trim() ? src.trim() : "";
+  const cleanFallback = typeof fallbackSrc === "string" && fallbackSrc.trim() ? fallbackSrc.trim() : "";
+  const [useFallback, setUseFallback] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setUseFallback(false);
+    setFailed(false);
+  }, [cleanSrc, cleanFallback]);
+
+  const activeUrl = !useFallback && cleanSrc ? cleanSrc : cleanFallback;
+  if (!activeUrl || failed) return null;
+
+  const optimized = getOptimizedImageUrl(activeUrl, 120);
+
+  return (
+    <div className={`relative w-11 h-11 rounded-xl overflow-hidden shrink-0 border ${
+      hasDedicatedPhoto
+        ? "border-rose-200 dark:border-rose-800/60 bg-white dark:bg-gray-900 shadow-2xs"
+        : "border-slate-200 dark:border-gray-700 bg-slate-100 dark:bg-gray-800"
+    }`}>
+      <img
+        src={optimized}
+        alt={alt}
+        width="44"
+        height="44"
+        loading="lazy"
+        decoding="async"
+        onError={() => {
+          if (!useFallback && cleanFallback && cleanSrc && cleanSrc !== cleanFallback) {
+            setUseFallback(true);
+          } else {
+            setFailed(true);
+          }
+        }}
+        className={`w-full h-full ${isDrink ? "object-contain p-0.5" : "object-cover"}`}
+      />
+    </div>
+  );
+}
 
 const renderChangeBadge = (change, idx) => {
   const kind = change.kind;
@@ -101,27 +144,35 @@ export default function ProductVariantInspector({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {includeBaseOption && (() => {
           const isSelected = selectedKey === "BASE" || !selectedVariantObj;
+          const parentImg = producto?.imagen || producto?.imagenUrl || producto?.urlImagen || "";
           return (
             <button
               type="button"
               onClick={() => onSelect?.("BASE", null)}
-              className={`text-left p-2.5 rounded-xl border-2 transition-all flex flex-col justify-between gap-1.5 ${
+              className={`text-left p-2.5 rounded-xl border-2 transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
                 isSelected
                   ? "border-[#EA2457] bg-white shadow-sm ring-2 ring-[#EA2457]/15"
                   : "border-slate-200 bg-white/80 hover:border-slate-300"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-extrabold text-slate-900 truncate">
-                      {baseOptionLabel}
-                    </span>
-                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#EA2457] shrink-0" />}
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <VariantThumbnail
+                    src={parentImg}
+                    alt={baseOptionLabel}
+                    isDrink={isDrink}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-extrabold text-slate-900 truncate">
+                        {baseOptionLabel}
+                      </span>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#EA2457] shrink-0" />}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Preparación estándar de la casa
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Preparación estándar de la casa
-                  </p>
                 </div>
                 <div className="text-right shrink-0">
                   {basePriceInfo.hasPromo && (
@@ -145,42 +196,53 @@ export default function ProductVariantInspector({
           const fromEvent = isVariantFromEvent(v);
           const rawVarPrice = Number(v.precio) > 0 ? Number(v.precio) : baseNumeric;
           const diffVsBase = rawVarPrice - baseNumeric;
+          const parentImg = producto?.imagen || producto?.imagenUrl || producto?.urlImagen || "";
+          const dedicatedVarImg = typeof v.imagen === "string" && v.imagen.trim() ? v.imagen.trim() : "";
 
           return (
             <button
               key={v.idVariante}
               type="button"
               onClick={() => onSelect?.(v.idVariante, v)}
-              className={`text-left p-2.5 rounded-xl border-2 transition-all flex flex-col justify-between gap-1.5 ${
+              className={`text-left p-2.5 rounded-xl border-2 transition-all flex flex-col justify-between gap-1.5 cursor-pointer ${
                 isSelected
                   ? "border-[#EA2457] bg-white shadow-sm ring-2 ring-[#EA2457]/15"
                   : "border-slate-200 bg-white/80 hover:border-slate-300"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center flex-wrap gap-1.5">
-                    <span className="text-xs font-extrabold text-slate-900">
-                      {v.nombre}
-                    </span>
-                    {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#EA2457] shrink-0" />}
-                    {fromEvent && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200">
-                        <Sparkles className="w-2.5 h-2.5" /> Evento
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <VariantThumbnail
+                    src={dedicatedVarImg || parentImg}
+                    fallbackSrc={parentImg}
+                    alt={v.nombre}
+                    isDrink={isDrink}
+                    hasDedicatedPhoto={Boolean(dedicatedVarImg)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center flex-wrap gap-1.5">
+                      <span className="text-xs font-extrabold text-slate-900">
+                        {v.nombre}
                       </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    {varSummary.changesCount > 0 ? (
-                      <span className="font-medium text-slate-700">
-                        {varSummary.changes.slice(0, 2).map((c) => c.texto).join(" · ")}
-                        {varSummary.changesCount > 2 ? ` (+${varSummary.changesCount - 2})` : ""}
-                      </span>
-                    ) : v.descripcion ? (
-                      <span className="line-clamp-1">{v.descripcion}</span>
-                    ) : (
-                      <span>Presentación especial</span>
-                    )}
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#EA2457] shrink-0" />}
+                      {fromEvent && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200">
+                          <Sparkles className="w-2.5 h-2.5" /> Evento
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {varSummary.changesCount > 0 ? (
+                        <span className="font-medium text-slate-700">
+                          {varSummary.changes.slice(0, 2).map((c) => c.texto).join(" · ")}
+                          {varSummary.changesCount > 2 ? ` (+${varSummary.changesCount - 2})` : ""}
+                        </span>
+                      ) : v.descripcion ? (
+                        <span className="line-clamp-1">{v.descripcion}</span>
+                      ) : (
+                        <span>Presentación especial</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

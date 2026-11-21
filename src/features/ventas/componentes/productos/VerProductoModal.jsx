@@ -557,7 +557,14 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                                 <img
                                   src={v.imagen}
                                   alt={v.nombre}
-                                  className="w-7 h-7 rounded-lg object-contain bg-amber-50 dark:bg-gray-900 p-0.5 border border-amber-100 dark:border-amber-900/50 shrink-0"
+                                  width="32"
+                                  height="32"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                  className="w-8 h-8 rounded-lg object-contain bg-amber-50 dark:bg-gray-900 p-0.5 border border-amber-100 dark:border-amber-900/50 shrink-0"
                                 />
                               ) : (
                                 <span className="w-6 h-6 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -619,7 +626,14 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                                 <img
                                   src={v.imagen}
                                   alt={v.nombre}
-                                  className="w-7 h-7 rounded-lg object-contain bg-purple-50 dark:bg-gray-900 p-0.5 border border-purple-100 dark:border-purple-900/50 shrink-0"
+                                  width="32"
+                                  height="32"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                  className="w-8 h-8 rounded-lg object-contain bg-purple-50 dark:bg-gray-900 p-0.5 border border-purple-100 dark:border-purple-900/50 shrink-0"
                                 />
                               ) : (
                                 <span className="w-6 h-6 rounded-md bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -721,7 +735,14 @@ export function VerProductoModal({ isOpen, onClose, producto, onEdit, onDuplicat
                               <img
                                 src={v.imagen}
                                 alt={v.nombre}
-                                className="w-7 h-7 rounded-lg object-contain bg-orange-50 dark:bg-gray-900 p-0.5 border border-orange-100 dark:border-orange-900/50 shrink-0"
+                                width="36"
+                                height="36"
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                                className="w-9 h-9 rounded-lg object-cover bg-orange-50 dark:bg-gray-900 border border-orange-200/80 dark:border-orange-900/50 shrink-0"
                               />
                             ) : (
                               <span className="w-5 h-5 rounded-md bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-bold text-[10px] flex items-center justify-center shrink-0">

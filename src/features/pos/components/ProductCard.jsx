@@ -37,7 +37,9 @@ export function ProductCard({ producto, onAdd, onCustomize }) {
     if (valid.length === 0) return null;
     const evt = valid[0];
 
-    const rawPrice = Number(currentVariante.precio || producto.precio || 0);
+    const rawPrice = Number(producto.precio || 0) > 0
+      ? Number(producto.precio)
+      : Number(currentVariante.precio || 0);
     let finalPrice = rawPrice;
     if (evt.nuevoPrecio && Number(evt.nuevoPrecio) > 0) {
       finalPrice = Number(evt.nuevoPrecio);
@@ -79,7 +81,10 @@ export function ProductCard({ producto, onAdd, onCustomize }) {
     }));
   }, [producto.adiciones]);
 
-  const effectiveBasePrice = activeEvent ? activeEvent.finalPrice : (Number(currentVariante.precio) || 0);
+  const baseParentPrice = Number(producto.precio || 0) > 0
+    ? Number(producto.precio)
+    : (Number(currentVariante.precio) || 0);
+  const effectiveBasePrice = activeEvent ? activeEvent.finalPrice : baseParentPrice;
 
   // Al hacer clic en "Agregar" se abre el modal completo del producto
   const handleAdd = () => {
