@@ -171,5 +171,59 @@ export const dashboardService = {
 
     const observaciones = extractLiveObservacionesFromVentas(ventas);
     return { promedioGlobal, totalResenas, resenas, observaciones };
+  },
+
+  getDevolucionesPendientes: async () => {
+    try {
+      const res = await apiClient.get("/dashboard/devoluciones-pendientes");
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res?.data)) return res.data;
+    } catch (err) {
+      if (err?.status !== 404) {
+        return [];
+      }
+    }
+
+    // Fallback retrocompatible si el backend en la nube aún no despliega /dashboard/devoluciones-pendientes
+    try {
+      const list = await apiClient.get("/devoluciones", { params: { estado: "PENDIENTE" } });
+      const arr = Array.isArray(list) ? list : (Array.isArray(list?.data) ? list.data : []);
+      return arr
+        .filter((d) => String(d?.estado || "").toUpperCase() === "PENDIENTE")
+        .map((d) => {
+          const idDev = d.idDevolucion || d.id;
+          const idVen = d.idVenta;
+          const prods = Array.isArray(d.productosDevueltos) ? d.productosDevueltos : [];
+          const first = prods[0];
+          const firstName = String(first?.nombre || first?.nombreProducto || "Producto").trim();
+          const firstQty = Math.max(1, Number(first?.cantidad || 1));
+          const productosResumen = prods.length > 1
+            ? `${firstName} (x${firstQty}) +${prods.length - 1} más`
+            : (prods.length === 1 ? `${firstName} (x${firstQty})` : "");
+
+          return {
+            id: idDev,
+            idDevolucion: idDev,
+            codigoDevolucion: d.codigoDevolucion || `DEV-${String(idDev || 0).padStart(4, "0")}`,
+            idVenta: idVen,
+            codigoVenta: d.codigoVenta || (idVen ? `VEN-${String(idVen).padStart(4, "0")}` : ""),
+            clienteNombre:
+              d.cliente?.nombre ||
+              d.venta?.cliente?.nombre ||
+              d.entregaOriginal?.clienteNombre ||
+              "Cliente General",
+            motivo: d.motivo || "Sin motivo especificado",
+            tipoResolucion: d.tipoResolucion || "Cambio de producto",
+            valorDevuelto: Number(d.valorDevuelto || 0),
+            descripcion: d.descripcion || "",
+            fecha: d.fecha,
+            estado: "PENDIENTE",
+            cantidadProductos: prods.reduce((acc, p) => acc + Math.max(1, Number(p?.cantidad || 1)), 0),
+            productosResumen
+          };
+        });
+    } catch (_) {
+      return [];
+    }
   }
 };

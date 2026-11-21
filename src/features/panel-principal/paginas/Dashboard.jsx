@@ -18,7 +18,8 @@ import {
   Clock,
   Star,
   MessageSquare,
-  Heart
+  Heart,
+  RotateCcw
 } from "lucide-react";
 import {
   AreaChart,
@@ -35,6 +36,8 @@ import {
 } from "recharts";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { formatTime12h } from "@/shared/utils/dateUtils";
+import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { hasPrivilege } from "@/shared/utils/privilegiosUtils";
 
 function StatVariation({ value, label = "vs mes anterior" }) {
   const num = Number(value || 0);
@@ -151,18 +154,25 @@ function CustomProductoTooltip({ active, payload }) {
 
 export function Dashboard() {
   const isDark = useDarkMode();
+  const { user } = useAuth();
+  const canViewDevoluciones =
+    hasPrivilege(user, "Devoluciones", "ver") ||
+    hasPrivilege(user, "Gestión de Ventas", "ver") ||
+    hasPrivilege(user, "Ventas", "ver");
   const {
     stats,
     ventasChart,
     productosPopulares,
     alertasStock,
     ventasRecientes,
+    devolucionesPendientes,
     comentariosObservaciones,
     periodo,
     setPeriodo,
     year,
     setYear
   } = useDashboardStats();
+  const pendingDevoluciones = Array.isArray(devolucionesPendientes) ? devolucionesPendientes : [];
 
   const axisColor = isDark ? "#e0ecf8" : "#374151";
   const axisColorMuted = isDark ? "#b8cde0" : "#6b7280";
@@ -480,6 +490,160 @@ export function Dashboard() {
         </div>
 
       </div>
+
+      {/* ── Solicitudes de Devolución Pendientes por Revisión (aparece cuando existen solicitudes en espera) ── */}
+      {pendingDevoluciones.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 p-4 sm:p-5 rounded-2xl shadow-xs border border-amber-200/90 dark:border-amber-800/60 min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-amber-100/90 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200/70 dark:border-amber-800/50">
+                <RotateCcw className="w-4 h-4 stroke-[2.3]" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base leading-tight">
+                  Solicitudes de Devolución en Espera de Revisión
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Haz clic en una solicitud para abrirla directamente en Devoluciones y confirmarla, rechazarla o revisarla
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800/60 whitespace-nowrap">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>
+                  {pendingDevoluciones.length}{" "}
+                  {pendingDevoluciones.length === 1 ? "pendiente por revisar" : "pendientes por revisar"}
+                </span>
+              </span>
+              {canViewDevoluciones && (
+                <Link
+                  to="/ventas/devoluciones?estado=PENDIENTE"
+                  className="text-xs text-red-600 dark:text-red-400 inline-flex items-center gap-0.5 hover:underline font-bold whitespace-nowrap"
+                >
+                  <span>Ver todas</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div
+            className={`grid grid-cols-1 ${pendingDevoluciones.length > 1 ? "lg:grid-cols-2" : ""} gap-3 max-h-[290px] overflow-y-auto custom-modal-scrollbar pr-1`}
+          >
+            {pendingDevoluciones.map((dev, idx) => {
+              const idDev = dev.idDevolucion || dev.id;
+              const codigoDev = dev.codigoDevolucion || `DEV-${String(idDev || 0).padStart(4, "0")}`;
+              const codigoVen = dev.codigoVenta || (dev.idVenta ? `VEN-${String(dev.idVenta).padStart(4, "0")}` : "");
+              const clienteLabel = dev.clienteNombre || "Cliente General";
+              const valorDev = Number(dev.valorDevuelto || 0);
+              const fechaTexto = dev.fecha
+                ? `${new Date(dev.fecha).toLocaleDateString("es-CO", {
+                    day: "2-digit",
+                    month: "short"
+                  })} · ${formatTime12h(dev.fecha)}`
+                : (dev.fechaFormatted || "");
+
+              const cardInner = (
+                <>
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <span className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">
+                        {codigoDev}
+                      </span>
+                      {codigoVen && (
+                        <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900 px-2 py-0.5 rounded-full border border-gray-200/80 dark:border-gray-700 whitespace-nowrap shrink-0">
+                          {codigoVen}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 whitespace-nowrap shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <span>Pendiente por revisión</span>
+                      </span>
+                    </div>
+                    {fechaTexto && (
+                      <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0">
+                        {fechaTexto}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 min-w-0">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5 text-xs min-w-0 overflow-hidden">
+                        <span
+                          className="font-bold text-gray-800 dark:text-gray-100 truncate min-w-0"
+                          title={clienteLabel}
+                        >
+                          {clienteLabel}
+                        </span>
+                        <span className="text-gray-300 dark:text-gray-600 shrink-0">·</span>
+                        <span
+                          className="text-rose-600 dark:text-rose-400 font-semibold truncate shrink-0 max-w-[55%]"
+                          title={dev.motivo}
+                        >
+                          {dev.motivo}
+                        </span>
+                      </div>
+                      <p
+                        className="text-[11px] text-gray-500 dark:text-gray-400 truncate"
+                        title={`${dev.tipoResolucion || ""}${dev.productosResumen ? ` · ${dev.productosResumen}` : ""}`}
+                      >
+                        <span className="font-semibold text-gray-600 dark:text-gray-300">{dev.tipoResolucion}</span>
+                        {dev.productosResumen ? ` · ${dev.productosResumen}` : ""}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="text-right hidden sm:block">
+                        {valorDev > 0 ? (
+                          <>
+                            <p className="font-extrabold text-xs sm:text-sm text-gray-900 dark:text-gray-100 tabular-nums whitespace-nowrap">
+                              ${valorDev.toLocaleString("es-CO")}
+                            </p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">COP</p>
+                          </>
+                        ) : (
+                          <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-md border border-sky-200/80 dark:border-sky-800/60 whitespace-nowrap">
+                            Reposición
+                          </span>
+                        )}
+                      </div>
+                      {canViewDevoluciones && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500 group-hover:bg-amber-600 text-white text-xs font-bold shadow-2xs transition-colors whitespace-nowrap">
+                          <span>Revisar</span>
+                          <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+
+              if (canViewDevoluciones && idDev) {
+                return (
+                  <Link
+                    key={idDev || idx}
+                    to={`/ventas/devoluciones?ver=${idDev}`}
+                    className="group p-3.5 bg-amber-50/50 dark:bg-amber-950/15 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-xl border border-amber-200/80 dark:border-amber-900/50 hover:border-amber-400 dark:hover:border-amber-700 transition-all space-y-2 min-w-0 block focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                  >
+                    {cardInner}
+                  </Link>
+                );
+              }
+
+              return (
+                <div
+                  key={idDev || idx}
+                  className="p-3.5 bg-amber-50/50 dark:bg-amber-950/15 rounded-xl border border-amber-200/80 dark:border-amber-900/50 space-y-2 min-w-0"
+                >
+                  {cardInner}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Charts Grid (Ítems 32 y 33) ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">

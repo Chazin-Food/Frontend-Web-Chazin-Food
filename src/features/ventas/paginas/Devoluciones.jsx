@@ -1,8 +1,10 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Filter, X, RotateCcw, Plus } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/shared/utils/privilegiosUtils";
 import { useDevoluciones } from "../hooks/useDevoluciones";
+import { devolucionesService } from "../servicios/devolucionesService";
 import { DevolucionesStatsCards } from "../componentes/devoluciones/DevolucionesStatsCards";
 import { DevolucionesTable } from "../componentes/devoluciones/DevolucionesTable";
 import { DevolucionDetalleModal } from "../componentes/devoluciones/DevolucionDetalleModal";
@@ -41,12 +43,58 @@ export default function Devoluciones() {
     verificarElegibilidadVenta
   } = useDevoluciones();
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const verParam = searchParams.get("ver");
+  const autoOpenedRef = useRef(null);
+
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [nuevaModalOpen, setNuevaModalOpen] = useState(false);
   const [selectedDevolucion, setSelectedDevolucion] = useState(null);
   const activeSelectedDevolucion = selectedDevolucion
     ? devoluciones.find((item) => item.idDevolucion === selectedDevolucion.idDevolucion) || selectedDevolucion
     : null;
+
+  // Abrir automáticamente la solicitud indicada en ?ver=<id> (ej. redirección desde el Dashboard)
+  useEffect(() => {
+    if (!verParam) {
+      autoOpenedRef.current = null;
+      return;
+    }
+    const targetKey = String(verParam).trim();
+    if (!targetKey || autoOpenedRef.current === targetKey) return;
+
+    const match = devoluciones.find(
+      (d) =>
+        String(d.idDevolucion) === targetKey ||
+        String(d.id) === targetKey ||
+        String(d.codigoDevolucion || "").toUpperCase() === targetKey.toUpperCase()
+    );
+
+    if (match) {
+      autoOpenedRef.current = targetKey;
+      setSelectedDevolucion(match);
+      setDetailModalOpen(true);
+      return;
+    }
+
+    if (loading) return;
+
+    let cancelled = false;
+    autoOpenedRef.current = targetKey;
+    devolucionesService
+      .getDevolucionById(targetKey)
+      .then((fetched) => {
+        if (!cancelled && fetched) {
+          setSelectedDevolucion(fetched);
+          setDetailModalOpen(true);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [verParam, devoluciones, loading]);
 
   const handleOpenDetail = (d) => {
     setSelectedDevolucion(d);
@@ -56,6 +104,21 @@ export default function Devoluciones() {
   const handleOpenResolve = (d) => {
     setSelectedDevolucion(d);
     setDetailModalOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailModalOpen(false);
+    setSelectedDevolucion(null);
+    if (searchParams.has("ver")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("ver");
+          return next;
+        },
+        { replace: true }
+      );
+    }
   };
 
   return (
@@ -184,10 +247,7 @@ export default function Devoluciones() {
       {/* Modal Detalle y Resolución */}
       <DevolucionDetalleModal
         isOpen={detailModalOpen}
-        onClose={() => {
-          setDetailModalOpen(false);
-          setSelectedDevolucion(null);
-        }}
+        onClose={handleCloseDetail}
         devolucion={activeSelectedDevolucion}
         onAprobar={aprobarDevolucion}
         onRechazar={rechazarDevolucion}
