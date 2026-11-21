@@ -99,6 +99,17 @@ export function Layout() {
     setSidebarOpen(false);
   }, [location.pathname]);
 
+  // Abrir automáticamente MiPerfilModal si se llega desde /perfil o correo (?abrirPerfil=1)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("abrirPerfil") === "1") {
+      setPerfilOpen(true);
+      params.delete("abrirPerfil");
+      const nextSearch = params.toString();
+      navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
+
   useEffect(() => {
     if (!sidebarOpen) return;
     const onKeyDown = (e) => {

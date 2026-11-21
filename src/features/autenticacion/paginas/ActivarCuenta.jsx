@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/shared/context/ToastContext";
+import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { validateContrasena, validateConfirmarContrasena } from "@/shared/utils/validationUtils";
 import { apiClient } from "@/shared/api/apiClient";
 
@@ -9,6 +10,7 @@ export function ActivarCuenta() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const toast = useToast();
+  const { isAuthenticated, logout } = useAuth();
 
   const [nuevaContraseña, setNuevaContraseña] = useState("");
   const [confirmarContraseña, setConfirmarContraseña] = useState("");
@@ -73,15 +75,31 @@ export function ActivarCuenta() {
 
       setActivationSuccess(true);
       toast.success("¡Cuenta activada!", "Tu cuenta ha sido activada con éxito. Ya puedes iniciar sesión.");
+      if (isAuthenticated) {
+        logout();
+      }
+      const activatedEmail = userData?.email || userData?.correo || "";
+      const targetLogin = activatedEmail ? `/login?email=${encodeURIComponent(activatedEmail)}` : "/login";
       setTimeout(() => {
-        navigate("/login");
-      }, 3000);
+        navigate(targetLogin, { replace: true });
+      }, 2500);
     } catch (err) {
       const msg = err?.data?.message || err?.message || "No se pudo activar la cuenta. Intenta de nuevo.";
       toast.error("Error al activar", msg);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoToLogin = () => {
+    if (isAuthenticated) {
+      logout();
+    }
+    const activatedEmail = userData?.email || userData?.correo || "";
+    const targetLogin = activatedEmail
+      ? `/login?switchAccount=1&email=${encodeURIComponent(activatedEmail)}`
+      : "/login?switchAccount=1";
+    navigate(targetLogin, { replace: true });
   };
 
   if (isVerifying) {
@@ -102,12 +120,13 @@ export function ActivarCuenta() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Enlace inválido o expirado</h2>
           <p className="text-neutral-400 text-sm mb-6">{tokenError}</p>
-          <Link
-            to="/login"
-            className="inline-block w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-semibold rounded-xl transition duration-200"
+          <button
+            type="button"
+            onClick={handleGoToLogin}
+            className="inline-block w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-neutral-950 font-semibold rounded-xl transition duration-200 cursor-pointer"
           >
             Ir al inicio de sesión
-          </Link>
+          </button>
         </div>
       </div>
     );
@@ -124,12 +143,13 @@ export function ActivarCuenta() {
           <p className="text-neutral-300 text-sm mb-6">
             Tu contraseña ha sido establecida exitosamente. Redirigiéndote al inicio de sesión...
           </p>
-          <Link
-            to="/login"
-            className="inline-block w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-semibold rounded-xl transition duration-200"
+          <button
+            type="button"
+            onClick={handleGoToLogin}
+            className="inline-block w-full py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-neutral-950 font-semibold rounded-xl transition duration-200 cursor-pointer"
           >
             Iniciar sesión ahora
-          </Link>
+          </button>
         </div>
       </div>
     );
@@ -138,7 +158,7 @@ export function ActivarCuenta() {
   return (
     <div className="min-h-[100dvh] bg-neutral-900 flex flex-col justify-center items-center px-4 py-8">
       <div className="mb-6">
-        <Link to="/" className="inline-block transition-transform hover:scale-105">
+        <Link to="/menu" className="inline-block transition-transform hover:scale-105">
           <img src="/logo-chazin.png" alt="Chazin Food" className="h-16 w-auto object-contain mx-auto" onError={(e) => { e.target.style.display = 'none'; }} />
         </Link>
       </div>

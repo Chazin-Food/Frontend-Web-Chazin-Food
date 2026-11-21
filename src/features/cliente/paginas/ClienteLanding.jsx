@@ -343,6 +343,14 @@ function FichaTecnicaProductoCliente({ ficha, producto }) {
 export function ClienteLanding() {
   const { user, logout, isAuthenticated, refreshUser, updateProfile } = useAuth();
   const navigate = useNavigate();
+
+  const isStaffUser = useMemo(() => {
+    if (!isAuthenticated || !user) return false;
+    const rawRol = typeof user?.rol === "object" ? user?.rol?.nombre : user?.rol;
+    const userRol = String(rawRol || "").toLowerCase().trim();
+    if (userRol === "cliente" || Number(user?.idRol) === 4) return false;
+    return Boolean(userRol || (user?.idRol !== undefined && user?.idRol !== null));
+  }, [isAuthenticated, user]);
   const { cart, addToCart, updateQuantity, removeFromCart, clearCart, syncCartWithCatalog, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { success, error, warning, info, confirmAction, confirmLogout } = useNotifications();
@@ -2189,10 +2197,14 @@ export function ClienteLanding() {
             <div
               className="flex items-center gap-2.5 sm:gap-4 min-w-0 cursor-pointer select-none group"
               onClick={() => {
-                navigate("/");
+                if (isStaffUser) {
+                  navigate("/menu");
+                } else {
+                  navigate("/");
+                }
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              title="Ir al inicio - Chazin Food"
+              title="Ir al menú - Chazin Food"
             >
               <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
                 <img
@@ -2209,7 +2221,7 @@ export function ClienteLanding() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <h1 className="text-base sm:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors truncate">Chazin Food</h1>
-                  {isAuthenticated && (
+                  {isAuthenticated && !isStaffUser && (
                     <div className="hidden xs:inline-flex sm:inline-flex">
                       <FidelidadBadge
                         tipo={tipoFidelidad}
@@ -2236,16 +2248,28 @@ export function ClienteLanding() {
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
+              {isAuthenticated && isStaffUser && (
+                <button
+                  onClick={() => navigate("/")}
+                  aria-label="Ir al panel administrativo"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors text-xs sm:text-sm font-semibold cursor-pointer"
+                  title="Volver al Panel"
+                >
+                  <Store className="w-4 h-4 text-[#f05454]" />
+                  <span className="hidden sm:inline">Panel</span>
+                </button>
+              )}
+
               {isAuthenticated ? (
                 <button
                   onClick={() => navigate("/perfil")}
                   aria-label="Ir a mi perfil"
                   className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-xs sm:text-sm font-medium cursor-pointer relative"
-                  title={isGoogleUser && googlePendingFields.length > 0 ? "Datos pendientes en tu perfil" : "Mi Perfil"}
+                  title={!isStaffUser && isGoogleUser && googlePendingFields.length > 0 ? "Datos pendientes en tu perfil" : "Mi Perfil"}
                 >
                   <User className="w-5 h-5 text-[#f05454]" />
                   <span className="hidden sm:inline">Mi Perfil</span>
-                  {isGoogleUser && googlePendingFields.length > 0 && (
+                  {!isStaffUser && isGoogleUser && googlePendingFields.length > 0 && (
                     <>
                       <span className="sm:hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-gray-900 animate-pulse" />
                       <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
@@ -2296,7 +2320,7 @@ export function ClienteLanding() {
       </header>
 
       {/* Banner de aviso amigable para completar datos de Google Auth (Sin toasts) */}
-      {isAuthenticated && isGoogleUser && googlePendingFields.length > 0 && !dismissedGoogleBanner && (
+      {isAuthenticated && !isStaffUser && isGoogleUser && googlePendingFields.length > 0 && !dismissedGoogleBanner && (
         <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-[#f05454] text-white shadow-md relative z-30 transition-all">
           <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs sm:text-sm">
             <div className="flex items-center gap-2.5 text-center sm:text-left">
@@ -2417,7 +2441,7 @@ export function ClienteLanding() {
       </div>
 
       {/* Banner de Fidelidad del Cliente */}
-      {isAuthenticated && (
+      {isAuthenticated && !isStaffUser && (
         <div className="w-full px-4 sm:px-6 lg:px-8 mt-6">
           <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 dark:from-amber-950/20 dark:via-orange-950/20 dark:to-red-950/20 border border-amber-200 dark:border-amber-900/40 rounded-3xl p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 sm:gap-4 shadow-xs overflow-hidden">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 w-full lg:w-auto">

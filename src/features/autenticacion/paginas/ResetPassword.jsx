@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import { useToast } from "@/shared/context/ToastContext";
+import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { validateContrasena, validateConfirmarContrasena } from "@/shared/utils/validationUtils";
 
 export function ResetPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const toast = useToast();
+  const { isAuthenticated, logout } = useAuth();
 
   const [nuevaContraseña, setNuevaContraseña] = useState("");
   const [confirmarContraseña, setConfirmarContraseña] = useState("");
@@ -40,7 +42,7 @@ export function ResetPassword() {
   useEffect(() => {
     if (!token) {
       toast.error("Enlace inválido", "El enlace de recuperación no es válido");
-      setTimeout(() => navigate("/login"), 2000);
+      setTimeout(() => navigate("/login?switchAccount=1", { replace: true }), 2000);
     }
   }, [token, navigate, toast]);
 
@@ -85,9 +87,13 @@ export function ResetPassword() {
       if (response.ok) {
         setResetSuccess(true);
         toast.success("¡Contraseña actualizada!", "Tu contraseña ha sido restablecida correctamente");
+        if (isAuthenticated) {
+          logout();
+        }
+        const targetLogin = email ? `/login?email=${encodeURIComponent(email)}` : "/login";
         setTimeout(() => {
-          navigate("/login");
-        }, 3000);
+          navigate(targetLogin, { replace: true });
+        }, 2500);
       } else {
         toast.error("Error", data.message || "No se pudo restablecer la contraseña");
       }
@@ -291,8 +297,11 @@ export function ResetPassword() {
           <p className="text-center text-sm text-gray-600 mt-6">
             ¿Recordaste tu contraseña?{" "}
             <button
-              onClick={() => navigate("/login")}
-              className="text-red-600 font-semibold hover:underline"
+              onClick={() => {
+                if (isAuthenticated) logout();
+                navigate(email ? `/login?email=${encodeURIComponent(email)}` : "/login", { replace: true });
+              }}
+              className="text-red-600 font-semibold hover:underline cursor-pointer"
             >
               Volver al inicio de sesión
             </button>

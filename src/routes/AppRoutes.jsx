@@ -14,15 +14,61 @@ function safeInternalRedirect(raw) {
 
 function RedirectToLoginPreservingTarget() {
   const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const cuenta = String(params.get("cuenta") || "").trim().toLowerCase();
   const target = `${location.pathname}${location.search || ""}`;
-  return <Navigate to={`/login?redirect=${encodeURIComponent(target)}`} replace />;
+  const emailParam = cuenta ? `&email=${encodeURIComponent(cuenta)}` : "";
+  return <Navigate to={`/login?redirect=${encodeURIComponent(target)}${emailParam}`} replace />;
 }
 
-function AuthenticatedLoginRedirect() {
+function SmartLoginRoute({ user }) {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
+  const requestedEmail = String(params.get("email") || "").trim().toLowerCase();
+  const switchAccount = params.get("switchAccount") === "1";
+  const currentEmail = String(user?.email || user?.correo || "").trim().toLowerCase();
+
+  if (switchAccount || (requestedEmail && currentEmail && requestedEmail !== currentEmail)) {
+    return (
+      <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
+        <Login />
+      </Suspense>
+    );
+  }
+
   const target = safeInternalRedirect(params.get("redirect"));
   return <Navigate to={target} replace />;
+}
+
+function SmartPerfilRoute({ user, isCliente, staffHomePath = "/" }) {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const targetCuenta = String(params.get("cuenta") || "").trim().toLowerCase();
+  const currentEmail = String(user?.email || user?.correo || "").trim().toLowerCase();
+
+  // Si el enlace de correo pertenece a otra cuenta distinta a la sesión abierta en el navegador,
+  // enviar al login para cambiar de cuenta en lugar de abrir el perfil equivocado.
+  if (targetCuenta && currentEmail && targetCuenta !== currentEmail) {
+    const target = `${location.pathname}${location.search || ""}`;
+    return (
+      <Navigate
+        to={`/login?switchAccount=1&email=${encodeURIComponent(targetCuenta)}&redirect=${encodeURIComponent(target)}`}
+        replace
+      />
+    );
+  }
+
+  if (isCliente) {
+    return (
+      <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
+        <ClientePerfil />
+      </Suspense>
+    );
+  }
+
+  // Personal administrativo / operativo: abrir su modal de perfil propio (nunca la vista VIP de cliente)
+  const sep = staffHomePath.includes("?") ? "&" : "?";
+  return <Navigate to={`${staffHomePath}${sep}abrirPerfil=1`} replace />;
 }
 
 // ── ClienteLanding: lazy-loaded para reducir el bundle inicial (≈177KB menos) ──
@@ -135,14 +181,7 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
         <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
-        <Route
-          path="/perfil"
-          element={
-            <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
-              <ClientePerfil />
-            </Suspense>
-          }
-        />
+        <Route path="/perfil" element={<SmartPerfilRoute user={user} isCliente={true} />} />
         <Route
           path="/activar-cuenta"
           element={
@@ -159,7 +198,15 @@ export function AppRoutes() {
             </Suspense>
           }
         />
-        <Route path="/login" element={<AuthenticatedLoginRedirect />} />
+        <Route
+          path="/forgot-password"
+          element={
+            <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
+              <ForgotPassword />
+            </Suspense>
+          }
+        />
+        <Route path="/login" element={<SmartLoginRoute user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -172,11 +219,12 @@ export function AppRoutes() {
         <Routes>
           <Route path="/" element={<CocineroDashboard />} />
           <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
-          <Route path="/perfil" element={<ClientePerfil />} />
+          <Route path="/perfil" element={<SmartPerfilRoute user={user} isCliente={false} />} />
           <Route path="/fichas-tecnicas" element={<FichasTecnicas readOnly />} />
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/login" element={<AuthenticatedLoginRedirect />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/login" element={<SmartLoginRoute user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
@@ -188,13 +236,14 @@ export function AppRoutes() {
     return (
       <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
         <Routes>
-          <Route path="/login" element={<AuthenticatedLoginRedirect />} />
+          <Route path="/login" element={<SmartLoginRoute user={user} />} />
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/tienda" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/cliente" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
-          <Route path="/perfil" element={<Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}><ClientePerfil /></Suspense>} />
+          <Route path="/perfil" element={<SmartPerfilRoute user={user} isCliente={false} />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="compras/categoria-insumos" element={<CategoriaInsumos />} />
@@ -267,11 +316,15 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
       <Routes>
-        <Route path="/login" element={<AuthenticatedLoginRedirect />} />
+        <Route path="/login" element={<SmartLoginRoute user={user} />} />
         <Route path="/activar-cuenta" element={<ActivarCuenta />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
-        <Route path="/perfil" element={<ClientePerfil />} />
+        <Route
+          path="/perfil"
+          element={<SmartPerfilRoute user={user} isCliente={false} staffHomePath={defaultPath ? `/${defaultPath}` : "/"} />}
+        />
         <Route path="/" element={<Layout />}>
           {isVendedor ? (
             <Route index element={<Navigate to="/ventas/pos" replace />} />

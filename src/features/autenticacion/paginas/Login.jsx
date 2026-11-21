@@ -67,10 +67,25 @@ export function Login() {
   // Control de campos interactuados para mostrar validaciones en tiempo real
   const [touched, setTouched] = useState({});
 
-  const { login, register } = useAuth();
+  const { login, register, user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const toast = useToast();
+
+  const requestedEmailParam = String(searchParams.get("email") || "").trim();
+  const isSwitchAccountPrompt = Boolean(
+    isAuthenticated &&
+    user &&
+    (searchParams.get("switchAccount") === "1" ||
+      (requestedEmailParam &&
+        String(user.email || user.correo || "").trim().toLowerCase() !== requestedEmailParam.toLowerCase()))
+  );
+
+  useEffect(() => {
+    if (requestedEmailParam && !loginCorreo) {
+      setLoginCorreo(requestedEmailParam);
+    }
+  }, [requestedEmailParam]);
 
   const rawRedirect = searchParams.get("redirect") || "";
   const safeRedirectTarget =
@@ -386,6 +401,23 @@ export function Login() {
           </div>
 
           <div className={tab === "register" ? "p-5 sm:p-6" : "p-8"}>
+            {isSwitchAccountPrompt && (
+              <div className="mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+                <p className="font-semibold mb-1">Cambio de cuenta requerido</p>
+                <p>
+                  Este enlace pertenece a{" "}
+                  <span className="font-bold">{requestedEmailParam || "otra cuenta"}</span>, pero actualmente tienes abierta la sesión de{" "}
+                  <span className="font-bold">{user?.email || user?.nombre}</span>. Inicia sesión con la cuenta del correo para continuar.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => logout()}
+                  className="mt-2 inline-flex items-center gap-1.5 text-amber-800 font-bold underline hover:text-amber-950 cursor-pointer"
+                >
+                  Cerrar sesión actual ({user?.email || user?.nombre})
+                </button>
+              </div>
+            )}
             {/* LOGIN */}
             {tab === "login" && (
               <form onSubmit={handleLogin} className="space-y-4">

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { matchesSmartSearch, formatStatusTokens, extractKitchenSearchTokens } from "@/shared/utils/searchUtils";
 import {
   LogOut,
@@ -51,6 +51,7 @@ import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import LoadingSpinner, { ChazinLoader } from "@/shared/components/ui/LoadingSpinner";
 import { HistorialComandasLista } from "../componentes/HistorialComandasLista";
 import { TotalizadorCocina } from "../componentes/TotalizadorCocina";
+const MiPerfilModal = lazy(() => import("@/shared/components/profile/MiPerfilModal").then((m) => ({ default: m.MiPerfilModal })));
 import {
   formatColombiaTime,
   formatColombiaDate,
@@ -329,6 +330,19 @@ export function CocineroDashboard() {
   const { logout } = useAuth();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { success, error: notifyError, confirmAction, confirmLogout } = useNotifications();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [perfilOpen, setPerfilOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("abrirPerfil") === "1") {
+      setPerfilOpen(true);
+      params.delete("abrirPerfil");
+      const nextSearch = params.toString();
+      navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ""}`, { replace: true });
+    }
+  }, [location.search, location.pathname, navigate]);
 
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1821,6 +1835,11 @@ export function CocineroDashboard() {
       )}
       
       {showTestSpinner && <LoadingSpinner fullScreen={true} text="Cargando con el logo..." />}
+      {perfilOpen && (
+        <Suspense fallback={null}>
+          <MiPerfilModal isOpen={perfilOpen} onClose={() => setPerfilOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
