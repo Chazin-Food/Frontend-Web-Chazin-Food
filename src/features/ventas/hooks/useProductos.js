@@ -4,9 +4,9 @@ import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fich
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchesSmartSearch, formatStatusTokens, formatIdTokens, formatCurrencyTokens, formatNumericWithUnit } from "@/shared/utils/searchUtils";
 import { getProductVariantSummary } from "@/shared/utils/productVariantUtils";
-import { getActiveProductEvent } from "../componentes/productos/ProductosTable";
+import { getActiveProductEvents } from "../componentes/productos/ProductosTable";
 import { getEventBadgeConfig } from "@/shared/components/ui/FoodIcon";
-import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
+import { parseEventoInsumos, formatEventoToppingsText, formatTipoEvento } from "@/shared/utils/foodEmojiUtils";
 import { useUrlFilters } from "@/shared/hooks/useUrlFilters";
 
 const PRODUCTOS_URL_DEFAULTS = {
@@ -174,31 +174,80 @@ export function useProductos(allEventos = []) {
         } catch (_) {}
       }
 
-      // Evento activo y tipo de venta / evento
-      const activeEvt = getActiveProductEvent(p, allEventos);
+      // Todos los eventos activos asociados al producto (promociones, precios promo, descuentos, toppings de cortesía y variantes)
+      const activeEvents = getActiveProductEvents(p, allEventos);
+      const prodIdStr = String(p.id || p.idProducto || "");
       const eventTokens = [];
-      if (activeEvt) {
-        const badgeCfg = getEventBadgeConfig(activeEvt, p);
+      activeEvents.forEach((evt) => {
+        const badgeCfg = getEventBadgeConfig(evt, p);
         if (badgeCfg?.label) eventTokens.push(badgeCfg.label);
         if (badgeCfg?.fullLabel) eventTokens.push(badgeCfg.fullLabel);
-        if (activeEvt.tipoEvento) eventTokens.push(activeEvt.tipoEvento);
-        if (activeEvt.nombreEvento) eventTokens.push(activeEvt.nombreEvento);
-        if (activeEvt.nombre) eventTokens.push(activeEvt.nombre);
-        if (activeEvt.descuento) {
-          const dPct = Number(activeEvt.descuento);
-          eventTokens.push(`-${dPct}%`, `${dPct}%`, `${dPct}% off`, `(-${dPct}% OFF)`, "descuento");
-          const finalP = Math.round(Number(p.precio || 0) * (1 - dPct / 100));
+        if (evt.tipoEvento) {
+          eventTokens.push(evt.tipoEvento, formatTipoEvento(evt.tipoEvento));
+        }
+        if (evt.nombreEvento) eventTokens.push(evt.nombreEvento);
+        if (evt.nombre) eventTokens.push(evt.nombre);
+        if (evt.descripcion) eventTokens.push(evt.descripcion);
+
+        // Precio promocional o descuento específico del producto en productosAsociados (si existe)
+        let assocEntry = null;
+        if (evt.productosAsociados) {
+          try {
+            const list = typeof evt.productosAsociados === "string"
+              ? JSON.parse(evt.productosAsociados)
+              : evt.productosAsociados;
+            if (Array.isArray(list)) {
+              assocEntry = list.find((a) => String(a?.idProducto || a?.id) === prodIdStr) || null;
+            }
+          } catch (_) {}
+        }
+
+        const effectiveDesc = Number(assocEntry?.descuento ?? evt.descuento ?? 0);
+        if (Number.isFinite(effectiveDesc) && effectiveDesc > 0) {
+          eventTokens.push(`-${effectiveDesc}%`, `${effectiveDesc}%`, `${effectiveDesc}% off`, `(-${effectiveDesc}% OFF)`, "descuento", "promo", "promocion");
+          const finalP = Math.round(Number(p.precio || 0) * (1 - effectiveDesc / 100));
           eventTokens.push(...formatCurrencyTokens(finalP));
         }
-        if (activeEvt.nuevoPrecio && Number(activeEvt.nuevoPrecio) > 0) {
-          eventTokens.push("promo", "promocion", ...formatCurrencyTokens(activeEvt.nuevoPrecio));
+
+        const effectiveNuevoPrecio = Number(assocEntry?.nuevoPrecio ?? evt.nuevoPrecio ?? 0);
+        if (Number.isFinite(effectiveNuevoPrecio) && effectiveNuevoPrecio > 0) {
+          const roundedPromo = Math.round(effectiveNuevoPrecio);
+          eventTokens.push(
+            "promo",
+            "promo:",
+            "promocion",
+            `(Promo: $${roundedPromo.toLocaleString("es-CO")})`,
+            `Promo: $${roundedPromo.toLocaleString("es-CO")}`,
+            ...formatCurrencyTokens(effectiveNuevoPrecio)
+          );
         }
-        const toppings = parseEventoInsumos(activeEvt);
+
+        const toppings = parseEventoInsumos(evt);
         if (toppings.length > 0) {
-          eventTokens.push(formatEventoToppingsText(toppings), "topping", "toppings");
+          const toppingsTxt = formatEventoToppingsText(toppings);
+          eventTokens.push(
+            toppingsTxt,
+            `+ ${toppingsTxt}`,
+            `(+ ${toppingsTxt})`,
+            "topping",
+            "toppings",
+            "topping extra"
+          );
+          toppings.forEach((t) => {
+            if (t.nombre) eventTokens.push(t.nombre);
+            eventTokens.push(...formatNumericWithUnit(t.cantidad, t.unidadMedida || t.unidad));
+          });
         }
+
+        if (Array.isArray(evt.variantesCreadas)) {
+          evt.variantesCreadas.forEach((vc) => {
+            if (vc?.nombre) eventTokens.push(vc.nombre);
+            if (vc?.precio && Number(vc.precio) > 0) eventTokens.push(...formatCurrencyTokens(vc.precio));
+          });
+        }
+
         eventTokens.push("evento", "promocion activa");
-      }
+      });
 
       // Stock exacto renderizado en ProductosTable (priorizando stockDisponible)
       const effectiveStock = Number(

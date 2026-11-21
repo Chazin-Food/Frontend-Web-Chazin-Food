@@ -202,6 +202,7 @@ export function tokenizeSearchQuery(query = "") {
   return normalized
     .replace(/(?:^|\s)(?:id\s*[:#-]?\s*|#\s*)(\d+)(?=\s|$|[^\w#])/gi, " #$1 ")
     .replace(/(?:^|\s)(?:usuario\s*[:#-]?\s*|user\s*[:#-]?\s*)(\d+)(?=\s|$|[^\w#])/gi, " user_$1 ")
+    .replace(/([a-z]+):(?=\S)/gi, "$1 ")
     .replace(/\b([0-3])\s*(?:\/|de)\s*3\b/g, "$1/3")
     .replace(/\bno\s+aprobad[oa]s?\b/g, "no_aprobado")
     .replace(/\bsin\s+descripci[oó]n\b/g, "sin_descripcion")

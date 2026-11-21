@@ -22,40 +22,56 @@ import { getProductVariantSummary, isVariantActive, isVariantFromEvent } from "@
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 
-export const getActiveProductEvent = (producto, allEventos = []) => {
-  if (!producto) return null;
+export const getActiveProductEvents = (producto, allEventos = []) => {
+  if (!producto) return [];
   const nowMs = Date.now();
   const prodId = String(producto.id || producto.idProducto || "");
+  const byId = new Map();
+
+  const registerEvent = (evt) => {
+    if (!evt || typeof evt !== "object") return;
+    const key = String(evt.id || evt.idEvento || evt.nombreEvento || evt.nombre || byId.size);
+    if (byId.has(key)) {
+      byId.set(key, { ...byId.get(key), ...evt });
+    } else {
+      byId.set(key, evt);
+    }
+  };
 
   if (Array.isArray(producto.eventos) && producto.eventos.length > 0) {
-    const direct = producto.eventos.find((e) => isEventActiveInColombia(e, nowMs));
-    if (direct) {
+    producto.eventos.forEach((e) => {
+      if (!isEventActiveInColombia(e, nowMs)) return;
       const full = Array.isArray(allEventos)
-        ? allEventos.find((e) => String(e.id || e.idEvento) === String(direct.id || direct.idEvento))
+        ? allEventos.find((ae) => String(ae.id || ae.idEvento) === String(e.id || e.idEvento))
         : null;
-      return full ? { ...direct, ...full } : direct;
-    }
+      registerEvent(full ? { ...e, ...full } : e);
+    });
   }
 
   if (Array.isArray(allEventos) && allEventos.length > 0 && prodId) {
-    return (
-      allEventos.find((e) => {
-        if (!isEventActiveInColombia(e, nowMs)) return false;
-        if (String(e.idProducto || e.producto?.id || "") === prodId) return true;
-        if (!e.productosAsociados) return false;
+    allEventos.forEach((e) => {
+      if (!isEventActiveInColombia(e, nowMs)) return;
+      let matchesProd = String(e.idProducto || e.producto?.id || e.producto?.idProducto || "") === prodId;
+      if (!matchesProd && e.productosAsociados) {
         try {
           const list = typeof e.productosAsociados === "string"
             ? JSON.parse(e.productosAsociados)
             : e.productosAsociados;
-          return Array.isArray(list) && list.some((a) => String(a?.idProducto || a?.id) === prodId);
+          matchesProd = Array.isArray(list) && list.some((a) => String(a?.idProducto || a?.id) === prodId);
         } catch (_) {
-          return false;
+          matchesProd = false;
         }
-      }) || null
-    );
+      }
+      if (matchesProd) registerEvent(e);
+    });
   }
 
-  return null;
+  return Array.from(byId.values());
+};
+
+export const getActiveProductEvent = (producto, allEventos = []) => {
+  const list = getActiveProductEvents(producto, allEventos);
+  return list.length > 0 ? list[0] : null;
 };
 
 export const getActiveEvent = getActiveProductEvent;
