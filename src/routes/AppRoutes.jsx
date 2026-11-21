@@ -28,7 +28,10 @@ function SmartLoginRoute({ user }) {
   const switchAccount = params.get("switchAccount") === "1";
   const currentEmail = String(user?.email || user?.correo || "").trim().toLowerCase();
 
-  if (switchAccount || (requestedEmail && currentEmail && requestedEmail !== currentEmail)) {
+  const isDifferentRequestedAccount = Boolean(requestedEmail && currentEmail && requestedEmail !== currentEmail);
+  const isExplicitGenericSwitch = Boolean(switchAccount && !requestedEmail);
+
+  if (isDifferentRequestedAccount || isExplicitGenericSwitch) {
     return (
       <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
         <Login />

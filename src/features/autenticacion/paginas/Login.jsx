@@ -73,19 +73,22 @@ export function Login() {
   const toast = useToast();
 
   const requestedEmailParam = String(searchParams.get("email") || "").trim();
+  const currentUserEmail = String(user?.email || user?.correo || "").trim().toLowerCase();
   const isSwitchAccountPrompt = Boolean(
     isAuthenticated &&
     user &&
-    (searchParams.get("switchAccount") === "1" ||
-      (requestedEmailParam &&
-        String(user.email || user.correo || "").trim().toLowerCase() !== requestedEmailParam.toLowerCase()))
+    ((requestedEmailParam && currentUserEmail && currentUserEmail !== requestedEmailParam.toLowerCase()) ||
+      (!requestedEmailParam && searchParams.get("switchAccount") === "1"))
   );
 
   useEffect(() => {
-    if (requestedEmailParam && !loginCorreo) {
+    if (requestedEmailParam) {
       setLoginCorreo(requestedEmailParam);
+      if (isSwitchAccountPrompt) {
+        setLoginContraseña("");
+      }
     }
-  }, [requestedEmailParam]);
+  }, [requestedEmailParam, isSwitchAccountPrompt]);
 
   const rawRedirect = searchParams.get("redirect") || "";
   const safeRedirectTarget =
@@ -222,7 +225,7 @@ export function Login() {
     const result = await login(loginCorreo, loginContraseña);
     if (result === true || result?.success) {
       toast.success("¡Bienvenido!", "Inicio de sesión exitoso");
-      setTimeout(() => navigate(safeRedirectTarget, { replace: true }), 500);
+      navigate(safeRedirectTarget, { replace: true });
     } else {
       const [errTitle, errMsg] = getLoginErrorToast(result);
       toast.error(errTitle, errMsg);
@@ -305,7 +308,7 @@ export function Login() {
 
     if (result.success) {
       toast.success("¡Cuenta creada!", result.message);
-      setTimeout(() => navigate(safeRedirectTarget, { replace: true }), 500);
+      navigate(safeRedirectTarget, { replace: true });
     } else {
       toast.error("Error al registrar", result.message);
     }
@@ -406,8 +409,8 @@ export function Login() {
                 <p className="font-semibold mb-1">Cambio de cuenta requerido</p>
                 <p>
                   Este enlace pertenece a{" "}
-                  <span className="font-bold">{requestedEmailParam || "otra cuenta"}</span>, pero actualmente tienes abierta la sesión de{" "}
-                  <span className="font-bold">{user?.email || user?.nombre}</span>. Inicia sesión con la cuenta del correo para continuar.
+                  <span className="font-bold">{requestedEmailParam || "otra cuenta"}</span>, pero en este navegador sigue abierta la sesión de{" "}
+                  <span className="font-bold">{user?.email || user?.nombre}</span>. Inicia sesión abajo (con contraseña o con Google) y la sesión cambiará automáticamente.
                 </p>
                 <button
                   type="button"
@@ -464,6 +467,7 @@ export function Login() {
                     <input
                       type={showLoginPassword ? "text" : "password"}
                       value={loginContraseña}
+                      autoComplete={isSwitchAccountPrompt ? "new-password" : "current-password"}
                       onChange={(e) => {
                         setLoginContraseña(e.target.value);
                         markTouched("loginContraseña");

@@ -1,17 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail, Send, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/shared/context/ToastContext";
+import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { loadPrefs } from "@/shared/utils/secureStorage";
 import { validateEmail } from "@/shared/utils/validationUtils";
 
 export function ForgotPassword() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { isAuthenticated } = useAuth();
   const [correo, setCorreo] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [touched, setTouched] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Mantener siempre modo claro en pantallas de autenticación (evita overrides globales .dark)
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains("dark");
+    if (wasDark) document.documentElement.classList.remove("dark");
+    return () => {
+      if (loadPrefs().darkMode) {
+        document.documentElement.classList.add("dark");
+      }
+    };
+  }, []);
 
   const emailValidation = validateEmail(correo);
   const emailError = (touched || submitted) ? emailValidation.error : "";
@@ -71,8 +85,8 @@ export function ForgotPassword() {
       <div className="relative z-10 w-full max-w-md">
         {/* Back button */}
         <button
-          onClick={() => navigate("/login")}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors group"
+          onClick={() => navigate(isAuthenticated ? "/login?switchAccount=1" : "/login")}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors group cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium">Volver al inicio de sesión</span>

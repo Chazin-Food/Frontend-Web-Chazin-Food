@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
 import { useToast } from "@/shared/context/ToastContext";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { loadPrefs } from "@/shared/utils/secureStorage";
 import { validateContrasena, validateConfirmarContrasena } from "@/shared/utils/validationUtils";
 import { apiClient } from "@/shared/api/apiClient";
 
@@ -24,6 +25,17 @@ export function ActivarCuenta() {
   const [submitted, setSubmitted] = useState(false);
 
   const token = searchParams.get("token");
+
+  // Evitar que los overrides globales .dark alteren los inputs de la pantalla de activación
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains("dark");
+    if (wasDark) document.documentElement.classList.remove("dark");
+    return () => {
+      if (loadPrefs().darkMode) {
+        document.documentElement.classList.add("dark");
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) {

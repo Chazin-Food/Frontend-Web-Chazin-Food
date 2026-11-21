@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import { useToast } from "@/shared/context/ToastContext";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { loadPrefs } from "@/shared/utils/secureStorage";
 import { validateContrasena, validateConfirmarContrasena } from "@/shared/utils/validationUtils";
 
 export function ResetPassword() {
@@ -38,6 +39,17 @@ export function ResetPassword() {
   }
 
   const email = emailParam ? decodeURIComponent(emailParam) : "";
+
+  // Mantener siempre modo claro en pantallas de autenticación (evita overrides globales .dark)
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains("dark");
+    if (wasDark) document.documentElement.classList.remove("dark");
+    return () => {
+      if (loadPrefs().darkMode) {
+        document.documentElement.classList.add("dark");
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) {
