@@ -16,7 +16,7 @@ const INSUMOS_URL_DEFAULTS = {
   estado: "Todos",
   tipo: "Todos los tipos",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 export function useInsumos() {

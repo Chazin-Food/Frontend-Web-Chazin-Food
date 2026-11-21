@@ -119,7 +119,7 @@ export function ProductosTable({
 }) {
   const { warning: notifyWarning } = useNotifications();
   const [internalPage, setInternalPage] = useState(1);
-  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPageSize, setInternalPageSize] = useState(5);
 
   // Reset page to 1 when dataset changes (only in uncontrolled mode)
   useEffect(() => {
@@ -127,7 +127,7 @@ export function ProductosTable({
   }, [productos.length, onPageChange]);
 
   const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
-  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 5 : internalPageSize;
   const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : productos.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
 

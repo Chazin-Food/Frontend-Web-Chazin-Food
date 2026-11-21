@@ -147,7 +147,7 @@ export function UsuariosTable({
   onChangePassword,
   onView,
   currentPage = 1,
-  pageSize = 10,
+  pageSize = 5,
   totalItems: controlledTotalItems,
   serverPaginated = false,
   onPageChange,
@@ -322,8 +322,8 @@ export function UsuariosTable({
                     className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors"
                   >
                     {/* USUARIO */}
-                    <td className="px-4 py-3.5 align-middle">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                    <td className="px-4 py-3.5 align-middle overflow-hidden max-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
                         <div
                           className={`w-9 h-9 ${getAvatarBg(
                             usuario.rolNombre
@@ -331,7 +331,7 @@ export function UsuariosTable({
                         >
                           {iniciales}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 leading-tight truncate" title={fullName}>
                             {fullName}
                           </p>

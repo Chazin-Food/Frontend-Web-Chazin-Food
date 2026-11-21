@@ -13,7 +13,7 @@ const PRODUCCION_URL_DEFAULTS = {
   q: "",
   estado: "Todos",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 export function useGestionProduccion() {
@@ -22,7 +22,7 @@ export function useGestionProduccion() {
   const { filters, setFilter, setFilters } = useUrlFilters(PRODUCCION_URL_DEFAULTS);
 
   const [ordenes, setOrdenes] = useState([]);
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 5, totalPages: 1 });
   const [summary, setSummary] = useState(null);
   const [serverPaginated, setServerPaginated] = useState(false);
   const [loading, setLoading] = useState(true);

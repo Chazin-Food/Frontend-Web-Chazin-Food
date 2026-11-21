@@ -10,7 +10,7 @@ const DEVOLUCIONES_URL_DEFAULTS = {
   motivo: "Todos",
   resolucion: "Todos",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 export function useDevoluciones() {

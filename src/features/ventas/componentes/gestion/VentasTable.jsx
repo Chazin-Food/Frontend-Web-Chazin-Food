@@ -37,10 +37,10 @@ export function VentasTable({
   serverPaginated = false
 }) {
   const [internalPage, setInternalPage] = useState(1);
-  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPageSize, setInternalPageSize] = useState(5);
 
   const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
-  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 5 : internalPageSize;
   const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : ventas.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -262,14 +262,14 @@ export function VentasTable({
                   </td>
 
                   {/* Cliente con Avatar e Insignia — truncado seguro ante nombres exageradamente largos */}
-                  <td className="px-2.5 py-2.5 align-middle">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <td className="px-2.5 py-2.5 align-middle overflow-hidden max-w-0">
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                       <div className="w-7 h-7 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-2xs">
                         {initial}
                       </div>
-                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                         <span
-                          className="font-bold text-gray-900 dark:text-gray-100 text-xs xl:text-sm truncate block min-w-0"
+                          className="font-bold text-gray-900 dark:text-gray-100 text-xs xl:text-sm truncate block min-w-0 flex-1"
                           title={clienteNombre}
                         >
                           {clienteNombre}

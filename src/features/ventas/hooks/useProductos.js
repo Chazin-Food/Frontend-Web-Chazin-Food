@@ -11,7 +11,7 @@ const PRODUCTOS_URL_DEFAULTS = {
   categoria: "Todas",
   estado: "Todos",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 export function useProductos() {

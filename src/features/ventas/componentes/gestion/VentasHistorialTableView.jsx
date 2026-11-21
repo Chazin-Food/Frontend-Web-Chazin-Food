@@ -15,11 +15,11 @@ export function VentasHistorialTableView({
   serverPaginated = false
 }) {
   const [internalPage, setInternalPage] = useState(1);
-  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPageSize, setInternalPageSize] = useState(5);
 
   const itemsToDisplay = Array.isArray(ventas) ? ventas : [];
   const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
-  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 5 : internalPageSize;
   const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : itemsToDisplay.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -218,8 +218,8 @@ export function VentasHistorialTableView({
                   </td>
 
                   {/* Cliente */}
-                  <td className="px-2 py-2.5 align-middle">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <td className="px-2 py-2.5 align-middle overflow-hidden max-w-0">
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                       <div className="w-6 h-6 rounded-full bg-[#F05454] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
                         {inicialCliente}
                       </div>

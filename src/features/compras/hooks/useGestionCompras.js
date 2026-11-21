@@ -9,7 +9,7 @@ const COMPRAS_URL_DEFAULTS = {
   q: "",
   estado: "Todos",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 export function useGestionCompras() {
@@ -17,7 +17,7 @@ export function useGestionCompras() {
   const { filters, setFilter, setFilters } = useUrlFilters(COMPRAS_URL_DEFAULTS);
 
   const [compras, setCompras] = useState([]);
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 5, totalPages: 1 });
   const [summary, setSummary] = useState(null);
   const [serverPaginated, setServerPaginated] = useState(false);
   const [loading, setLoading] = useState(true);

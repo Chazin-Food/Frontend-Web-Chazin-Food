@@ -12,7 +12,7 @@ const CLIENTES_URL_DEFAULTS = {
   min: "",
   max: "",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 export function useClientes() {
@@ -20,7 +20,7 @@ export function useClientes() {
   const { filters, setFilter, setFilters } = useUrlFilters(CLIENTES_URL_DEFAULTS);
 
   const [clientes, setClientes] = useState([]);
-  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 5, totalPages: 1 });
   const [serverPaginated, setServerPaginated] = useState(false);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);

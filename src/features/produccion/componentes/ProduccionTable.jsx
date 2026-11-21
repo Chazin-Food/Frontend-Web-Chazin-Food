@@ -39,7 +39,7 @@ export function ProduccionTable({
   serverPaginated = false
 }) {
   const [internalPage, setInternalPage] = useState(1);
-  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPageSize, setInternalPageSize] = useState(5);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function ProduccionTable({
   }, []);
 
   const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
-  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 5 : internalPageSize;
   const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : ordenes.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
@@ -345,24 +345,24 @@ export function ProduccionTable({
                 return (
                   <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                     {/* Orden / Código + Nombre del Cliente Prominente */}
-                    <td className="px-3 py-3 align-middle">
-                      <div className="flex items-start gap-2 min-w-0">
+                    <td className="px-3 py-3 align-middle overflow-hidden max-w-0">
+                      <div className="flex items-start gap-2 min-w-0 overflow-hidden">
                         <div className="shrink-0 mt-0.5">
                           <FoodIconBadge name={o.productos?.[0]?.nombre || o.nombreProducto || o.producto || "burger"} size="sm" />
                         </div>
-                        <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="space-y-0.5 min-w-0 flex-1 overflow-hidden">
                           {/* Cliente que recibe la orden */}
-                          <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 font-bold min-w-0">
+                          <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 font-bold min-w-0 overflow-hidden">
                             <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <span className="truncate block min-w-0" title={clienteLabel}>
+                            <span className="truncate block min-w-0 flex-1" title={clienteLabel}>
                               {clienteLabel}
                             </span>
                           </div>
 
                           {/* Platillo / Platillos */}
-                          <div className="flex items-center gap-1 font-bold text-gray-900 dark:text-gray-100 text-xs min-w-0">
+                          <div className="flex items-center gap-1 font-bold text-gray-900 dark:text-gray-100 text-xs min-w-0 overflow-hidden">
                             <span
-                              className="line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0"
+                              className="line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0 flex-1"
                               title={platilloText}
                             >
                               {platilloText}
@@ -414,8 +414,8 @@ export function ProduccionTable({
                     </td>
 
                     {/* Responsable Cocina — truncado seguro ante nombres exageradamente largos */}
-                    <td className="px-2.5 py-3 align-middle">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 min-w-0">
+                    <td className="px-2.5 py-3 align-middle overflow-hidden max-w-0">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 min-w-0 overflow-hidden">
                         <ChefHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         <span className="truncate block min-w-0 flex-1" title={responsableLabel}>
                           {responsableLabel}

@@ -17,11 +17,11 @@ export function ClientesTable({
   onPageSizeChange,
   serverPaginated = false
 }) {
-  const [internalPageSize, setInternalPageSize] = useState(10);
+  const [internalPageSize, setInternalPageSize] = useState(5);
   const [internalPage, setInternalPage] = useState(1);
 
   const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
-  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 10 : internalPageSize;
+  const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 5 : internalPageSize;
   const totalRecords = serverPaginated && controlledTotalItems !== undefined ? Number(controlledTotalItems) : clientes.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);

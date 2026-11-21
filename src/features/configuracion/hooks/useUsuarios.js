@@ -10,7 +10,7 @@ const USUARIOS_URL_DEFAULTS = {
   rol: "Todos",
   estado: "Todos",
   page: 1,
-  limit: 10
+  limit: 5
 };
 
 function getIniciales(nombre = "") {
