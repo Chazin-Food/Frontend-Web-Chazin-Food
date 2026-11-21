@@ -106,7 +106,7 @@ import {
 
 } from "lucide-react";
 
-import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
+import { FidelidadBadge, getNextLevelProgressInfo } from "@/shared/components/ui/FidelidadBadge";
 
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 
@@ -1592,11 +1592,7 @@ export function ClientePerfil() {
 
     : (fidelidad.comprasFaltantes !== undefined ? Number(fidelidad.comprasFaltantes) : (3 - (comprasCiclo % 3)));
 
-  const siguienteNivel =
-
-    fidelidad.siguienteNivel ||
-
-    (beneficioFidelidadActivo ? "15% OFF disponible en tu próxima compra" : "15% OFF al completar 3 compras");
+  const siguienteNivel = getNextLevelProgressInfo(tipoFidelidad).targetLabel;
 
   const enGracia = Boolean(fidelidad.enGracia);
 
@@ -2488,19 +2484,11 @@ export function ClientePerfil() {
 
                   </span>
 
-                  <span className="text-[11px] font-extrabold text-[#f05454] flex items-center gap-1">
-
-                    {comprasFaltantes === 0
-
-                      ? <><span>¡Meta alcanzada!</span> <Sparkles className="w-3.5 h-3.5 text-amber-500 inline" /></>
-
-                      : tipoFidelidad === "VIP"
-
-                        ? `Faltan ${comprasFaltantes} ${comprasFaltantes === 1 ? "compra" : "compras"}`
-
-                        : `Faltan ${comprasFaltantes} para ${siguienteNivel}`}
-
-                  </span>
+                  {comprasFaltantes === 0 && (
+                    <span className="text-[11px] font-extrabold text-[#f05454] flex items-center gap-1">
+                      <span>¡Meta alcanzada!</span> <Sparkles className="w-3.5 h-3.5 text-amber-500 inline" />
+                    </span>
+                  )}
 
                 </div>
 

@@ -18,7 +18,7 @@ const STORE_URL_DEFAULTS = {
   q: ""
 };
 import logoImg from "@/shared/assets/logo_optimized.webp";
-import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
+import { FidelidadBadge, getNextLevelProgressInfo } from "@/shared/components/ui/FidelidadBadge";
 import { StarRating } from "@/shared/components/ui/StarRating";
 import { apiClient } from "@/shared/api/apiClient";
 import { ventasService } from "@/features/ventas/servicios/ventasService";
@@ -1767,7 +1767,7 @@ export function ClienteLanding() {
   const comprasFaltantes = beneficioFidelidadActivo
     ? 0
     : (fidelidadCliente.comprasFaltantes !== undefined ? Number(fidelidadCliente.comprasFaltantes) : (3 - (comprasCiclo % 3)));
-  const siguienteNivel = fidelidadCliente.siguienteNivel || (beneficioFidelidadActivo ? "15% OFF disponible en tu próxima compra" : "15% OFF al completar 3 compras");
+  const siguienteNivel = getNextLevelProgressInfo(tipoFidelidad).targetLabel;
 
   // Dynamic real-time calculation of remaining days and seconds in hero banner
   const rawHeroVence = fidelidadCliente.fechaVencimientoNivel || fidelidadCliente.vence;
@@ -2480,8 +2480,8 @@ export function ClienteLanding() {
                     {comprasFaltantes === 0 
                       ? <><span>¡Meta alcanzada!</span> <Sparkles className="w-3.5 h-3.5 text-amber-500 inline" /></> 
                       : tipoFidelidad === "VIP"
-                        ? `Faltan ${comprasFaltantes} ${comprasFaltantes === 1 ? 'compra' : 'compras'} para renovar`
-                        : `Faltan ${comprasFaltantes} ${comprasFaltantes === 1 ? 'compra' : 'compras'} para subir a ${siguienteNivel}`}
+                        ? `${comprasFaltantes === 1 ? 'Falta 1 compra' : `Faltan ${comprasFaltantes} compras`} para renovar`
+                        : `${comprasFaltantes === 1 ? 'Falta 1 compra' : `Faltan ${comprasFaltantes} compras`} para subir a ${siguienteNivel}`}
                   </span>
                   {!heroLiveStatus.esNuevo && heroLiveStatus.countdownStr && !heroLiveStatus.enGracia && (
                     <>

@@ -602,64 +602,6 @@ export function ClienteAuthModal({
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Nombres (NO acepta @ ni números) */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Nombres <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative group">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
-                    <input
-                      type="text"
-                      value={regNombre}
-                      onChange={(e) => {
-                        // Bloquear explícitamente el @ y números al escribir
-                        const val = e.target.value.replace(/[@0-9]/g, "");
-                        setRegNombre(val);
-                        markTouched("regNombre");
-                      }}
-                      onBlur={() => markTouched("regNombre")}
-                      className={inputBaseStyle(!!getRegNombreError(), touched.regNombre && !getRegNombreError())}
-                      placeholder="Juan"
-                      autoFocus
-                    />
-                  </div>
-                  {getRegNombreError() && (
-                    <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{getRegNombreError()}</span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Apellidos (NO acepta @ ni números) */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Apellidos <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative group">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
-                    <input
-                      type="text"
-                      value={regApellidos}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[@0-9]/g, "");
-                        setRegApellidos(val);
-                        markTouched("regApellidos");
-                      }}
-                      onBlur={() => markTouched("regApellidos")}
-                      className={inputBaseStyle(!!getRegApellidosError(), touched.regApellidos && !getRegApellidosError())}
-                      placeholder="Pérez"
-                    />
-                  </div>
-                  {getRegApellidosError() && (
-                    <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{getRegApellidosError()}</span>
-                    </p>
-                  )}
-                </div>
-
                 {/* Tipo de Documento con selector redondeado (border-radius) */}
                 <div className="relative" ref={tipoDocRef}>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
@@ -736,12 +678,70 @@ export function ClienteAuthModal({
                       onBlur={() => markTouched("regDocumento")}
                       className={inputBaseStyle(!!getRegDocumentoError(), touched.regDocumento && !getRegDocumentoError())}
                       placeholder={getDocConfig(regTipoDocumento).helper}
+                      autoFocus
                     />
                   </div>
                   {getRegDocumentoError() && (
                     <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{getRegDocumentoError()}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Nombres (NO acepta @ ni números) */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Nombres <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative group">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
+                    <input
+                      type="text"
+                      value={regNombre}
+                      onChange={(e) => {
+                        // Bloquear explícitamente el @ y números al escribir
+                        const val = e.target.value.replace(/[@0-9]/g, "");
+                        setRegNombre(val);
+                        markTouched("regNombre");
+                      }}
+                      onBlur={() => markTouched("regNombre")}
+                      className={inputBaseStyle(!!getRegNombreError(), touched.regNombre && !getRegNombreError())}
+                      placeholder="Juan"
+                    />
+                  </div>
+                  {getRegNombreError() && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getRegNombreError()}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Apellidos (NO acepta @ ni números) */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Apellidos <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative group">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
+                    <input
+                      type="text"
+                      value={regApellidos}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[@0-9]/g, "");
+                        setRegApellidos(val);
+                        markTouched("regApellidos");
+                      }}
+                      onBlur={() => markTouched("regApellidos")}
+                      className={inputBaseStyle(!!getRegApellidosError(), touched.regApellidos && !getRegApellidosError())}
+                      placeholder="Pérez"
+                    />
+                  </div>
+                  {getRegApellidosError() && (
+                    <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getRegApellidosError()}</span>
                     </p>
                   )}
                 </div>

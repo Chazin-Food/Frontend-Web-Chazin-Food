@@ -542,64 +542,6 @@ export function Login() {
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Nombres <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative group">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
-                      <input
-                        type="text"
-                        name="reg_first_name"
-                        autoComplete="off"
-                        value={regNombre}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[@0-9]/g, "");
-                          setRegNombre(val);
-                          markTouched("regNombre");
-                        }}
-                        onBlur={() => markTouched("regNombre")}
-                        className={getRegInputClass(!!getRegNombreError(), touched.regNombre && !getRegNombreError())}
-                        placeholder="Juan"
-                      />
-                    </div>
-                    {getRegNombreError() && (
-                      <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
-                        <AlertCircle className="w-3 h-3 shrink-0" />
-                        <span>{getRegNombreError()}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Apellidos <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative group">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
-                      <input
-                        type="text"
-                        name="reg_last_name"
-                        autoComplete="off"
-                        value={regApellidos}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[@0-9]/g, "");
-                          setRegApellidos(val);
-                          markTouched("regApellidos");
-                        }}
-                        onBlur={() => markTouched("regApellidos")}
-                        className={getRegInputClass(!!getRegApellidosError(), touched.regApellidos && !getRegApellidosError())}
-                        placeholder="Pérez"
-                      />
-                    </div>
-                    {getRegApellidosError() && (
-                      <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
-                        <AlertCircle className="w-3 h-3 shrink-0" />
-                        <span>{getRegApellidosError()}</span>
-                      </p>
-                    )}
-                  </div>
-
                   {/* Tipo de Documento con selector redondeado (border-radius) */}
                   <div className="relative" ref={tipoDocRef}>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -681,6 +623,64 @@ export function Login() {
                       <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
                         <AlertCircle className="w-3 h-3 shrink-0" />
                         <span>{getRegDocumentoError()}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Nombres <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
+                      <input
+                        type="text"
+                        name="reg_first_name"
+                        autoComplete="off"
+                        value={regNombre}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[@0-9]/g, "");
+                          setRegNombre(val);
+                          markTouched("regNombre");
+                        }}
+                        onBlur={() => markTouched("regNombre")}
+                        className={getRegInputClass(!!getRegNombreError(), touched.regNombre && !getRegNombreError())}
+                        placeholder="Juan"
+                      />
+                    </div>
+                    {getRegNombreError() && (
+                      <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{getRegNombreError()}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Apellidos <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-red-500 w-4 h-4 transition-colors z-10" />
+                      <input
+                        type="text"
+                        name="reg_last_name"
+                        autoComplete="off"
+                        value={regApellidos}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[@0-9]/g, "");
+                          setRegApellidos(val);
+                          markTouched("regApellidos");
+                        }}
+                        onBlur={() => markTouched("regApellidos")}
+                        className={getRegInputClass(!!getRegApellidosError(), touched.regApellidos && !getRegApellidosError())}
+                        placeholder="Pérez"
+                      />
+                    </div>
+                    {getRegApellidosError() && (
+                      <p className="mt-1 text-[11px] font-semibold text-red-500 flex items-center gap-1 animate-in fade-in">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{getRegApellidosError()}</span>
                       </p>
                     )}
                   </div>

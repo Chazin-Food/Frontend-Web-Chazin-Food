@@ -83,6 +83,47 @@ export function getFidelidadConfig(tipo = "Nuevo", descuento = null) {
   return { ...config, finalDesc };
 }
 
+/**
+ * Devuelve la etiqueta y descuento del siguiente nivel de fidelidad según el nivel actual:
+ * - Nuevo -> Regular (5% OFF)
+ * - Regular -> Frecuente (10% OFF)
+ * - Frecuente -> VIP (15% OFF)
+ * - VIP -> renovación nivel VIP (15% OFF)
+ */
+export function getNextLevelProgressInfo(tipo = "Nuevo") {
+  const norm = String(tipo || "Nuevo").toLowerCase().trim();
+  if (norm.includes("vip")) {
+    return {
+      nextLevel: "VIP",
+      nextDiscount: 15,
+      targetLabel: "nivel VIP 15% OFF",
+      unlockSubtitle: "Beneficio activo de 15% OFF en tu próxima compra"
+    };
+  }
+  if (norm.includes("frecuente")) {
+    return {
+      nextLevel: "VIP",
+      nextDiscount: 15,
+      targetLabel: "nivel VIP 15% OFF al completar 3 compras",
+      unlockSubtitle: "Completa 3 compras para subir a nivel VIP (15% OFF)"
+    };
+  }
+  if (norm.includes("regular")) {
+    return {
+      nextLevel: "Frecuente",
+      nextDiscount: 10,
+      targetLabel: "nivel Frecuente 10% OFF al completar 3 compras",
+      unlockSubtitle: "Completa 3 compras para subir a nivel Frecuente (10% OFF)"
+    };
+  }
+  return {
+    nextLevel: "Regular",
+    nextDiscount: 5,
+    targetLabel: "nivel Regular 5% OFF al completar 3 compras",
+    unlockSubtitle: "Completa 3 compras para desbloquear 5% OFF"
+  };
+}
+
 export function FidelidadBadge({
   tipo = "Nuevo",
   descuento = null,
@@ -134,7 +175,9 @@ export function FidelidadBadge({
               )}
             </div>
             <p className="text-[10px] text-gray-500 dark:text-gray-400 font-medium truncate">
-              {finalDesc > 0 ? `Beneficio activo de ${finalDesc}% OFF en tu próxima compra` : "Completa 3 compras para desbloquear 15% OFF"}
+              {finalDesc > 0
+                ? `Beneficio activo de ${finalDesc}% OFF en tu próxima compra`
+                : getNextLevelProgressInfo(tipo).unlockSubtitle}
             </p>
           </div>
         </div>
