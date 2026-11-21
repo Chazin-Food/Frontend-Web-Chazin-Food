@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth, getLoginErrorToast } from "@/features/autenticacion/hooks/useAuth";
 import { loadPrefs } from "@/shared/utils/secureStorage";
 const GoogleAuthButton = lazy(() => import("@/features/autenticacion/componentes/GoogleAuthButton").then((m) => ({ default: m.GoogleAuthButton })));
@@ -69,10 +69,17 @@ export function Login() {
 
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToast();
 
+  const rawRedirect = searchParams.get("redirect") || "";
+  const safeRedirectTarget =
+    rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") && !rawRedirect.startsWith("/login")
+      ? rawRedirect
+      : "/";
+
   const handleGoogleSuccess = () => {
-    navigate("/", { replace: true });
+    navigate(safeRedirectTarget, { replace: true });
   };
 
   // Cerrar dropdown al hacer clic fuera
@@ -200,7 +207,7 @@ export function Login() {
     const result = await login(loginCorreo, loginContraseña);
     if (result === true || result?.success) {
       toast.success("¡Bienvenido!", "Inicio de sesión exitoso");
-      setTimeout(() => navigate("/"), 500);
+      setTimeout(() => navigate(safeRedirectTarget, { replace: true }), 500);
     } else {
       const [errTitle, errMsg] = getLoginErrorToast(result);
       toast.error(errTitle, errMsg);
@@ -283,7 +290,7 @@ export function Login() {
 
     if (result.success) {
       toast.success("¡Cuenta creada!", result.message);
-      setTimeout(() => navigate("/"), 500);
+      setTimeout(() => navigate(safeRedirectTarget, { replace: true }), 500);
     } else {
       toast.error("Error al registrar", result.message);
     }

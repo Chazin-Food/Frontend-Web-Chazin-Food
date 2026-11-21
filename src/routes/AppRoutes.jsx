@@ -1,7 +1,29 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
+
+function safeInternalRedirect(raw) {
+  if (typeof raw !== "string") return "/";
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//") || trimmed.startsWith("/login")) {
+    return "/";
+  }
+  return trimmed;
+}
+
+function RedirectToLoginPreservingTarget() {
+  const location = useLocation();
+  const target = `${location.pathname}${location.search || ""}`;
+  return <Navigate to={`/login?redirect=${encodeURIComponent(target)}`} replace />;
+}
+
+function AuthenticatedLoginRedirect() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const target = safeInternalRedirect(params.get("redirect"));
+  return <Navigate to={target} replace />;
+}
 
 // ── ClienteLanding: lazy-loaded para reducir el bundle inicial (≈177KB menos) ──
 const ClienteLanding = lazy(() => import("@/features/cliente/paginas/ClienteLanding").then(m => ({ default: m.ClienteLanding })));
@@ -64,6 +86,8 @@ export function AppRoutes() {
     return (
       <Routes>
         <Route path="/" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route path="/perfil" element={<RedirectToLoginPreservingTarget />} />
         <Route
           path="/login"
           element={
@@ -110,6 +134,7 @@ export function AppRoutes() {
     return (
       <Routes>
         <Route path="/" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
         <Route
           path="/perfil"
           element={
@@ -126,7 +151,15 @@ export function AppRoutes() {
             </Suspense>
           }
         />
-        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route
+          path="/reset-password"
+          element={
+            <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
+              <ResetPassword />
+            </Suspense>
+          }
+        />
+        <Route path="/login" element={<AuthenticatedLoginRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -138,9 +171,12 @@ export function AppRoutes() {
       <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
         <Routes>
           <Route path="/" element={<CocineroDashboard />} />
+          <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+          <Route path="/perfil" element={<ClientePerfil />} />
           <Route path="/fichas-tecnicas" element={<FichasTecnicas readOnly />} />
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/login" element={<AuthenticatedLoginRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
@@ -152,8 +188,10 @@ export function AppRoutes() {
     return (
       <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
         <Routes>
-          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<AuthenticatedLoginRedirect />} />
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/tienda" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/cliente" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/perfil" element={<Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}><ClientePerfil /></Suspense>} />
@@ -229,8 +267,11 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO..." />}>
       <Routes>
-        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={<AuthenticatedLoginRedirect />} />
         <Route path="/activar-cuenta" element={<ActivarCuenta />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route path="/perfil" element={<ClientePerfil />} />
         <Route path="/" element={<Layout />}>
           {isVendedor ? (
             <Route index element={<Navigate to="/ventas/pos" replace />} />
