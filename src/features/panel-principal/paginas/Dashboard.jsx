@@ -863,13 +863,6 @@ export function Dashboard() {
                       Solo {finalAlertas.length === 1 ? "este insumo requiere" : `estos ${finalAlertas.length} insumos requieren`} reposición prioritaria en este momento.
                     </p>
                   </div>
-                  <Link
-                    to="/compras/gestion"
-                    className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-[11px] font-bold text-gray-700 dark:text-gray-200 hover:border-red-300 hover:text-red-600 dark:hover:text-red-400 transition-colors shadow-2xs"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    <span>Ir a Gestión de Compras</span>
-                  </Link>
                 </div>
               )}
             </div>
