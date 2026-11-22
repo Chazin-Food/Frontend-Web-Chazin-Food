@@ -729,17 +729,62 @@ export function ClienteLanding() {
       }
 
       if (prodsRes.status === "fulfilled" && Array.isArray(prodsRes.value) && prodsRes.value.length > 0) {
+        const assocEvtsByProd = new Map();
+        activeEvts.forEach((ev) => {
+          if (!ev || !isEventActiveInColombia(ev)) return;
+          let asociados = [];
+          if (Array.isArray(ev.productosAsociados)) {
+            asociados = ev.productosAsociados;
+          } else if (typeof ev.productosAsociados === "string" && ev.productosAsociados.trim()) {
+            try {
+              const parsed = JSON.parse(ev.productosAsociados);
+              if (Array.isArray(parsed)) asociados = parsed;
+            } catch (_) {}
+          }
+          asociados.forEach((asoc) => {
+            const pid = String(asoc?.idProducto ?? asoc?.id ?? "");
+            if (!pid) return;
+            if (!assocEvtsByProd.has(pid)) assocEvtsByProd.set(pid, []);
+            assocEvtsByProd.get(pid).push({ ev, asoc });
+          });
+        });
+
         const apiProds = prodsRes.value
           .filter(p => p.id !== 0 && p.idProducto !== 0 && !p.nombre?.startsWith('__SISTEMA'))
           .map(p => {
             const isInactive = p.estado === 'Inactivo' || p.estado === 0;
             const rawStock = Number(p.stock !== undefined ? p.stock : (p.stockActual !== undefined ? p.stockActual : 0));
             const finalStock = isInactive ? 0 : rawStock;
+            const prodIdNum = p.idProducto || p.id;
+            const basePriceNum = Number(p.precio) || 0;
+
+            const directEvts = Array.isArray(p.eventos) ? p.eventos : [];
+            const seenEvtIds = new Set(directEvts.map((e) => String(e?.idEvento ?? e?.id ?? "")).filter(Boolean));
+            const mergedEventos = [...directEvts];
+            const extraEntries = assocEvtsByProd.get(String(prodIdNum)) || [];
+            extraEntries.forEach(({ ev, asoc }) => {
+              const evId = String(ev?.idEvento ?? ev?.id ?? "");
+              if (evId && seenEvtIds.has(evId)) return;
+              if (evId) seenEvtIds.add(evId);
+              const matchDesc = asoc?.descuento !== undefined && asoc?.descuento !== null
+                ? Number(asoc.descuento)
+                : Number(ev.descuento || 0);
+              const matchPrecio = Number(asoc?.precioPromocional || asoc?.nuevoPrecio || 0) ||
+                (matchDesc > 0 && matchDesc < 100 && basePriceNum > 0
+                  ? Math.round(basePriceNum * (1 - matchDesc / 100))
+                  : (String(ev.idProducto) === String(prodIdNum) ? ev.nuevoPrecio : null));
+              mergedEventos.push({
+                ...ev,
+                descuento: matchDesc,
+                nuevoPrecio: matchPrecio
+              });
+            });
+
             return {
               id: p.id || p.idProducto,
-              idProducto: p.idProducto || p.id,
+              idProducto: prodIdNum,
               nombre: p.nombre,
-              precio: Number(p.precio) || 0,
+              precio: basePriceNum,
               stock: finalStock,
               agotado: Boolean(p.agotado || isInactive || finalStock <= 0),
               estado: p.estado,
@@ -756,7 +801,7 @@ export function ClienteLanding() {
               itemsCombo: Array.isArray(p.itemsCombo) ? p.itemsCombo : [],
               adiciones: Array.isArray(p.adiciones) ? p.adiciones : [],
               adicionesDisponibles: Array.isArray(p.adicionesDisponibles) ? p.adicionesDisponibles : [],
-              eventos: p.eventos || []
+              eventos: mergedEventos
             };
           });
         setProductosList(apiProds);
@@ -1166,15 +1211,15 @@ export function ClienteLanding() {
 
     const validEvents = eventos.filter((e) => isEventActiveInColombia(e, liveTick));
     if (validEvents.length === 0) return null;
-    const evt = validEvents[0];
 
     const regularPrice = Number(producto.precio || 0);
-    let eventPrice = regularPrice;
-    if (evt.nuevoPrecio && Number(evt.nuevoPrecio) > 0) {
-      eventPrice = Number(evt.nuevoPrecio);
-    } else if (evt.descuento && Number(evt.descuento) > 0) {
-      eventPrice = regularPrice * (1 - Number(evt.descuento) / 100);
-    }
+    const computeEvtPrice = (e) => {
+      if (e.nuevoPrecio && Number(e.nuevoPrecio) > 0) return Number(e.nuevoPrecio);
+      if (e.descuento && Number(e.descuento) > 0) return Math.round(regularPrice * (1 - Number(e.descuento) / 100));
+      return regularPrice;
+    };
+    const evt = [...validEvents].sort((a, b) => computeEvtPrice(a) - computeEvtPrice(b))[0];
+    const eventPrice = computeEvtPrice(evt);
 
     const savings = Math.max(0, regularPrice - eventPrice);
     const discountPercent = regularPrice > 0 && savings > 0
@@ -1330,14 +1375,12 @@ export function ClienteLanding() {
     }
 
     // Si el producto tiene un evento activo, abrir personalización individual de eventos
-    if (producto.eventos && producto.eventos.length > 0) {
-      const activeEvt = producto.eventos.find(e => e.estado === 1 || e.estado === "Activo") || producto.eventos[0];
-      if (activeEvt) {
-        setEventoParaPersonalizar(activeEvt);
-        setProductoParaEvento(producto);
-        setShowPersonalizarEventoModal(true);
-        return;
-      }
+    const activeEvt = getActiveEvent(producto);
+    if (activeEvt) {
+      setEventoParaPersonalizar(activeEvt);
+      setProductoParaEvento(producto);
+      setShowPersonalizarEventoModal(true);
+      return;
     }
 
     const prodId = producto.id || producto.idProducto;

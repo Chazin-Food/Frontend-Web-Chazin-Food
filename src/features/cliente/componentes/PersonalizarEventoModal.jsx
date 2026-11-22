@@ -86,14 +86,18 @@ export function PersonalizarEventoModal({
   // List of available products for this event
   const eventProducts = useMemo(() => {
     if (!evento) return [];
-    if (evento.idProducto) {
-      const p = productosList.find(
-        (prod) => String(prod.id || prod.idProducto) === String(evento.idProducto)
-      );
-      return p ? [p] : initialProducto ? [initialProducto] : [];
+    let asociados = [];
+    if (Array.isArray(evento.productosAsociados)) {
+      asociados = evento.productosAsociados;
+    } else if (typeof evento.productosAsociados === "string" && evento.productosAsociados.trim()) {
+      try {
+        const parsed = JSON.parse(evento.productosAsociados);
+        if (Array.isArray(parsed)) asociados = parsed;
+      } catch (_) {}
     }
-    if (evento.productosAsociados && Array.isArray(evento.productosAsociados) && evento.productosAsociados.length > 0) {
-      return evento.productosAsociados
+
+    if (asociados.length > 0) {
+      const mapped = asociados
         .map((pa) => {
           const p = productosList.find(
             (prod) => String(prod.id || prod.idProducto) === String(pa.idProducto || pa.id)
@@ -101,13 +105,20 @@ export function PersonalizarEventoModal({
           if (p) {
             return {
               ...p,
-              eventNuevoPrecio: pa.nuevoPrecio,
+              eventNuevoPrecio: pa.precioPromocional || pa.nuevoPrecio,
               eventDescuento: pa.descuento
             };
           }
           return null;
         })
         .filter(Boolean);
+      if (mapped.length > 0) return mapped;
+    }
+    if (evento.idProducto) {
+      const p = productosList.find(
+        (prod) => String(prod.id || prod.idProducto) === String(evento.idProducto)
+      );
+      return p ? [p] : initialProducto ? [initialProducto] : [];
     }
     return initialProducto ? [initialProducto] : productosList.slice(0, 3);
   }, [evento, productosList, initialProducto]);
@@ -148,7 +159,11 @@ export function PersonalizarEventoModal({
       setReviewCommentTouched(false);
       setMyReview(null);
       if (initialProducto) {
-        setSelectedProduct(initialProducto);
+        const initId = String(initialProducto.id || initialProducto.idProducto || "");
+        const enrichedMatch = eventProducts.find(
+          (ep) => String(ep.id || ep.idProducto || "") === initId
+        );
+        setSelectedProduct(enrichedMatch || initialProducto);
       } else if (eventProducts.length > 0) {
         setSelectedProduct(eventProducts[0]);
       }
@@ -637,22 +652,46 @@ export function PersonalizarEventoModal({
 
       if (resolvedProduct && evento) {
         const evtId = evento.id || evento.idEvento;
+        const currProdId = resolvedProduct.id || resolvedProduct.idProducto;
         const isVariantFromThisEvent = Boolean(variantObj && evtId && Number(variantObj.idEvento) === Number(evtId));
+        const isCustomPricedVariant = Boolean(variantObj && prodBase > 0 && Math.abs(raw - prodBase) > 0.01);
+
+        let assocMatch = null;
+        const rawAsociados = Array.isArray(evento.productosAsociados)
+          ? evento.productosAsociados
+          : (typeof evento.productosAsociados === "string"
+            ? (() => { try { const p = JSON.parse(evento.productosAsociados); return Array.isArray(p) ? p : []; } catch (_) { return []; } })()
+            : []);
+        if (rawAsociados.length > 0 && currProdId) {
+          assocMatch = rawAsociados.find(
+            (pa) => String(pa?.idProducto ?? pa?.id) === String(currProdId)
+          ) || null;
+        }
+
+        const effectiveDesc = Number(
+          resolvedProduct.eventDescuento ?? assocMatch?.descuento ?? evento.descuento ?? 0
+        );
+        const isPrimaryProd = !evento.idProducto || String(evento.idProducto) === String(currProdId);
+        const effectiveNuevoPrecio = Number(
+          resolvedProduct.eventNuevoPrecio ||
+          assocMatch?.precioPromocional ||
+          assocMatch?.nuevoPrecio ||
+          (isPrimaryProd ? evento.nuevoPrecio : 0) ||
+          0
+        );
 
         if (isVariantFromThisEvent && Number(variantObj.precio) > 0) {
           finalP = Number(variantObj.precio);
-        } else if (resolvedProduct.eventDescuento) {
-          finalP = Math.round(raw * (1 - Number(resolvedProduct.eventDescuento) / 100));
-        } else if (evento.tipoEvento === "Descuento" && evento.descuento) {
-          finalP = Math.round(raw * (1 - Number(evento.descuento) / 100));
-        } else if (resolvedProduct.eventNuevoPrecio) {
-          const basePromo = Number(resolvedProduct.eventNuevoPrecio);
-          const fixedDiscount = Math.max(0, prodBase - basePromo);
-          finalP = variantObj ? Math.max(0, raw - fixedDiscount) : basePromo;
-        } else if ((evento.tipoEvento === "Promoción Precio" && evento.nuevoPrecio) || evento.nuevoPrecio) {
-          const basePromo = Number(evento.nuevoPrecio);
-          const fixedDiscount = Math.max(0, prodBase - basePromo);
-          finalP = variantObj ? Math.max(0, raw - fixedDiscount) : basePromo;
+        } else if (isCustomPricedVariant) {
+          if (effectiveDesc > 0 && effectiveDesc < 100) {
+            finalP = Math.round(raw * (1 - effectiveDesc / 100));
+          } else if (effectiveNuevoPrecio > 0 && prodBase > 0 && effectiveNuevoPrecio < prodBase) {
+            finalP = Math.max(0, raw - (prodBase - effectiveNuevoPrecio));
+          }
+        } else if (effectiveNuevoPrecio > 0) {
+          finalP = Math.round(effectiveNuevoPrecio);
+        } else if (effectiveDesc > 0 && effectiveDesc < 100) {
+          finalP = Math.round(raw * (1 - effectiveDesc / 100));
         }
       }
 
