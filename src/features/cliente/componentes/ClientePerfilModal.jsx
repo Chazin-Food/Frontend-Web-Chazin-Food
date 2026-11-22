@@ -62,17 +62,26 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
 
   if (!isOpen) return null;
 
-  // Dynamic real stats from client orders
-  const totalPedidosCount = pedidos.length;
-  const totalProductosCount = pedidos.reduce(
+  // Dynamic real stats strictly from approved non-cancelled client orders
+  const approvedPedidos = pedidos.filter((p) => {
+    const st = String(p.estado || "").toUpperCase();
+    const ap = String(p.estadoAprobacion || "").toUpperCase();
+    const pago = String(p.estadoPago || "").toUpperCase();
+    if (st.includes("ANULAD") || st.includes("CANCEL") || st.includes("RECHAZ")) return false;
+    if (ap === "PENDIENTE" || ap === "RECHAZADO") return false;
+    if (st.includes("POR APROBAR") || pago === "PENDIENTE") return false;
+    return true;
+  });
+  const totalPedidosCount = approvedPedidos.length;
+  const totalProductosCount = approvedPedidos.reduce(
     (acc, p) => acc + (p.items || []).reduce((iAcc, item) => iAcc + (item.cantidad || 1), 0),
     0
   );
-  const totalGastado = pedidos.reduce((acc, p) => acc + (parseFloat(p.total) || 0), 0);
+  const totalGastado = approvedPedidos.reduce((acc, p) => acc + (parseFloat(p.total) || 0), 0);
 
   // Calculate favorite product dynamically from real order items
   const itemCounts = {};
-  pedidos.forEach((p) => {
+  approvedPedidos.forEach((p) => {
     (p.items || []).forEach((item) => {
       const name = item.nombre || "Producto";
       itemCounts[name] = (itemCounts[name] || 0) + (Number(item.cantidad) || 1);
@@ -83,36 +92,32 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
   const favoriteProduct = sortedItems.length > 0 ? sortedItems[0][0] : "Sin pedidos aún";
   const favoriteCount = sortedItems.length > 0 ? sortedItems[0][1] : 0;
 
-  // Fidelity Data extraction (Ficha SENA 3209616: 15% OFF en la compra siguiente tras cada 3 compras)
+  // Fidelity Data extraction (progresión progresiva estricta por compras aprobadas)
   const fidelidad = user?.fidelidad || {};
-  const beneficioFidelidadActivo = Boolean(
-    fidelidad.descuentoDisponible ??
-      (fidelidad.descuentoPorcentaje !== undefined
-        ? Number(fidelidad.descuentoPorcentaje) > 0
-        : totalPedidosCount > 0 && totalPedidosCount % 3 === 0)
-  );
   const tipoFidelidad =
     fidelidad.tipo ||
-    (beneficioFidelidadActivo
-      ? "VIP"
-      : totalPedidosCount >= 9
+    (totalPedidosCount >= 9
       ? "VIP"
       : totalPedidosCount >= 6
       ? "Frecuente"
       : totalPedidosCount >= 3
       ? "Regular"
       : user?.tipo || "Nuevo");
-  const descuentoPorcentaje = beneficioFidelidadActivo
-    ? Math.min(15, Math.max(0, Number(fidelidad.descuentoPorcentaje ?? 15)))
-    : 0;
+  const defaultTierDiscount =
+    tipoFidelidad === "VIP" ? 15 : tipoFidelidad === "Frecuente" ? 10 : tipoFidelidad === "Regular" ? 5 : 0;
+  const descuentoPorcentaje =
+    fidelidad.descuentoPorcentaje !== undefined
+      ? Math.min(15, Math.max(0, Number(fidelidad.descuentoPorcentaje || 0)))
+      : defaultTierDiscount;
 
   const comprasCiclo =
     fidelidad.comprasCiclo !== undefined
       ? Number(fidelidad.comprasCiclo)
       : (totalPedidosCount % 3);
-  const comprasFaltantes = beneficioFidelidadActivo
-    ? 0
-    : (fidelidad.comprasFaltantes !== undefined ? Number(fidelidad.comprasFaltantes) : (3 - (comprasCiclo % 3)));
+  const comprasFaltantes =
+    fidelidad.comprasFaltantes !== undefined
+      ? Number(fidelidad.comprasFaltantes)
+      : (3 - (comprasCiclo % 3));
   const siguienteNivel = getNextLevelProgressInfo(tipoFidelidad).targetLabel;
   const enGracia = Boolean(fidelidad.enGracia);
   const diasRestantesRaw = fidelidad.diasRestantes !== undefined ? fidelidad.diasRestantes : (tipoFidelidad !== "Nuevo" ? 30 : null);

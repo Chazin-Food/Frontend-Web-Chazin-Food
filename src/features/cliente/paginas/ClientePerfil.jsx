@@ -1379,11 +1379,13 @@ export function ClientePerfil() {
   const stats = useMemo(() => {
 
     const completedPedidos = pedidos.filter((p) => {
-
       const st = String(p.estado || "").toUpperCase();
-
-      return !st.includes("ANULAD") && !st.includes("CANCEL") && !st.includes("RECHAZ");
-
+      const ap = String(p.estadoAprobacion || "").toUpperCase();
+      const pago = String(p.estadoPago || "").toUpperCase();
+      if (st.includes("ANULAD") || st.includes("CANCEL") || st.includes("RECHAZ")) return false;
+      if (ap === "PENDIENTE" || ap === "RECHAZADO") return false;
+      if (st.includes("POR APROBAR") || pago === "PENDIENTE") return false;
+      return true;
     });
 
     const totalPedidosCount = completedPedidos.length;
@@ -1538,59 +1540,29 @@ export function ClientePerfil() {
 
   const realOrdersCount = stats.totalPedidosCount || 0;
 
-  const beneficioFidelidadActivo = Boolean(
-
-    fidelidad.descuentoDisponible ??
-
-      (fidelidad.descuentoPorcentaje !== undefined
-
-        ? Number(fidelidad.descuentoPorcentaje) > 0
-
-        : realOrdersCount > 0 && realOrdersCount % 3 === 0)
-
-  );
-
   const tipoFidelidad =
-
     fidelidad.tipo ||
-
-    (beneficioFidelidadActivo
-
+    (realOrdersCount >= 9
       ? "VIP"
-
-      : realOrdersCount >= 9
-
-        ? "VIP"
-
-        : realOrdersCount >= 6
-
-          ? "Frecuente"
-
-          : realOrdersCount >= 3
-
-            ? "Regular"
-
-            : (user?.tipo || "Nuevo"));
-
-  const descuentoPorcentaje = beneficioFidelidadActivo
-
-    ? Math.min(15, Math.max(0, Number(fidelidad.descuentoPorcentaje ?? 15)))
-
-    : 0;
-
+      : realOrdersCount >= 6
+        ? "Frecuente"
+        : realOrdersCount >= 3
+          ? "Regular"
+          : (user?.tipo || "Nuevo"));
+  const defaultTierDiscount =
+    tipoFidelidad === "VIP" ? 15 : tipoFidelidad === "Frecuente" ? 10 : tipoFidelidad === "Regular" ? 5 : 0;
+  const descuentoPorcentaje =
+    fidelidad.descuentoPorcentaje !== undefined
+      ? Math.min(15, Math.max(0, Number(fidelidad.descuentoPorcentaje || 0)))
+      : defaultTierDiscount;
   const comprasCiclo =
-
     fidelidad.comprasCiclo !== undefined
-
       ? Number(fidelidad.comprasCiclo)
-
       : (realOrdersCount % 3);
-
-  const comprasFaltantes = beneficioFidelidadActivo
-
-    ? 0
-
-    : (fidelidad.comprasFaltantes !== undefined ? Number(fidelidad.comprasFaltantes) : (3 - (comprasCiclo % 3)));
+  const comprasFaltantes =
+    fidelidad.comprasFaltantes !== undefined
+      ? Number(fidelidad.comprasFaltantes)
+      : (3 - (comprasCiclo % 3));
 
   const siguienteNivel = getNextLevelProgressInfo(tipoFidelidad).targetLabel;
 

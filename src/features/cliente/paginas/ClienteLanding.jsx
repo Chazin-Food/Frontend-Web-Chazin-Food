@@ -972,13 +972,13 @@ export function ClienteLanding() {
     try {
       await ventasService.cancelarVenta(pedidoId);
       success("Pedido cancelado", "Tu pedido fue cancelado exitosamente.");
-      await fetchMyOrders();
+      await Promise.all([fetchMyOrders(), refreshUser ? refreshUser().catch(() => {}) : Promise.resolve()]);
     } catch (err) {
       console.warn("Error cancelando pedido:", err);
       try {
         await ventasService.updateEstadoVenta(pedidoId, "CANCELADO");
         success("Pedido cancelado", "Tu pedido fue cancelado exitosamente.");
-        await fetchMyOrders();
+        await Promise.all([fetchMyOrders(), refreshUser ? refreshUser().catch(() => {}) : Promise.resolve()]);
       } catch (err2) {
         error("Error al cancelar pedido", err2.message || "No se pudo cancelar el pedido.");
       }
@@ -1738,35 +1738,38 @@ export function ClienteLanding() {
 
   const clientSubtotal = getSubtotal();
   const fidelidadCliente = user?.fidelidad || {};
-  const pedidosCount = pedidos.length;
-  // Ficha SENA 3209616: 15% OFF en la compra siguiente tras cada 3 compras
-  const beneficioFidelidadActivo = Boolean(
-    fidelidadCliente.descuentoDisponible ??
-      (fidelidadCliente.descuentoPorcentaje !== undefined
-        ? Number(fidelidadCliente.descuentoPorcentaje) > 0
-        : pedidosCount > 0 && pedidosCount % 3 === 0)
-  );
+  const pedidosCount = pedidos.filter((p) => {
+    const st = String(p.estado || "").toUpperCase();
+    const ap = String(p.estadoAprobacion || "").toUpperCase();
+    const pago = String(p.estadoPago || "").toUpperCase();
+    if (st.includes("ANULAD") || st.includes("CANCEL") || st.includes("RECHAZ")) return false;
+    if (ap === "PENDIENTE" || ap === "RECHAZADO") return false;
+    if (st.includes("POR APROBAR") || pago === "PENDIENTE") return false;
+    return true;
+  }).length;
   const tipoFidelidad =
     fidelidadCliente.tipo ||
-    (beneficioFidelidadActivo
-      ? "VIP"
-      : pedidosCount >= 9
+    (pedidosCount >= 9
       ? "VIP"
       : pedidosCount >= 6
       ? "Frecuente"
       : pedidosCount >= 3
       ? "Regular"
       : user?.tipo || "Nuevo");
-  const discountPercent = beneficioFidelidadActivo
-    ? Math.min(15, Math.max(0, Number(fidelidadCliente.descuentoPorcentaje ?? 15)))
-    : 0;
+  const defaultTierDiscount =
+    tipoFidelidad === "VIP" ? 15 : tipoFidelidad === "Frecuente" ? 10 : tipoFidelidad === "Regular" ? 5 : 0;
+  const discountPercent =
+    fidelidadCliente.descuentoPorcentaje !== undefined
+      ? Math.min(15, Math.max(0, Number(fidelidadCliente.descuentoPorcentaje || 0)))
+      : defaultTierDiscount;
   const comprasCiclo =
     fidelidadCliente.comprasCiclo !== undefined
       ? Number(fidelidadCliente.comprasCiclo)
       : (pedidosCount % 3);
-  const comprasFaltantes = beneficioFidelidadActivo
-    ? 0
-    : (fidelidadCliente.comprasFaltantes !== undefined ? Number(fidelidadCliente.comprasFaltantes) : (3 - (comprasCiclo % 3)));
+  const comprasFaltantes =
+    fidelidadCliente.comprasFaltantes !== undefined
+      ? Number(fidelidadCliente.comprasFaltantes)
+      : (3 - (comprasCiclo % 3));
   const siguienteNivel = getNextLevelProgressInfo(tipoFidelidad).targetLabel;
 
   // Dynamic real-time calculation of remaining days and seconds in hero banner
@@ -2132,12 +2135,21 @@ export function ClienteLanding() {
           if (refreshUser) await refreshUser();
           navigate("/perfil?tab=pedidos", { state: { tab: "pedidos" } });
         } else {
+          if (intencion?.ventaId) {
+            ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
+          }
+          if (refreshUser) refreshUser().catch(() => {});
           setShowCheckout(true);
           error("Pago Rechazado", `La transacción fue ${verificacion.estado || 'rechazada'}. Puedes intentar con otro medio de pago.`);
         }
       } else if (transaction && transaction.status === 'REDIRECTED') {
         return;
       } else if (!transaction || transaction.status === 'CLOSED_WITHOUT_RESULT') {
+        // Cancelar de inmediato la intención Wompi no pagada para liberar stock y evitar órdenes fantasma
+        if (intencion?.ventaId) {
+          await ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
+        }
+        if (refreshUser) await refreshUser().catch(() => {});
         setShowCheckout(true);
         error("Pago cancelado", "Cerraste la pasarela antes de completar el pago.");
       }
