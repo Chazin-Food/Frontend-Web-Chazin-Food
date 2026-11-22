@@ -39,7 +39,13 @@ function SmartLoginRoute({ user }) {
     );
   }
 
-  const target = safeInternalRedirect(params.get("redirect"));
+  const rawRol = typeof user?.rol === "object" ? user?.rol?.nombre : user?.rol;
+  const roleName = String(rawRol || "").toLowerCase().trim();
+  const isClienteUser = !user || roleName === "cliente" || Number(user?.idRol) === 4;
+  let target = safeInternalRedirect(params.get("redirect"));
+  if (!isClienteUser && target.startsWith("/perfil") && !requestedEmail) {
+    target = "/";
+  }
   return <Navigate to={target} replace />;
 }
 

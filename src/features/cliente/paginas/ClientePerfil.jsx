@@ -2353,9 +2353,9 @@ export function ClientePerfil() {
 
                 onClick={() => {
 
-                  logout();
+                  navigate("/", { replace: true });
 
-                  navigate("/");
+                  logout();
 
                 }}
 

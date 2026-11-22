@@ -58,13 +58,13 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
               {ticketPromedioStr}
             </span>
           </div>
-          <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-100/70 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-purple-100/70 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-2xs">
             <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
           </div>
         </div>
         <div className="mt-2.5 sm:mt-4 pt-2 sm:pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between gap-1 text-xs">
           <span className="text-gray-500 dark:text-gray-400 font-medium text-[10px] sm:text-[11px] truncate">Medio por venta</span>
-          <span className="text-gray-400 dark:text-gray-500 font-medium text-[9.5px] sm:text-[10px] shrink-0">Promedio</span>
+          <span className="text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/40 px-1.5 sm:px-2 py-0.5 rounded-md text-[9.5px] sm:text-[10px] shrink-0">Promedio</span>
         </div>
       </div>
 

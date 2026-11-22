@@ -96,8 +96,19 @@ export function Login() {
       ? rawRedirect
       : "/";
 
-  const handleGoogleSuccess = () => {
-    navigate(safeRedirectTarget, { replace: true });
+  const resolvePostLoginTarget = (loggedUser) => {
+    const rawRol = typeof loggedUser?.rol === "object" ? loggedUser?.rol?.nombre : loggedUser?.rol;
+    const roleName = String(rawRol || "").toLowerCase().trim();
+    const isClienteUser = !loggedUser || roleName === "cliente" || Number(loggedUser?.idRol) === 4;
+    // Evitar que un redirect residual de cliente (/perfil) abra el modal de perfil al iniciar como staff/admin
+    if (!isClienteUser && safeRedirectTarget.startsWith("/perfil") && !requestedEmailParam) {
+      return "/";
+    }
+    return safeRedirectTarget;
+  };
+
+  const handleGoogleSuccess = (loggedUser) => {
+    navigate(resolvePostLoginTarget(loggedUser), { replace: true });
   };
 
   // Cerrar dropdown al hacer clic fuera
@@ -225,7 +236,7 @@ export function Login() {
     const result = await login(loginCorreo, loginContraseña);
     if (result === true || result?.success) {
       toast.success("¡Bienvenido!", "Inicio de sesión exitoso");
-      navigate(safeRedirectTarget, { replace: true });
+      navigate(resolvePostLoginTarget(result?.user), { replace: true });
     } else {
       const [errTitle, errMsg] = getLoginErrorToast(result);
       toast.error(errTitle, errMsg);
