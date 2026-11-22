@@ -260,8 +260,21 @@ export function ClientesTable({
                             <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
                             Gracia: {c.fidelidad?.diasGraciaRestantes || 0}d
                           </span>
+                        ) : c.fidelidad?.expirado || c.fidelidad?.diasRestantes === 0 ? (
+                          <span className="text-[10px] text-red-600 dark:text-red-400 font-bold flex items-center gap-1 truncate max-w-full">
+                            <Clock className="w-2.5 h-2.5 shrink-0" />
+                            Vencido
+                          </span>
                         ) : (
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 truncate max-w-full">
+                          <span
+                            className={`text-[10px] font-bold flex items-center gap-1 truncate max-w-full ${
+                              c.fidelidad?.diasRestantes !== null &&
+                              c.fidelidad?.diasRestantes !== undefined &&
+                              c.fidelidad.diasRestantes <= 5
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            }`}
+                          >
                             <Clock className="w-2.5 h-2.5 shrink-0" />
                             {c.fidelidad?.diasRestantes !== null && c.fidelidad?.diasRestantes !== undefined
                               ? `${c.fidelidad.diasRestantes}d rest.`

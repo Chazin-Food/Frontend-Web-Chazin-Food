@@ -674,6 +674,11 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                         <AlertTriangle className="w-3 h-3" />
                         <span>En Gracia: {cliente.fidelidad.diasGraciaRestantes || 0} días restantes</span>
                       </span>
+                    ) : cliente.fidelidad.expirado || cliente.fidelidad.diasRestantes === 0 ? (
+                      <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <Clock className="w-3 h-3" />
+                        <span>Ciclo vencido (por renovar)</span>
+                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1">
                         <Clock className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
