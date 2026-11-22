@@ -4789,7 +4789,7 @@ export function ClientePerfil() {
 
                           <div className="p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-500">
 
-                            <Smartphone className="w-4 h-4" />
+                            {deviceInfo.isMobile ? <Laptop className="w-4 h-4" /> : <Smartphone className="w-4 h-4" />}
 
                           </div>
 
@@ -4797,13 +4797,13 @@ export function ClientePerfil() {
 
                             <h5 className="font-bold text-xs text-gray-800 dark:text-gray-200">
 
-                              Dispositivo Móvil
+                              {deviceInfo.isMobile ? "Windows PC" : "Dispositivo Móvil"}
 
                             </h5>
 
                             <p className="text-[11px] text-gray-400">
 
-                              Navegador Móvil • Medellín, Colombia
+                              {deviceInfo.isMobile ? "Navegador Web • Medellín, Colombia" : "Navegador Móvil • Medellín, Colombia"}
 
                             </p>
 
