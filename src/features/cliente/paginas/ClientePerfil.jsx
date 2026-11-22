@@ -472,10 +472,18 @@ export function ClientePerfil() {
           }
         }
         if (obs.wompiAbandonada === true) return true;
+        if (obs.esDevolucion === true || v.esDevolucion === true) return false;
         const aprob = String(v.estadoAprobacion || obs.estadoAprobacion || "").toUpperCase().trim();
         if (aprob === "APROBADO") return false;
-        if (obs.wompiReference && !obs.wompiTransactionId) return true;
-        return false;
+        if (obs.wompiTransactionId) return false;
+        const isWompiOrOnline =
+          Boolean(obs.wompiReference) ||
+          Boolean(obs.esIntencionWompi) ||
+          Boolean(obs.montoEnCentavos) ||
+          String(obs.metodoPago || v.metodoPago || "").toLowerCase().includes("wompi") ||
+          String(v.origen || obs.origen || "").toUpperCase() === "ONLINE" ||
+          String(v.tipoVenta || "").toUpperCase() === "DOMICILIO";
+        return isWompiOrOnline;
       };
 
       try {
