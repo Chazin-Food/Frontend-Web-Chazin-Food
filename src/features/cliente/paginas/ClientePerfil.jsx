@@ -118,21 +118,21 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/shared/servicios/cloudinaryService";
 
-import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono, validateDireccionMedellin } from "@/shared/utils/validationUtils";
-import { COLOMBIA_TZ, parseDateOnlySafe, formatDateTime12h } from "@/shared/utils/dateUtils";
-
+import { DOCUMENTO_CONFIG, sanitizeDocumento, validateDocumento, sanitizeTelefono, validateDireccionMedellin } from "@/shared/utils/validationUtils";
+import { COLOMBIA_TZ, parseDateOnlySafe, formatDateTime12h } from "@/shared/utils/dateUtils";
+
 import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
 
 import { ventasService } from "@/features/ventas/servicios/ventasService";
 
 import { devolucionesService } from "@/features/ventas/servicios/devolucionesService";
 
-import { SolicitarDevolucionModal } from "@/features/ventas/componentes/devoluciones/SolicitarDevolucionModal";
+import { SolicitarDevolucionModal } from "@/features/ventas/componentes/devoluciones/SolicitarDevolucionModal";
 import { ClientePedidoDevolucionDetalle } from "@/features/ventas/componentes/devoluciones/ClienteDevolucionResumen";
 
 import { wompiService } from "@/features/ventas/servicios/wompiService";
 
-import { useCart } from "@/shared/context/CartContext";
+import { useCart } from "@/shared/context/CartContext";
 import { getClientMeta, setClientMeta } from "@/shared/utils/secureStorage";
 
 import { extractCleanSpecifications } from "@/shared/utils/orderUtils";
@@ -401,13 +401,13 @@ export function ClientePerfil() {
 
   });
 
-  const [errors, setErrors] = useState({});
-
-  const [touched, setTouched] = useState({});
-
-  const addressValidation = useMedellinAddressValidation(
-    tab === "editar" ? form.direccion : "",
-    { required: false }
+  const [errors, setErrors] = useState({});
+
+  const [touched, setTouched] = useState({});
+
+  const addressValidation = useMedellinAddressValidation(
+    tab === "editar" ? form.direccion : "",
+    { required: false }
   );
 
   // Sync user profile on mount
@@ -446,12 +446,12 @@ export function ClientePerfil() {
 
       try {
 
-        const metaOrders = getClientMeta("orders", String(userId || "guest"), null);
-        if (Array.isArray(metaOrders)) {
-          localHistory = metaOrders;
-        } else {
-          localHistory = JSON.parse(localStorage.getItem(storageKey) || "[]");
-          if (localHistory.length > 0) { setClientMeta("orders", String(userId || "guest"), localHistory.slice(0, 50)); localStorage.removeItem(storageKey); }
+        const metaOrders = getClientMeta("orders", String(userId || "guest"), null);
+        if (Array.isArray(metaOrders)) {
+          localHistory = metaOrders;
+        } else {
+          localHistory = JSON.parse(localStorage.getItem(storageKey) || "[]");
+          if (localHistory.length > 0) { setClientMeta("orders", String(userId || "guest"), localHistory.slice(0, 50)); localStorage.removeItem(storageKey); }
         }
 
       } catch (e) {
@@ -472,9 +472,9 @@ export function ClientePerfil() {
 
             (v) =>
 
-              (currentUserId && (v.idUsuario === currentUserId || v.usuario?.idUsuario === currentUserId)) ||
+              (currentUserId && (Number(v.idUsuario) === Number(currentUserId) || Number(v.usuario?.idUsuario) === Number(currentUserId))) ||
 
-              (currentUserClientId && v.idCliente === currentUserClientId) ||
+              (currentUserClientId && Number(v.idCliente) === Number(currentUserClientId)) ||
 
               (currentUserFullName && v.clienteNombre === currentUserFullName)
 
@@ -598,15 +598,15 @@ export function ClientePerfil() {
 
             fecha: formatDateTime12h(matched.fechaVenta, localOrd.fecha || "Reciente"),
 
-            fechaVenta: matched.fechaVenta || localOrd.fechaVenta || null,
-            fechaEntrega:
-              matched.fechaEntrega ||
-              matchedObs.fechaEntrega ||
-              matched.tiemposEstados?.entregado?.fecha ||
-              matchedObs.tiemposEstados?.entregado?.fecha ||
-              localOrd.fechaEntrega ||
-              null,
-            tiemposEstados: matched.tiemposEstados || matchedObs.tiemposEstados || localOrd.tiemposEstados || null,
+            fechaVenta: matched.fechaVenta || localOrd.fechaVenta || null,
+            fechaEntrega:
+              matched.fechaEntrega ||
+              matchedObs.fechaEntrega ||
+              matched.tiemposEstados?.entregado?.fecha ||
+              matchedObs.tiemposEstados?.entregado?.fecha ||
+              localOrd.fechaEntrega ||
+              null,
+            tiemposEstados: matched.tiemposEstados || matchedObs.tiemposEstados || localOrd.tiemposEstados || null,
             fechaCambioEstado: matched.fechaCambioEstado || matchedObs.fechaCambioEstado || localOrd.fechaCambioEstado || null,
 
             detalles: matched.detalles || localOrd.detalles || [],
@@ -619,10 +619,14 @@ export function ClientePerfil() {
 
             descuentoAplicado: matched.descuentoAplicado || localOrd.descuentoAplicado || 0,
 
-            metodoPago: matchedObs.metodoPago || matched.metodoPago || localOrd.metodoPago || "Wompi",
-            esDevolucion: Boolean(matched.esDevolucion || matchedObs.esDevolucion || localOrd.esDevolucion),
-            idDevolucionAsociada: matched.idDevolucionAsociada || matchedObs.idDevolucionAsociada || localOrd.idDevolucionAsociada || null,
-            codigoDevolucionAsociada: matched.codigoDevolucionAsociada || matchedObs.codigoDevolucionAsociada || localOrd.codigoDevolucionAsociada || null,
+            metodoPago: matched.metodoPago || matchedObs.metodoPago || localOrd.metodoPago || "Wompi",
+            metodoPagoDetalle: matched.metodoPagoDetalle || matched.metodo_pago_detalle || matchedObs.metodoPagoDetalle || matchedObs.metodo_pago_detalle || matchedObs.paymentMethodType || null,
+            metodo_pago_detalle: matched.metodo_pago_detalle || matched.metodoPagoDetalle || matchedObs.metodo_pago_detalle || matchedObs.metodoPagoDetalle || matchedObs.paymentMethodType || null,
+            estadoAprobacion: matched.estadoAprobacion || matchedObs.estadoAprobacion || localOrd.estadoAprobacion || null,
+            estadoPago: matched.estadoPago || matchedObs.estadoPago || localOrd.estadoPago || null,
+            esDevolucion: Boolean(matched.esDevolucion || matchedObs.esDevolucion || localOrd.esDevolucion),
+            idDevolucionAsociada: matched.idDevolucionAsociada || matchedObs.idDevolucionAsociada || localOrd.idDevolucionAsociada || null,
+            codigoDevolucionAsociada: matched.codigoDevolucionAsociada || matchedObs.codigoDevolucionAsociada || localOrd.codigoDevolucionAsociada || null,
             codigoVentaOriginal: matched.codigoVentaOriginal || matchedObs.codigoVentaOriginal || localOrd.codigoVentaOriginal || null,
 
             tipoEntrega: matchedObs.tipoEntrega || matched.tipoEntrega || localOrd.tipoEntrega || "Domicilio",
@@ -649,9 +653,9 @@ export function ClientePerfil() {
 
             fecha: localOrd.fecha || formatDateTime12h(localOrd.fechaVenta || localOrd.createdAt, "Reciente"),
 
-            fechaVenta: localOrd.fechaVenta || localOrd.createdAt || null,
-            fechaEntrega: localOrd.fechaEntrega || localOrd.tiemposEstados?.entregado?.fecha || null,
-            tiemposEstados: localOrd.tiemposEstados || null,
+            fechaVenta: localOrd.fechaVenta || localOrd.createdAt || null,
+            fechaEntrega: localOrd.fechaEntrega || localOrd.tiemposEstados?.entregado?.fecha || null,
+            tiemposEstados: localOrd.tiemposEstados || null,
             fechaCambioEstado: localOrd.fechaCambioEstado || null,
 
             detalles: localOrd.detalles || [],
@@ -814,14 +818,14 @@ export function ClientePerfil() {
 
             fecha: formatDateTime12h(o.fechaVenta, "Reciente"),
 
-            fechaVenta: o.fechaVenta || null,
-            fechaEntrega:
-              o.fechaEntrega ||
-              oObs.fechaEntrega ||
-              o.tiemposEstados?.entregado?.fecha ||
-              oObs.tiemposEstados?.entregado?.fecha ||
-              null,
-            tiemposEstados: o.tiemposEstados || oObs.tiemposEstados || null,
+            fechaVenta: o.fechaVenta || null,
+            fechaEntrega:
+              o.fechaEntrega ||
+              oObs.fechaEntrega ||
+              o.tiemposEstados?.entregado?.fecha ||
+              oObs.tiemposEstados?.entregado?.fecha ||
+              null,
+            tiemposEstados: o.tiemposEstados || oObs.tiemposEstados || null,
             fechaCambioEstado: o.fechaCambioEstado || oObs.fechaCambioEstado || null,
 
             detalles: o.detalles || [],
@@ -834,10 +838,14 @@ export function ClientePerfil() {
 
             descuentoAplicado: Number(o.descuentoAplicado) || 0,
 
-            metodoPago: oObs.metodoPago || o.metodoPago || "Wompi",
-            esDevolucion: Boolean(o.esDevolucion || oObs.esDevolucion),
-            idDevolucionAsociada: o.idDevolucionAsociada || oObs.idDevolucionAsociada || null,
-            codigoDevolucionAsociada: o.codigoDevolucionAsociada || oObs.codigoDevolucionAsociada || null,
+            metodoPago: o.metodoPago || oObs.metodoPago || "Wompi",
+            metodoPagoDetalle: o.metodoPagoDetalle || o.metodo_pago_detalle || oObs.metodoPagoDetalle || oObs.metodo_pago_detalle || oObs.paymentMethodType || null,
+            metodo_pago_detalle: o.metodo_pago_detalle || o.metodoPagoDetalle || oObs.metodo_pago_detalle || oObs.metodoPagoDetalle || oObs.paymentMethodType || null,
+            estadoAprobacion: o.estadoAprobacion || oObs.estadoAprobacion || null,
+            estadoPago: o.estadoPago || oObs.estadoPago || null,
+            esDevolucion: Boolean(o.esDevolucion || oObs.esDevolucion),
+            idDevolucionAsociada: o.idDevolucionAsociada || oObs.idDevolucionAsociada || null,
+            codigoDevolucionAsociada: o.codigoDevolucionAsociada || oObs.codigoDevolucionAsociada || null,
             codigoVentaOriginal: o.codigoVentaOriginal || oObs.codigoVentaOriginal || null,
 
             tipoEntrega: oObs.tipoEntrega || o.tipoEntrega || "Domicilio",
@@ -894,20 +902,20 @@ export function ClientePerfil() {
 
     if (!ped) return null;
 
-    if (ped.esDevolucion) {
-      const idPed = ped.idVenta || ped.id;
-      const linked = misDevoluciones.find((d) => Number(d.idVentaReemplazo) === Number(idPed));
-      return {
-        existing: null,
-        linkedReplacementFor: linked || null,
-        cumplePlazo: false,
-        horasRestantes: 0,
-        esCompletado: false,
-        puedeSolicitar: false,
-        esPedidoDevolucion: true
-      };
-    }
-
+    if (ped.esDevolucion) {
+      const idPed = ped.idVenta || ped.id;
+      const linked = misDevoluciones.find((d) => Number(d.idVentaReemplazo) === Number(idPed));
+      return {
+        existing: null,
+        linkedReplacementFor: linked || null,
+        cumplePlazo: false,
+        horasRestantes: 0,
+        esCompletado: false,
+        puedeSolicitar: false,
+        esPedidoDevolucion: true
+      };
+    }
+
     const idVenta = ped.idVenta || ped.id;
 
     const existing = misDevoluciones.find(
@@ -916,13 +924,13 @@ export function ClientePerfil() {
 
     );
 
-    const fechaRaw =
-      ped.fechaEntrega ||
-      ped.tiemposEstados?.entregado?.fecha ||
-      ped.fechaCambioEstado ||
-      ped.fechaVenta ||
-      ped.fechaCreacion ||
-      ped.createdAt ||
+    const fechaRaw =
+      ped.fechaEntrega ||
+      ped.tiemposEstados?.entregado?.fecha ||
+      ped.fechaCambioEstado ||
+      ped.fechaVenta ||
+      ped.fechaCreacion ||
+      ped.createdAt ||
       ped.fecha;
 
     let diffHours = null;
@@ -943,11 +951,11 @@ export function ClientePerfil() {
 
     const est = String(ped.estado || "").toLowerCase();
 
-    const esCompletado =
-      est.includes("completad") ||
-      est.includes("listo") ||
-      est.includes("entregad") ||
-      est.includes("despachad") ||
+    const esCompletado =
+      est.includes("completad") ||
+      est.includes("listo") ||
+      est.includes("entregad") ||
+      est.includes("despachad") ||
       est.includes("camino");
 
     return {
@@ -1178,6 +1186,16 @@ export function ClientePerfil() {
 
   }, [user]);
 
+  const tienePassword = useMemo(() => {
+
+    if (typeof user?.tiene_password === "boolean") return user.tiene_password;
+
+    if (typeof user?.tienePassword === "boolean") return user.tienePassword;
+
+    return !isGoogleUser;
+
+  }, [user, isGoogleUser]);
+
   const rawDocUser = user?.numeroDocumento || user?.documento || "";
 
   const tieneCedulaRegistrada = Boolean(rawDocUser && String(rawDocUser).trim().length >= 6);
@@ -1230,7 +1248,7 @@ export function ClientePerfil() {
 
     const errs = {};
 
-    if (!passForm.passwordActual) {
+    if (tienePassword && !passForm.passwordActual) {
 
       errs.passwordActual = "Ingresa tu contraseña actual.";
 
@@ -1260,7 +1278,7 @@ export function ClientePerfil() {
 
       setPassErrors(errs);
 
-      setPassTouched({ passwordActual: true, passwordNueva: true, passwordConfirm: true });
+      setPassTouched({ passwordActual: tienePassword, passwordNueva: true, passwordConfirm: true });
 
       return;
 
@@ -1270,13 +1288,9 @@ export function ClientePerfil() {
 
     try {
 
-      const payload = {
-
-        passwordActual: passForm.passwordActual,
-
-        passwordNueva: passForm.passwordNueva,
-
-      };
+      const payload = tienePassword
+        ? { passwordActual: passForm.passwordActual, passwordNueva: passForm.passwordNueva }
+        : { passwordNueva: passForm.passwordNueva };
 
       const res = await updateProfile(payload);
 
@@ -1284,9 +1298,11 @@ export function ClientePerfil() {
 
         success(
 
-          "¡Contraseña actualizada!",
+          !tienePassword ? "¡Contraseña creada!" : "¡Contraseña actualizada!",
 
-          "Tu contraseña ha sido actualizada correctamente."
+          !tienePassword
+            ? "Tu contraseña local ha sido asignada correctamente. Ahora también puedes iniciar sesión con tu correo y contraseña."
+            : "Tu contraseña ha sido actualizada correctamente."
 
         );
 
@@ -1379,6 +1395,7 @@ export function ClientePerfil() {
   const stats = useMemo(() => {
 
     const completedPedidos = pedidos.filter((p) => {
+      if (p.esDevolucion) return false;
       const st = String(p.estado || "").toUpperCase();
       const ap = String(p.estadoAprobacion || "").toUpperCase();
       const pago = String(p.estadoPago || "").toUpperCase();
@@ -1442,71 +1459,86 @@ export function ClientePerfil() {
 
     const favoriteCount = sortedItems.length > 0 ? sortedItems[0][1] : 0;
 
-    // Favorite payment method
+    // Favorite payment method (combinando compras online con detalle de Wompi y POS en Efectivo)
+    const mapReadablePaymentLabel = (raw) => {
+      const txt = String(raw || "").trim();
+      if (!txt) return "";
+      const paren = txt.match(/\(([^)]+)\)/);
+      const candidate = (paren && paren[1]) ? paren[1].trim() : txt;
+      const upper = candidate.toUpperCase().replace(/[\s-]+/g, "_");
+      const MAP = {
+        CARD: "Tarjeta",
+        NEQUI: "Nequi",
+        PSE: "PSE",
+        BANCOLOMBIA_TRANSFER: "Botón Bancolombia",
+        BANCOLOMBIA_COLLECT: "Corresponsal Bancolombia",
+        BANCOLOMBIA_QR: "QR Bancolombia",
+        BANCOLOMBIA_BNPL: "BNPL",
+        DAVIPLATA: "DaviPlata",
+        PCOL: "Puntos Colombia",
+        BNPL: "BNPL",
+        SU_PLUS: "Crédito SU+Pay",
+        SU_PAY: "Crédito SU+Pay"
+      };
+      if (MAP[upper]) return MAP[upper];
+      const lower = candidate.toLowerCase();
+      if (lower.includes("nequi")) return "Nequi";
+      if (lower.includes("daviplata") || lower.includes("davi")) return "DaviPlata";
+      if (lower === "pse" || /\bpse\b/.test(lower)) return "PSE";
+      if (lower.includes("bancolombia_transfer") || lower.includes("botón bancolombia") || lower.includes("boton bancolombia")) return "Botón Bancolombia";
+      if (lower.includes("bancolombia_collect") || lower.includes("corresponsal")) return "Corresponsal Bancolombia";
+      if (lower.includes("pcol") || lower.includes("puntos colombia")) return "Puntos Colombia";
+      if (lower.includes("bnpl")) return "BNPL";
+      if (lower.includes("su_plus") || lower.includes("su+pay")) return "Crédito SU+Pay";
+      if (lower.includes("tarjeta") || lower.includes("card")) return "Tarjeta";
+      if (lower.includes("efectivo")) return "Efectivo";
+      if (lower.includes("wompi")) return "Wompi";
+      return candidate;
+    };
 
-    const paymentCounts = { Efectivo: 0, Tarjeta: 0, Transferencia: 0 };
+    const hasCompletedOrders = completedPedidos.length > 0;
+    let topPayment = "Sin datos aún";
+    let paymentPercent = null;
+    let preferredDelivery = "Sin datos aún";
 
-    completedPedidos.forEach((p) => {
+    if (hasCompletedOrders) {
+      const paymentCounts = new Map();
+      completedPedidos.forEach((p) => {
+        const rawMethod = p.metodo_pago_detalle || p.metodoPagoDetalle || p.metodoPago || "Efectivo";
+        const label = mapReadablePaymentLabel(rawMethod) || "Efectivo";
+        paymentCounts.set(label, (paymentCounts.get(label) || 0) + 1);
+      });
 
-      const m = String(p.metodoPago || "Efectivo").toLowerCase();
+      let topCount = 0;
+      paymentCounts.forEach((count, label) => {
+        if (count > topCount) {
+          topCount = count;
+          topPayment = label;
+        }
+      });
+      paymentPercent = Math.round((topCount / completedPedidos.length) * 100);
 
-      if (m.includes("tarjeta")) paymentCounts.Tarjeta++;
-
-      else if (m.includes("transfer")) paymentCounts.Transferencia++;
-
-      else paymentCounts.Efectivo++;
-
-    });
-
-    let topPayment = "Efectivo";
-
-    let topPaymentCount = paymentCounts.Efectivo;
-
-    if (paymentCounts.Tarjeta > topPaymentCount) {
-
-      topPayment = "Tarjeta";
-
-      topPaymentCount = paymentCounts.Tarjeta;
-
+      let deliveryCount = 0;
+      let pickupCount = 0;
+      completedPedidos.forEach((p) => {
+        const t = String(p.tipoEntrega || "").toLowerCase();
+        if (t.includes("llevar") || t.includes("recoger") || t.includes("mesa")) pickupCount++;
+        else deliveryCount++;
+      });
+      preferredDelivery = deliveryCount >= pickupCount ? "A Domicilio" : "En Mesa";
     }
-
-    if (paymentCounts.Transferencia > topPaymentCount) {
-
-      topPayment = "Transferencia";
-
-      topPaymentCount = paymentCounts.Transferencia;
-
-    }
-
-    const paymentPercent = completedPedidos.length > 0 ? Math.round((topPaymentCount / completedPedidos.length) * 100) : 100;
-
-    // Favorite delivery method
-
-    let deliveryCount = 0;
-
-    let pickupCount = 0;
-
-    completedPedidos.forEach((p) => {
-
-      const t = String(p.tipoEntrega || "").toLowerCase();
-
-      if (t.includes("llevar") || t.includes("recoger") || t.includes("mesa")) pickupCount++;
-
-      else deliveryCount++;
-
-    });
-
-    const preferredDelivery = deliveryCount >= pickupCount ? "A Domicilio" : "En Mesa";
 
     // Last order date
 
-    const lastOrderDate = completedPedidos.length > 0 ? completedPedidos[0].fecha : "Sin compras recientes";
+    const lastOrderDate = hasCompletedOrders ? completedPedidos[0].fecha : "Sin compras recientes";
 
     return {
 
       totalPedidosCount,
 
       completedPedidosCount: completedPedidos.length,
+
+      hasCompletedOrders,
 
       totalGastado,
 
@@ -1694,7 +1726,7 @@ export function ClientePerfil() {
 
         barColor,
 
-        fechaVencimientoStr: fechaVencimientoObj.toLocaleDateString("es-CO", {
+        fechaVencimientoStr: fechaVencimientoObj.toLocaleDateString("es-CO", {
           timeZone: COLOMBIA_TZ,
 
           year: "numeric",
@@ -1963,16 +1995,16 @@ export function ClientePerfil() {
 
         return validateDocumento(val, extra.tipoDocumento || form.tipoDocumento).error || "";
 
-      case "telefono":
-
-        if (!val) return "";
-
-        return val.length < 7 ? "Mínimo 7 dígitos." : "";
-
-      case "direccion":
-
-        return validateDireccionMedellin(val, { required: false }).error || "";
-
+      case "telefono":
+
+        if (!val) return "";
+
+        return val.length < 7 ? "Mínimo 7 dígitos." : "";
+
+      case "direccion":
+
+        return validateDireccionMedellin(val, { required: false }).error || "";
+
       default:
 
         return "";
@@ -2067,21 +2099,21 @@ export function ClientePerfil() {
 
     }
 
-    if (form.telefono) {
-
-      const errTel = validateSingleField("telefono", form.telefono);
-
-      if (errTel) errs.telefono = errTel;
-
-    }
-
-    const dirVal = validateDireccionMedellin(form.direccion, { required: false });
-    if (!dirVal.isValid) {
-      errs.direccion = dirVal.error;
-    } else if (form.direccion.trim() && addressValidation.status === "invalid" && addressValidation.error) {
-      errs.direccion = addressValidation.error;
-    }
-
+    if (form.telefono) {
+
+      const errTel = validateSingleField("telefono", form.telefono);
+
+      if (errTel) errs.telefono = errTel;
+
+    }
+
+    const dirVal = validateDireccionMedellin(form.direccion, { required: false });
+    if (!dirVal.isValid) {
+      errs.direccion = dirVal.error;
+    } else if (form.direccion.trim() && addressValidation.status === "invalid" && addressValidation.error) {
+      errs.direccion = addressValidation.error;
+    }
+
     return errs;
 
   };
@@ -3036,7 +3068,9 @@ export function ClientePerfil() {
 
                         <p className="text-sm font-black text-gray-900 dark:text-gray-100 mt-1">
 
-                          {stats.topPayment} ({stats.paymentPercent}%)
+                          {stats.hasCompletedOrders && stats.paymentPercent !== null
+                            ? `${stats.topPayment} (${stats.paymentPercent}%)`
+                            : stats.topPayment}
 
                         </p>
 
@@ -4012,23 +4046,23 @@ export function ClientePerfil() {
 
                       </label>
 
-                      <div className="relative">
-                        <MapPin className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          name="direccion"
-                          value={form.direccion}
-                          onBlur={() => handleBlur("direccion")}
-                          onChange={handleChange}
-                          placeholder="Ej: Calle 50 # 30-20, Medellín"
-                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-medium bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none transition focus:ring-2 focus:bg-white dark:focus:bg-gray-800 ${(touched.direccion && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid") ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400" : addressValidation.status === "verified" ? "border-emerald-500/70 focus:ring-emerald-400" : "border-gray-200 dark:border-gray-700 focus:ring-red-400"}`}
-                        />
-                      </div>
-                      <MedellinAddressStatus
-                        status={addressValidation.status}
-                        error={(touched.direccion && errors.direccion) || (form.direccion.trim() ? addressValidation.error : "")}
-                        verifiedInfo={addressValidation.verifiedInfo}
-                        showError={Boolean((touched.direccion && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid"))}
+                      <div className="relative">
+                        <MapPin className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          name="direccion"
+                          value={form.direccion}
+                          onBlur={() => handleBlur("direccion")}
+                          onChange={handleChange}
+                          placeholder="Ej: Calle 50 # 30-20, Medellín"
+                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-medium bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none transition focus:ring-2 focus:bg-white dark:focus:bg-gray-800 ${(touched.direccion && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid") ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400" : addressValidation.status === "verified" ? "border-emerald-500/70 focus:ring-emerald-400" : "border-gray-200 dark:border-gray-700 focus:ring-red-400"}`}
+                        />
+                      </div>
+                      <MedellinAddressStatus
+                        status={addressValidation.status}
+                        error={(touched.direccion && errors.direccion) || (form.direccion.trim() ? addressValidation.error : "")}
+                        verifiedInfo={addressValidation.verifiedInfo}
+                        showError={Boolean((touched.direccion && errors.direccion) || (form.direccion.trim() && addressValidation.status === "invalid"))}
                       />
 
                       <p className="text-[11px] text-gray-400 mt-1">
@@ -4099,7 +4133,7 @@ export function ClientePerfil() {
 
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
 
-                          {isGoogleUser
+                          {!tienePassword
 
                             ? "Asigna una contraseña para ingresar también escribiendo tu correo y contraseña directamente."
 
@@ -4137,7 +4171,9 @@ export function ClientePerfil() {
 
                           <p className="text-blue-800 dark:text-blue-300/90 leading-relaxed">
 
-                            Actualmente accedes mediante Google. Por seguridad se requiere tu contraseña actual para modificarla; si aún no has creado una contraseña local, usa la opción "¿Olvidaste tu contraseña?" en el inicio de sesión para establecerla por correo electrónico.
+                            {!tienePassword
+                              ? "Actualmente accedes mediante Google. Puedes crear una contraseña local aquí para iniciar sesión también con tu correo y contraseña."
+                              : "Tu cuenta está vinculada con Google y ya cuenta con una contraseña local activa. Por seguridad, ingresa tu contraseña actual si deseas modificarla."}
 
                           </p>
 
@@ -4148,6 +4184,8 @@ export function ClientePerfil() {
                     )}
 
                     <form onSubmit={handlePassSubmit} className="space-y-4" noValidate>
+
+                      {tienePassword && (
 
                         <div>
 
@@ -4210,6 +4248,8 @@ export function ClientePerfil() {
                           )}
 
                         </div>
+
+                      )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -4407,7 +4447,7 @@ export function ClientePerfil() {
 
                               <Key className="w-4 h-4" />
 
-                              <span>{isGoogleUser ? "Crear y Asignar Contraseña" : "Actualizar Contraseña"}</span>
+                              <span>{!tienePassword ? "Crear y Asignar Contraseña" : "Actualizar Contraseña"}</span>
 
                             </>
 
@@ -4929,7 +4969,9 @@ export function ClientePerfil() {
 
                     <CreditCard className="w-3.5 h-3.5 text-red-500" />
 
-                    {selectedPedidoDetalle.metodoPago || "Wompi (En línea)"}
+                    {selectedPedidoDetalle.metodo_pago_detalle || selectedPedidoDetalle.metodoPagoDetalle
+    ? `${selectedPedidoDetalle.metodoPago || "Wompi"} (${selectedPedidoDetalle.metodo_pago_detalle || selectedPedidoDetalle.metodoPagoDetalle})`
+    : (selectedPedidoDetalle.metodoPago || "Wompi (En línea)")}
 
                   </span>
 
@@ -5135,7 +5177,7 @@ export function ClientePerfil() {
 
                       </div>
 
-                      <ClientePedidoDevolucionDetalle devInfo={devInfo} ped={selectedPedidoDetalle} detailsOnly={true} onSolicitar={() => { const p = selectedPedidoDetalle; setSelectedPedidoDetalle(null); setPedidoParaDevolucion(p); setSolicitarDevolucionOpen(true); }} />
+                      <ClientePedidoDevolucionDetalle devInfo={devInfo} ped={selectedPedidoDetalle} detailsOnly={true} onSolicitar={() => { const p = selectedPedidoDetalle; setSelectedPedidoDetalle(null); setPedidoParaDevolucion(p); setSolicitarDevolucionOpen(true); }} />
                       <p className="text-[11px] text-amber-700 dark:text-amber-300">
 
                         Motivo: <strong>{devInfo.existing.motivo}</strong> · Solución: <strong>{devInfo.existing.tipoResolucion}</strong>
@@ -5186,7 +5228,7 @@ export function ClientePerfil() {
 
               })()}
 
-              {selectedPedidoDetalle?.esDevolucion && (<ClientePedidoDevolucionDetalle devInfo={getDevolucionInfo(selectedPedidoDetalle)} ped={selectedPedidoDetalle} />)}
+              {selectedPedidoDetalle?.esDevolucion && (<ClientePedidoDevolucionDetalle devInfo={getDevolucionInfo(selectedPedidoDetalle)} ped={selectedPedidoDetalle} />)}
               {/* Close Button */}
 
               {puedeConfirmarEntrega(selectedPedidoDetalle) && (

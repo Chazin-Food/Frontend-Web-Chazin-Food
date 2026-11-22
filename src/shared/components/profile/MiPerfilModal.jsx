@@ -78,6 +78,13 @@ export function MiPerfilModal({ isOpen, onClose }) {
     (user?.avatar && user?.avatar.includes("googleusercontent.com"))
   );
 
+  const tienePassword =
+    typeof user?.tiene_password === "boolean"
+      ? user.tiene_password
+      : typeof user?.tienePassword === "boolean"
+        ? user.tienePassword
+        : !isGoogleUser;
+
   if (!isOpen) return null;
 
   const docConfig = DOCUMENTO_CONFIG[form.tipoDocumento] || DOCUMENTO_CONFIG["C.C."];
@@ -99,7 +106,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
       case "direccion":
         return validateDireccionMedellin(val, { required: false }).error || "";
       case "passwordActual":
-        return !val ? "Ingresa tu contraseña actual." : "";
+        return tienePassword && !val ? "Ingresa tu contraseña actual." : "";
       case "passwordNueva":
         return !val ? "Ingresa la nueva contraseña." : val.length < 6 ? "Mínimo 6 caracteres." : "";
       case "passwordConfirm":
@@ -174,7 +181,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
 
   const validatePass = () => {
     const errs = {};
-    if (!passForm.passwordActual) errs.passwordActual = "Ingresa tu contraseña actual.";
+    if (tienePassword && !passForm.passwordActual) errs.passwordActual = "Ingresa tu contraseña actual.";
     if (!passForm.passwordNueva) errs.passwordNueva = "Ingresa la nueva contraseña.";
     else if (passForm.passwordNueva.length < 6) errs.passwordNueva = "Mínimo 6 caracteres.";
     if (passForm.passwordNueva !== passForm.passwordConfirm) errs.passwordConfirm = "Las contraseñas no coinciden.";
@@ -225,15 +232,21 @@ export function MiPerfilModal({ isOpen, onClose }) {
 
     setSaving(true);
     try {
-      const payload = {
-        passwordActual: passForm.passwordActual,
-        passwordNueva: passForm.passwordNueva,
-      };
+      const payload = tienePassword
+        ? {
+            passwordActual: passForm.passwordActual,
+            passwordNueva: passForm.passwordNueva,
+          }
+        : {
+            passwordNueva: passForm.passwordNueva,
+          };
       const result = await updateProfile(payload);
       if (result.success) {
         notify.success(
-          "¡Contraseña cambiada!",
-          "Tu contraseña ha sido actualizada correctamente."
+          !tienePassword ? "¡Contraseña creada!" : "¡Contraseña actualizada!",
+          !tienePassword
+            ? "Tu contraseña local ha sido asignada correctamente."
+            : "Tu contraseña ha sido actualizada correctamente."
         );
         setPassForm({ passwordActual: "", passwordNueva: "", passwordConfirm: "" });
       } else {
@@ -508,7 +521,9 @@ export function MiPerfilModal({ isOpen, onClose }) {
                   <div>
                     <p className="font-bold">Cuenta vinculada con Google OAuth 2.0</p>
                     <p className="text-blue-700 dark:text-blue-300/90 mt-0.5 leading-relaxed">
-                      Por seguridad se requiere tu contraseña actual para modificarla. Si aún no tienes contraseña local, utiliza la opción &quot;¿Olvidaste tu contraseña?&quot; en el inicio de sesión para establecerla por correo electrónico.
+                      {!tienePassword
+                        ? "Actualmente accedes mediante Google. Puedes crear una contraseña local aquí para iniciar sesión también con tu correo y contraseña."
+                        : "Tu cuenta está vinculada con Google y ya cuenta con una contraseña local activa. Por seguridad, ingresa tu contraseña actual si deseas modificarla."}
                     </p>
                   </div>
                 </div>
@@ -518,7 +533,8 @@ export function MiPerfilModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Contraseña actual (obligatoria por seguridad AUD-018) */}
+              {/* Contraseña actual (solo si el usuario ya cuenta con contraseña local) */}
+              {tienePassword && (
               <div>
                 <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5">Contraseña Actual <span className="text-red-500">*</span></label>
                 <div className="relative">
@@ -538,6 +554,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
                 </div>
                 <FieldError msg={errors.passwordActual} />
               </div>
+              )}
 
               {/* Nueva contraseña */}
               <div>
@@ -599,7 +616,7 @@ export function MiPerfilModal({ isOpen, onClose }) {
                     Guardando...
                   </>
                 ) : (
-                  <><Lock className="w-4 h-4" /> Cambiar Contraseña</>
+                  <><Lock className="w-4 h-4" /> {!tienePassword ? "Crear y Asignar Contraseña" : "Actualizar Contraseña"}</>
                 )}
               </button>
             </form>
