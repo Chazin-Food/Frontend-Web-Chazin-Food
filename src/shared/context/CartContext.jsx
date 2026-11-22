@@ -333,9 +333,14 @@ export function CartProvider({ children }) {
         ? prodEvents.find((e) => String(e.idEvento || e.id) === String(itemEvtId)) || null
         : (prodEvents.find((e) => resolveLiveEventPrice(liveBasePrice, e, prodId) !== null) || null);
 
+      const wasAddedFromEventModal = Boolean(
+        item.esPromocionEvento ||
+        (item.isEvento && Boolean(item.eventoInfo?.nombre))
+      );
+
       let livePrice = liveBasePrice;
-      let nextEventoInfo = item.eventoInfo || null;
-      let nextIsEvento = Boolean(item.isEvento);
+      let nextEventoInfo = wasAddedFromEventModal ? (item.eventoInfo || null) : null;
+      let nextIsEvento = wasAddedFromEventModal;
       let nextPrecioOriginal = item.precioOriginal;
 
       if (matchedEvent) {
@@ -343,14 +348,18 @@ export function CartProvider({ children }) {
         if (eventPromoPrice !== null) {
           livePrice = eventPromoPrice;
           nextPrecioOriginal = liveBasePrice;
-          nextIsEvento = true;
-          nextEventoInfo = {
-            ...(item.eventoInfo || {}),
-            idEvento: matchedEvent.idEvento || matchedEvent.id,
-            titulo: matchedEvent.titulo || matchedEvent.nombre || item.eventoInfo?.titulo,
-            tipoEvento: matchedEvent.tipoEvento || item.eventoInfo?.tipoEvento,
-            descuento: matchedEvent.descuento ?? item.eventoInfo?.descuento
-          };
+          // Solo mantener bandera de evento si el producto fue agregado explícitamente desde un evento
+          if (wasAddedFromEventModal) {
+            nextIsEvento = true;
+            nextEventoInfo = {
+              ...(item.eventoInfo || {}),
+              idEvento: matchedEvent.idEvento || matchedEvent.id,
+              nombre: item.eventoInfo?.nombre || matchedEvent.titulo || matchedEvent.nombre,
+              titulo: matchedEvent.titulo || matchedEvent.nombre || item.eventoInfo?.titulo,
+              tipoEvento: matchedEvent.tipoEvento || item.eventoInfo?.tipoEvento,
+              descuento: matchedEvent.descuento ?? item.eventoInfo?.descuento
+            };
+          }
         }
       } else if (item.isEvento || item.eventoInfo) {
         // El evento expiró o fue desactivado: volver al precio vigente del producto
@@ -408,6 +417,7 @@ export function CartProvider({ children }) {
         varianteNombre: nextVarianteNombre,
         adiciones: nextAdiciones,
         isEvento: nextIsEvento,
+        esPromocionEvento: nextIsEvento ? Boolean(item.esPromocionEvento || wasAddedFromEventModal) : false,
         eventoInfo: nextEventoInfo
       };
 
@@ -419,6 +429,7 @@ export function CartProvider({ children }) {
         Number(updatedItem.cantidad) !== Number(item.cantidad) ||
         updatedItem.varianteNombre !== item.varianteNombre ||
         Boolean(updatedItem.isEvento) !== Boolean(item.isEvento) ||
+        Boolean(updatedItem.eventoInfo) !== Boolean(item.eventoInfo) ||
         JSON.stringify(updatedItem.adiciones || []) !== JSON.stringify(item.adiciones || []);
 
       if (itemChanged) updatedCount++;

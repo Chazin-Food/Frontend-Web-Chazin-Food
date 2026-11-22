@@ -18,7 +18,7 @@ export const loadWompiScript = () => {
         clearInterval(interval);
         return resolve(window.WidgetCheckout);
       }
-      if (checkCount >= 25) { // 2.5 segundos (25 * 100ms) - Fallback rápido para no congelar la UI
+      if (checkCount >= 80) { // 8 segundos (80 * 100ms) - Tolerante a redes 3G lentas antes de activar fallback
         clearInterval(interval);
         reject(new Error("No se pudo inicializar la pasarela Wompi en el navegador. Revisa tu conexión o desactiva bloqueadores de anuncios."));
       }
@@ -149,13 +149,112 @@ export const wompiService = {
 
         const checkout = new WidgetCheckout(config);
 
+        let settled = false;
+        let hasOpened = false;
+        let observer = null;
+        let pollTimer = null;
+        let closeGraceTimer = null;
+        let openTimeoutTimer = null;
+
+        const cleanup = () => {
+          if (observer) {
+            try { observer.disconnect(); } catch (_) {}
+            observer = null;
+          }
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+          if (closeGraceTimer) {
+            clearTimeout(closeGraceTimer);
+            closeGraceTimer = null;
+          }
+          if (openTimeoutTimer) {
+            clearTimeout(openTimeoutTimer);
+            openTimeoutTimer = null;
+          }
+        };
+
+        const finish = (value) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve(value);
+        };
+
+        const fail = (err) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(err);
+        };
+
+        const isBackdropOpen = () => {
+          if (typeof document === "undefined") return false;
+          const backdrops = document.querySelectorAll(".waybox-backdrop");
+          for (const el of backdrops) {
+            if (el.hidden) continue;
+            if (el.classList.contains("waybox-backdrop-final-close")) continue;
+            const style = window.getComputedStyle(el);
+            if (style.display === "none" || style.visibility === "hidden") continue;
+            return true;
+          }
+          return false;
+        };
+
+        const evaluateBackdropState = () => {
+          if (settled) return;
+          const openNow = isBackdropOpen();
+          if (openNow) {
+            if (!hasOpened) {
+              hasOpened = true;
+              if (openTimeoutTimer) {
+                clearTimeout(openTimeoutTimer);
+                openTimeoutTimer = null;
+              }
+            }
+            if (closeGraceTimer) {
+              clearTimeout(closeGraceTimer);
+              closeGraceTimer = null;
+            }
+          } else if (hasOpened && !closeGraceTimer) {
+            // El widget de Wompi oculta .waybox-backdrop (waybox-backdrop-final-close + hidden)
+            // sin ejecutar el callback de checkout.open cuando el usuario cierra con la X sin elegir medio de pago.
+            // Esperamos 650ms por si Wompi sí dispara el callback nativo con la transacción.
+            closeGraceTimer = setTimeout(() => {
+              if (!settled && !isBackdropOpen()) {
+                finish({ status: "CLOSED_WITHOUT_RESULT" });
+              }
+            }, 650);
+          }
+        };
+
+        if (typeof document !== "undefined" && document.body && typeof MutationObserver !== "undefined") {
+          observer = new MutationObserver(evaluateBackdropState);
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["class", "hidden", "style"]
+          });
+        }
+
+        pollTimer = setInterval(evaluateBackdropState, 400);
+
+        // Si el widget jamás logra mostrarse (red bloqueada o fallo silencioso), activar fallback sin congelar UI
+        openTimeoutTimer = setTimeout(() => {
+          if (!settled && !hasOpened) {
+            fail(new Error("El widget de Wompi tardó demasiado en responder."));
+          }
+        }, 20000);
+
         checkout.open(async (result) => {
           console.log("Resultado retornado por Wompi Widget:", result);
           const transaction = result ? result.transaction : null;
           if (!transaction) {
-            return resolve({ status: "CLOSED_WITHOUT_RESULT" });
+            return finish({ status: "CLOSED_WITHOUT_RESULT" });
           }
-          resolve(transaction);
+          finish(transaction);
         });
       } catch (err) {
         console.error("Error inicializando WidgetCheckout:", err);

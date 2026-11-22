@@ -844,6 +844,7 @@ export function PersonalizarEventoModal({
       stock: Number(targetProduct.stock !== undefined ? targetProduct.stock : (targetProduct.stockActual !== undefined ? targetProduct.stockActual : 0)),
       imagen: (!isBaseSelection && selectedVariant?.imagen) ? selectedVariant.imagen : targetProduct.imagen,
       isEvento: true,
+      esPromocionEvento: true,
       eventoInfo: {
         idEvento: evento.id || evento.idEvento,
         nombre: eventNameTag,

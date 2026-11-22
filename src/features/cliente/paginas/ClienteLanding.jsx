@@ -1949,6 +1949,9 @@ export function ClienteLanding() {
 
     // ── FLUJO EXCLUSIVO WOMPI EN WEB (PAGOS EN LÍNEA: PSE, NEQUI, TARJETAS, BANCOLOMBIA) ──
     setIsProcessingWompi(true);
+    let intencion = null;
+    let redirectedToCheckoutWeb = false;
+    let hasTransactionId = false;
     try {
       const ventaPayload = {
         idCliente: user?.idCliente || null,
@@ -2037,7 +2040,7 @@ export function ClienteLanding() {
       };
 
       // 1. Crear intención y obtener firma SHA-256 en el backend
-      const intencion = await wompiService.crearIntencion(ventaPayload);
+      intencion = await wompiService.crearIntencion(ventaPayload);
 
       // Ocultar modal propio para que el modal oficial de Wompi sea 100% visible sin conflicto de z-index
       setShowCheckout(false);
@@ -2077,6 +2080,7 @@ export function ClienteLanding() {
         }
 
         if (win && !win.closed) {
+          redirectedToCheckoutWeb = true;
           success("Pasarela Wompi Abierta", "Se abrió la pasarela oficial de Wompi en una nueva pestaña para completar tu pago de forma segura.");
           clearCart();
           setShowCart(false);
@@ -2086,6 +2090,7 @@ export function ClienteLanding() {
 
         // Fallback garantizado: si el navegador bloqueó ventanas emergentes (Adblock / Chrome Popup Blocker)
         // Redirigir de forma directa y transparente en la pestaña actual
+        redirectedToCheckoutWeb = true;
         clearCart();
         setShowCart(false);
         setShowCheckout(false);
@@ -2095,6 +2100,7 @@ export function ClienteLanding() {
 
       // 3. Evaluar resultado retornado por Wompi
       if (transaction && transaction.id) {
+        hasTransactionId = true;
         const verificacion = await wompiService.verificarTransaccion(transaction.id);
 
         if (verificacion.aprobado) {
@@ -2154,6 +2160,10 @@ export function ClienteLanding() {
         error("Pago cancelado", "Cerraste la pasarela antes de completar el pago.");
       }
     } catch (wompiErr) {
+      if (intencion?.ventaId && !redirectedToCheckoutWeb && !hasTransactionId) {
+        await ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
+        if (refreshUser) await refreshUser().catch(() => {});
+      }
       setShowCheckout(true);
       console.error("Error en flujo de Wompi:", wompiErr);
       const detail = wompiErr?.message || "No se pudo conectar con Wompi o el servidor";
@@ -3056,7 +3066,7 @@ export function ClienteLanding() {
                     const itemKey = item.cartItemId || `${item.id}-${index}`;
                     const prodStock = Number(item.stock !== undefined ? item.stock : 0);
                     const totalInCartForProd = getProductQuantityInCart(item.id || item.idProducto);
-                    const isPromoEvent = Boolean(item.isEvento || item.eventoInfo || (item.eventos && item.eventos.length > 0));
+                    const isPromoEvent = Boolean(item.esPromocionEvento || (item.isEvento && Boolean(item.eventoInfo?.nombre)));
                     const additionsUnit = (item.adiciones || []).reduce((sum, a) => sum + ((Number(a.precio) || 0) * (Number(a.cantidad) || 1)), 0);
                     const unitPriceWithAdds = (Number(item.precio) || 0) + additionsUnit;
                     const lineTotalPrice = unitPriceWithAdds * (Number(item.cantidad) || 1);
@@ -3097,11 +3107,11 @@ export function ClienteLanding() {
                             </span>
                           )}
                           
-                          {/* Badge de Promoción / Evento cerrado */}
+                          {/* Badge de Promoción de Evento */}
                           {isPromoEvent && (
                             <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 inline-flex items-center gap-1 mt-0.5">
                               <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                              Promoción cerrada (sin adiciones)
+                              {item.eventoInfo?.nombre ? `Promoción: ${item.eventoInfo.nombre}` : "Promoción de evento"}
                             </span>
                           )}
 
