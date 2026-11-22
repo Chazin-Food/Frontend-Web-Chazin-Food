@@ -6,8 +6,12 @@ import { isVariantActive } from "@/shared/utils/productVariantUtils";
 export const IVA_RATE = 0.19;
 const CartContext = createContext(undefined);
 
-function resolveLiveEventPrice(basePrice, evt, prodId) {
-  if (!evt) return null;
+function resolveLiveEventPrice(basePrice, evt, prodId, prodBasePrice = null) {
+  if (!evt || !(Number(basePrice) > 0)) return null;
+  const base = Number(basePrice);
+  const catalogBase = Number(prodBasePrice || 0);
+  const isCustomPricedVariant = catalogBase > 0 && Math.abs(base - catalogBase) > 0.01;
+
   let asociacion = null;
   if (evt.productosAsociados) {
     try {
@@ -19,11 +23,28 @@ function resolveLiveEventPrice(basePrice, evt, prodId) {
       }
     } catch (_) {}
   }
-  const nuevoPrecio = Number(asociacion?.nuevoPrecio ?? evt.nuevoPrecio ?? 0);
-  if (Number.isFinite(nuevoPrecio) && nuevoPrecio > 0) return nuevoPrecio;
+
+  const isPrimaryProduct = String(evt.idProducto) === String(prodId);
+  if (!asociacion && !isPrimaryProduct) return null;
+
   const descuento = Number(asociacion?.descuento ?? evt.descuento ?? 0);
+  const nuevoPrecio = asociacion
+    ? Number(asociacion.precioPromocional || asociacion.nuevoPrecio || 0)
+    : Number(evt.nuevoPrecio || 0);
+
+  if (isCustomPricedVariant) {
+    if (Number.isFinite(descuento) && descuento > 0 && descuento < 100) {
+      return Math.max(0, Math.round(base * (1 - descuento / 100)));
+    }
+    if (Number.isFinite(nuevoPrecio) && nuevoPrecio > 0 && catalogBase > 0 && nuevoPrecio < catalogBase) {
+      return Math.max(0, Math.round(base - (catalogBase - nuevoPrecio)));
+    }
+    return null;
+  }
+
+  if (Number.isFinite(nuevoPrecio) && nuevoPrecio > 0) return Math.round(nuevoPrecio);
   if (Number.isFinite(descuento) && descuento > 0 && descuento < 100) {
-    return Math.max(0, Math.round(basePrice * (1 - descuento / 100)));
+    return Math.max(0, Math.round(base * (1 - descuento / 100)));
   }
   return null;
 }
@@ -328,10 +349,11 @@ export function CartProvider({ children }) {
         })
       ].filter((e) => isEventActiveInColombia(e, nowMs));
 
+      const liveCatalogProdBase = Number(liveProd.precio) || 0;
       const itemEvtId = item.eventoInfo?.idEvento || item.eventoInfo?.id;
       const matchedEvent = itemEvtId
         ? prodEvents.find((e) => String(e.idEvento || e.id) === String(itemEvtId)) || null
-        : (prodEvents.find((e) => resolveLiveEventPrice(liveBasePrice, e, prodId) !== null) || null);
+        : (prodEvents.find((e) => resolveLiveEventPrice(liveBasePrice, e, prodId, liveCatalogProdBase) !== null) || null);
 
       const wasAddedFromEventModal = Boolean(
         item.esPromocionEvento ||
@@ -344,7 +366,7 @@ export function CartProvider({ children }) {
       let nextPrecioOriginal = item.precioOriginal;
 
       if (matchedEvent) {
-        const eventPromoPrice = resolveLiveEventPrice(liveBasePrice, matchedEvent, prodId);
+        const eventPromoPrice = resolveLiveEventPrice(liveBasePrice, matchedEvent, prodId, liveCatalogProdBase);
         if (eventPromoPrice !== null) {
           livePrice = eventPromoPrice;
           nextPrecioOriginal = liveBasePrice;

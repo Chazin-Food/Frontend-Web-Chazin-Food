@@ -147,6 +147,27 @@ export const wompiService = {
           publicKey: config.publicKey
         });
 
+        const cleanupClosedWompiNodes = () => {
+          if (typeof document === "undefined") return;
+          document
+            .querySelectorAll(".waybox-backdrop.waybox-backdrop-final-close, .waybox-modal.waybox-modal-final-close")
+            .forEach((el) => {
+              if (el.hidden) {
+                try { el.remove(); } catch (_) {}
+              }
+            });
+          const rootEl = document.getElementById("root");
+          if (rootEl && rootEl.getAttribute("aria-hidden") === "true") {
+            rootEl.removeAttribute("aria-hidden");
+          }
+          if (document.body && document.body.style.height) {
+            document.body.style.height = "";
+          }
+        };
+
+        // Limpiar nodos residuales ocultos de sesiones previas del widget antes de crear una nueva instancia
+        cleanupClosedWompiNodes();
+
         const checkout = new WidgetCheckout(config);
 
         let settled = false;
@@ -179,6 +200,9 @@ export const wompiService = {
           if (settled) return;
           settled = true;
           cleanup();
+          if (value && value.status === "CLOSED_WITHOUT_RESULT") {
+            cleanupClosedWompiNodes();
+          }
           resolve(value);
         };
 
@@ -186,6 +210,7 @@ export const wompiService = {
           if (settled) return;
           settled = true;
           cleanup();
+          cleanupClosedWompiNodes();
           reject(err);
         };
 
@@ -218,14 +243,14 @@ export const wompiService = {
               closeGraceTimer = null;
             }
           } else if (hasOpened && !closeGraceTimer) {
-            // El widget de Wompi oculta .waybox-backdrop (waybox-backdrop-final-close + hidden)
-            // sin ejecutar el callback de checkout.open cuando el usuario cierra con la X sin elegir medio de pago.
-            // Esperamos 650ms por si Wompi sí dispara el callback nativo con la transacción.
+            // El widget de Wompi ejecuta closeModal() (anima 1000ms y luego oculta .waybox-backdrop + restaura aria-hidden)
+            // sin invocar el callback de checkout.open cuando el usuario cierra con la X sin elegir medio de pago.
+            // Esperamos 1050ms para que la animación/limpieza interna de Wompi termine antes de reactivar el checkout.
             closeGraceTimer = setTimeout(() => {
               if (!settled && !isBackdropOpen()) {
                 finish({ status: "CLOSED_WITHOUT_RESULT" });
               }
-            }, 650);
+            }, 1050);
           }
         };
 
@@ -256,6 +281,9 @@ export const wompiService = {
           }
           finish(transaction);
         });
+
+        // Evaluar inmediatamente porque checkout.open quita [hidden] del backdrop de forma síncrona
+        evaluateBackdropState();
       } catch (err) {
         console.error("Error inicializando WidgetCheckout:", err);
         reject(err);
