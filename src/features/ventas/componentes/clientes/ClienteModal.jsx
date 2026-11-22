@@ -210,8 +210,8 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
   const firstChar = form.nombre ? form.nombre.charAt(0).toUpperCase() : "C";
 
   return (
-    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs`}>
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-5 border border-gray-100 dark:border-gray-800 max-h-[90dvh] overflow-y-auto">
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs`}>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-lg p-5 space-y-3.5 border border-gray-100 dark:border-gray-800 max-h-[95dvh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         
         {/* Header with initial avatar & close icon */}
         <div className="flex items-center justify-between">
@@ -258,10 +258,10 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-3 text-xs" noValidate>
 
           {/* ── ÍTEM 120: Número y Tipo de Documento en Primer Lugar ── */}
-          <div className="bg-gray-50/70 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2.5">
+          <div className="bg-gray-50/70 dark:bg-gray-800/40 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
                 Identificación del Cliente
@@ -622,7 +622,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
           )}
 
           {/* ── Nivel de Fidelidad & Descuento (%) ── */}
-          <div className="bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/30 rounded-2xl p-3.5 space-y-2.5">
+          <div className="bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/30 rounded-2xl p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
                 <span>⭐ Nivel de Fidelidad (Automatizado)</span>
@@ -703,7 +703,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
             <button
               type="button"
               onClick={onClose}

@@ -22,10 +22,10 @@ export function ClientesStatsCards({ clientes = [], stats = null }) {
       title: "Clientes VIP",
       value: vipCount,
       subtext: "con descuento",
-      subtextColor: "text-purple-600 dark:text-purple-400",
+      subtextColor: "text-amber-600 dark:text-amber-400",
       icon: Star,
-      bgColor: "bg-purple-50 dark:bg-purple-950/40",
-      iconColor: "text-purple-500 dark:text-purple-400"
+      bgColor: "bg-amber-50 dark:bg-amber-950/40",
+      iconColor: "text-amber-500 dark:text-amber-400"
     },
     {
       id: "frecuentes",

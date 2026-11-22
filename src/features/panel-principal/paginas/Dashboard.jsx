@@ -403,7 +403,7 @@ export function Dashboard() {
                 ${Number(stats.ventasTotal || 0).toLocaleString("es-CO")} <span className="text-xs font-bold text-gray-400 dark:text-gray-500">COP</span>
               </span>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-green-100/80 dark:bg-green-950/50 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0 shadow-2xs">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100/80 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
               <DollarSign className="w-5 h-5 stroke-[2.2]" />
             </div>
           </div>

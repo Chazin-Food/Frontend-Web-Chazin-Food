@@ -83,7 +83,7 @@ export function GoogleAuthButton({ onSuccess, text = "signin_with", width = "100
                 <span>Conectando con Google...</span>
               </div>
             ) : (
-              <div className="w-full flex justify-center [&>div]:w-full [&>div>iframe]:w-full">
+              <div className="w-full flex justify-center items-center [&>div]:flex [&>div]:justify-center [&>div>iframe]:!mx-auto">
                 <GoogleLogin
                   onSuccess={handleOfficialGoogleSuccess}
                   onError={handleOfficialGoogleError}
