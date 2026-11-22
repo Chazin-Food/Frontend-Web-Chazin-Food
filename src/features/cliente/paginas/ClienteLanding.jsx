@@ -372,6 +372,15 @@ export function ClienteLanding() {
   const [showEmptyCartLoginModal, setShowEmptyCartLoginModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
+  const cartLengthRef = useRef(cart.length);
+  cartLengthRef.current = cart.length;
+
+  useEffect(() => {
+    if (showCheckout && cart.length === 0) {
+      setShowCheckout(false);
+    }
+  }, [showCheckout, cart.length]);
+
   const [checkoutNombre, setCheckoutNombre] = useState("");
   const [checkoutTipoDoc, setCheckoutTipoDoc] = useState("C.C.");
   const [checkoutDocumento, setCheckoutDocumento] = useState("");
@@ -1990,6 +1999,11 @@ export function ClienteLanding() {
       checkoutEspecificaciones.trim()
     ].filter(Boolean).join(" | ");
 
+    if (cart.length === 0 || !(totalCheckout > 0)) {
+      setShowCheckout(false);
+      return;
+    }
+
     // ── FLUJO EXCLUSIVO WOMPI EN WEB (PAGOS EN LÍNEA: PSE, NEQUI, TARJETAS, BANCOLOMBIA) ──
     setIsProcessingWompi(true);
     let intencion = null;
@@ -2188,7 +2202,7 @@ export function ClienteLanding() {
             ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
           }
           if (refreshUser) refreshUser().catch(() => {});
-          setShowCheckout(true);
+          setShowCheckout(cartLengthRef.current > 0);
           error("Pago Rechazado", `La transacción fue ${verificacion.estado || 'rechazada'}. Puedes intentar con otro medio de pago.`);
         }
       } else if (transaction && transaction.status === 'REDIRECTED') {
@@ -2199,7 +2213,7 @@ export function ClienteLanding() {
           await ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
         }
         if (refreshUser) await refreshUser().catch(() => {});
-        setShowCheckout(true);
+        setShowCheckout(cartLengthRef.current > 0);
         error("Pago cancelado", "Cerraste la pasarela antes de completar el pago.");
       }
     } catch (wompiErr) {
@@ -2207,7 +2221,7 @@ export function ClienteLanding() {
         await ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
         if (refreshUser) await refreshUser().catch(() => {});
       }
-      setShowCheckout(true);
+      setShowCheckout(cartLengthRef.current > 0);
       console.error("Error en flujo de Wompi:", wompiErr);
       const detail = wompiErr?.message || "No se pudo conectar con Wompi o el servidor";
       error("Error en Wompi", detail);
@@ -3373,7 +3387,7 @@ export function ClienteLanding() {
       )}
 
       {/* MODAL CHECKOUT — Diseño Exacto Aprobado */}
-      {showCheckout && (
+      {showCheckout && cart.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800 max-h-[94dvh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
 
