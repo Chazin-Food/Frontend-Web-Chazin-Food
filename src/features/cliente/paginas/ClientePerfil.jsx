@@ -461,6 +461,22 @@ export function ClientePerfil() {
       }
 
       let backendOrders = [];
+      let backendLoaded = false;
+      const isUnpaidWompiIntention = (v) => {
+        if (!v) return false;
+        let obs = {};
+        if (v.observaciones) {
+          if (typeof v.observaciones === "object") obs = v.observaciones;
+          else if (typeof v.observaciones === "string" && v.observaciones.trim().startsWith("{")) {
+            try { obs = JSON.parse(v.observaciones); } catch (_) {}
+          }
+        }
+        if (obs.wompiAbandonada === true) return true;
+        const aprob = String(v.estadoAprobacion || obs.estadoAprobacion || "").toUpperCase().trim();
+        if (aprob === "APROBADO") return false;
+        if (obs.wompiReference && !obs.wompiTransactionId) return true;
+        return false;
+      };
 
       try {
 
@@ -468,15 +484,21 @@ export function ClientePerfil() {
 
         if (data && Array.isArray(data)) {
 
+          backendLoaded = true;
+
           backendOrders = data.filter(
 
             (v) =>
 
-              (currentUserId && (Number(v.idUsuario) === Number(currentUserId) || Number(v.usuario?.idUsuario) === Number(currentUserId))) ||
+              !isUnpaidWompiIntention(v) && (
 
-              (currentUserClientId && Number(v.idCliente) === Number(currentUserClientId)) ||
+                (currentUserId && (Number(v.idUsuario) === Number(currentUserId) || Number(v.usuario?.idUsuario) === Number(currentUserId))) ||
 
-              (currentUserFullName && v.clienteNombre === currentUserFullName)
+                (currentUserClientId && Number(v.idCliente) === Number(currentUserClientId)) ||
+
+                (currentUserFullName && v.clienteNombre === currentUserFullName)
+
+              )
 
           );
 
@@ -639,7 +661,7 @@ export function ClientePerfil() {
 
           });
 
-        } else {
+        } else if (!backendLoaded) {
 
           mergedPedidos.push({
 
@@ -862,6 +884,11 @@ export function ClientePerfil() {
 
       });
 
+      if (backendLoaded) {
+        try {
+          setClientMeta("orders", String(userId || "guest"), mergedPedidos.slice(0, 50));
+        } catch (_) {}
+      }
       setPedidos(mergedPedidos);
 
     } catch (err) {

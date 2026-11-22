@@ -902,13 +902,32 @@ export function ClienteLanding() {
       }
 
       let backendOrders = [];
+      let backendLoaded = false;
+      const isUnpaidWompiIntention = (v) => {
+        if (!v) return false;
+        let obs = {};
+        if (v.observaciones) {
+          if (typeof v.observaciones === "object") obs = v.observaciones;
+          else if (typeof v.observaciones === "string" && v.observaciones.trim().startsWith("{")) {
+            try { obs = JSON.parse(v.observaciones); } catch (_) {}
+          }
+        }
+        if (obs.wompiAbandonada === true) return true;
+        const aprob = String(v.estadoAprobacion || obs.estadoAprobacion || "").toUpperCase().trim();
+        if (aprob === "APROBADO") return false;
+        if (obs.wompiReference && !obs.wompiTransactionId) return true;
+        return false;
+      };
       try {
         const data = await ventasService.getVentas();
         if (data && Array.isArray(data)) {
-          backendOrders = data.filter(v => 
-            v.idUsuario === userId || 
-            v.idCliente === user?.idCliente ||
-            v.clienteNombre === `${user?.nombre || ''} ${user?.apellidos || ''}`.trim()
+          backendLoaded = true;
+          backendOrders = data.filter(v =>
+            !isUnpaidWompiIntention(v) && (
+              (userId && Number(v.idUsuario) === Number(userId)) ||
+              (user?.idCliente && Number(v.idCliente) === Number(user.idCliente)) ||
+              v.clienteNombre === `${user?.nombre || ''} ${user?.apellidos || ''}`.trim()
+            )
           );
         }
       } catch (err) {
@@ -954,11 +973,12 @@ export function ClienteLanding() {
             total: matched.total || localOrd.total,
             estado: currentEstado
           });
-        } else {
-          localOrd.estado = 'Anulada';
+        } else if (!backendLoaded) {
+          // Solo usar respaldo local si falló la conexión con el backend;
+          // si el backend respondió, no resucitar intenciones Wompi abandonadas ya filtradas
           mergedPedidos.push({
             ...localOrd,
-            estado: 'Anulada'
+            estado: localOrd.estado || 'Anulada'
           });
         }
       }
@@ -998,12 +1018,11 @@ export function ClienteLanding() {
             estado: currentEstado
           };
 
-          localHistory.unshift(newEntry);
           mergedPedidos.push(newEntry);
         }
       }
 
-      setClientMeta("orders", metaOrderKey, localHistory.slice(0, 50));
+      setClientMeta("orders", metaOrderKey, mergedPedidos.slice(0, 50));
       setPedidos(mergedPedidos);
     } catch (err) {
       console.log("Error cargando pedidos:", err);
@@ -2213,6 +2232,7 @@ export function ClienteLanding() {
           await ventasService.cancelarVenta(intencion.ventaId).catch(() => {});
         }
         if (refreshUser) await refreshUser().catch(() => {});
+        fetchMyOrders().catch(() => {});
         setShowCheckout(cartLengthRef.current > 0);
         error("Pago cancelado", "Cerraste la pasarela antes de completar el pago.");
       }
