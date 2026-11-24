@@ -2,25 +2,42 @@ import { TrendingUp, Users, ShoppingBag, Layers } from "lucide-react";
 import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 
 export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "personalizado" }) {
-  const totalVentasSum = stats ? stats.totalVentas : ventas.reduce((acc, v) => acc + Number(v.total || 0), 0);
+  const validVentasFallback = ventas.filter((v) => {
+    if (!v || v.esDevolucion) return false;
+    const entrega = String(v.estadoEntrega || v.estado || "").toUpperCase().trim();
+    if (entrega === "CANCELADO" || entrega === "RECHAZADO" || entrega === "ANULADA") return false;
+    const aprob = String(v.estadoAprobacion || "").toUpperCase().trim();
+    if (aprob === "PENDIENTE" || aprob === "RECHAZADO") return false;
+    return true;
+  });
+
+  const totalVentasSum = stats ? Number(stats.totalVentas || 0) : Math.round(validVentasFallback.reduce((acc, v) => acc + Number(v.total || 0), 0));
   const totalVentasStr = stats ? stats.totalVentasFormatted : `$${totalVentasSum.toLocaleString("es-CO")}`;
 
-  const pedidosCount = stats ? stats.pedidosCount : ventas.length;
+  const pedidosCount = stats ? Number(stats.pedidosCount || 0) : validVentasFallback.length;
 
-  const ticketPromedioVal = stats ? stats.ticketPromedio : (pedidosCount > 0 ? Math.round(totalVentasSum / pedidosCount) : 0);
+  const ticketPromedioVal = stats ? Number(stats.ticketPromedio || 0) : (pedidosCount > 0 ? Math.round(totalVentasSum / pedidosCount) : 0);
   const ticketPromedioStr = stats ? stats.ticketPromedioFormatted : `$${ticketPromedioVal.toLocaleString("es-CO")}`;
 
-  const descOtorgadosSum = stats ? stats.totalDescuentos : ventas.reduce((acc, v) => acc + Number(v.montoDescuento || v.descuentoMonto || v.descuentoAplicado || 0), 0);
+  const descOtorgadosSum = stats ? Number(stats.totalDescuentos || 0) : Math.round(validVentasFallback.reduce((acc, v) => acc + Number(v.montoDescuento || v.descuentoMonto || v.descuentoAplicado || 0), 0));
   const descOtorgadosStr = stats ? stats.totalDescuentosFormatted : `$${descOtorgadosSum.toLocaleString("es-CO")}`;
 
-  const frecuenciaVal = stats ? stats.frecuenciaCompra : (pedidosCount > 0 ? (pedidosCount / (new Set(ventas.map(v => v.idCliente || v.clienteNombre || v.cliente).filter(Boolean)).size || 1)).toFixed(1) : "0.0");
+  const frecuenciaVal = (stats && stats.frecuenciaCompra !== undefined && stats.frecuenciaCompra !== null)
+    ? stats.frecuenciaCompra
+    : (pedidosCount > 0 ? (pedidosCount / (new Set(validVentasFallback.map(v => v.idCliente || v.clienteNombre || v.cliente).filter(Boolean)).size || 1)).toFixed(1) : "0.0");
 
-  const uniqueDays = stats ? (stats.uniqueDays || 1) : (new Set(ventas.map(v => getColombiaDateISO(v.fechaRegistro || v.fechaVenta || v.createdAt || Date.now()))).size || 1);
-  const frecuenciaDiariaVal = stats ? stats.frecuenciaDiaria : (pedidosCount > 0 ? (pedidosCount / uniqueDays).toFixed(1) : "0.0");
+  const uniqueDays = (stats && Number(stats.uniqueDays) > 0)
+    ? Number(stats.uniqueDays)
+    : (new Set(validVentasFallback.map(v => getColombiaDateISO(v.fechaRegistro || v.fechaVenta || v.fecha || v.createdAt || Date.now()))).size || 1);
+  const frecuenciaDiariaVal = (stats && stats.frecuenciaDiaria !== undefined && stats.frecuenciaDiaria !== null && stats.frecuenciaDiaria !== "")
+    ? stats.frecuenciaDiaria
+    : (pedidosCount > 0 ? (pedidosCount / uniqueDays).toFixed(1) : "0.0");
 
-  const tasaDescuentoVal = stats ? stats.tasaDescuento : ((totalVentasSum + descOtorgadosSum) > 0
-    ? ((descOtorgadosSum / (totalVentasSum + descOtorgadosSum)) * 100).toFixed(1)
-    : "0.0");
+  const tasaDescuentoVal = (stats && stats.tasaDescuento !== undefined && stats.tasaDescuento !== null)
+    ? stats.tasaDescuento
+    : ((totalVentasSum + descOtorgadosSum) > 0
+      ? ((descOtorgadosSum / (totalVentasSum + descOtorgadosSum)) * 100).toFixed(1)
+      : "0.0");
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
