@@ -24,19 +24,57 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
   // Real transactions from database (or empty if client has 0 orders)
   const transacciones = Array.isArray(cliente.transacciones) ? cliente.transacciones : [];
 
-  const totalComprasCount = cliente.compras || transacciones.length;
-  const rawConsumido = cliente.totalConsumido || cliente.totalGastado || 0;
-  const totalConsumidoNum = typeof rawConsumido === "string" ? Number(rawConsumido.replace(/[^0-9]/g, "")) || 0 : Number(rawConsumido) || 0;
-  const totalConsumidoStr = `$${totalConsumidoNum.toLocaleString("es-CO")} COP`;
-  const ticketPromedioStr = cliente.ticketPromedio || "$0";
-  const comprasMes = cliente.comprasMes || (totalComprasCount > 0 ? (totalComprasCount / 3).toFixed(1) : "0.0");
-  const frecuenciaTipo = cliente.frecuenciaTipo || (totalComprasCount > 10 ? "Frecuente" : totalComprasCount > 2 ? "Mensual" : "Esporádico");
+  const totalComprasCount = Number(cliente.compras ?? transacciones.length) || 0;
+  const rawConsumido = cliente.totalConsumidoRaw ?? cliente.totalConsumido ?? cliente.totalGastado ?? 0;
+  const totalConsumidoNum = typeof rawConsumido === "string" ? Number(rawConsumido.replace(/[^0-9]/g, "")) || 0 : Math.round(Number(rawConsumido) || 0);
+  const totalConsumidoStr = `$${totalConsumidoNum.toLocaleString("es-CO")}`;
+  const ticketPromedioNum =
+    cliente.ticketPromedioRaw !== undefined && cliente.ticketPromedioRaw !== null
+      ? Math.round(Number(cliente.ticketPromedioRaw) || 0)
+      : (totalComprasCount > 0 ? Math.round(totalConsumidoNum / totalComprasCount) : 0);
+  const ticketPromedioStr = `$${ticketPromedioNum.toLocaleString("es-CO")}`;
+
+  // Frecuencia real basada en el lapso real entre la primera compra y hoy (sin dividir por un 3 fijo)
+  const fallbackFrecuencia = (() => {
+    if (totalComprasCount <= 0) {
+      return { comprasMes: "0.0", tipo: "Sin compras" };
+    }
+    const nowMs = Date.now();
+    let earliestMs = nowMs;
+    for (const t of transacciones) {
+      let dt = null;
+      if (t?.fechaISO) {
+        dt = new Date(t.fechaISO);
+      } else if (typeof t?.fecha === "string" && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(t.fecha.trim())) {
+        const [dd, mm, yyyy] = t.fecha.trim().split("/").map(Number);
+        dt = new Date(yyyy, mm - 1, dd);
+      }
+      if (dt && !Number.isNaN(dt.getTime()) && dt.getTime() < earliestMs) {
+        earliestMs = dt.getTime();
+      }
+    }
+    const spanDays = Math.max(1, (nowMs - earliestMs) / (1000 * 60 * 60 * 24));
+    const spanMonths = Math.max(1, spanDays / 30);
+    const rate = parseFloat((totalComprasCount / spanMonths).toFixed(1));
+    let tipo = "Esporádico";
+    if (totalComprasCount === 1) tipo = spanDays <= 30 ? "Primera compra" : "Esporádico";
+    else if (rate >= 4) tipo = "Semanal";
+    else if (rate >= 2) tipo = "Quincenal";
+    else if (rate >= 1) tipo = "Mensual";
+    return { comprasMes: rate.toFixed(1), tipo };
+  })();
+
+  const comprasMes =
+    cliente.comprasMes !== undefined && cliente.comprasMes !== null && cliente.comprasMes !== ""
+      ? Number(cliente.comprasMes).toFixed(1)
+      : fallbackFrecuencia.comprasMes;
+  const frecuenciaTipo = cliente.frecuenciaTipo || fallbackFrecuencia.tipo;
   const ultimaCompraFecha = cliente.ultimaCompra || (transacciones.length > 0 ? transacciones[0].fecha : "Sin compras");
   const descuentoTag = fidelidadTheme.finalDesc > 0 ? `${fidelidadTheme.finalDesc}% de descuento` : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-xl w-full shadow-2xl relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto overflow-x-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-xl w-full shadow-2xl relative border border-gray-100 dark:border-gray-800 max-h-[92dvh] overflow-y-auto overflow-x-hidden no-scrollbar">
         {/* Acento visual superior dinámico por nivel de fidelidad */}
         <div className={`h-1.5 w-full ${fidelidadTheme.accentBarCls}`} />
 
@@ -128,17 +166,22 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
             Estadísticas de Compra
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/40 text-center">
+            <div className="p-3.5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-100 dark:border-blue-900/40 text-center flex flex-col items-center justify-center">
               <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">Total Compras</p>
-              <p className="text-2xl font-black text-blue-700 dark:text-blue-300 mt-0.5">{totalComprasCount}</p>
+              <p className="text-xl sm:text-2xl font-black text-blue-700 dark:text-blue-300 mt-1 leading-tight">{totalComprasCount}</p>
+              <span className="text-[10px] font-semibold text-blue-500/80 dark:text-blue-400/80 mt-0.5">
+                {totalComprasCount === 1 ? "pedido" : "pedidos"}
+              </span>
             </div>
-            <div className="p-3.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 text-center">
+            <div className="p-3.5 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 text-center flex flex-col items-center justify-center">
               <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Total Consumido</p>
-              <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{totalConsumidoStr}</p>
+              <p className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1 leading-tight whitespace-nowrap">{totalConsumidoStr}</p>
+              <span className="text-[10px] font-semibold text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">COP</span>
             </div>
-            <div className="p-3.5 bg-purple-50/60 dark:bg-purple-950/30 rounded-2xl border border-purple-100 dark:border-purple-900/40 text-center">
+            <div className="p-3.5 bg-purple-50/60 dark:bg-purple-950/30 rounded-2xl border border-purple-100 dark:border-purple-900/40 text-center flex flex-col items-center justify-center">
               <p className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">Ticket Promedio</p>
-              <p className="text-2xl font-black text-purple-700 dark:text-purple-300 mt-0.5">{ticketPromedioStr}</p>
+              <p className="text-xl sm:text-2xl font-black text-purple-700 dark:text-purple-300 mt-1 leading-tight whitespace-nowrap">{ticketPromedioStr}</p>
+              <span className="text-[10px] font-semibold text-purple-600/80 dark:text-purple-400/80 mt-0.5">COP / compra</span>
             </div>
           </div>
         </div>
@@ -154,15 +197,15 @@ export function ClienteDetalleModal({ isOpen, onClose, cliente }) {
               <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">Compras / mes</p>
               <p className="text-base font-bold text-amber-800 dark:text-amber-200 mt-0.5">{comprasMes}</p>
             </div>
-            <div className="p-3 bg-purple-50/60 dark:bg-purple-950/30 rounded-2xl border border-purple-100 dark:border-purple-900/40 text-center flex flex-col items-center justify-center">
-              <Clock className="w-4 h-4 text-purple-500 mb-1" />
-              <p className="text-[10px] font-semibold text-purple-700 dark:text-purple-400">Tipo</p>
-              <p className="text-base font-bold text-purple-800 dark:text-purple-200 mt-0.5">{frecuenciaTipo}</p>
+            <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 text-center flex flex-col items-center justify-center">
+              <Clock className="w-4 h-4 text-indigo-500 mb-1" />
+              <p className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-400">Tipo</p>
+              <p className="text-base font-bold text-indigo-800 dark:text-indigo-200 mt-0.5">{frecuenciaTipo}</p>
             </div>
-            <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 text-center flex flex-col items-center justify-center">
-              <Calendar className="w-4 h-4 text-emerald-500 mb-1" />
-              <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Última compra</p>
-              <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200 mt-0.5">{ultimaCompraFecha}</p>
+            <div className="p-3 bg-sky-50/60 dark:bg-sky-950/30 rounded-2xl border border-sky-100 dark:border-sky-900/40 text-center flex flex-col items-center justify-center">
+              <Calendar className="w-4 h-4 text-sky-500 mb-1" />
+              <p className="text-[10px] font-semibold text-sky-700 dark:text-sky-400">Última compra</p>
+              <p className="text-xs font-bold text-sky-800 dark:text-sky-200 mt-0.5">{ultimaCompraFecha}</p>
             </div>
           </div>
         </div>
