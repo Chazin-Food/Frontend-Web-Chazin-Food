@@ -371,10 +371,10 @@ export function Dashboard() {
                 Total de ventas (COP)
               </span>
               <span
-                title={`$${Number(stats.totalVentasGlobal || stats.ventasTotal || 0).toLocaleString("es-CO")} COP`}
+                title={`$${Number(stats.totalVentasGlobal ?? stats.ventasTotal ?? 0).toLocaleString("es-CO")} COP`}
                 className="text-base sm:text-lg xl:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight leading-snug break-words"
               >
-                ${Number(stats.totalVentasGlobal || stats.ventasTotal || 0).toLocaleString("es-CO")} <span className="text-xs font-bold text-gray-400 dark:text-gray-500">COP</span>
+                ${Number(stats.totalVentasGlobal ?? stats.ventasTotal ?? 0).toLocaleString("es-CO")} <span className="text-xs font-bold text-gray-400 dark:text-gray-500">COP</span>
               </span>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-emerald-100/80 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs">
@@ -413,12 +413,12 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 3. Total Ventas */}
+        {/* 3. Pedidos del Período */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">
-                Total Ventas
+                Pedidos del Período
               </span>
               <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
                 {Number(stats.pedidosTotal || 0).toLocaleString("es-CO")}
@@ -433,7 +433,7 @@ export function Dashboard() {
             {stats.frecuenciaVentas !== undefined && (
               <span className="text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px]">
                 <Zap className="w-3 h-3 text-blue-500 shrink-0" />
-                <span>{stats.frecuenciaVentas} ventas/día</span>
+                <span>{Number(stats.frecuenciaVentas || 0).toFixed(1)} ventas/día</span>
               </span>
             )}
           </div>
@@ -447,7 +447,10 @@ export function Dashboard() {
                 Clientes y Usuarios
               </span>
               <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
-                {Number(stats.clientesActivos || stats.clientesTotal || 0).toLocaleString("es-CO")}
+                {Number(stats.clientesTotal || 0).toLocaleString("es-CO")}{" "}
+                <span className="text-xs font-bold text-gray-400 dark:text-gray-500">
+                  {Number(stats.clientesTotal || 0) === 1 ? "cliente" : "clientes"}
+                </span>
               </span>
             </div>
             <div className="w-10 h-10 rounded-2xl bg-purple-100/80 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-2xs">
@@ -459,7 +462,7 @@ export function Dashboard() {
               {Number(stats.usuariosTotal || 0).toLocaleString("es-CO")} usuarios
             </span>
             <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px] truncate">
-              {Number(stats.clientesTotal || 0).toLocaleString("es-CO")} clientes
+              {Number(stats.clientesActivos ?? stats.clientesTotal ?? 0).toLocaleString("es-CO")} activos
             </span>
           </div>
         </div>

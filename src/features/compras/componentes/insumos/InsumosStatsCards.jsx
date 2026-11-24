@@ -4,8 +4,9 @@ export function InsumosStatsCards({ insumos = [] }) {
   const baseInsumos = insumos.filter((i) => i.tipo !== "Preparado");
   const preparadosCount = insumos.filter((i) => i.tipo === "Preparado").length;
   const total = insumos.length;
-  const stockNormal = baseInsumos.filter((i) => Number(i.stock || 0) > Number(i.stockMinimo || 0)).length;
-  const stockBajo = baseInsumos.filter((i) => Number(i.stock || 0) <= Number(i.stockMinimo || 0)).length;
+  const controlledBaseInsumos = baseInsumos.filter((i) => i.controlarStock !== false);
+  const stockNormal = controlledBaseInsumos.filter((i) => Number(i.stockVigente ?? i.stock ?? 0) > Number(i.stockMinimo || 0)).length;
+  const stockBajo = controlledBaseInsumos.filter((i) => Number(i.stockVigente ?? i.stock ?? 0) <= Number(i.stockMinimo || 0)).length;
 
   const statCards = [
     {
