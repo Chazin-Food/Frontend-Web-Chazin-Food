@@ -1,5 +1,5 @@
 import { TrendingUp, Users, ShoppingBag, Layers } from "lucide-react";
-import { getColombiaDateISO } from "@/shared/utils/dateUtils";
+import { getColombiaDateISO, getColombiaDateParts } from "@/shared/utils/dateUtils";
 
 export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "personalizado" }) {
   const validVentasFallback = ventas.filter((v) => {
@@ -22,22 +22,52 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
   const descOtorgadosSum = stats ? Number(stats.totalDescuentos || 0) : Math.round(validVentasFallback.reduce((acc, v) => acc + Number(v.montoDescuento || v.descuentoMonto || v.descuentoAplicado || 0), 0));
   const descOtorgadosStr = stats ? stats.totalDescuentosFormatted : `$${descOtorgadosSum.toLocaleString("es-CO")}`;
 
-  const frecuenciaVal = (stats && stats.frecuenciaCompra !== undefined && stats.frecuenciaCompra !== null)
-    ? stats.frecuenciaCompra
-    : (pedidosCount > 0 ? (pedidosCount / (new Set(validVentasFallback.map(v => v.idCliente || v.clienteNombre || v.cliente).filter(Boolean)).size || 1)).toFixed(1) : "0.0");
+  const fallbackUniqueClients = new Set(
+    validVentasFallback.map((v, idx) => {
+      const cliName = String(v.clienteNombre || v.cliente || "").toLowerCase().trim();
+      const isAnon = !v.idCliente || cliName === "cliente mostrador" || cliName === "cliente general" || cliName === "mostrador";
+      return isAnon ? `mostrador:${v.idVenta || v.id || idx}` : `cli:${v.idCliente}`;
+    })
+  ).size;
+  const uniqueClientsCount = (stats && stats.uniqueClientsCount !== undefined && stats.uniqueClientsCount !== null)
+    ? Number(stats.uniqueClientsCount)
+    : fallbackUniqueClients;
+
+  const rawFrecuencia = (stats && stats.frecuenciaCompra !== undefined && stats.frecuenciaCompra !== null)
+    ? Number(stats.frecuenciaCompra)
+    : (pedidosCount > 0 ? pedidosCount / Math.max(1, uniqueClientsCount) : 0);
+  const frecuenciaVal = Number.isFinite(rawFrecuencia) ? rawFrecuencia.toFixed(1) : "0.0";
 
   const uniqueDays = (stats && Number(stats.uniqueDays) > 0)
     ? Number(stats.uniqueDays)
     : (new Set(validVentasFallback.map(v => getColombiaDateISO(v.fechaRegistro || v.fechaVenta || v.fecha || v.createdAt || Date.now()))).size || 1);
-  const frecuenciaDiariaVal = (stats && stats.frecuenciaDiaria !== undefined && stats.frecuenciaDiaria !== null && stats.frecuenciaDiaria !== "")
-    ? stats.frecuenciaDiaria
-    : (pedidosCount > 0 ? (pedidosCount / uniqueDays).toFixed(1) : "0.0");
 
-  const tasaDescuentoVal = (stats && stats.tasaDescuento !== undefined && stats.tasaDescuento !== null)
-    ? stats.tasaDescuento
+  const fallbackSpanDays = (() => {
+    if (selectedPeriod === "hoy") return 1;
+    if (selectedPeriod === "7_dias") return 7;
+    if (selectedPeriod === "este_mes") {
+      const parts = getColombiaDateParts(new Date());
+      return Math.max(1, parts?.day || 1);
+    }
+    return Math.max(1, uniqueDays);
+  })();
+
+  const hasServerDailyFreq =
+    stats &&
+    stats.frecuenciaDiaria !== undefined &&
+    stats.frecuenciaDiaria !== null &&
+    stats.frecuenciaDiaria !== "" &&
+    Number.isFinite(Number(stats.frecuenciaDiaria));
+  const frecuenciaDiariaVal = hasServerDailyFreq
+    ? Number(stats.frecuenciaDiaria).toFixed(1)
+    : (pedidosCount > 0 ? (pedidosCount / fallbackSpanDays).toFixed(1) : "0.0");
+
+  const rawTasaDescuento = (stats && stats.tasaDescuento !== undefined && stats.tasaDescuento !== null)
+    ? Number(stats.tasaDescuento)
     : ((totalVentasSum + descOtorgadosSum) > 0
-      ? ((descOtorgadosSum / (totalVentasSum + descOtorgadosSum)) * 100).toFixed(1)
-      : "0.0");
+      ? (descOtorgadosSum / (totalVentasSum + descOtorgadosSum)) * 100
+      : 0);
+  const tasaDescuentoVal = Number.isFinite(rawTasaDescuento) ? rawTasaDescuento.toFixed(1) : "0.0";
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
@@ -104,7 +134,9 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
           </div>
         </div>
         <div className="mt-2.5 sm:mt-4 pt-2 sm:pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between gap-1 text-xs">
-          <span className="text-gray-500 dark:text-gray-400 font-medium text-[10px] sm:text-[11px] truncate">Clientes</span>
+          <span className="text-gray-500 dark:text-gray-400 font-medium text-[10px] sm:text-[11px] truncate">
+            {uniqueClientsCount > 0 ? `${uniqueClientsCount} ${uniqueClientsCount === 1 ? "cliente" : "clientes"}` : "Clientes"}
+          </span>
           <span className="px-1.5 sm:px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-[10px] sm:text-[11px] font-bold shrink-0">
             {frecuenciaDiariaVal}/día
           </span>

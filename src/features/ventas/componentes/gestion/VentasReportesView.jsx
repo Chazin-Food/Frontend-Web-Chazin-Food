@@ -98,10 +98,20 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
     // Fechas históricas para agrupación cronológica
     const fechasMap = {};
 
-    const productCounts = {};
-    const paymentCounts = { "Efectivo (Punto Físico)": 0, Tarjeta: 0, Transferencia: 0 };
+    // Solo ventas válidas/aprobadas (alineado con KPIs de Gestión de Ventas y Dashboard)
+    const validVentas = (Array.isArray(ventas) ? ventas : []).filter((v) => {
+      if (!v || v.esDevolucion) return false;
+      const entrega = String(v.estadoEntrega || v.estado || "").toUpperCase().trim();
+      if (entrega === "CANCELADO" || entrega === "RECHAZADO" || entrega === "ANULADA") return false;
+      const aprob = String(v.estadoAprobacion || "").toUpperCase().trim();
+      if (aprob === "PENDIENTE" || aprob === "RECHAZADO") return false;
+      return true;
+    });
 
-    ventas.forEach((v) => {
+    const productCounts = {};
+    const paymentCounts = { "Efectivo (Punto Físico)": 0, "Wompi (En Línea)": 0, Tarjeta: 0, Transferencia: 0 };
+
+    validVentas.forEach((v) => {
       const rawFechaV = v.fecha || v.fechaVenta;
       const parts = rawFechaV ? getColombiaDateParts(rawFechaV) : null;
       if (parts) {
@@ -136,7 +146,9 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
       }
 
       const metodo = String(v.metodoPago || v.metodo_pago || "Efectivo").toLowerCase();
-      if (metodo.includes("tarjeta") || metodo.includes("wompi") || metodo.includes("online")) {
+      if (metodo.includes("wompi") || metodo.includes("online")) {
+        paymentCounts["Wompi (En Línea)"] += 1;
+      } else if (metodo.includes("tarjeta")) {
         paymentCounts.Tarjeta += 1;
       } else if (metodo.includes("transfer") || metodo.includes("nequi") || metodo.includes("davi") || metodo.includes("pse")) {
         paymentCounts.Transferencia += 1;
@@ -224,7 +236,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
       });
     });
 
-    const hasRealSales = ventas.length > 0;
+    const hasRealSales = validVentas.length > 0;
 
     const totalVentasMontoGlobal = Object.values(productCounts).reduce((acc, p) => acc + (p.ingresos || 0), 0);
     const totalVentasUnidadesGlobal = Object.values(productCounts).reduce((acc, p) => acc + (p.cantidad || 0), 0);
@@ -263,12 +275,13 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
 
     const productosMasVendidos = sortedProducts;
 
-    const totalMetodosCount = (paymentCounts["Efectivo (Punto Físico)"] + paymentCounts.Tarjeta + paymentCounts.Transferencia) || 0;
+    const totalMetodosCount = (paymentCounts["Efectivo (Punto Físico)"] + paymentCounts["Wompi (En Línea)"] + paymentCounts.Tarjeta + paymentCounts.Transferencia) || 0;
     
     let metodosPago = [];
     if (hasRealSales && totalMetodosCount > 0) {
       const rawMethods = [
         { name: "Efectivo (Punto Físico)", count: paymentCounts["Efectivo (Punto Físico)"] },
+        { name: "Wompi (En Línea)", count: paymentCounts["Wompi (En Línea)"] },
         { name: "Tarjeta", count: paymentCounts.Tarjeta },
         { name: "Transferencia", count: paymentCounts.Transferencia }
       ].filter(m => m.count > 0);
@@ -295,8 +308,8 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
       metodosPago.sort((a, b) => b.count - a.count);
     }
 
-    const totalIngresos = ventas.reduce((acc, v) => acc + (parseFloat(v.total) || 0), 0);
-    const totalVentasCount = ventas.length;
+    const totalIngresos = Math.round(validVentas.reduce((acc, v) => acc + (parseFloat(v.total) || 0), 0));
+    const totalVentasCount = validVentas.length;
     const ticketPromedio = totalVentasCount > 0 ? Math.round(totalIngresos / totalVentasCount) : 0;
 
     const topMonth = [...monthlyStats].sort((a, b) => b.ventas - a.ventas)[0];
