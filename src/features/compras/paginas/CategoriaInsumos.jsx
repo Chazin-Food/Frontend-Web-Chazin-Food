@@ -23,6 +23,7 @@ export function CategoriaInsumos() {
     setFilterEstado,
     createCategoria,
     updateCategoria,
+    toggleEstadoCategoria,
     deleteCategoria
   } = useCategoriaInsumos();
 
@@ -155,6 +156,7 @@ export function CategoriaInsumos() {
         <CategoriaInsumosTable
           categorias={filteredCategorias}
           onEdit={handleOpenEdit}
+          onToggleEstado={toggleEstadoCategoria}
           onDelete={deleteCategoria}
           canEdit={canEdit}
           canDelete={canDelete}

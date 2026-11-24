@@ -179,11 +179,15 @@ export function InsumoModal({
       }
     } else {
       setTipo("Base");
-      const defaultCat = categorias[0]?.nombre || "";
+      const activeCats = categorias.filter(
+        (c) => c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true || c.estado === undefined
+      );
+      const firstActiveCat = activeCats[0] || categorias[0];
+      const defaultCat = firstActiveCat?.nombre || "";
       const esSalsaDefault = isSalsaItem("", defaultCat);
       setForm({
         nombre: "",
-        idCategoriaInsumo: categorias[0]?.id || categorias[0]?.idCategoriaInsumo || "",
+        idCategoriaInsumo: firstActiveCat?.id || firstActiveCat?.idCategoriaInsumo || "",
         categoria: defaultCat,
         unidadMedida: "Kg",
         precioUnitario: 0,
@@ -839,14 +843,21 @@ export function InsumoModal({
                       }`}
                     >
                       <option value="">Seleccionar categoría</option>
-                      {categorias.map((c) => {
-                        const catId = c.id || c.idCategoriaInsumo;
-                        return (
-                          <option key={catId || c.nombre} value={String(catId)}>
-                            {c.nombre}
-                          </option>
-                        );
-                      })}
+                      {categorias
+                        .filter((c) => {
+                          const isActiva = c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true || c.estado === undefined;
+                          const catId = c.id || c.idCategoriaInsumo;
+                          return isActiva || (isEditing && String(catId) === String(form.idCategoriaInsumo));
+                        })
+                        .map((c) => {
+                          const catId = c.id || c.idCategoriaInsumo;
+                          const isActiva = c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true || c.estado === undefined;
+                          return (
+                            <option key={catId || c.nombre} value={String(catId)}>
+                              {isActiva ? c.nombre : `${c.nombre} (Inactiva)`}
+                            </option>
+                          );
+                        })}
                     </select>
                     {!isEditing && touched.idCategoriaInsumo && errors.idCategoriaInsumo ? (
                       <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1 animate-in fade-in duration-150">

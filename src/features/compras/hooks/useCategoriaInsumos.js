@@ -107,6 +107,47 @@ export function useCategoriaInsumos() {
     }
   };
 
+  const toggleEstadoCategoria = async (cat) => {
+    if (!cat) return false;
+    const id = cat.id ?? cat.idCategoriaInsumo;
+    const isActivo = cat.estado === "Activo" || cat.estado === 1 || cat.estado === "1" || cat.estado === true;
+    const nuevoEstado = isActivo ? "Inactivo" : "Activo";
+
+    if (nuevoEstado === "Inactivo") {
+      const confirmed = await notify.confirmAction(
+        "¿Inhabilitar categoría?",
+        `¿Estás seguro de que deseas inhabilitar "${cat.nombre}"? No estará disponible al registrar nuevos insumos hasta que vuelva a habilitarse.`,
+        "Sí, inhabilitar"
+      );
+      if (!confirmed) return false;
+    }
+
+    try {
+      const updated = await categoriaInsumosService.updateCategoria(id, { estado: nuevoEstado });
+      setCategorias((prev) =>
+        prev.map((item) => {
+          const itemId = item.id ?? item.idCategoriaInsumo;
+          if (Number(itemId) !== Number(id)) return item;
+          return {
+            ...item,
+            ...(updated && typeof updated === "object" ? updated : {}),
+            estado: updated?.estado || nuevoEstado
+          };
+        })
+      );
+      notify.success(
+        nuevoEstado === "Activo" ? "Categoría habilitada" : "Categoría inhabilitada",
+        nuevoEstado === "Activo"
+          ? `La categoría "${cat.nombre}" quedó habilitada nuevamente.`
+          : `La categoría "${cat.nombre}" fue inhabilitada correctamente.`
+      );
+      return true;
+    } catch (err) {
+      notify.error("Error", err.message || "No se pudo cambiar el estado de la categoría");
+      return false;
+    }
+  };
+
   const deleteCategoria = async (id, nombre) => {
     const confirmed = await notify.confirmDelete(
       "¿Eliminar categoría?",
@@ -135,6 +176,7 @@ export function useCategoriaInsumos() {
     refetch: fetchCategorias,
     createCategoria,
     updateCategoria,
+    toggleEstadoCategoria,
     deleteCategoria
   };
 }

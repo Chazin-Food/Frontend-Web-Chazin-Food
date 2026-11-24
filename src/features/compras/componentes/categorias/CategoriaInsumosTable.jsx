@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
-import { Edit, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Edit, Trash2, Power, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
 
-export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEdit = true, canDelete = true }) {
+export function CategoriaInsumosTable({
+  categorias = [],
+  onEdit,
+  onToggleEstado,
+  onDelete,
+  canEdit = true,
+  canDelete = true
+}) {
   const [pageSize, setPageSize] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -59,8 +66,27 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
                   {c.insumosCount ?? c.cantidad ?? (c.insumos?.length || 0)} insumos
                 </span>
                 <div className="flex items-center gap-2">
+                  {onToggleEstado && canEdit && (() => {
+                    const isActivo = c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onToggleEstado(c)}
+                        title={isActivo ? "Inhabilitar categoría" : "Habilitar categoría"}
+                        aria-label={isActivo ? "Inhabilitar categoría" : "Habilitar categoría"}
+                        className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                          isActivo
+                            ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 hover:bg-amber-50 hover:text-amber-600"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        }`}
+                      >
+                        <Power className="w-4 h-4 stroke-[2.2]" />
+                      </button>
+                    );
+                  })()}
                   {canEdit && (
                     <button
+                      type="button"
                       onClick={() => onEdit(c)}
                       title="Editar categoría"
                       className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer"
@@ -70,6 +96,7 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
                   )}
                   {canDelete && (
                     <button
+                      type="button"
                       onClick={() => onDelete(c.id, c.nombre)}
                       title="Eliminar categoría"
                       className="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 cursor-pointer"
@@ -89,11 +116,11 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
         <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-[#1e293b] dark:text-gray-200 uppercase tracking-wider">
-              <th className="px-4 sm:px-6 py-3.5 w-[28%] text-left">Nombre</th>
-              <th className="px-4 sm:px-6 py-3.5 w-[32%] text-left">Descripción</th>
+              <th className="px-4 sm:px-6 py-3.5 w-[27%] text-left">Nombre</th>
+              <th className="px-4 sm:px-6 py-3.5 w-[30%] text-left">Descripción</th>
               <th className="px-4 sm:px-6 py-3.5 w-[15%] text-center">Insumos</th>
               <th className="px-4 sm:px-6 py-3.5 w-[13%] text-center">Estado</th>
-              <th className="px-4 sm:px-6 py-3.5 w-[12%] text-center">Acciones</th>
+              <th className="px-4 sm:px-6 py-3.5 w-[15%] text-center">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs sm:text-sm">
@@ -145,21 +172,41 @@ export function CategoriaInsumosTable({ categorias = [], onEdit, onDelete, canEd
                     </span>
                   </td>
                   <td className="px-4 sm:px-6 py-3.5 text-center">
-                    <div className="flex items-center justify-center gap-2.5">
+                    <div className="flex items-center justify-center gap-2">
+                      {onToggleEstado && canEdit && (() => {
+                        const isActivo = c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onToggleEstado(c)}
+                            title={isActivo ? "Inhabilitar categoría" : "Habilitar categoría"}
+                            aria-label={isActivo ? "Inhabilitar categoría" : "Habilitar categoría"}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              isActivo
+                                ? "text-emerald-600 dark:text-emerald-400 hover:text-amber-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                : "text-gray-400 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            }`}
+                          >
+                            <Power className="w-4 h-4 stroke-[2.2]" />
+                          </button>
+                        );
+                      })()}
                       {canEdit && (
                         <button
+                          type="button"
                           onClick={() => onEdit(c)}
                           title="Editar categoría"
-                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors p-1 cursor-pointer"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors p-1.5 cursor-pointer"
                         >
                           <Edit className="w-4 h-4 stroke-[2]" />
                         </button>
                       )}
                       {canDelete && (
                         <button
+                          type="button"
                           onClick={() => onDelete(c.id, c.nombre)}
                           title="Eliminar categoría"
-                          className="text-red-500 dark:text-red-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                          className="text-red-500 dark:text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors p-1.5 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4 stroke-[2]" />
                         </button>
