@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { X, AlertTriangle, Clock, Lightbulb, Mail, CheckCircle2, AlertCircle, Lock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, AlertTriangle, Clock, Lightbulb, Mail, CheckCircle2, AlertCircle, Lock, Loader2 } from "lucide-react";
 import {
   sanitizeTelefono,
   sanitizeDocumento,
@@ -12,6 +12,7 @@ import {
   formatNombreCompleto
 } from "@/shared/utils/validationUtils";
 import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
+import { clientesService } from "../../servicios/clientesService";
 
 export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes = [], zIndex = "z-50" }) {
   const isEditing = !!cliente;
@@ -31,6 +32,9 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [docCheck, setDocCheck] = useState({ status: "idle", doc: "", ownerName: "" });
+  const docCheckSeqRef = useRef(0);
 
   const addressValidation = useMedellinAddressValidation(
     isOpen ? form.direccion : "",
@@ -73,22 +77,93 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
     setErrors({});
     setTouched({});
     setSubmitted(false);
+    setIsSubmitting(false);
+    docCheckSeqRef.current += 1;
+    setDocCheck({ status: "idle", doc: "", ownerName: "" });
   }, [cliente, isOpen]);
+
+  const docConfig = getDocConfig(form.tipoDocumento);
+  const cleanDocCurrent = sanitizeDocumento(form.documento, form.tipoDocumento);
+
+  const findLocalDuplicate = (rawDoc, tipoDoc) => {
+    if (isIdentificationLocked) return null;
+    const clean = sanitizeDocumento(rawDoc || "", tipoDoc || form.tipoDocumento).trim();
+    if (!clean || clean.length < 5) return null;
+    return (clientes || []).find((c) => {
+      const cDoc = sanitizeDocumento(c.documento || c.numeroDocumento || "", c.tipoDocumento || tipoDoc || form.tipoDocumento).trim();
+      return cDoc && clean === cDoc;
+    }) || null;
+  };
+
+  const localExistingClient = findLocalDuplicate(cleanDocCurrent, form.tipoDocumento);
+
+  // Validación en vivo contra toda la BD (usuarios y todas las páginas de clientes) al ingresar el documento
+  useEffect(() => {
+    if (!isOpen || isIdentificationLocked) return;
+
+    const clean = sanitizeDocumento(form.documento, form.tipoDocumento).trim();
+    const docFormatCheck = validateDocumento(clean, form.tipoDocumento);
+
+    if (!clean || !docFormatCheck.isValid) {
+      docCheckSeqRef.current += 1;
+      setDocCheck({ status: "idle", doc: clean, ownerName: "" });
+      return;
+    }
+
+    const localHit = findLocalDuplicate(clean, form.tipoDocumento);
+    if (localHit) {
+      docCheckSeqRef.current += 1;
+      const ownerName = formatNombreCompleto(localHit.nombre, localHit.apellidos);
+      setDocCheck({ status: "duplicate", doc: clean, ownerName });
+      setErrors((prev) => ({
+        ...prev,
+        documento: `Este número de documento ya pertenece a otra persona (${ownerName}). No es posible crear el cliente.`
+      }));
+      return;
+    }
+
+    const seq = ++docCheckSeqRef.current;
+    setDocCheck({ status: "checking", doc: clean, ownerName: "" });
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await clientesService.verificarDocumento(clean, form.tipoDocumento);
+        if (docCheckSeqRef.current !== seq) return;
+        if (res?.existe) {
+          const ownerLabel = res.nombre ? ` (${res.nombre})` : "";
+          setDocCheck({ status: "duplicate", doc: clean, ownerName: res.nombre || "" });
+          setErrors((prev) => ({
+            ...prev,
+            documento: `Este número de documento ya pertenece a otra persona${ownerLabel}. No es posible crear el cliente.`
+          }));
+        } else {
+          setDocCheck({ status: "available", doc: clean, ownerName: "" });
+          setErrors((prev) => {
+            if (prev.documento && prev.documento.toLowerCase().includes("ya pertenece")) {
+              return { ...prev, documento: null };
+            }
+            return prev;
+          });
+        }
+      } catch {
+        if (docCheckSeqRef.current !== seq) return;
+        setDocCheck({ status: "idle", doc: clean, ownerName: "" });
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, isIdentificationLocked, form.documento, form.tipoDocumento, clientes]);
 
   if (!isOpen) return null;
 
-  const docConfig = getDocConfig(form.tipoDocumento);
-
-  // Verificación en tiempo real de documento duplicado (Ítem 120) — solo aplica al registrar cliente nuevo
-  const cleanDocCurrent = sanitizeDocumento(form.documento, form.tipoDocumento);
+  const isCheckingDoc = !isIdentificationLocked && docCheck.status === "checking" && docCheck.doc === cleanDocCurrent.trim();
+  const isRemoteDuplicate = !isIdentificationLocked && docCheck.status === "duplicate" && docCheck.doc === cleanDocCurrent.trim();
   const existingClient = isIdentificationLocked
     ? null
-    : (clientes || []).find((c) => {
-        if (!cleanDocCurrent || cleanDocCurrent.trim().length < 5) return false;
-        const docClean = cleanDocCurrent.trim();
-        const cDoc = sanitizeDocumento(c.documento || c.numeroDocumento || "", c.tipoDocumento || form.tipoDocumento);
-        return docClean === cDoc;
-      });
+    : localExistingClient || (isRemoteDuplicate ? { nombre: docCheck.ownerName || "otra persona registrada", apellidos: "" } : null);
+  const existingOwnerDisplay = existingClient
+    ? (existingClient.apellidos ? formatNombreCompleto(existingClient.nombre, existingClient.apellidos) : existingClient.nombre)
+    : "";
 
   const validateField = (name, value, currentForm = form) => {
     switch (name) {
@@ -96,8 +171,14 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
         if (!value || !value.trim()) return "El número de documento es obligatorio.";
         const docVal = validateDocumento(value, currentForm.tipoDocumento);
         if (!docVal.isValid) return docVal.error;
-        if (existingClient) {
-          return `Ya existe un cliente con este documento (${formatNombreCompleto(existingClient.nombre, existingClient.apellidos)}).`;
+        const localHit = findLocalDuplicate(value, currentForm.tipoDocumento);
+        if (localHit) {
+          return `Este número de documento ya pertenece a otra persona (${formatNombreCompleto(localHit.nombre, localHit.apellidos)}). No es posible crear el cliente.`;
+        }
+        const cleanVal = sanitizeDocumento(value, currentForm.tipoDocumento).trim();
+        if (!isIdentificationLocked && docCheck.status === "duplicate" && docCheck.doc === cleanVal) {
+          const ownerLabel = docCheck.ownerName ? ` (${docCheck.ownerName})` : "";
+          return `Este número de documento ya pertenece a otra persona${ownerLabel}. No es posible crear el cliente.`;
         }
         return null;
       }
@@ -144,8 +225,9 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
     setErrors((prev) => ({ ...prev, [field]: err }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting || isCheckingDoc || existingClient) return;
     setSubmitted(true);
     setErrorMsg("");
 
@@ -182,6 +264,30 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
       return;
     }
 
+    // Si el usuario pegó el documento y envió antes de que terminara el debounce, verificar en BD antes de crear
+    if (!isIdentificationLocked) {
+      const cleanSubmitDoc = sanitizeDocumento(form.documento, form.tipoDocumento).trim();
+      if (!(docCheck.status === "available" && docCheck.doc === cleanSubmitDoc)) {
+        setIsSubmitting(true);
+        try {
+          const liveRes = await clientesService.verificarDocumento(cleanSubmitDoc, form.tipoDocumento);
+          if (liveRes?.existe) {
+            const ownerLabel = liveRes.nombre ? ` (${liveRes.nombre})` : "";
+            const dupMsg = `Este número de documento ya pertenece a otra persona${ownerLabel}. No es posible crear el cliente.`;
+            setDocCheck({ status: "duplicate", doc: cleanSubmitDoc, ownerName: liveRes.nombre || "" });
+            setErrors((prev) => ({ ...prev, documento: dupMsg }));
+            setErrorMsg(dupMsg);
+            setIsSubmitting(false);
+            return;
+          }
+          setDocCheck({ status: "available", doc: cleanSubmitDoc, ownerName: "" });
+        } catch {
+          // Si falla la red en precheck, el backend igual validará al intentar crear
+        }
+        setIsSubmitting(false);
+      }
+    }
+
     const payload = {
       ...form,
       nombre: form.nombre.trim(),
@@ -196,7 +302,12 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
       payload.documento = sanitizeDocumento(form.documento, form.tipoDocumento);
     }
 
-    onSave(payload);
+    setIsSubmitting(true);
+    try {
+      await onSave(payload);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleTipoChange = (newTipo) => {
@@ -358,11 +469,11 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                     className={`w-full px-4 py-2.5 border rounded-xl outline-none text-xs transition-colors ${
                       isIdentificationLocked
                         ? "pr-9 bg-gray-100 dark:bg-gray-800/70 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed select-none font-medium"
-                        : (touched.documento || submitted) && errors.documento
-                        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500 text-red-900 focus:ring-red-400"
-                        : existingClient
-                        ? "bg-amber-50/20 border-amber-400 dark:border-amber-500 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-amber-400"
-                        : touched.documento && form.documento && !errors.documento
+                        : existingClient || ((touched.documento || submitted) && errors.documento)
+                        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500 text-red-900 dark:text-red-200 focus:ring-2 focus:ring-red-400"
+                        : isCheckingDoc
+                        ? "bg-blue-50/20 border-blue-300 dark:border-blue-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-400"
+                        : touched.documento && form.documento && !errors.documento && docCheck.status === "available"
                         ? "bg-emerald-50/10 border-emerald-500/60 dark:border-emerald-500/40 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-400"
                         : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500/50"
                     }`}
@@ -376,15 +487,25 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
                   )}
                 </div>
                 {!isIdentificationLocked && (
-                  (touched.documento || submitted) && errors.documento ? (
+                  isCheckingDoc ? (
+                    <p className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      Verificando documento...
+                    </p>
+                  ) : existingClient ? (
+                    <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      Número de documento ya registrado
+                    </p>
+                  ) : (touched.documento || submitted) && errors.documento ? (
                     <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       {errors.documento}
                     </p>
-                  ) : touched.documento && form.documento && !errors.documento && !existingClient ? (
+                  ) : touched.documento && form.documento && !errors.documento && docCheck.status === "available" ? (
                     <p className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
                       <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                      Documento válido
+                      Documento disponible
                     </p>
                   ) : null
                 )}
@@ -403,17 +524,18 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
               </p>
             )}
 
-            {/* Alerta de Documento Duplicado Inmediata (Ítem 120) */}
+            {/* Alerta de Documento Duplicado en Tiempo Real (Ítem 120) */}
             {!isIdentificationLocked && existingClient && (
               <div
                 role="alert"
-                className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2 animate-fadeIn"
+                className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2 animate-fadeIn"
               >
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-amber-800 dark:text-amber-300">Cliente ya registrado</p>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
-                    Ya existe un cliente con este documento: <strong>{formatNombreCompleto(existingClient.nombre, existingClient.apellidos)}</strong>. No es posible crear registros duplicados.
+                  <p className="font-bold text-rose-800 dark:text-rose-300">Documento ya registrado</p>
+                  <p className="text-[11px] text-rose-700 dark:text-rose-400 mt-0.5">
+                    Este número de documento ya pertenece a{" "}
+                    <strong>{existingOwnerDisplay || "otra persona registrada"}</strong>. No es posible crear el cliente con un documento duplicado.
                   </p>
                 </div>
               </div>
@@ -713,15 +835,21 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
             </button>
             <button
               type="submit"
-              disabled={!!existingClient}
-              title={existingClient ? "No es posible crear cliente con documento duplicado" : ""}
-              className={`px-6 py-2.5 text-xs font-bold text-white rounded-xl transition-all shadow-md ${
+              disabled={!!existingClient || isCheckingDoc || isSubmitting}
+              title={
                 existingClient
+                  ? "No es posible crear cliente con un número de documento que ya pertenece a otra persona"
+                  : isCheckingDoc
+                  ? "Verificando disponibilidad del documento..."
+                  : ""
+              }
+              className={`px-6 py-2.5 text-xs font-bold text-white rounded-xl transition-all shadow-md ${
+                existingClient || isCheckingDoc || isSubmitting
                   ? "bg-gray-400 dark:bg-gray-700 cursor-not-allowed opacity-60"
                   : "bg-red-500 hover:bg-red-600 cursor-pointer"
               }`}
             >
-              {isEditing ? "Guardar Cambios" : "Crear Cliente"}
+              {isSubmitting ? "Guardando..." : isEditing ? "Guardar Cambios" : "Crear Cliente"}
             </button>
           </div>
         </form>

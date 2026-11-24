@@ -16,6 +16,32 @@ export const clientesService = {
     return await apiClient.get("/clientes/stats");
   },
 
+  verificarDocumento: async (documento, tipoDocumento = "C.C.") => {
+    const clean = String(documento || "").trim();
+    if (!clean) return { existe: false, nombre: null };
+    const qs = new URLSearchParams({
+      documento: clean,
+      tipoDocumento: tipoDocumento || "C.C."
+    }).toString();
+    try {
+      const res = await apiClient.get(`/clientes/verificar-documento?${qs}`, { noCache: true });
+      return {
+        existe: Boolean(res?.existe || res?.exists || res?.conflict),
+        nombre: res?.nombre || null,
+        message: res?.message || ""
+      };
+    } catch (err) {
+      // Respaldo inmediato contra /usuarios/verificar-documento si el endpoint dedicado aún se está desplegando
+      const fallbackQs = new URLSearchParams({ numeroDocumento: clean }).toString();
+      const fb = await apiClient.get(`/usuarios/verificar-documento?${fallbackQs}`, { noCache: true });
+      return {
+        existe: Boolean(fb?.exists || fb?.registered || fb?.conflict),
+        nombre: fb?.nombre || null,
+        message: fb?.message || ""
+      };
+    }
+  },
+
   createCliente: async (data) => {
     return await apiClient.post("/clientes", data);
   },
