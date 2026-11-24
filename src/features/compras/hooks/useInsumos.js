@@ -485,23 +485,26 @@ export function useInsumos() {
     try {
       const isPrep = data.tipo === "Preparado";
       if (isPrep) {
+        const ingredientesRaw =
+          Array.isArray(data.ingredientes) && data.ingredientes.length > 0
+            ? data.ingredientes
+            : (data.fichaTecnica?.detalles || data.fichaTecnica?.insumos || data.fichaTecnica?.ingredientes || []);
+
         if (data.fichaTecnica && id) {
-          try {
-            await fichasTecnicasService.saveFichaInsumoPreparado(id, data.fichaTecnica);
-          } catch (e) {
-            console.error("Error guardando ficha técnica del preparado:", e);
-          }
+          await fichasTecnicasService.saveFichaInsumoPreparado(id, data.fichaTecnica);
         }
         const payload = {
           nombre: data.nombre,
           descripcion: data.descripcion || "",
           unidadMedida: data.unidadMedida || "und",
-          precioVenta: Number(data.precio) || 0,
+          precioVenta: Number(data.precio ?? data.precioUnitario ?? 0) || 0,
+          costoTotal: Number(data.costo ?? data.costoTotal ?? data.precioUnitario ?? data.precio ?? 0) || 0,
           estado: data.estado !== undefined ? data.estado : "Activo",
-          insumos: (data.ingredientes || []).map(i => ({
-            idInsumo: i.id || i.idInsumo,
-            cantidad: i.cantidad,
-            unidadMedida: i.unidadMedida || "und"
+          insumos: ingredientesRaw.map(i => ({
+            idInsumo: i.idInsumo || i.id,
+            cantidad: Number(i.cantidad || 1),
+            unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und",
+            precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? 0)
           }))
         };
         await insumosService.updatePreparado(id, payload);

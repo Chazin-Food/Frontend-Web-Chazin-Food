@@ -67,6 +67,7 @@ export function InsumoModal({
   isOpen,
   onClose,
   onSave,
+  onFichaSaved = null,
   insumo = null,
   categorias = [],
   proveedores = [],
@@ -81,6 +82,9 @@ export function InsumoModal({
   // Borradores para persistencia de datos al alternar (#61)
   const draftBaseRef = useRef(null);
   const draftPreparadoRef = useRef(null);
+  const fichaSavedDirectlyRef = useRef(false);
+  const categoriasRef = useRef(categorias);
+  categoriasRef.current = categorias;
 
   // Estado del formulario
   const [form, setForm] = useState({
@@ -113,24 +117,41 @@ export function InsumoModal({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  const handleClose = () => {
+    if (fichaSavedDirectlyRef.current) {
+      fichaSavedDirectlyRef.current = false;
+      onFichaSaved?.();
+    }
+    onClose();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && isOpen) {
+        if (fichaSavedDirectlyRef.current) {
+          fichaSavedDirectlyRef.current = false;
+          onFichaSaved?.();
+        }
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, onFichaSaved]);
 
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
+    const currentCategorias = categoriasRef.current || [];
+    fichaSavedDirectlyRef.current = false;
+    setErrors({});
+    setTouched({});
 
     if (insumo) {
       const isPrep = insumo.tipo === "Preparado" || !!insumo.insumosReceta || (!insumo.idCategoriaInsumo && !insumo.idProveedor && (insumo.costo !== undefined || insumo.rendimiento !== undefined));
       setTipo(isPrep ? "Preparado" : "Base");
 
-      const catNom = insumo.categoria || insumo.categoriaNombre || (categorias[0]?.nombre || "");
+      const catNom = insumo.categoria || insumo.categoriaNombre || (currentCategorias[0]?.nombre || "");
       const esSalsa = isSalsaItem(insumo.nombre, catNom);
       const esAdicionVal = !!(insumo.esAdicion === 1 || insumo.esAdicion === true || insumo.esAdicion === "1") || esSalsa;
       const precioAdicionVal = Number(insumo.precioAdicion || 0) > 0 ? Number(insumo.precioAdicion) : (esSalsa ? 1500 : 0);
@@ -138,7 +159,7 @@ export function InsumoModal({
 
       setForm({
         nombre: insumo.nombre || "",
-        idCategoriaInsumo: insumo.idCategoriaInsumo || (categorias[0]?.id || ""),
+        idCategoriaInsumo: insumo.idCategoriaInsumo || (currentCategorias[0]?.id || ""),
         categoria: catNom,
         unidadMedida: insumo.unidadMedida || (isPrep ? "und — unidad" : "Kg"),
         precioUnitario: insumo.precioUnitario || insumo.costo || insumo.precio || 0,
@@ -160,18 +181,59 @@ export function InsumoModal({
       });
 
       if (isPrep) {
-        if (insumo.fichaTecnica) {
-          setInitialFichaTecnica(insumo.fichaTecnica);
-          setFichaTecnica(insumo.fichaTecnica);
-        } else if (insumo.id) {
-          fichasTecnicasService.getFichaByInsumoPreparado(insumo.id)
-            .then(f => {
-              if (f) {
-                setInitialFichaTecnica(f);
-                setFichaTecnica(f);
+        const prepId = insumo.id || insumo.idInsumo;
+        const fallbackDetalles = Array.isArray(insumo.ingredientes)
+          ? insumo.ingredientes.map((ing) => ({
+              idInsumo: ing.idInsumo || ing.id,
+              nombreInsumo: ing.nombreInsumo || ing.nombre || ing.insumoNombre || `Insumo #${ing.idInsumo || ing.id}`,
+              cantidad: Number(ing.cantidad || 1),
+              unidadMedida: ing.unidadMedida || "und",
+              precioUnitario: Number(ing.precioUnitario || 0)
+            }))
+          : [];
+
+        const existingFt = insumo.fichaTecnica;
+        const hasExistingFtData = Boolean(
+          existingFt &&
+          (existingFt.idFichaTecnica ||
+            existingFt.id ||
+            (existingFt.procedimiento && String(existingFt.procedimiento).trim()) ||
+            (Array.isArray(existingFt.detalles) && existingFt.detalles.length > 0))
+        );
+
+        if (hasExistingFtData) {
+          const hydratedFt =
+            (!existingFt.detalles || existingFt.detalles.length === 0) && fallbackDetalles.length > 0
+              ? { ...existingFt, detalles: fallbackDetalles }
+              : existingFt;
+          setInitialFichaTecnica(hydratedFt);
+          setFichaTecnica(hydratedFt);
+        } else if (prepId) {
+          setInitialFichaTecnica(fallbackDetalles.length > 0 ? { detalles: fallbackDetalles } : null);
+          setFichaTecnica(fallbackDetalles.length > 0 ? { detalles: fallbackDetalles } : null);
+          fichasTecnicasService.getFichaByInsumoPreparado(prepId)
+            .then((f) => {
+              if (cancelled) return;
+              const hasFetchedData = Boolean(
+                f &&
+                (f.idFichaTecnica ||
+                  f.id ||
+                  (f.procedimiento && String(f.procedimiento).trim()) ||
+                  (Array.isArray(f.detalles) && f.detalles.length > 0))
+              );
+              if (hasFetchedData) {
+                const hydrated =
+                  (!f.detalles || f.detalles.length === 0) && fallbackDetalles.length > 0
+                    ? { ...f, detalles: fallbackDetalles }
+                    : f;
+                setInitialFichaTecnica(hydrated);
+                setFichaTecnica(hydrated);
               }
             })
             .catch(console.error);
+        } else {
+          setInitialFichaTecnica(fallbackDetalles.length > 0 ? { detalles: fallbackDetalles } : null);
+          setFichaTecnica(fallbackDetalles.length > 0 ? { detalles: fallbackDetalles } : null);
         }
       } else {
         setInitialFichaTecnica(null);
@@ -179,10 +241,10 @@ export function InsumoModal({
       }
     } else {
       setTipo("Base");
-      const activeCats = categorias.filter(
+      const activeCats = currentCategorias.filter(
         (c) => c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true || c.estado === undefined
       );
-      const firstActiveCat = activeCats[0] || categorias[0];
+      const firstActiveCat = activeCats[0] || currentCategorias[0];
       const defaultCat = firstActiveCat?.nombre || "";
       const esSalsaDefault = isSalsaItem("", defaultCat);
       setForm({
@@ -206,7 +268,30 @@ export function InsumoModal({
       setInitialFichaTecnica(null);
       setFichaTecnica(null);
     }
-  }, [insumo, isOpen, categorias, proveedores]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [insumo, isOpen]);
+
+  // Si en creación las categorías llegan después de abrir el modal, precargar la primera activa
+  useEffect(() => {
+    if (!isOpen || insumo || form.idCategoriaInsumo || categorias.length === 0) return;
+    const activeCats = categorias.filter(
+      (c) => c.estado === "Activo" || c.estado === 1 || c.estado === "1" || c.estado === true || c.estado === undefined
+    );
+    const firstActiveCat = activeCats[0] || categorias[0];
+    if (!firstActiveCat) return;
+    setForm((prev) =>
+      prev.idCategoriaInsumo
+        ? prev
+        : {
+            ...prev,
+            idCategoriaInsumo: firstActiveCat.id || firstActiveCat.idCategoriaInsumo || "",
+            categoria: firstActiveCat.nombre || prev.categoria
+          }
+    );
+  }, [isOpen, insumo, categorias, form.idCategoriaInsumo]);
 
   if (!isOpen) return null;
 
@@ -476,6 +561,104 @@ export function InsumoModal({
       const minVal = tipo === "Base" && form.controlarStock !== false ? Number(form.stockMinimo) : 0;
       const maxVal = tipo === "Base" && form.controlarStock !== false ? Number(form.stockMaximo) : 0;
 
+      let preparedEditExtras = {};
+      if (tipo === "Preparado") {
+        const ft = fichaTecnica || {};
+        const ingredientes = ft.detalles || ft.insumos || ft.ingredientes || [];
+        const missingFields = [];
+
+        if (!ingredientes || ingredientes.length === 0) {
+          missingFields.push("Ingredientes / Insumos Base (mínimo 1)");
+        }
+        if (!ft.procedimiento || !String(ft.procedimiento).trim()) {
+          missingFields.push("Procedimiento de Preparación");
+        }
+        if (!ft.tiempoPreparacion || Number(ft.tiempoPreparacion) < 1) {
+          missingFields.push("Tiempo de Preparación (mínimo 1 min)");
+        }
+        if (!ft.rendimiento || !String(ft.rendimiento).trim()) {
+          missingFields.push("Rendimiento / Porciones");
+        }
+        if (!ft.condicionesAlmacenamiento || !String(ft.condicionesAlmacenamiento).trim()) {
+          missingFields.push("Condiciones de Almacenamiento");
+        }
+        if (!ft.vidaUtil || !String(ft.vidaUtil).trim()) {
+          missingFields.push("Vida Útil");
+        }
+        if (!ft.especificaciones || !String(ft.especificaciones).trim()) {
+          missingFields.push("Especificaciones Técnicas / Calidad");
+        }
+        if (!ft.caracteristicas || !String(ft.caracteristicas).trim()) {
+          missingFields.push("Características Organolépticas");
+        }
+        if (!ft.informacionNutricional || !String(ft.informacionNutricional).trim()) {
+          missingFields.push("Información Nutricional");
+        }
+
+        if (missingFields.length > 0) {
+          notify.error(
+            "Ficha Técnica Incompleta",
+            `Completa los campos obligatorios de la ficha técnica: ${missingFields.join(", ")}.`
+          );
+          return;
+        }
+
+        const esSalsaEdit = isSalsaItem(insumo.nombre || form.nombre, insumo.categoria || form.categoria);
+        const esAdicionEdit = Boolean(form.esAdicion || esSalsaEdit);
+        const precioAdicionEdit = esAdicionEdit
+          ? (Number(form.precioAdicion) > 0 ? Number(form.precioAdicion) : (esSalsaEdit ? 1500 : 0))
+          : 0;
+        const precioBaseInmutable = Number(insumo.precioUnitario ?? insumo.precio ?? form.precioUnitario ?? 0);
+        const unidadInmutable = insumo.unidadMedida || form.unidadMedida || "und — unidad";
+
+        const entityDataActualInsumo = {
+          nombre: (insumo.nombre || form.nombre || "").trim(),
+          descripcion: (form.descripcion || "").trim(),
+          precioUnitario: precioBaseInmutable,
+          unidadMedida: unidadInmutable,
+          estado: form.estado || "Activo",
+          incluyeIva: form.incluyeIva ? 1 : 0,
+          porcentajeIva: form.incluyeIva ? (parseFloat(form.porcentajeIva) || 19) : 0,
+          esAdicion: esAdicionEdit,
+          precioAdicion: precioAdicionEdit
+        };
+
+        const prevEntityDataInicialInsumo = {
+          nombre: insumo.nombre || "",
+          descripcion: insumo.descripcion || "",
+          precioUnitario: Number(insumo.precioUnitario ?? insumo.precio ?? 0),
+          unidadMedida: insumo.unidadMedida || "und — unidad",
+          estado: insumo.estado || "Activo",
+          incluyeIva: insumo.incluyeIva ? 1 : 0,
+          porcentajeIva: insumo.incluyeIva ? (parseFloat(insumo.porcentajeIva) || 19) : 0,
+          esAdicion: Boolean(insumo.esAdicion),
+          precioAdicion: Number(insumo.precioAdicion || 0)
+        };
+
+        preparedEditExtras = {
+          tipo: "Preparado",
+          precio: precioBaseInmutable,
+          precioUnitario: precioBaseInmutable,
+          unidadMedida: unidadInmutable,
+          fichaTecnica: {
+            ...ft,
+            procedimiento: String(ft.procedimiento).trim(),
+            tiempoPreparacion: Number(ft.tiempoPreparacion) || 1,
+            rendimiento: String(ft.rendimiento).trim(),
+            especificaciones: String(ft.especificaciones).trim(),
+            caracteristicas: String(ft.caracteristicas).trim(),
+            informacionNutricional: String(ft.informacionNutricional).trim(),
+            condicionesAlmacenamiento: String(ft.condicionesAlmacenamiento).trim(),
+            vidaUtil: String(ft.vidaUtil).trim(),
+            observaciones: String(ft.observaciones || "").trim(),
+            datosEntidad: entityDataActualInsumo,
+            _prevDatosEntidad: prevEntityDataInicialInsumo,
+            detalles: ingredientes
+          },
+          ingredientes
+        };
+      }
+
       const savePayload = async () => {
         if (insumo?.estado === "Activo" && form.estado === "Inactivo") {
           const confirmed = await notify.confirmAction(
@@ -486,8 +669,10 @@ export function InsumoModal({
           if (!confirmed) return;
         }
 
+        fichaSavedDirectlyRef.current = false;
         onSave({
           ...insumo,
+          ...preparedEditExtras,
           controlarStock: form.controlarStock !== false,
           stockMinimo: minVal,
           stockMaximo: maxVal,
@@ -713,7 +898,7 @@ export function InsumoModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -727,7 +912,15 @@ export function InsumoModal({
             <div className="mx-6 mt-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200 shrink-0">
               <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
               <div>
-                <span className="font-bold">Modo Edición:</span> Por políticas de inventario, los datos maestros (nombre, categoría, unidad de medida, costo base y stock) son <strong>inmutables</strong>. Puedes actualizar el <strong>Stock Mínimo</strong>, <strong>Stock Máximo</strong>, <strong>Descripción</strong>, <strong>Estado</strong>, <strong>Disponibilidad como Adición</strong> y la sección de <strong>Impuesto IVA</strong>.
+                {tipo === "Preparado" ? (
+                  <>
+                    <span className="font-bold">Modo Edición:</span> Por políticas de inventario, los datos maestros (nombre, unidad de medida y costo base) son <strong>inmutables</strong>. Puedes editar la <strong>Ficha Técnica</strong> (ingredientes, elaboración, parámetros y conservación), <strong>Descripción</strong>, <strong>Estado</strong>, <strong>Disponibilidad como Adición</strong> y la sección de <strong>Impuesto IVA</strong>.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold">Modo Edición:</span> Por políticas de inventario, los datos maestros (nombre, categoría, unidad de medida, costo base y stock) son <strong>inmutables</strong>. Puedes actualizar el <strong>Stock Mínimo</strong>, <strong>Stock Máximo</strong>, <strong>Descripción</strong>, <strong>Estado</strong>, <strong>Disponibilidad como Adición</strong> y la sección de <strong>Impuesto IVA</strong>.
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1249,50 +1442,62 @@ export function InsumoModal({
                   </div>
                 </div>
 
-                {/* Sección Ficha Técnica del Preparado */}
-                {!isEditing && (
-                  <div className="pt-2">
-                    <FichaTecnicaInsumo
-                      insumoId={insumo?.id}
-                      insumoName={form.nombre}
-                      initialData={initialFichaTecnica}
-                      entityData={{
-                        nombre: form.nombre || "",
-                        descripcion: form.descripcion || "",
-                        precioUnitario: Number(form.precioUnitario) || 0,
-                        unidadMedida: form.unidadMedida || "und — unidad",
-                        estado: form.estado || "Activo"
-                      }}
-                      prevEntityData={
-                        insumo
-                          ? {
-                            nombre: insumo.nombre || "",
-                            descripcion: insumo.descripcion || "",
-                            precioUnitario: Number(insumo.precioUnitario ?? insumo.precio ?? 0),
-                            unidadMedida: insumo.unidadMedida || "und — unidad",
-                            estado: insumo.estado || "Activo"
-                          }
-                          : null
+                {/* Sección Ficha Técnica del Preparado (Creación y Edición) */}
+                <div className="pt-2">
+                  <FichaTecnicaInsumo
+                    insumoId={insumo?.id || insumo?.idInsumo}
+                    insumoName={form.nombre}
+                    initialData={initialFichaTecnica}
+                    entityData={{
+                      nombre: form.nombre || "",
+                      descripcion: form.descripcion || "",
+                      precioUnitario: Number(form.precioUnitario) || 0,
+                      unidadMedida: form.unidadMedida || "und — unidad",
+                      estado: form.estado || "Activo",
+                      incluyeIva: form.incluyeIva ? 1 : 0,
+                      porcentajeIva: form.incluyeIva ? (parseFloat(form.porcentajeIva) || 19) : 0,
+                      esAdicion: Boolean(form.esAdicion),
+                      precioAdicion: form.esAdicion ? (Number(form.precioAdicion) || 0) : 0
+                    }}
+                    prevEntityData={
+                      insumo
+                        ? {
+                          nombre: insumo.nombre || "",
+                          descripcion: insumo.descripcion || "",
+                          precioUnitario: Number(insumo.precioUnitario ?? insumo.precio ?? 0),
+                          unidadMedida: insumo.unidadMedida || "und — unidad",
+                          estado: insumo.estado || "Activo",
+                          incluyeIva: insumo.incluyeIva ? 1 : 0,
+                          porcentajeIva: insumo.incluyeIva ? (parseFloat(insumo.porcentajeIva) || 19) : 0,
+                          esAdicion: Boolean(insumo.esAdicion),
+                          precioAdicion: Number(insumo.precioAdicion || 0)
+                        }
+                        : null
+                    }
+                    onRestoreEntityData={(restoredEnt) => {
+                      if (!restoredEnt || typeof restoredEnt !== "object") return;
+                      setForm((prev) => ({
+                        ...prev,
+                        nombre: isEditing ? prev.nombre : (restoredEnt.nombre ?? prev.nombre),
+                        descripcion: restoredEnt.descripcion ?? prev.descripcion,
+                        precioUnitario: isEditing
+                          ? prev.precioUnitario
+                          : restoredEnt.precioUnitario !== undefined
+                            ? String(restoredEnt.precioUnitario)
+                            : prev.precioUnitario,
+                        unidadMedida: isEditing ? prev.unidadMedida : (restoredEnt.unidadMedida ?? prev.unidadMedida),
+                        estado: restoredEnt.estado || prev.estado
+                      }));
+                    }}
+                    onChange={(data) => setFichaTecnica(data)}
+                    onSave={(data) => {
+                      setFichaTecnica(data);
+                      if (isEditing) {
+                        fichaSavedDirectlyRef.current = true;
                       }
-                      onRestoreEntityData={(restoredEnt) => {
-                        if (!restoredEnt || typeof restoredEnt !== "object") return;
-                        setForm((prev) => ({
-                          ...prev,
-                          nombre: restoredEnt.nombre ?? prev.nombre,
-                          descripcion: restoredEnt.descripcion ?? prev.descripcion,
-                          precioUnitario:
-                            restoredEnt.precioUnitario !== undefined
-                              ? String(restoredEnt.precioUnitario)
-                              : prev.precioUnitario,
-                          unidadMedida: restoredEnt.unidadMedida ?? prev.unidadMedida,
-                          estado: restoredEnt.estado || prev.estado
-                        }));
-                      }}
-                      onChange={(data) => setFichaTecnica(data)}
-                      onSave={(data) => setFichaTecnica(data)}
-                    />
-                  </div>
-                )}
+                    }}
+                  />
+                </div>
               </div>
             )}
 
@@ -1608,7 +1813,7 @@ export function InsumoModal({
           <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-800 shrink-0">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-5 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-200/70 dark:hover:bg-gray-700/60 rounded-xl transition-colors cursor-pointer"
             >
               Cancelar

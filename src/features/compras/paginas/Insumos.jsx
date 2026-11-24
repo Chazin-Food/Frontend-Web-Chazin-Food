@@ -65,7 +65,8 @@ export function Insumos() {
     deleteLotesVencidos,
     clearEventos,
     resetUnreadCount,
-    toggleEstadoInsumo
+    toggleEstadoInsumo,
+    refetch
   } = useInsumos();
 
   const alertShownRef = useRef(false);
@@ -613,6 +614,7 @@ export function Insumos() {
               setEditingInsumo(null);
             }}
             onSave={handleSaveInsumo}
+            onFichaSaved={refetch}
             insumo={editingInsumo}
             categorias={categorias}
             proveedores={proveedores}

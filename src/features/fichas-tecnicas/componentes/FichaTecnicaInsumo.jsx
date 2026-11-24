@@ -100,9 +100,14 @@ export const checkInsumoInvalido = (insumoItem) => {
   const rawVenc = insumoItem.fechaVencimiento || insumoItem.insumo?.fechaVencimiento;
   const diasParaVencer = rawVenc ? diffCalendarDaysColombia(rawVenc) : null;
   const vencido = diasParaVencer !== null && diasParaVencer < 0;
-  const stockVal = Number(insumoItem.stock ?? insumoItem.insumo?.stock ?? 1);
-  const estadoVal = String(insumoItem.estado ?? insumoItem.insumo?.estado ?? "");
-  const agotado = stockVal <= 0 || estadoVal.toLowerCase() === "agotado" || estadoVal === "0";
+  const controlarStock =
+    insumoItem.controlarStock !== false && insumoItem.insumo?.controlarStock !== false;
+  const stockVal = Number(
+    insumoItem.stockVigente ?? insumoItem.stock ?? insumoItem.insumo?.stock ?? 1
+  );
+  const estadoVal = String(insumoItem.estado ?? insumoItem.insumo?.estado ?? "").toLowerCase();
+  const isInactiveState = estadoVal === "agotado" || estadoVal === "0" || estadoVal === "inactivo";
+  const agotado = isInactiveState || (controlarStock && stockVal <= 0);
   return { vencido, agotado };
 };
 
@@ -342,7 +347,8 @@ export function FichaTecnicaInsumo({
         idInsumo: i.idInsumo || i.id,
         nombreInsumo: i.nombreInsumo || i.insumo?.nombre || i.nombre,
         cantidad: Number(i.cantidad || 1),
-        unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und"
+        unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und",
+        precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? 0)
       }))
     };
 
@@ -361,7 +367,7 @@ export function FichaTecnicaInsumo({
       ver: versionInfo.versionActual,
       vig: versionInfo.fechaInicioVigencia,
       ins: insumos.map(i => `${i.idInsumo || i.id}:${i.cantidad}:${i.unidadMedida || i.insumo?.unidadMedida || "und"}`).join(','),
-      ent: entityData ? `${entityData.id || entityData.idInsumo}_${entityData.nombre}_${entityData.precio}` : null
+      ent: entityData ? `${entityData.id || entityData.idInsumo}_${entityData.nombre}_${entityData.precio}_${entityData.descripcion}_${entityData.estado}` : null
     });
 
     if (fingerprint !== lastSentRef.current) {
@@ -384,7 +390,9 @@ export function FichaTecnicaInsumo({
       .then((res) => {
         if (cancelled) return;
         const raw = Array.isArray(res) ? res : res?.data || [];
-        const filtered = raw.filter(item => !insumoId || String(item.id || item.idInsumo) !== String(insumoId));
+        const filtered = raw.filter(
+          (item) => !(item.tipo === "Preparado" && insumoId && String(item.id || item.idInsumo) === String(insumoId))
+        );
         dbInsumosListRef.current = filtered;
         setDbInsumosList(filtered);
       })
@@ -415,6 +423,7 @@ export function FichaTecnicaInsumo({
         nombreInsumo: item.nombreInsumo || item.insumo?.nombre || item.nombre || matchDb?.nombre || `Insumo #${item.idInsumo || item.id}`,
         cantidad: Number(item.cantidad || 1),
         unidadMedida: item.unidadMedida || matchDb?.unidadMedida || "und",
+        precioUnitario: Number(item.precioUnitario ?? item.costoUnitario ?? item.insumo?.precioUnitario ?? matchDb?.precioUnitario ?? 0),
         insumo: item.insumo || matchDb || null
       };
     }));
@@ -480,29 +489,53 @@ export function FichaTecnicaInsumo({
 
   // Manejo de versión restaurada
   const handleRestoreVersion = (snapshot) => {
-    const restoredState = buildRestoredVersionState(snapshot, "INSUMO_PREPARADO", insumoId);
-    setInsumos(restoredState.insumos);
+    if (!snapshot) return;
+    const currentSnapshot = {
+      ...(sanitizeSnapshot(versionInfo.prevFichaSnapshot) || {}),
+      idInsumo: insumoId || null,
+      tipo: "INSUMO_PREPARADO",
+      procedimiento,
+      tiempoPreparacion: Number(tiempoPreparacion) || 0,
+      rendimiento,
+      especificaciones,
+      caracteristicas,
+      informacionNutricional,
+      condicionesAlmacenamiento,
+      vidaUtil,
+      observaciones,
+      detalles: insumos,
+      versionActual: versionInfo.versionActual,
+      fechaInicioVigencia: versionInfo.fechaInicioVigencia,
+      versionesAnteriores: versionInfo.versionesAnteriores,
+      datosEntidad: entityData || versionInfo.prevFichaSnapshot?.datosEntidad || null
+    };
+    const restoredState = buildRestoredVersionState(currentSnapshot, snapshot, {
+      tipo: "INSUMO_PREPARADO",
+      entityId: insumoId
+    });
+    setInsumos(restoredState.insumos || restoredState.detalles || []);
     const parsedPasos = desglosarProcedimiento(restoredState.procedimiento);
     setPasosProceso(parsedPasos);
     setProcedimiento(restoredState.procedimiento || serializarPasos(parsedPasos));
-    setTiempoPreparacion(restoredState.tiempoPreparacion);
-    setRendimiento(restoredState.rendimiento);
-    setEspecificaciones(restoredState.especificaciones);
-    setCaracteristicas(restoredState.caracteristicas);
-    setInformacionNutricional(restoredState.informacionNutricional);
-    setCondicionesAlmacenamiento(restoredState.condicionesAlmacenamiento);
-    setVidaUtil(restoredState.vidaUtil);
-    setObservaciones(restoredState.observaciones);
+    setTiempoPreparacion(restoredState.tiempoPreparacion ? String(restoredState.tiempoPreparacion) : "15");
+    setRendimiento(restoredState.rendimiento || "1 receta base");
+    setEspecificaciones(restoredState.especificaciones || "");
+    setCaracteristicas(restoredState.caracteristicas || "");
+    setInformacionNutricional(restoredState.informacionNutricional || "");
+    setCondicionesAlmacenamiento(restoredState.condicionesAlmacenamiento || "");
+    setVidaUtil(restoredState.vidaUtil || "");
+    setObservaciones(restoredState.observaciones || "");
     setVersionInfo({
       versionActual: restoredState.versionActual,
       fechaInicioVigencia: restoredState.fechaInicioVigencia,
-      versionesAnteriores: restoredState.versionesAnteriores,
-      prevFichaSnapshot: restoredState._prevFicha
+      versionesAnteriores: restoredState.versionesAnteriores || [],
+      prevFichaSnapshot: sanitizeSnapshot(restoredState)
     });
     if (onRestoreEntityData && snapshot.datosEntidad) {
       onRestoreEntityData(snapshot.datosEntidad);
     }
-    notify.success("Versión Restaurada", `Se cargaron los datos de la Versión ${snapshot.version}.`);
+    setActiveTab("ingredientes");
+    notify.success("Versión Restaurada", `Se cargaron los datos de la Versión ${snapshot.version}. Guarda los cambios para aplicarla.`);
   };
 
   // Insumos disponibles filtrados
@@ -549,6 +582,7 @@ export function FichaTecnicaInsumo({
       nombreInsumo: ins.nombre,
       cantidad: cantDefault,
       unidadMedida: uDefault,
+      precioUnitario: Number(ins.precioUnitario ?? ins.costo ?? 0),
       insumo: ins
     };
     const next = [...insumos, nuevo];
@@ -718,7 +752,8 @@ export function FichaTecnicaInsumo({
         idInsumo: i.idInsumo || i.id,
         nombreInsumo: i.nombreInsumo || i.insumo?.nombre || i.nombre,
         cantidad: Number(i.cantidad || 1),
-        unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und"
+        unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und",
+        precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? 0)
       }))
     };
 
@@ -838,7 +873,17 @@ export function FichaTecnicaInsumo({
       id: "calidad", 
       label: "Conservación & Calidad", 
       icon: ShieldCheck 
-    }
+    },
+    ...(insumoId || (versionInfo.versionesAnteriores?.length || 0) > 0
+      ? [
+          {
+            id: "versiones",
+            label: "Historial",
+            icon: History,
+            count: versionInfo.versionesAnteriores?.length || 0
+          }
+        ]
+      : [])
   ];
 
   return (
@@ -1032,6 +1077,7 @@ export function FichaTecnicaInsumo({
                                 inputMode="decimal"
                                 value={item.cantidad}
                                 onChange={(e) => {
+                                  clearRestoredCommitFlag();
                                   const val = e.target.value.replace(',', '.');
                                   if (val === '' || /^\d*\.?\d*$/.test(val)) {
                                     setInsumos(prev => prev.map((x, i) => i === idx ? { ...x, cantidad: val } : x));
@@ -1418,7 +1464,10 @@ export function FichaTecnicaInsumo({
               <input
                 type="text"
                 value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
+                onChange={(e) => {
+                  clearRestoredCommitFlag();
+                  setObservaciones(e.target.value);
+                }}
                 placeholder="Advertencia de alérgenos (ej. contiene huevo, mostaza), recomendaciones para cocina..."
                 className={inputCls}
               />
@@ -1435,14 +1484,16 @@ export function FichaTecnicaInsumo({
                 <span>Anterior: Elaboración</span>
               </button>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("versiones")}
-                  className="px-3 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition flex items-center gap-1 cursor-pointer"
-                >
-                  <History className="w-3.5 h-3.5" />
-                  <span>Ver Historial</span>
-                </button>
+                {(insumoId || (versionInfo.versionesAnteriores?.length || 0) > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("versiones")}
+                    className="px-3 py-2 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <History className="w-3.5 h-3.5" />
+                    <span>Ver Historial</span>
+                  </button>
+                )}
                 {!readOnly && (
                   <button
                     type="button"
@@ -1455,6 +1506,31 @@ export function FichaTecnicaInsumo({
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 4: HISTORIAL DE VERSIONES                                */}
+        {/* ============================================================ */}
+        {activeTab === "versiones" && (
+          <div className="space-y-4 animate-in fade-in duration-150">
+            <FichaVersionesHistorial
+              versionActual={versionInfo.versionActual}
+              fechaInicioVigencia={versionInfo.fechaInicioVigencia}
+              versionesAnteriores={versionInfo.versionesAnteriores}
+              datosEntidadActual={entityData || versionInfo.prevFichaSnapshot?.datosEntidad || null}
+              onRestoreVersion={!readOnly ? handleRestoreVersion : null}
+            />
+            <div className="pt-2 flex justify-start">
+              <button
+                type="button"
+                onClick={() => setActiveTab("calidad")}
+                className="px-3.5 py-2 text-xs font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer border border-gray-200/80 dark:border-gray-700/80"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Volver a Conservación & Calidad</span>
+              </button>
             </div>
           </div>
         )}
