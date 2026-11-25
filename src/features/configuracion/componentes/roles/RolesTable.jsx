@@ -222,50 +222,62 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-3">
+                        <div className="flex items-center justify-center gap-2">
                           {onView && (
                             <button
                               type="button"
                               onClick={() => onView(r)}
                               title="Ver detalle del rol"
-                              className="text-slate-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1 cursor-pointer"
+                              className="w-7 h-7 inline-flex items-center justify-center text-slate-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
                             >
                               <Eye className="w-4 h-4 stroke-[2]" />
                             </button>
                           )}
-                          {!isAdministrador && canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => onEdit(r)}
-                              title="Editar rol"
-                              className="text-[#F05454] dark:text-[#F05454] hover:text-[#d84343] transition-colors p-1 cursor-pointer"
-                            >
-                              <Edit className="w-4 h-4 stroke-[2]" />
-                            </button>
+                          {canEdit && (
+                            isAdministrador ? (
+                              <span className="w-7 h-7 inline-block" aria-hidden="true" />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onEdit(r)}
+                                title="Editar rol"
+                                className="w-7 h-7 inline-flex items-center justify-center text-[#F05454] dark:text-[#F05454] hover:text-[#d84343] transition-colors cursor-pointer"
+                              >
+                                <Edit className="w-4 h-4 stroke-[2]" />
+                              </button>
+                            )
                           )}
-                          {!isAdministrador && canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => onToggleEstado(r.id)}
-                              title={isActivo ? "Desactivar rol" : "Activar rol"}
-                              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors p-1 cursor-pointer"
-                            >
-                              {isActivo ? (
-                                <ToggleRight className="w-5 h-5 text-emerald-500" />
-                              ) : (
-                                <ToggleLeft className="w-5 h-5 text-gray-400" />
-                              )}
-                            </button>
+                          {canEdit && (
+                            isAdministrador ? (
+                              <span className="w-7 h-7 inline-block" aria-hidden="true" />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onToggleEstado(r.id)}
+                                title={isActivo ? "Desactivar rol" : "Activar rol"}
+                                className="w-7 h-7 inline-flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                              >
+                                {isActivo ? (
+                                  <ToggleRight className="w-5 h-5 text-emerald-500" />
+                                ) : (
+                                  <ToggleLeft className="w-5 h-5 text-gray-400" />
+                                )}
+                              </button>
+                            )
                           )}
-                          {!isAdministrador && canDelete && (
-                            <button
-                              type="button"
-                              onClick={() => onDelete(r.id, r.nombre)}
-                              title="Eliminar rol"
-                              className="text-red-500 dark:text-red-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4 stroke-[2]" />
-                            </button>
+                          {canDelete && (
+                            isAdministrador ? (
+                              <span className="w-7 h-7 inline-block" aria-hidden="true" />
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onDelete(r.id, r.nombre)}
+                                title="Eliminar rol"
+                                className="w-7 h-7 inline-flex items-center justify-center text-red-500 dark:text-red-400 hover:text-red-600 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4 stroke-[2]" />
+                              </button>
+                            )
                           )}
                         </div>
                       </td>
