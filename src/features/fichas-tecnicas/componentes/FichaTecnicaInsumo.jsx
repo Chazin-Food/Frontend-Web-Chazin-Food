@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { 
-  Plus, Trash2, ShieldCheck, Clock, Layers, AlertCircle, ChevronDown, ChevronUp, 
+  Plus, Trash2, ShieldCheck, Clock, AlertCircle, ChevronDown, ChevronUp, 
   FileText, Check, Package, X, Search, Minus, FlaskConical, Scale, Leaf, 
   History, Calendar, CheckCircle2, Thermometer, Award, Info, Sparkles,
   ArrowRight, ArrowLeft, ArrowUp, ArrowDown
@@ -95,17 +95,18 @@ function extractCantidadStr(rendimientoVal, explicitCantidad) {
   return "1";
 }
 
-function mergeCantidadWithRendimiento(rendimientoActual, nuevaCantidadStr, unidadFallback = "receta base") {
-  const cleanCant = String(nuevaCantidadStr ?? "").trim();
-  if (!cleanCant) return rendimientoActual;
-  const current = String(rendimientoActual ?? "").trim();
-  if (!current) {
-    return `${cleanCant} ${unidadFallback}`.trim();
+function resolveUnidadProduccion(entityUnidad, rendimientoActual) {
+  if (entityUnidad && String(entityUnidad).trim()) {
+    return normalizeUnidadMedida(entityUnidad);
   }
-  if (/^\d+(?:[.,]\d+)?/.test(current)) {
-    return current.replace(/^\d+(?:[.,]\d+)?/, cleanCant);
+  const suffix = String(rendimientoActual ?? "")
+    .trim()
+    .replace(/^\d+(?:[.,]\d+)?\s*/, "")
+    .trim();
+  if (suffix && suffix.toLowerCase() !== "receta base") {
+    return normalizeUnidadMedida(suffix);
   }
-  return `${cleanCant} ${current}`;
+  return "und";
 }
 
 function FieldError({ msg }) {
@@ -175,6 +176,11 @@ export function FichaTecnicaInsumo({
     prevFichaSnapshot: null
   });
 
+  const unidadProduccion = useMemo(
+    () => resolveUnidadProduccion(entityData?.unidadMedida, rendimiento),
+    [entityData?.unidadMedida, rendimiento]
+  );
+
   const validateField = (field, val, currentInsumos = insumos) => {
     switch (field) {
       case "insumos":
@@ -187,14 +193,9 @@ export function FichaTecnicaInsumo({
         return "";
       case "cantidad": {
         const str = String(val ?? "").trim();
-        if (!str) return "La cantidad es obligatoria.";
+        if (!str) return "La cantidad producida es obligatoria.";
         const num = parseFloat(str.replace(",", "."));
-        if (isNaN(num) || num <= 0) return "La cantidad debe ser mayor a 0.";
-        return "";
-      }
-      case "rendimiento": {
-        const str = String(val ?? "").trim();
-        if (!str) return "El rendimiento o cantidad obtenida es obligatorio.";
+        if (isNaN(num) || num <= 0) return "La cantidad producida debe ser mayor a 0.";
         return "";
       }
       case "especificaciones":
@@ -235,16 +236,6 @@ export function FichaTecnicaInsumo({
   const handleFieldChange = (field, setter, val) => {
     clearRestoredCommitFlag();
     setter(val);
-    if (field === "rendimiento") {
-      const match = String(val ?? "").trim().match(/^(\d+(?:[.,]\d+)?)/);
-      if (match) {
-        const parsed = match[1].replace(",", ".");
-        setCantidadReceta(parsed);
-        if (touched.cantidad) {
-          setErrors((prev) => ({ ...prev, cantidad: validateField("cantidad", parsed) }));
-        }
-      }
-    }
     if (touched[field]) {
       const err = validateField(field, val);
       setErrors((prev) => ({ ...prev, [field]: err }));
@@ -256,13 +247,11 @@ export function FichaTecnicaInsumo({
     const cleaned = String(rawVal ?? "").replace(",", ".");
     if (cleaned !== "" && !/^\d*\.?\d*$/.test(cleaned)) return;
     setCantidadReceta(cleaned);
-    if (cleaned !== "" && parseFloat(cleaned) > 0) {
-      const unitHint = entityData?.unidadMedida ? normalizeUnidadMedida(entityData.unidadMedida) : "receta base";
-      const nextRend = mergeCantidadWithRendimiento(rendimiento, cleaned, unitHint);
-      setRendimiento(nextRend);
-      if (touched.rendimiento) {
-        setErrors((prev) => ({ ...prev, rendimiento: validateField("rendimiento", nextRend) }));
-      }
+    const parsed = parseFloat(cleaned);
+    if (cleaned !== "" && !isNaN(parsed) && parsed > 0) {
+      setRendimiento(`${cleaned} ${unidadProduccion}`.trim());
+    } else {
+      setRendimiento("");
     }
     if (touched.cantidad) {
       setErrors((prev) => ({ ...prev, cantidad: validateField("cantidad", cleaned) }));
@@ -271,18 +260,16 @@ export function FichaTecnicaInsumo({
 
   const handleCantidadRecetaBlur = () => {
     setTouched((prev) => ({ ...prev, cantidad: true }));
-    const parsed = parseFloat(String(cantidadReceta).replace(",", "."));
-    const finalStr = !isNaN(parsed) && parsed > 0 ? String(parsed) : "1";
-    setCantidadReceta(finalStr);
-    const unitHint = entityData?.unidadMedida ? normalizeUnidadMedida(entityData.unidadMedida) : "receta base";
-    setRendimiento((prev) => mergeCantidadWithRendimiento(prev, finalStr, unitHint));
-    setErrors((prev) => ({ ...prev, cantidad: "" }));
-  };
-
-  const adjustCantidadReceta = (delta) => {
-    const current = parseFloat(String(cantidadReceta).replace(",", ".")) || 1;
-    const next = Math.max(1, Math.round((current + delta) * 100) / 100);
-    handleCantidadRecetaChange(String(next));
+    const str = String(cantidadReceta ?? "").trim().replace(",", ".");
+    const parsed = parseFloat(str);
+    if (str && !isNaN(parsed) && parsed > 0) {
+      const normalized = String(parsed);
+      setCantidadReceta(normalized);
+      setRendimiento(`${normalized} ${unidadProduccion}`.trim());
+      setErrors((prev) => ({ ...prev, cantidad: "" }));
+    } else {
+      setErrors((prev) => ({ ...prev, cantidad: validateField("cantidad", cantidadReceta) }));
+    }
   };
 
   const agregarPaso = () => {
@@ -393,6 +380,11 @@ export function FichaTecnicaInsumo({
     }
 
     const cleanPrev = sanitizeSnapshot(versionInfo.prevFichaSnapshot);
+    const parsedCantidad = parseFloat(String(cantidadReceta).replace(",", "."));
+    const hasValidCantidad = !isNaN(parsedCantidad) && parsedCantidad > 0;
+    const effectiveRendimiento = hasValidCantidad
+      ? `${parsedCantidad} ${unidadProduccion}`.trim()
+      : "";
 
     const payload = {
       idInsumo: insumoId || null,
@@ -400,8 +392,8 @@ export function FichaTecnicaInsumo({
       tipo: "INSUMO_PREPARADO",
       procedimiento: procedimiento.trim(),
       tiempoPreparacion: Number(tiempoPreparacion) || 0,
-      cantidad: parseFloat(String(cantidadReceta).replace(",", ".")) || parsePorciones(rendimiento),
-      rendimiento: rendimiento.trim(),
+      cantidad: hasValidCantidad ? parsedCantidad : 0,
+      rendimiento: effectiveRendimiento,
       especificaciones: especificaciones.trim(),
       caracteristicas: caracteristicas.trim(),
       informacionNutricional: informacionNutricional.trim(),
@@ -436,7 +428,7 @@ export function FichaTecnicaInsumo({
       proc: procedimiento.trim(),
       time: Number(tiempoPreparacion) || 0,
       cant: String(cantidadReceta).trim(),
-      rend: rendimiento.trim(),
+      rend: effectiveRendimiento,
       esp: especificaciones.trim(),
       car: caracteristicas.trim(),
       nut: informacionNutricional.trim(),
@@ -446,7 +438,7 @@ export function FichaTecnicaInsumo({
       ver: versionInfo.versionActual,
       vig: versionInfo.fechaInicioVigencia,
       ins: insumos.map(i => `${i.idInsumo || i.id}:${i.cantidad}:${i.unidadMedida || i.insumo?.unidadMedida || "und"}`).join(','),
-      ent: entityData ? `${entityData.id || entityData.idInsumo}_${entityData.nombre}_${entityData.precio}_${entityData.descripcion}_${entityData.estado}` : null
+      ent: entityData ? `${entityData.id || entityData.idInsumo}_${entityData.nombre}_${entityData.precio}_${entityData.unidadMedida}_${entityData.descripcion}_${entityData.estado}` : null
     });
 
     if (fingerprint !== lastSentRef.current) {
@@ -456,7 +448,7 @@ export function FichaTecnicaInsumo({
       onChangeRef.current?.(payload);
     }
   }, [
-    insumos, procedimiento, tiempoPreparacion, cantidadReceta, rendimiento,
+    insumos, procedimiento, tiempoPreparacion, cantidadReceta, unidadProduccion,
     especificaciones, caracteristicas, informacionNutricional,
     condicionesAlmacenamiento, vidaUtil, observaciones,
     versionInfo, entityData, prevEntityData, insumoId
@@ -576,7 +568,8 @@ export function FichaTecnicaInsumo({
       tipo: "INSUMO_PREPARADO",
       procedimiento,
       tiempoPreparacion: Number(tiempoPreparacion) || 0,
-      rendimiento,
+      cantidad: parseFloat(String(cantidadReceta).replace(",", ".")) || parsePorciones(rendimiento),
+      rendimiento: `${cantidadReceta || "1"} ${unidadProduccion}`.trim(),
       especificaciones,
       caracteristicas,
       informacionNutricional,
@@ -755,7 +748,6 @@ export function FichaTecnicaInsumo({
       cantidad: true,
       procedimiento: true,
       tiempoPreparacion: true,
-      rendimiento: true,
       condicionesAlmacenamiento: true,
       vidaUtil: true,
       especificaciones: true,
@@ -769,7 +761,6 @@ export function FichaTecnicaInsumo({
       cantidad: validateField("cantidad", cantidadReceta),
       procedimiento: validateField("procedimiento", procedimiento),
       tiempoPreparacion: validateField("tiempoPreparacion", tiempoPreparacion),
-      rendimiento: validateField("rendimiento", rendimiento),
       condicionesAlmacenamiento: validateField("condicionesAlmacenamiento", condicionesAlmacenamiento),
       vidaUtil: validateField("vidaUtil", vidaUtil),
       especificaciones: validateField("especificaciones", especificaciones),
@@ -780,21 +771,20 @@ export function FichaTecnicaInsumo({
     setErrors(newErrors);
 
     const missingLabels = [];
-    if (newErrors.cantidad) missingLabels.push("Cantidad");
     if (newErrors.insumos) missingLabels.push("Ingredientes base");
-    if (newErrors.procedimiento) missingLabels.push("Procedimiento");
     if (newErrors.tiempoPreparacion) missingLabels.push("Tiempo de preparación");
-    if (newErrors.rendimiento) missingLabels.push("Rendimiento");
-    if (newErrors.condicionesAlmacenamiento) missingLabels.push("Condiciones de almacenamiento");
+    if (newErrors.cantidad) missingLabels.push("Cantidad producida");
     if (newErrors.vidaUtil) missingLabels.push("Vida útil");
+    if (newErrors.procedimiento) missingLabels.push("Procedimiento");
+    if (newErrors.condicionesAlmacenamiento) missingLabels.push("Condiciones de almacenamiento");
     if (newErrors.especificaciones) missingLabels.push("Especificaciones técnicas");
     if (newErrors.caracteristicas) missingLabels.push("Características sensoriales");
     if (newErrors.informacionNutricional) missingLabels.push("Información nutricional");
 
     if (missingLabels.length > 0) {
       notify.error("Campos obligatorios", `Completa: ${missingLabels.join(", ")}.`);
-      if (newErrors.insumos || newErrors.cantidad) setActiveTab("ingredientes");
-      else if (newErrors.procedimiento || newErrors.tiempoPreparacion || newErrors.rendimiento) setActiveTab("proceso");
+      if (newErrors.insumos) setActiveTab("ingredientes");
+      else if (newErrors.procedimiento || newErrors.tiempoPreparacion || newErrors.cantidad || newErrors.vidaUtil) setActiveTab("proceso");
       else setActiveTab("calidad");
       return;
     }
@@ -806,14 +796,16 @@ export function FichaTecnicaInsumo({
     if (!confirmed) return;
 
     const cleanPrev = sanitizeSnapshot(versionInfo.prevFichaSnapshot);
+    const parsedCantidad = parseFloat(String(cantidadReceta).replace(",", ".")) || parsePorciones(rendimiento);
+    const resolvedRendimiento = `${parsedCantidad} ${unidadProduccion}`.trim();
     const payload = {
       idInsumo: insumoId || null,
       idInsumoPreparado: insumoId || null,
       tipo: "INSUMO_PREPARADO",
       procedimiento: procedimiento.trim(),
       tiempoPreparacion: Number(tiempoPreparacion) || 0,
-      cantidad: parseFloat(String(cantidadReceta).replace(",", ".")) || parsePorciones(rendimiento),
-      rendimiento: rendimiento.trim(),
+      cantidad: parsedCantidad,
+      rendimiento: resolvedRendimiento,
       especificaciones: especificaciones.trim(),
       caracteristicas: caracteristicas.trim(),
       informacionNutricional: informacionNutricional.trim(),
@@ -868,14 +860,7 @@ export function FichaTecnicaInsumo({
   if (readOnly) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 rounded-2xl">
-            <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Cantidad</p>
-            <p className="text-base font-black text-gray-900 dark:text-gray-100 mt-0.5 flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-blue-500" />
-              <span>{cantidadReceta || "1"} {entityData?.unidadMedida ? normalizeUnidadMedida(entityData.unidadMedida) : ""}</span>
-            </p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="p-3.5 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 rounded-2xl">
             <p className="text-[10px] font-bold text-[#F05454] uppercase tracking-wider">Tiempo de Preparación</p>
             <p className="text-base font-black text-gray-900 dark:text-gray-100 mt-0.5 flex items-center gap-1.5">
@@ -884,10 +869,10 @@ export function FichaTecnicaInsumo({
             </p>
           </div>
           <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 rounded-2xl">
-            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Rendimiento Base</p>
+            <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Cantidad Producida</p>
             <p className="text-base font-black text-gray-900 dark:text-gray-100 mt-0.5 flex items-center gap-1.5">
               <Scale className="w-4 h-4 text-amber-500" />
-              <span>{rendimiento || "1 receta base"}</span>
+              <span>{`${cantidadReceta || "1"} ${unidadProduccion}`.trim()}</span>
             </p>
           </div>
           <div className="p-3.5 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl">
@@ -1056,55 +1041,6 @@ export function FichaTecnicaInsumo({
         {/* ============================================================ */}
         {activeTab === "ingredientes" && (
           <div className="space-y-4 animate-in fade-in duration-150">
-            {/* Cantidad de la Ficha Técnica de Insumo Preparado */}
-            <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200/80 dark:border-gray-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="min-w-0">
-                <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wide">
-                  Cantidad de la Ficha Técnica{requiredMark}
-                </label>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                  Cantidad total que produce esta receta o preparación base.
-                </p>
-              </div>
-              <div className="flex flex-col items-start sm:items-end shrink-0">
-                <div className="inline-flex items-center gap-1.5 bg-white dark:bg-gray-900 rounded-xl p-1 border border-gray-200 dark:border-gray-700 shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => adjustCantidadReceta(-1)}
-                    disabled={Number(cantidadReceta) <= 1}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 cursor-pointer transition-colors"
-                    aria-label="Disminuir cantidad"
-                  >
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={cantidadReceta}
-                    onChange={(e) => handleCantidadRecetaChange(e.target.value)}
-                    onBlur={handleCantidadRecetaBlur}
-                    placeholder="1"
-                    aria-label="Cantidad de la ficha técnica"
-                    className="w-16 text-center font-bold text-sm bg-transparent outline-none text-gray-900 dark:text-gray-100"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => adjustCantidadReceta(1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                    aria-label="Aumentar cantidad"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  {entityData?.unidadMedida && (
-                    <span className="px-2 py-1 text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                      {normalizeUnidadMedida(entityData.unidadMedida)}
-                    </span>
-                  )}
-                </div>
-                <FieldError msg={touched.cantidad && errors.cantidad} />
-              </div>
-            </div>
-
             {/* Buscador de Insumos Base */}
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1338,26 +1274,7 @@ export function FichaTecnicaInsumo({
         {activeTab === "proceso" && (
           <div className="space-y-4 animate-in fade-in duration-150">
             {/* Parámetros Operativos Centrados y Alineados */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide min-h-[1.25rem] flex items-center">
-                  Cantidad{requiredMark}
-                </label>
-                <div className="relative">
-                  <Layers className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={cantidadReceta}
-                    onChange={(e) => handleCantidadRecetaChange(e.target.value)}
-                    onBlur={handleCantidadRecetaBlur}
-                    placeholder="Ej. 1"
-                    className={`${getInputClass("cantidad")} pl-9`}
-                  />
-                </div>
-                <FieldError msg={touched.cantidad && errors.cantidad} />
-              </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide min-h-[1.25rem] flex items-center">
                   Tiempo Preparación (min){requiredMark}
@@ -1378,21 +1295,29 @@ export function FichaTecnicaInsumo({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide min-h-[1.25rem] flex items-center">
-                  Rendimiento / Porciones{requiredMark}
+                <label
+                  className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wide min-h-[1.25rem] flex items-center"
+                  title="Total que rinde o produce esta receta al preparar 1 lote con los ingredientes base."
+                >
+                  Cantidad Producida{requiredMark}
                 </label>
                 <div className="relative">
                   <Scale className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    value={rendimiento}
-                    onChange={(e) => handleFieldChange("rendimiento", setRendimiento, e.target.value)}
-                    onBlur={() => handleBlur("rendimiento", rendimiento)}
-                    className={`${getInputClass("rendimiento")} pl-9`}
-                    placeholder="Ej. 1 receta base"
+                    inputMode="decimal"
+                    value={cantidadReceta}
+                    onChange={(e) => handleCantidadRecetaChange(e.target.value)}
+                    onBlur={handleCantidadRecetaBlur}
+                    placeholder="Ej. 1"
+                    aria-label="Cantidad producida por esta receta"
+                    className={`${getInputClass("cantidad")} pl-9 pr-16`}
                   />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700/80 rounded-lg pointer-events-none select-none">
+                    {unidadProduccion}
+                  </span>
                 </div>
-                <FieldError msg={touched.rendimiento && errors.rendimiento} />
+                <FieldError msg={touched.cantidad && errors.cantidad} />
               </div>
 
               <div>
@@ -1521,22 +1446,22 @@ export function FichaTecnicaInsumo({
               <button
                 type="button"
                 onClick={() => {
-                  setTouched(prev => ({ ...prev, tiempoPreparacion: true, rendimiento: true, vidaUtil: true, procedimiento: true }));
+                  setTouched(prev => ({ ...prev, tiempoPreparacion: true, cantidad: true, vidaUtil: true, procedimiento: true }));
                   const serialized = serializarPasos(pasosProceso);
                   setProcedimiento(serialized);
                   const tErr = validateField("tiempoPreparacion", tiempoPreparacion);
-                  const rErr = validateField("rendimiento", rendimiento);
+                  const cErr = validateField("cantidad", cantidadReceta);
                   const vErr = validateField("vidaUtil", vidaUtil);
                   const pErr = validateField("procedimiento", serialized);
-                  if (tErr || rErr || vErr || pErr) {
+                  if (tErr || cErr || vErr || pErr) {
                     setErrors(prev => ({
                       ...prev,
                       tiempoPreparacion: tErr,
-                      rendimiento: rErr,
+                      cantidad: cErr,
                       vidaUtil: vErr,
                       procedimiento: pErr
                     }));
-                    notify.warning("Parámetros incompletos", "Por favor completa el tiempo, rendimiento y las fases de elaboración.");
+                    notify.warning("Parámetros incompletos", "Por favor completa el tiempo, cantidad producida, vida útil y las fases de elaboración.");
                     return;
                   }
                   setActiveTab("calidad");
