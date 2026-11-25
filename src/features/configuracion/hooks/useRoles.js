@@ -117,6 +117,11 @@ export function useRoles() {
   };
 
   const updateRol = async (id, nombre, descripcion, permisos = null) => {
+    const rolActual = roles.find((r) => String(r.id) === String(id));
+    if (String(id) === "1" || rolActual?.nombre?.toLowerCase() === "administrador") {
+      notifError("Acción no permitida", "El rol Administrador es un rol del sistema y no se puede editar.");
+      return false;
+    }
     try {
       const nombreRes = validateNombreRol(nombre);
       if (!nombreRes.isValid) {
@@ -149,6 +154,11 @@ export function useRoles() {
   };
 
   const updatePermisos = async (id, permisos) => {
+    const rolActual = roles.find((r) => String(r.id) === String(id));
+    if (String(id) === "1" || rolActual?.nombre?.toLowerCase() === "administrador") {
+      notifError("Acción no permitida", "Los permisos del rol Administrador no se pueden modificar.");
+      return false;
+    }
     try {
       if (!permisos || permisos.length === 0) {
         notifError("Permisos requeridos", "Debes asignar al menos un permiso o módulo al rol.");

@@ -80,7 +80,7 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                 </div>
 
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2">
-                  {canEdit ? (
+                  {canEdit && !isAdministrador ? (
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
@@ -103,6 +103,11 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                         </button>
                       )}
                     </div>
+                  ) : isAdministrador ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[11px] font-semibold">
+                      <Shield className="w-3.5 h-3.5 text-[#F05454]" />
+                      <span>Rol protegido (no editable)</span>
+                    </span>
                   ) : <div />}
 
                   <div className="flex items-center gap-1.5">
@@ -223,27 +228,29 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                         <div className="flex items-center justify-center gap-3">
                           {canEdit && onOpenPermisos && (
                             <button
-                              onClick={() => onOpenPermisos(r)}
-                              title="Gestionar permisos y privilegios"
-                              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors p-1 cursor-pointer"
+                              onClick={() => !isAdministrador && onOpenPermisos(r)}
+                              title={isAdministrador ? "El rol Administrador no se puede editar" : "Gestionar permisos y privilegios"}
+                              disabled={isAdministrador}
+                              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1 cursor-pointer"
                             >
                               <Key className="w-4 h-4 stroke-[2]" />
                             </button>
                           )}
                           {canEdit && (
                             <button
-                              onClick={() => onEdit(r)}
-                              title="Editar rol"
-                              className="text-[#F05454] dark:text-[#F05454] hover:text-[#d84343] transition-colors p-1 cursor-pointer"
+                              onClick={() => !isAdministrador && onEdit(r)}
+                              title={isAdministrador ? "El rol Administrador no se puede editar" : "Editar rol"}
+                              disabled={isAdministrador}
+                              className="text-[#F05454] dark:text-[#F05454] hover:text-[#d84343] disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1 cursor-pointer"
                             >
                               <Edit className="w-4 h-4 stroke-[2]" />
                             </button>
                           )}
                           <button
                             onClick={() => onToggleEstado(r.id)}
-                            title={isActivo ? "Desactivar rol" : "Activar rol"}
+                            title={isAdministrador ? "El rol Administrador no se puede desactivar" : isActivo ? "Desactivar rol" : "Activar rol"}
                             disabled={isAdministrador || !canEdit}
-                            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30 transition-colors p-1 cursor-pointer"
+                            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1 cursor-pointer"
                           >
                             {isActivo ? (
                               <ToggleRight className="w-5 h-5 text-emerald-500" />
@@ -254,9 +261,9 @@ export function RolesTable({ roles = [], onOpenPermisos, onEdit, onToggleEstado,
                           {canDelete && (
                             <button
                               onClick={() => onDelete(r.id, r.nombre)}
-                              title="Eliminar rol"
+                              title={isAdministrador ? "El rol Administrador no se puede eliminar" : "Eliminar rol"}
                               disabled={isAdministrador}
-                              className="text-red-500 dark:text-red-400 hover:text-red-600 disabled:opacity-30 transition-colors p-1 cursor-pointer"
+                              className="text-red-500 dark:text-red-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-1 cursor-pointer"
                             >
                               <Trash2 className="w-4 h-4 stroke-[2]" />
                             </button>
