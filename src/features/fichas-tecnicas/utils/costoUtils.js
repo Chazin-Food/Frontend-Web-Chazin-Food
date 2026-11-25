@@ -38,8 +38,8 @@ export function normalizeUnidadMedida(raw) {
   if (s === "ml" || s.startsWith("mililit") || s === "cc" || s.includes("(ml)") || s === "mls") return "ml";
   
   // Conteo / Presentación
-  if (s === "und" || s === "ud" || s.startsWith("unidad") || s.includes("(ud)") || s === "uds") return "und";
-  if (s === "paq" || s.startsWith("paquet")) return "paq";
+  if (s === "und" || s === "ud" || s.startsWith("und") || s.startsWith("unidad") || s.includes("(ud)") || s === "uds") return "und";
+  if (s === "paq" || s.startsWith("paq")) return "paq";
   if (s === "porcion" || s === "porción" || s.startsWith("porci")) return "porción";
   
   return s || "und";
