@@ -1237,20 +1237,10 @@ export function FichaTecnicaProducto({
                                   onChange={(e) => actualizarUnidad(idx, e.target.value)}
                                   className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold outline-none text-gray-700 dark:text-gray-300"
                                 >
-                                  {getUnidadesCompatibles(item.insumo?.unidadMedida || dbMatch?.unidadMedida || item.unidadMedida).map(u => (
+                                  {getUnidadesCompatibles(item.unidadMedida).map(u => (
                                     <option key={u.value} value={u.value}>{u.value}</option>
                                   ))}
                                 </select>
-                                {(normalizeUnidadMedida(item.unidadMedida) === "kg" || normalizeUnidadMedida(item.unidadMedida) === "lt") && Number(item.cantidad) >= 0.5 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => actualizarUnidad(idx, normalizeUnidadMedida(item.unidadMedida) === "kg" ? "gr" : "ml")}
-                                    className="text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer flex items-center gap-0.5"
-                                    title="Convertir a porción estándar de plato (30 gr)"
-                                  >
-                                    Pasar a 30 {normalizeUnidadMedida(item.unidadMedida) === "kg" ? "gr" : "ml"}
-                                  </button>
-                                )}
                               </div>
                             </td>
                             <td className="px-4 py-2.5 text-right font-mono text-gray-500 text-[11px]">
