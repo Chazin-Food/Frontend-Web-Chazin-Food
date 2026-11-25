@@ -5,12 +5,16 @@ import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
 import { RolesTable } from "../componentes/roles/RolesTable";
 import { RolesGrid } from "../componentes/roles/RolesGrid";
-import { RolModal } from "../componentes/roles/RolModal";
-import { PermisosModal } from "../componentes/roles/PermisosModal";
+import { RolFormView } from "../componentes/roles/RolFormView";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+import { useNotifications } from "@/shared/hooks/useNotifications";
+
+const isAdministradorRol = (rol) =>
+  Boolean(rol) && (String(rol.id) === "1" || (rol.nombre || "").toLowerCase() === "administrador");
 
 export function Roles() {
   const { user } = useAuth();
+  const { warning: notifWarning } = useNotifications();
   const canCreate = hasPrivilege(user, "Roles", "crear");
   const canEdit = hasPrivilege(user, "Roles", "editar");
   const canDelete = hasPrivilege(user, "Roles", "eliminar");
@@ -28,11 +32,8 @@ export function Roles() {
     deleteRol
   } = useRoles();
 
-  const [rolModalOpen, setRolModalOpen] = useState(false);
-  const [editingRol, setEditingRol] = useState(null);
-
-  const [permisosModalOpen, setPermisosModalOpen] = useState(false);
-  const [permisosRol, setPermisosRol] = useState(null);
+  // Vista completa (no modal) para crear rol, editar rol o gestionar permisos
+  const [activeFormView, setActiveFormView] = useState(null); // null | { mode: "create" | "edit" | "permisos", rol: object | null }
   const [filterEstado, setFilterEstado] = useState("Todos");
   const [viewMode, setViewMode] = useState("table"); // "table" | "grid"
 
@@ -50,45 +51,60 @@ export function Roles() {
   });
 
   const handleOpenCreate = () => {
-    setEditingRol(null);
-    setRolModalOpen(true);
+    setActiveFormView({ mode: "create", rol: null });
   };
 
   const handleOpenEdit = (rol) => {
-    setEditingRol(rol);
-    setRolModalOpen(true);
+    if (isAdministradorRol(rol)) {
+      notifWarning("Rol protegido", "El rol Administrador es un rol del sistema y no se puede editar.");
+      return;
+    }
+    setActiveFormView({ mode: "edit", rol });
   };
 
   const handleSaveRol = async (nombre, descripcion, permisos) => {
     let ok = false;
-    if (editingRol) {
-      ok = await updateRol(editingRol.id, nombre, descripcion, permisos);
+    if (activeFormView?.mode === "edit" && activeFormView.rol) {
+      ok = await updateRol(activeFormView.rol.id, nombre, descripcion, permisos);
     } else {
       ok = await createRol(nombre, descripcion, permisos);
     }
     if (ok) {
-      setRolModalOpen(false);
-      setEditingRol(null);
+      setActiveFormView(null);
     }
     return ok;
   };
 
   const handleOpenPermisos = (rol) => {
-    setPermisosRol(rol);
-    setPermisosModalOpen(true);
+    if (isAdministradorRol(rol)) {
+      notifWarning("Rol protegido", "Los permisos del rol Administrador no se pueden modificar.");
+      return;
+    }
+    setActiveFormView({ mode: "permisos", rol });
   };
 
   const handleSavePermisos = async (permisos) => {
-    if (permisosRol) {
-      const ok = await updatePermisos(permisosRol.id, permisos);
+    if (activeFormView?.rol) {
+      const ok = await updatePermisos(activeFormView.rol.id, permisos);
       if (ok) {
-        setPermisosModalOpen(false);
-        setPermisosRol(null);
+        setActiveFormView(null);
       }
       return ok;
     }
     return false;
   };
+
+  if (activeFormView) {
+    return (
+      <RolFormView
+        mode={activeFormView.mode}
+        rol={activeFormView.rol}
+        onBack={() => setActiveFormView(null)}
+        onSaveRol={handleSaveRol}
+        onSavePermisos={handleSavePermisos}
+      />
+    );
+  }
 
   const statCards = [
     {
@@ -310,21 +326,6 @@ export function Roles() {
           canDelete={canDelete}
         />
       )}
-
-      {/* Modals */}
-      <RolModal
-        isOpen={rolModalOpen}
-        onClose={() => setRolModalOpen(false)}
-        onSave={handleSaveRol}
-        rol={editingRol}
-      />
-
-      <PermisosModal
-        isOpen={permisosModalOpen}
-        onClose={() => setPermisosModalOpen(false)}
-        onSave={handleSavePermisos}
-        rol={permisosRol}
-      />
     </div>
   );
 }

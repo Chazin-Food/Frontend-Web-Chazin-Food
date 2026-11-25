@@ -129,7 +129,7 @@ export function RolesGrid({ roles = [], onEdit, onToggleEstado, onDelete, canEdi
 
             {/* Acciones de la tarjeta */}
             <div className="border-t border-gray-100 dark:border-gray-800 pt-3.5 mt-2 flex items-center justify-between">
-              {canEdit ? (
+              {canEdit && !isAdministrador ? (
                 <button
                   type="button"
                   onClick={() => onEdit(rol)}
@@ -139,6 +139,11 @@ export function RolesGrid({ roles = [], onEdit, onToggleEstado, onDelete, canEdi
                   <Edit className="w-3.5 h-3.5 text-[#F05454] stroke-[2.2]" />
                   <span>Editar</span>
                 </button>
+              ) : isAdministrador ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[11px] font-semibold">
+                  <Shield className="w-3.5 h-3.5 text-[#F05454]" />
+                  <span>Rol protegido</span>
+                </span>
               ) : <div />}
 
               <div className="flex items-center gap-1.5">
