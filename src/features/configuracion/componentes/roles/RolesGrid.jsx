@@ -1,4 +1,4 @@
-import { Shield, Users, Edit, Trash2, ToggleLeft, ToggleRight, Key } from "lucide-react";
+import { Shield, Users, Edit, Trash2, ToggleLeft, ToggleRight, Eye } from "lucide-react";
 
 const MODULOS_PERMISOS_VALIDOS = [
   "Dashboard",
@@ -17,7 +17,7 @@ const MODULOS_PERMISOS_VALIDOS = [
   "Gestión de Ventas"
 ];
 
-export function RolesGrid({ roles = [], onEdit, onToggleEstado, onDelete, canEdit = true, canDelete = true }) {
+export function RolesGrid({ roles = [], onView, onEdit, onToggleEstado, onDelete, canEdit = true, canDelete = true }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
       {roles.map((rol) => {
@@ -128,23 +128,31 @@ export function RolesGrid({ roles = [], onEdit, onToggleEstado, onDelete, canEdi
             </div>
 
             {/* Acciones de la tarjeta */}
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-3.5 mt-2 flex items-center justify-between">
-              {canEdit && !isAdministrador ? (
-                <button
-                  type="button"
-                  onClick={() => onEdit(rol)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors font-bold text-xs cursor-pointer"
-                  title="Editar Rol, Permisos y Privilegios"
-                >
-                  <Edit className="w-3.5 h-3.5 text-[#F05454] stroke-[2.2]" />
-                  <span>Editar</span>
-                </button>
-              ) : isAdministrador ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[11px] font-semibold">
-                  <Shield className="w-3.5 h-3.5 text-[#F05454]" />
-                  <span>Rol protegido</span>
-                </span>
-              ) : <div />}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-3.5 mt-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                {onView && (
+                  <button
+                    type="button"
+                    onClick={() => onView(rol)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors font-bold text-xs cursor-pointer"
+                    title="Ver detalle del rol"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-600 dark:text-gray-300 stroke-[2.2]" />
+                    <span>Ver detalle</span>
+                  </button>
+                )}
+                {canEdit && !isAdministrador && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(rol)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors font-bold text-xs cursor-pointer"
+                    title="Editar Rol, Permisos y Privilegios"
+                  >
+                    <Edit className="w-3.5 h-3.5 text-[#F05454] stroke-[2.2]" />
+                    <span>Editar</span>
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-1.5">
                 {!isAdministrador && canEdit && (

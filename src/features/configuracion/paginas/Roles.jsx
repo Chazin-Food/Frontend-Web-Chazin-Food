@@ -6,6 +6,7 @@ import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
 import { RolesTable } from "../componentes/roles/RolesTable";
 import { RolesGrid } from "../componentes/roles/RolesGrid";
 import { RolFormView } from "../componentes/roles/RolFormView";
+import { RolDetalleView } from "../componentes/roles/RolDetalleView";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 
@@ -27,13 +28,12 @@ export function Roles() {
     setSearchTerm,
     createRol,
     updateRol,
-    updatePermisos,
     toggleEstadoRol,
     deleteRol
   } = useRoles();
 
-  // Vista completa (no modal) para crear rol, editar rol o gestionar permisos
-  const [activeFormView, setActiveFormView] = useState(null); // null | { mode: "create" | "edit" | "permisos", rol: object | null }
+  // Vista completa (no modal) para crear rol, editar rol o ver detalle del rol
+  const [activeFormView, setActiveFormView] = useState(null); // null | { mode: "create" | "edit" | "view", rol: object | null }
   const [filterEstado, setFilterEstado] = useState("Todos");
   const [viewMode, setViewMode] = useState("table"); // "table" | "grid"
 
@@ -75,24 +75,20 @@ export function Roles() {
     return ok;
   };
 
-  const handleOpenPermisos = (rol) => {
-    if (isAdministradorRol(rol)) {
-      notifWarning("Rol protegido", "Los permisos del rol Administrador no se pueden modificar.");
-      return;
-    }
-    setActiveFormView({ mode: "permisos", rol });
+  const handleOpenView = (rol) => {
+    setActiveFormView({ mode: "view", rol });
   };
 
-  const handleSavePermisos = async (permisos) => {
-    if (activeFormView?.rol) {
-      const ok = await updatePermisos(activeFormView.rol.id, permisos);
-      if (ok) {
-        setActiveFormView(null);
-      }
-      return ok;
-    }
-    return false;
-  };
+  if (activeFormView?.mode === "view") {
+    return (
+      <RolDetalleView
+        rol={activeFormView.rol}
+        canEdit={canEdit}
+        onBack={() => setActiveFormView(null)}
+        onEdit={handleOpenEdit}
+      />
+    );
+  }
 
   if (activeFormView) {
     return (
@@ -101,7 +97,6 @@ export function Roles() {
         rol={activeFormView.rol}
         onBack={() => setActiveFormView(null)}
         onSaveRol={handleSaveRol}
-        onSavePermisos={handleSavePermisos}
       />
     );
   }
@@ -308,7 +303,7 @@ export function Roles() {
       ) : viewMode === "grid" ? (
         <RolesGrid
           roles={rolesToDisplay}
-          onOpenPermisos={handleOpenPermisos}
+          onView={handleOpenView}
           onEdit={handleOpenEdit}
           onToggleEstado={toggleEstadoRol}
           onDelete={deleteRol}
@@ -318,7 +313,7 @@ export function Roles() {
       ) : (
         <RolesTable
           roles={rolesToDisplay}
-          onOpenPermisos={handleOpenPermisos}
+          onView={handleOpenView}
           onEdit={handleOpenEdit}
           onToggleEstado={toggleEstadoRol}
           onDelete={deleteRol}
