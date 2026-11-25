@@ -27,8 +27,7 @@ import {
   AlertCircle,
   Globe,
   Pencil,
-  Trash2,
-  LogIn
+  Trash2
 } from "lucide-react";
 import { getProductEmoji, getAdditionEmoji, stripEmojis, isDummyOrBaseVariant, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
@@ -3763,12 +3762,7 @@ export function FastFoodProductModal({
                         </button>
                       )}
                     </div>
-                  ) : (
-                    <div className="px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[11px] font-bold border border-gray-200 dark:border-gray-700 flex items-center gap-1.5 shrink-0">
-                      <LogIn className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Inicia sesión para opinar</span>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Score Summary Card */}
@@ -3825,14 +3819,6 @@ export function FastFoodProductModal({
                     <span>Opiniones 100% Verificadas</span>
                   </div>
                 </div>
-
-                {/* Aviso para visitantes sin sesión */}
-                {!isReadOnlyReviews && (!isAuthenticated || !user) && (
-                  <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 flex items-center gap-2.5 text-xs text-gray-600 dark:text-gray-300 font-medium">
-                    <Lock className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>Inicia sesión con tu cuenta de cliente para calificar y comentar productos que hayas comprado.</span>
-                  </div>
-                )}
 
                 {/* Feedback persistente fuera del formulario */}
                 {!showWriteReview && reviewFeedback && (
