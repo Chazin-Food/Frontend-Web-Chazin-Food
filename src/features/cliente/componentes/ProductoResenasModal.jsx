@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   X, Star, MessageSquare, User as UserIcon, Pencil, Trash2,
-  CheckCircle2, AlertCircle, Send, ShieldAlert, Globe
+  CheckCircle2, AlertCircle, Send, Globe
 } from "lucide-react";
 import { StarRating } from "@/shared/components/ui/StarRating";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
@@ -456,15 +456,6 @@ export function ProductoResenasModal({ isOpen, onClose, producto, onReviewChange
                   </form>
                 </div>
               ) : null}
-            </div>
-          )}
-
-          {!user && (
-            <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-gray-400" />
-                Inicia sesión para dejar tu reseña.
-              </div>
             </div>
           )}
 
