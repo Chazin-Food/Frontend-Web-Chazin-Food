@@ -2397,7 +2397,7 @@ export function ClientePerfil() {
 
                 : tipoFidelidad === "Regular"
 
-                  ? "bg-gradient-to-br from-orange-500/15 via-amber-500/10 to-red-500/15 border-orange-200 dark:border-orange-800/80"
+                  ? "bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-green-500/15 border-emerald-200 dark:border-emerald-800/80"
 
                   : "bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-850 border-gray-200/90 dark:border-gray-800"
 
@@ -2425,7 +2425,7 @@ export function ClientePerfil() {
 
                       : tipoFidelidad === "Regular"
 
-                        ? "bg-gradient-to-tr from-orange-500 to-amber-500 text-white border-orange-300"
+                        ? "bg-gradient-to-tr from-emerald-500 to-teal-500 text-white border-emerald-300"
 
                         : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700"
 
@@ -2959,7 +2959,7 @@ export function ClientePerfil() {
 
                         ) : tipoFidelidad === "Regular" ? (
 
-                          <FoodIcon name="bronze" size={20} stroke={2} className="text-orange-500" />
+                          <FoodIcon name="bronze" size={20} stroke={2} className="text-emerald-600" />
 
                         ) : (
 
@@ -3225,23 +3225,23 @@ export function ClientePerfil() {
 
                       {/* Nivel Regular */}
 
-                      <div className="p-4 rounded-2xl border bg-orange-50/70 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40 space-y-2">
+                      <div className="p-4 rounded-2xl border bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 space-y-2">
 
                         <div className="flex items-center justify-between">
 
-                          <span className="w-8 h-8 rounded-xl bg-white dark:bg-gray-750 flex items-center justify-center shadow-2xs border border-orange-200/60 dark:border-orange-900/40">
+                          <span className="w-8 h-8 rounded-xl bg-white dark:bg-gray-750 flex items-center justify-center shadow-2xs border border-emerald-200/60 dark:border-emerald-900/40">
 
-                            <FoodIcon name="bronze" size={20} stroke={2} className="text-orange-600" />
+                            <FoodIcon name="bronze" size={20} stroke={2} className="text-emerald-600" />
 
                           </span>
 
-                          <span className="px-2 py-0.5 bg-orange-500 text-white text-[10px] font-black rounded-lg">5% OFF</span>
+                          <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-lg">5% OFF</span>
 
                         </div>
 
-                        <h5 className="font-black text-sm text-orange-900 dark:text-orange-300">Cliente Regular</h5>
+                        <h5 className="font-black text-sm text-emerald-900 dark:text-emerald-300">Cliente Regular</h5>
 
-                        <p className="text-xs text-orange-800/80 dark:text-orange-400">
+                        <p className="text-xs text-emerald-800/80 dark:text-emerald-400">
 
                           Vigencia de 30 días. Realiza 3 compras en el mes para ascender a Frecuente.
 

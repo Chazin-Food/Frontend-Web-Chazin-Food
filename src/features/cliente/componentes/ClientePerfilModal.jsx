@@ -318,7 +318,7 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
                   : tipoFidelidad === "Frecuente"
                     ? "bg-gradient-to-br from-indigo-500/15 via-purple-500/10 to-pink-500/15 border-indigo-200 dark:border-indigo-800/80 shadow-md"
                     : tipoFidelidad === "Regular"
-                      ? "bg-gradient-to-br from-orange-500/15 via-amber-500/10 to-red-500/15 border-orange-200 dark:border-orange-800/80 shadow-md"
+                      ? "bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-green-500/15 border-emerald-200 dark:border-emerald-800/80 shadow-md"
                       : "bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-800/60 dark:to-gray-800/30 border-gray-200 dark:border-gray-700"
               }`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/30 dark:bg-white/5 rounded-full blur-2xl pointer-events-none" />
@@ -427,8 +427,8 @@ export function ClientePerfilModal({ isOpen, onClose, user, pedidos = [] }) {
                           <span className="font-bold flex items-center gap-1.5"><FoodIcon name="sprout" size={14} className="text-emerald-500" /> Nuevo (0%)</span>
                           <span className="text-gray-500">3 compras para subir</span>
                         </div>
-                        <div className="flex items-center justify-between p-1.5 rounded-xl bg-orange-50/70 dark:bg-orange-950/30">
-                          <span className="font-bold text-orange-700 dark:text-orange-300 flex items-center gap-1.5"><FoodIcon name="bronze" size={14} className="text-amber-700" /> Regular (5% OFF)</span>
+                        <div className="flex items-center justify-between p-1.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30">
+                          <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5"><FoodIcon name="bronze" size={14} className="text-emerald-600" /> Regular (5% OFF)</span>
                           <span className="text-gray-500">Dura 1 mes (sin gracia)</span>
                         </div>
                         <div className="flex items-center justify-between p-1.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30">
