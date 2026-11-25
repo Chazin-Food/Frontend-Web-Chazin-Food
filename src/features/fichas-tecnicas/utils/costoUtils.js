@@ -49,29 +49,26 @@ export function normalizeUnidadMedida(raw) {
  * Resuelve la unidad de medida y cantidad lógica gastronómica al agregar un insumo a una receta.
  * Evita que insumos comprados por Kg (ej. tocineta a $35.000/kg) se agreguen como 1 Kg por plato.
  */
+export const ALL_UNIDADES_MEDIDA = [
+  { value: 'gr', label: 'gr (Gramos)' },
+  { value: 'kg', label: 'kg (Kilos)' },
+  { value: 'ml', label: 'ml (Mililitros)' },
+  { value: 'lt', label: 'lt (Litros)' },
+  { value: 'und', label: 'und (Unidad)' },
+  { value: 'porción', label: 'porción' },
+  { value: 'paq', label: 'paq' }
+];
+
 /**
- * Retorna la lista de unidades de medida compatibles según la naturaleza física del insumo
- * (evita opciones absurdas como seleccionar 'ml' para tocineta o 'kg' para un pan).
+ * Retorna las unidades de medida disponibles para fichas técnicas sin restricciones
+ * ni validaciones de compatibilidad forzada, conservando cualquier unidad personalizada actual.
  */
-export function getUnidadesCompatibles(unidadBaseRaw) {
-  const u = normalizeUnidadMedida(unidadBaseRaw);
-  if (u === 'kg' || u === 'gr' || u === 'mg') {
-    return [
-      { value: 'gr', label: 'gr (Gramos)' },
-      { value: 'kg', label: 'kg (Kilos)' }
-    ];
+export function getUnidadesCompatibles(unidadActualRaw) {
+  const u = normalizeUnidadMedida(unidadActualRaw);
+  if (u && !ALL_UNIDADES_MEDIDA.some((item) => item.value === u)) {
+    return [...ALL_UNIDADES_MEDIDA, { value: u, label: u }];
   }
-  if (u === 'lt' || u === 'ml' || u === 'cc') {
-    return [
-      { value: 'ml', label: 'ml (Mililitros)' },
-      { value: 'lt', label: 'lt (Litros)' }
-    ];
-  }
-  return [
-    { value: 'und', label: 'und (Unidad)' },
-    { value: 'porción', label: 'porción' },
-    { value: 'paq', label: 'paq' }
-  ];
+  return ALL_UNIDADES_MEDIDA;
 }
 
 export function resolveRecetaUnidadYCantidad(insumoItem, rendimiento = 1) {
@@ -154,8 +151,7 @@ export function convertirUnidadYCantidad(cantidadActual, unidadViejaRaw, unidadN
 
   // De kg a gr
   if (uVieja === "kg" && uNueva === "gr") {
-    if (cant <= 0.001) return 30;
-    if (cant === 1) return 30; // Si tenía 1 (anomalía de 1kg en plato), pasar a 30g
+    if (cant <= 0.001) return 1;
     return Math.round(cant * 1000);
   }
 
@@ -166,8 +162,7 @@ export function convertirUnidadYCantidad(cantidadActual, unidadViejaRaw, unidadN
 
   // De lt a ml
   if (uVieja === "lt" && uNueva === "ml") {
-    if (cant <= 0.001) return 30;
-    if (cant === 1) return 30; // Si tenía 1 lt en un plato, pasar a 30 ml
+    if (cant <= 0.001) return 1;
     return Math.round(cant * 1000);
   }
 
