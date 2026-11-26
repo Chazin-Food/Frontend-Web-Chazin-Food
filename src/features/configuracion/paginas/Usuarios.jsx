@@ -11,6 +11,11 @@ import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import { exportTableToExcel } from "@/shared/utils/excelExport";
+import {
+  BRAND_REPORT_CSS,
+  buildBrandReportHeaderHtml,
+  buildBrandReportFooterHtml
+} from "@/shared/utils/reportBranding";
 
 export function Usuarios() {
   const { user } = useAuth();
@@ -156,24 +161,22 @@ export function Usuarios() {
       </tr>
     `).join('');
 
+    const headerHtml = buildBrandReportHeaderHtml({
+      title: "Reporte General de Usuarios",
+      metaItems: [{ label: "Total usuarios", value: `${rows.length}` }]
+    });
+
     printWindow.opener = null;
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="es">
         <head>
           <meta charset="UTF-8" />
           <title>Reporte de Usuarios - Chazin Food</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; color: #1e293b; }
-            h1 { font-size: 20px; font-weight: bold; margin-bottom: 4px; color: #0f172a; }
-            p { font-size: 12px; color: #64748b; margin-top: 0; margin-bottom: 16px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
-            th { padding: 8px 12px; background: #f8fafc; font-weight: 600; border-bottom: 2px solid #cbd5e1; color: #475569; }
-          </style>
+          <style>${BRAND_REPORT_CSS}</style>
         </head>
         <body>
-          <h1>Reporte de Usuarios - Chazin Food</h1>
-          <p>Fecha de emisión: ${new Date().toLocaleDateString('es-CO')} | Total de usuarios: ${rows.length}</p>
+          ${headerHtml}
           <table>
             <thead>
               <tr>
@@ -189,10 +192,11 @@ export function Usuarios() {
               ${tableRows}
             </tbody>
           </table>
+          ${buildBrandReportFooterHtml("Módulo de Configuración y Usuarios")}
           <script>
             window.onload = function() {
-              window.print();
-            }
+              setTimeout(function() { window.print(); }, 250);
+            };
           </script>
         </body>
       </html>

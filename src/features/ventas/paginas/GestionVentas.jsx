@@ -24,6 +24,11 @@ import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { formatTime12h, formatDateSafe, getColombiaDateISO, extractDateOnlyISO, COLOMBIA_TZ } from "@/shared/utils/dateUtils";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import { exportTableToExcel } from "@/shared/utils/excelExport";
+import {
+  BRAND_REPORT_CSS,
+  buildBrandReportHeaderHtml,
+  buildBrandReportFooterHtml
+} from "@/shared/utils/reportBranding";
 import { ventasService } from "../servicios/ventasService";
 
 const VentasReportesView = lazy(() => import("../componentes/gestion/VentasReportesView").then((m) => ({ default: m.VentasReportesView })));
@@ -33,6 +38,7 @@ export function GestionVentas() {
   const navigate = useNavigate();
   const {
     ventas,
+    devoluciones,
     filteredVentas,
     pagination,
     serverPaginated,
@@ -154,7 +160,20 @@ export function GestionVentas() {
     }
   };
 
-  // Export to Excel (.xlsx) con todos los datos filtrados actualmente
+  const getRefundForVenta = (ventaObj) => {
+    const vid = Number(ventaObj?.idVenta ?? ventaObj?.id ?? 0);
+    if (!vid || !Array.isArray(devoluciones)) return 0;
+    const sum = devoluciones
+      .filter((d) => {
+        const est = String(d?.estado || "").toUpperCase();
+        const isMoney = String(d?.tipoResolucion || "").toLowerCase().includes("dinero");
+        return Number(d?.idVenta || 0) === vid && (est === "APROBADA" || est === "COMPLETADA") && isMoney;
+      })
+      .reduce((acc, d) => acc + Math.max(0, Number(d?.valorDevuelto || 0)), 0);
+    return Math.min(Number(ventaObj?.total || 0), Math.round(sum));
+  };
+
+  // Export to Excel (.xlsx) con todos los datos filtrados actualmente (incluyendo reembolsos y monto neto)
   const handleExportExcel = async () => {
     const exportSource = await resolveFullExportSource();
     const headers = [
@@ -166,7 +185,9 @@ export function GestionVentas() {
       "Método de Pago",
       "Subtotal (COP)",
       "Descuento",
-      "Total (COP)",
+      "Total Bruto (COP)",
+      "Reembolso (COP)",
+      "Total Neto (COP)",
       "Estado"
     ];
 
@@ -179,6 +200,9 @@ export function GestionVentas() {
         isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo")
           ? "Wompi"
           : (rawMetodo || "Efectivo");
+      const bruto = Number(v.total || v.subtotal || 0);
+      const reembolso = getRefundForVenta(v);
+      const neto = Math.max(0, bruto - reembolso);
       return [
         v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`,
         v.clienteNombre || v.cliente || "Cliente General",
@@ -188,86 +212,123 @@ export function GestionVentas() {
         metodoLabel,
         Number(v.subtotal || v.total || 0),
         v.descuentoPorcentaje ? `${v.descuentoPorcentaje}%` : "0%",
-        Number(v.total || v.subtotal || 0),
+        bruto,
+        reembolso > 0 ? -reembolso : 0,
+        neto,
         v.estado || "Completada"
       ];
     });
 
     await exportTableToExcel({
       sheetName: "Historial de Ventas",
-      fileName: `Historial_Ventas_${selectedPeriod}_${getColombiaDateISO()}.xlsx`,
+      fileName: `Historial_Ventas_ChazinFood_${selectedPeriod}_${getColombiaDateISO()}.xlsx`,
       headers,
       rows,
-      colWidths: [22, 24, 14, 16, 14, 18, 16, 12, 16, 16]
+      colWidths: [22, 24, 14, 16, 14, 18, 16, 12, 18, 18, 18, 16]
     });
   };
 
-  // Export to Printable PDF Window con todos los datos filtrados actualmente
+  // Export to Printable PDF Window con logo corporativo y cuadre Bruto / Reembolsos / Neto
   const handleExportPDF = async () => {
     const exportSource = await resolveFullExportSource();
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
+    let totalBruto = 0;
+    let totalReembolsos = 0;
+    const rowsHtml = exportSource
+      .map((v) => {
+        const isOnline =
+          (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
+          !v.esDevolucion;
+        const rawMetodo = String(v.metodoPago || "").trim();
+        const metodoLabel =
+          isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo")
+            ? "Wompi"
+            : (rawMetodo || "Efectivo");
+        const bruto = Number(v.total || v.subtotal || 0);
+        const reemb = getRefundForVenta(v);
+        const neto = Math.max(0, bruto - reemb);
+        if (!v.esDevolucion) {
+          totalBruto += bruto;
+          totalReembolsos += reemb;
+        }
+        return `
+        <tr>
+          <td><strong>${escapeHtml(v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`)}</strong></td>
+          <td>${escapeHtml(v.clienteNombre || v.cliente || "Cliente General")}</td>
+          <td>${escapeHtml(formatDateSafe(v.fecha || v.fechaVenta, "—"))} (${escapeHtml(formatTime12h(v.horario || v.fecha || v.fechaVenta, "—"))})</td>
+          <td>${escapeHtml(v.tipoEntrega || "En Mesa")}</td>
+          <td>${escapeHtml(metodoLabel)}</td>
+          <td class="num">$${escapeHtml(bruto.toLocaleString("es-CO"))}</td>
+          <td class="num ${reemb > 0 ? "neg" : ""}">${reemb > 0 ? `-$${escapeHtml(reemb.toLocaleString("es-CO"))}` : "$0"}</td>
+          <td class="num pos">$${escapeHtml(neto.toLocaleString("es-CO"))}</td>
+          <td><span class="badge">${escapeHtml(v.estado || "Completada")}</span></td>
+        </tr>
+      `;
+      })
+      .join("");
+
+    const totalNeto = Math.max(0, totalBruto - totalReembolsos);
+    const activeFilterList = [
+      filterFechaInicio || filterFechaFin ? `Rango: ${filterFechaInicio || "Inicio"} a ${filterFechaFin || "Hoy"}` : null,
+      filterOrigen !== "Todos" ? `Canal: ${filterOrigen}` : null,
+      filterMetodoPago !== "Todos" ? `Pago: ${filterMetodoPago}` : null,
+      filterTipoEntrega !== "Todos" ? `Entrega: ${filterTipoEntrega}` : null,
+      filterFidelidad !== "Todos" ? `Fidelidad: ${filterFidelidad}` : null,
+      searchTerm.trim() ? `Búsqueda: "${searchTerm.trim()}"` : null
+    ].filter(Boolean);
+
+    const headerHtml = buildBrandReportHeaderHtml({
+      title: "Historial de Transacciones y Ventas",
+      subtitle: periodText,
+      metaItems: [
+        { label: "Registros", value: `${exportSource.length}` },
+        { label: "Total Neto", value: `$${totalNeto.toLocaleString("es-CO")} COP` }
+      ],
+      filtersSummary: activeFilterList.length > 0 ? activeFilterList.join(" · ") : `Período: ${periodText}`
+    });
+
     const htmlContent = `
       <!DOCTYPE html>
-      <html>
+      <html lang="es">
         <head>
           <meta charset="UTF-8" />
           <title>Historial de Ventas - Chazin Food</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; color: #1e293b; }
-            h1 { color: #F05454; font-size: 24px; margin-bottom: 4px; }
-            h2 { color: #64748b; font-size: 14px; font-weight: normal; margin-top: 0; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-            th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
-            th { background-color: #f8fafc; color: #475569; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; background: #d1fae5; color: #065f46; }
-            .footer { margin-top: 30px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-          </style>
+          <style>${BRAND_REPORT_CSS}</style>
         </head>
         <body>
-          <h1>Chazin Food — Historial de Ventas</h1>
-          <h2>Período: ${escapeHtml(periodText)} | Registros: ${escapeHtml(exportSource.length)} | Generado el: ${escapeHtml(new Date().toLocaleDateString("es-CO", { timeZone: COLOMBIA_TZ }))} ${escapeHtml(formatTime12h(new Date()))}</h2>
+          ${headerHtml}
           <table>
             <thead>
               <tr>
                 <th>N° Venta</th>
                 <th>Cliente</th>
-                <th>Fecha & Horario</th>
+                <th>Fecha &amp; Horario</th>
                 <th>Entrega</th>
                 <th>Método de Pago</th>
-                <th>Monto Total</th>
+                <th class="num">Total Bruto</th>
+                <th class="num">Reembolso</th>
+                <th class="num">Total Neto</th>
                 <th>Estado</th>
               </tr>
             </thead>
             <tbody>
-              ${exportSource.map(v => {
-                const isOnline =
-                  (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
-                  !v.esDevolucion;
-                const rawMetodo = String(v.metodoPago || "").trim();
-                const metodoLabel =
-                  isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo")
-                    ? "Wompi"
-                    : (rawMetodo || "Efectivo");
-                return `
-                <tr>
-                  <td><strong>${escapeHtml(v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`)}</strong></td>
-                  <td>${escapeHtml(v.clienteNombre || v.cliente || "Cliente General")}</td>
-                  <td>${escapeHtml(formatDateSafe(v.fecha || v.fechaVenta, "—"))} (${escapeHtml(formatTime12h(v.horario || v.fecha || v.fechaVenta, "—"))})</td>
-                  <td>${escapeHtml(v.tipoEntrega || "En Mesa")}</td>
-                  <td>${escapeHtml(metodoLabel)}</td>
-                  <td><strong>$${escapeHtml(Number(v.total || v.subtotal || 0).toLocaleString("es-CO"))}</strong></td>
-                  <td><span class="badge">${escapeHtml(v.estado || "Completada")}</span></td>
-                </tr>
-              `;
-              }).join("")}
+              ${rowsHtml}
+              <tr class="total-row">
+                <td colspan="5">TOTAL CONCILIADO (${escapeHtml(exportSource.length)} registros)</td>
+                <td class="num">$${escapeHtml(totalBruto.toLocaleString("es-CO"))}</td>
+                <td class="num neg">${totalReembolsos > 0 ? `-$${escapeHtml(totalReembolsos.toLocaleString("es-CO"))}` : "$0"}</td>
+                <td class="num pos">$${escapeHtml(totalNeto.toLocaleString("es-CO"))}</td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
-          <div class="footer">Chazin Food — Sistema de Gestión Comercial y Ventas</div>
+          ${buildBrandReportFooterHtml("Sistema de Gestión Comercial y Ventas")}
           <script>
-            window.onload = function() { window.print(); }
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 250);
+            };
           </script>
         </body>
       </html>
@@ -333,7 +394,7 @@ export function GestionVentas() {
       </div>
 
       {/* Top 4 Stats Cards */}
-      <VentasStatsCards ventas={ventas} stats={stats} selectedPeriod={selectedPeriod} />
+      <VentasStatsCards ventas={ventas} devoluciones={devoluciones} stats={stats} selectedPeriod={selectedPeriod} />
 
       {/* Main Navigation Container */}
       <div className="bg-white dark:bg-gray-900 rounded-3xl p-3 sm:p-4 lg:p-5 border border-gray-100 dark:border-gray-800 shadow-xs space-y-5">
@@ -424,7 +485,7 @@ export function GestionVentas() {
         {/* TAB 1: REPORTES */}
         {activeTab === "reportes" ? (
           <Suspense fallback={<ChazinLoader text="CARGANDO REPORTES Y GRÁFICAS" size="md" />}>
-            <VentasReportesView ventas={ventas} selectedPeriod={selectedPeriod} />
+            <VentasReportesView ventas={ventas} devoluciones={devoluciones} selectedPeriod={selectedPeriod} />
           </Suspense>
         ) : activeTab === "historial" ? (
           /* TAB 2: HISTORIAL */

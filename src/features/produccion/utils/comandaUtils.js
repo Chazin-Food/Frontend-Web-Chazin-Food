@@ -1,5 +1,6 @@
 import { resolveOrderTimings } from "./tiempoProduccionUtils";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
+import { buildBrandTicketLogoHtml } from "@/shared/utils/reportBranding";
 
 /**
  * Utilidad para imprimir la comanda de cocina (Ticket térmico o estándar de producción)
@@ -174,6 +175,7 @@ export function imprimirComanda(orden) {
 </head>
 <body>
   <div class="header">
+    ${buildBrandTicketLogoHtml(44)}
     <h1 class="title">CHAZIN FOOD</h1>
     <p class="subtitle">COMANDA DE COCINA / PRODUCCIÓN</p>
     <div class="order-code">${escapeHtml(orden.codigo || `OP-00${orden.id}`)}</div>

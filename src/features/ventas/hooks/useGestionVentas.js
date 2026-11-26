@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { ventasService } from "../servicios/ventasService";
+import { devolucionesService } from "../servicios/devolucionesService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { matchVentaMultiCriteria } from "@/shared/utils/searchUtils";
 import { recordLocalDeliveryTimeMode } from "@/features/produccion/utils/tiempoProduccionUtils";
@@ -29,6 +30,7 @@ export function useGestionVentas() {
   const { filters, setFilter, setFilters } = useUrlFilters(VENTAS_URL_DEFAULTS);
 
   const [ventas, setVentas] = useState([]);
+  const [devoluciones, setDevoluciones] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 5, totalPages: 1 });
   const [serverPaginated, setServerPaginated] = useState(false);
   const [stats, setStats] = useState(null);
@@ -126,10 +128,14 @@ export function useGestionVentas() {
           }
         : baseQueryParams;
 
-      const [resList, statsData] = await Promise.all([
+      const [resList, statsData, devsData] = await Promise.all([
         ventasService.getVentas(listParams),
-        ventasService.getStats(baseQueryParams).catch(() => null)
+        ventasService.getStats(baseQueryParams).catch(() => null),
+        devolucionesService.getDevoluciones().catch(() => [])
       ]);
+
+      const devsArr = Array.isArray(devsData) ? devsData : (Array.isArray(devsData?.data) ? devsData.data : []);
+      setDevoluciones(devsArr);
 
       if (shouldUseServerPagination && resList && !Array.isArray(resList) && Array.isArray(resList.data)) {
         setVentas(resList.data);
@@ -360,6 +366,7 @@ export function useGestionVentas() {
 
   return {
     ventas,
+    devoluciones,
     filteredVentas,
     pagination,
     serverPaginated,

@@ -11,6 +11,11 @@ import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { getColombiaDateISO } from "@/shared/utils/dateUtils";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import { exportTableToExcel } from "@/shared/utils/excelExport";
+import {
+  BRAND_REPORT_CSS,
+  buildBrandReportHeaderHtml,
+  buildBrandReportFooterHtml
+} from "@/shared/utils/reportBranding";
 
 const InsumoModal = lazy(() => import("../componentes/insumos/InsumoModal").then((m) => ({ default: m.InsumoModal })));
 const TrazabilidadModal = lazy(() => import("../componentes/insumos/TrazabilidadModal").then((m) => ({ default: m.TrazabilidadModal })));
@@ -170,26 +175,22 @@ export function Insumos() {
       )
       .join("");
 
+    const headerHtml = buildBrandReportHeaderHtml({
+      title: "Reporte de Inventario de Insumos",
+      metaItems: [{ label: "Total registros", value: `${rows.length}` }]
+    });
+
     printWindow.opener = null;
     printWindow.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="es">
         <head>
           <meta charset="UTF-8" />
           <title>Reporte de Insumos - Chazin Food</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            h1 { color: #f05454; font-size: 20px; margin-bottom: 4px; }
-            p { font-size: 12px; color: #666; margin-top: 0; margin-bottom: 16px; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th { background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-weight: bold; }
-            td { border: 1px solid #e2e8f0; padding: 6px 8px; }
-            tr:nth-child(even) { background: #fdfdfd; }
-          </style>
+          <style>${BRAND_REPORT_CSS}</style>
         </head>
         <body>
-          <h1>Chazin Food — Reporte de Insumos</h1>
-          <p>Generado el ${new Date().toLocaleString("es-CO")} | Total registros: ${rows.length}</p>
+          ${headerHtml}
           <table>
             <thead>
               <tr>
@@ -207,7 +208,8 @@ export function Insumos() {
               ${tableRows}
             </tbody>
           </table>
-          <script>window.onload = function() { window.print(); window.close(); };</script>
+          ${buildBrandReportFooterHtml("Módulo de Compras e Inventario")}
+          <script>window.onload = function() { setTimeout(function() { window.print(); window.close(); }, 250); };</script>
         </body>
       </html>
     `);

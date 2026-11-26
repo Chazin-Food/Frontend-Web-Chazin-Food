@@ -1,7 +1,7 @@
 import { TrendingUp, Users, ShoppingBag, Layers } from "lucide-react";
 import { getColombiaDateISO, getColombiaDateParts } from "@/shared/utils/dateUtils";
 
-export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "personalizado" }) {
+export function VentasStatsCards({ ventas = [], devoluciones = [], stats = null, selectedPeriod = "personalizado" }) {
   const validVentasFallback = ventas.filter((v) => {
     if (!v || v.esDevolucion) return false;
     const entrega = String(v.estadoEntrega || v.estado || "").toUpperCase().trim();
@@ -11,8 +11,34 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
     return true;
   });
 
-  const totalVentasSum = stats ? Number(stats.totalVentas || 0) : Math.round(validVentasFallback.reduce((acc, v) => acc + Number(v.total || 0), 0));
-  const totalVentasStr = stats ? stats.totalVentasFormatted : `$${totalVentasSum.toLocaleString("es-CO")}`;
+  const validVentaIdSet = new Set(validVentasFallback.map((v) => Number(v.idVenta || v.id || 0)).filter(Boolean));
+  const fallbackBruto = Math.round(validVentasFallback.reduce((acc, v) => acc + Number(v.total || 0), 0));
+  const fallbackReembolsos = Math.min(
+    fallbackBruto,
+    Math.round(
+      (Array.isArray(devoluciones) ? devoluciones : [])
+        .filter((d) => {
+          const est = String(d?.estado || "").toUpperCase();
+          const isMoney = String(d?.tipoResolucion || "").toLowerCase().includes("dinero");
+          return (est === "APROBADA" || est === "COMPLETADA") && isMoney && validVentaIdSet.has(Number(d.idVenta || 0));
+        })
+        .reduce((acc, d) => acc + Math.max(0, Number(d.valorDevuelto || 0)), 0)
+    )
+  );
+  const fallbackNeto = Math.max(0, fallbackBruto - fallbackReembolsos);
+
+  const totalVentasBrutas = stats && stats.totalVentasBrutas !== undefined
+    ? Number(stats.totalVentasBrutas || 0)
+    : (stats ? Number(stats.totalVentas || 0) : fallbackBruto);
+  const totalReembolsos = stats && stats.totalReembolsos !== undefined
+    ? Number(stats.totalReembolsos || 0)
+    : fallbackReembolsos;
+  const totalVentasSum = stats
+    ? Number(stats.totalVentasNetas ?? stats.totalVentas ?? 0)
+    : fallbackNeto;
+  const totalVentasStr = stats && stats.totalVentasNetasFormatted
+    ? stats.totalVentasNetasFormatted
+    : `$${totalVentasSum.toLocaleString("es-CO")}`;
 
   const pedidosCount = stats ? Number(stats.pedidosCount || 0) : validVentasFallback.length;
 
@@ -71,12 +97,12 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
-      {/* 1. Total Ventas (COP) */}
+      {/* 1. Ventas Netas (COP) */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-gray-100 dark:border-gray-800 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow min-w-0">
         <div className="flex items-start justify-between gap-2 sm:gap-3">
           <div className="min-w-0 flex-1">
             <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1 truncate">
-              Total Ventas (COP)
+              {totalReembolsos > 0 ? "Ventas Netas (COP)" : "Total Ventas (COP)"}
             </span>
             <span className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
               {totalVentasStr}
@@ -87,7 +113,13 @@ export function VentasStatsCards({ ventas = [], stats = null, selectedPeriod = "
           </div>
         </div>
         <div className="mt-2.5 sm:mt-4 pt-2 sm:pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between gap-1 text-xs">
-          <span className="text-gray-500 dark:text-gray-400 font-medium text-[10px] sm:text-[11px] truncate">{selectedPeriod === "personalizado" || selectedPeriod === "todos" ? "Histórico" : selectedPeriod === "este_mes" ? "Este mes" : selectedPeriod === "7_dias" ? "7 días" : selectedPeriod === "este_ano" ? "Este año" : "Hoy"}</span>
+          {totalReembolsos > 0 ? (
+            <span className="text-rose-600 dark:text-rose-400 font-semibold text-[10px] sm:text-[11px] truncate" title={`Ventas brutas: $${totalVentasBrutas.toLocaleString("es-CO")} · Reembolsos: -$${totalReembolsos.toLocaleString("es-CO")}`}>
+              Reemb: -${totalReembolsos.toLocaleString("es-CO")}
+            </span>
+          ) : (
+            <span className="text-gray-500 dark:text-gray-400 font-medium text-[10px] sm:text-[11px] truncate">{selectedPeriod === "personalizado" || selectedPeriod === "todos" ? "Histórico" : selectedPeriod === "este_mes" ? "Este mes" : selectedPeriod === "7_dias" ? "7 días" : selectedPeriod === "este_ano" ? "Este año" : "Hoy"}</span>
+          )}
           <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 sm:px-2 py-0.5 rounded-md text-[9.5px] sm:text-[10px] shrink-0">
             COP
           </span>

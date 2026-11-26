@@ -1,7 +1,35 @@
-import { useState, useMemo } from "react";
-import { Download, TrendingUp, Calendar, History, BarChart2, CheckCircle2 } from "lucide-react";
-import { getColombiaDateISO, getColombiaDateParts } from "@/shared/utils/dateUtils";
+import { useState, useMemo, useEffect } from "react";
+import {
+  TrendingUp,
+  Calendar,
+  History,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  RotateCcw,
+  Search,
+  ChevronDown,
+  X,
+  RotateCw,
+  DollarSign,
+  Package,
+  AlertTriangle,
+  CheckCircle2,
+  Receipt
+} from "lucide-react";
+import logoImg from "@/shared/assets/logo_optimized.webp";
+import { getColombiaDateISO, formatDateSafe } from "@/shared/utils/dateUtils";
 import { exportMatrixToExcel } from "@/shared/utils/excelExport";
+import { escapeHtml } from "@/shared/utils/htmlSanitizer";
+import {
+  BRAND_REPORT_CSS,
+  buildBrandReportHeaderHtml,
+  buildBrandReportFooterHtml
+} from "@/shared/utils/reportBranding";
+import {
+  computeSalesReportMetrics,
+  extractAvailableReportProducts
+} from "../../utils/ventasReportMetrics";
 import {
   ResponsiveContainer,
   BarChart,
@@ -14,556 +42,1122 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip
+  Tooltip,
+  Legend
 } from "recharts";
 
-const CustomChartTooltip = ({ active, payload, label, unit = "Ingresos", isCurrency = true }) => {
-  if (active && payload && payload.length) {
-    const val = payload[0].value;
-    const formatted = isCurrency ? `$${Number(val).toLocaleString("es-CO")}` : `${val} ${val === 1 ? 'venta' : 'ventas'}`;
-    const payloadData = payload[0].payload;
-    const titleLabel = payloadData?.nombreLimpio || payloadData?.nombre || payloadData?.mesCompleto || payloadData?.fechaCompleta || payloadData?.dia || label;
-    const ingresos = payloadData?.ingresos !== undefined ? Number(payloadData.ingresos) : 0;
-    const precioUnitario = payloadData?.precioUnitario !== undefined ? Number(payloadData.precioUnitario) : 0;
-    const porcentaje = payloadData?.porcentaje !== undefined ? Number(payloadData.porcentaje) : 0;
+const CustomChartTooltip = ({ active, payload, label, mode = "money" }) => {
+  if (!active || !payload || !payload.length) return null;
+  const row = payload[0]?.payload || {};
+  const titleLabel =
+    row.nombreLimpio ||
+    row.nombre ||
+    row.mesCompleto ||
+    row.fechaCompleta ||
+    row.dia ||
+    label;
 
-    return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-150 dark:border-gray-700 p-3.5 rounded-2xl shadow-xl text-xs space-y-1 animate-in fade-in duration-150 min-w-[180px] max-w-[260px]">
-        <p className="font-extrabold text-gray-900 dark:text-gray-100 text-sm leading-snug">
-          {titleLabel}
-        </p>
-        <p className="font-extrabold text-[#10B981] text-sm">
-          {unit} : {formatted}
-        </p>
-        {ingresos > 0 && (
-          <p className="font-bold text-teal-600 dark:text-teal-400 text-xs">
-            Total en ventas: ${ingresos.toLocaleString("es-CO")} COP
-          </p>
-        )}
-        {precioUnitario > 0 && (
-          <p className="text-gray-600 dark:text-gray-300 text-xs font-medium">
-            Precio unitario: ${precioUnitario.toLocaleString("es-CO")} c/u
-          </p>
-        )}
-        {porcentaje > 0 && (
-          <p className="text-amber-600 dark:text-amber-400 text-xs font-semibold">
-            Representación: {porcentaje}% del volumen de ventas
-          </p>
-        )}
-        {payloadData?.cantidadVentas !== undefined && isCurrency && (
-          <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-            Volumen: {payloadData.cantidadVentas} {payloadData.cantidadVentas === 1 ? 'venta' : 'ventas'}
-          </p>
-        )}
-      </div>
-    );
-  }
-  return null;
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3.5 rounded-2xl shadow-xl text-xs space-y-1.5 min-w-[205px] max-w-[280px]">
+      <p className="font-extrabold text-gray-900 dark:text-gray-100 text-sm leading-snug border-b border-gray-100 dark:border-gray-700 pb-1">
+        {titleLabel}
+      </p>
+
+      {mode === "money" && (
+        <>
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-500 dark:text-gray-400">Ventas brutas:</span>
+            <span className="font-bold text-gray-800 dark:text-gray-200">
+              ${Number(row.ventasBrutas ?? row.ventas ?? 0).toLocaleString("es-CO")}
+            </span>
+          </div>
+          {Number(row.reembolsos || 0) > 0 && (
+            <div className="flex justify-between gap-3 text-rose-600 dark:text-rose-400">
+              <span>Devoluciones / Reemb.:</span>
+              <span className="font-bold">-${Number(row.reembolsos).toLocaleString("es-CO")}</span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3 text-emerald-600 dark:text-emerald-400 pt-1 border-t border-gray-100 dark:border-gray-700">
+            <span className="font-bold">Ingreso neto real:</span>
+            <span className="font-extrabold">${Number(row.ventas || 0).toLocaleString("es-CO")}</span>
+          </div>
+          {row.cantidadVentas !== undefined && (
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              {row.cantidadVentas} {row.cantidadVentas === 1 ? "venta" : "ventas"}
+              {row.unidadesNetas !== undefined ? ` · ${row.unidadesNetas} und. netas` : ""}
+              {Number(row.unidadesDevueltas || 0) > 0 ? ` (${row.unidadesDevueltas} dev.)` : ""}
+            </p>
+          )}
+        </>
+      )}
+
+      {mode === "volume" && (
+        <>
+          <div className="flex justify-between gap-3 text-blue-600 dark:text-blue-400">
+            <span className="font-semibold">Ventas procesadas:</span>
+            <span className="font-extrabold">{Number(row.cantidadVentas || 0)}</span>
+          </div>
+          <div className="flex justify-between gap-3 text-emerald-600 dark:text-emerald-400">
+            <span className="font-semibold">Unidades netas:</span>
+            <span className="font-bold">{Number(row.unidadesNetas || 0)} und.</span>
+          </div>
+          {Number(row.unidadesDevueltas || 0) > 0 && (
+            <div className="flex justify-between gap-3 text-rose-600 dark:text-rose-400">
+              <span>Unidades devueltas:</span>
+              <span className="font-bold">-{Number(row.unidadesDevueltas)} und.</span>
+            </div>
+          )}
+        </>
+      )}
+
+      {mode === "product" && (
+        <>
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-500 dark:text-gray-400">Vendidas (bruto):</span>
+            <span className="font-bold text-gray-800 dark:text-gray-200">{Number(row.cantidadBruta || 0)} und.</span>
+          </div>
+          {Number(row.cantidadDevuelta || 0) > 0 && (
+            <div className="flex justify-between gap-3 text-rose-600 dark:text-rose-400">
+              <span>Devueltas:</span>
+              <span className="font-bold">-{Number(row.cantidadDevuelta)} und.</span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3 text-emerald-600 dark:text-emerald-400">
+            <span className="font-bold">Unidades netas:</span>
+            <span className="font-extrabold">{Number(row.cantidadNeta || 0)} und.</span>
+          </div>
+          <div className="pt-1 border-t border-gray-100 dark:border-gray-700 space-y-0.5">
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500 dark:text-gray-400">Venta bruta:</span>
+              <span className="font-semibold">${Number(row.ingresosBrutos || 0).toLocaleString("es-CO")}</span>
+            </div>
+            {Number(row.montoReembolsado || 0) > 0 && (
+              <div className="flex justify-between gap-3 text-rose-600 dark:text-rose-400">
+                <span>Reembolsado:</span>
+                <span className="font-bold">-${Number(row.montoReembolsado).toLocaleString("es-CO")}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3 text-teal-600 dark:text-teal-400 font-bold">
+              <span>Ingreso neto:</span>
+              <span>${Number(row.ingresosNetos || 0).toLocaleString("es-CO")}</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 };
 
-export function VentasReportesView({ ventas = [], selectedPeriod = "personalizado" }) {
+const PERIOD_LABELS = {
+  hoy: "Hoy",
+  "7_dias": "Últimos 7 días",
+  este_mes: "Este mes",
+  este_ano: "Este año",
+  personalizado: "Histórico completo"
+};
+
+export function VentasReportesView({
+  ventas = [],
+  devoluciones = [],
+  selectedPeriod = "personalizado"
+}) {
   const [activeIndex, setActiveIndex] = useState(null);
   const [vistaTemporal, setVistaTemporal] = useState("historico"); // "historico" | "semanal" | "fechas"
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
-  // Sincronizar automáticamente la vista del gráfico según el período global seleccionado
-  useMemo(() => {
+  // Filtros específicos del reporte de ventas
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [origen, setOrigen] = useState("Todos");
+  const [metodoPago, setMetodoPago] = useState("Todos");
+  const [tipoEntrega, setTipoEntrega] = useState("Todos");
+  const [fidelidad, setFidelidad] = useState("Todos");
+  const [producto, setProducto] = useState("Todos");
+  const [estadoDevolucion, setEstadoDevolucion] = useState("Todos");
+  const [busqueda, setBusqueda] = useState("");
+  const [montoMin, setMontoMin] = useState("");
+  const [montoMax, setMontoMax] = useState("");
+
+  useEffect(() => {
     if (selectedPeriod === "7_dias" || selectedPeriod === "hoy") {
       setVistaTemporal("semanal");
-    } else if (selectedPeriod === "este_mes") {
+    } else if (selectedPeriod === "este_mes" || (fechaInicio && fechaFin)) {
       setVistaTemporal("fechas");
     } else {
       setVistaTemporal("historico");
     }
-  }, [selectedPeriod]);
+  }, [selectedPeriod, fechaInicio, fechaFin]);
 
-  const reportData = useMemo(() => {
-    const daysMap = { 1: "Lun", 2: "Mar", 3: "Mié", 4: "Jue", 5: "Vie", 6: "Sáb", 0: "Dom" };
-    const diasOrder = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-    const dailyStats = { Lun: { ventas: 0, pedidos: 0 }, Mar: { ventas: 0, pedidos: 0 }, Mié: { ventas: 0, pedidos: 0 }, Jue: { ventas: 0, pedidos: 0 }, Vie: { ventas: 0, pedidos: 0 }, Sáb: { ventas: 0, pedidos: 0 }, Dom: { ventas: 0, pedidos: 0 } };
+  const productosDisponibles = useMemo(
+    () => extractAvailableReportProducts(ventas),
+    [ventas]
+  );
 
-    // Meses del año para histórico mensual
-    const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    const mesesCompletos = [
-      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
+  const reportFilters = useMemo(
+    () => ({
+      fechaInicio,
+      fechaFin,
+      origen,
+      metodoPago,
+      tipoEntrega,
+      fidelidad,
+      producto,
+      estadoDevolucion,
+      busqueda,
+      montoMin,
+      montoMax
+    }),
+    [
+      fechaInicio,
+      fechaFin,
+      origen,
+      metodoPago,
+      tipoEntrega,
+      fidelidad,
+      producto,
+      estadoDevolucion,
+      busqueda,
+      montoMin,
+      montoMax
+    ]
+  );
 
-    const monthlyStats = mesesNombres.map((mes, idx) => ({
-      mes,
-      mesCompleto: mesesCompletos[idx],
-      ventas: 0,
-      cantidadVentas: 0
-    }));
+  const reportData = useMemo(
+    () =>
+      computeSalesReportMetrics({
+        ventas,
+        devoluciones,
+        filters: reportFilters
+      }),
+    [ventas, devoluciones, reportFilters]
+  );
 
-    // Fechas históricas para agrupación cronológica
-    const fechasMap = {};
-
-    // Solo ventas válidas/aprobadas (alineado con KPIs de Gestión de Ventas y Dashboard)
-    const validVentas = (Array.isArray(ventas) ? ventas : []).filter((v) => {
-      if (!v || v.esDevolucion) return false;
-      const entrega = String(v.estadoEntrega || v.estado || "").toUpperCase().trim();
-      if (entrega === "CANCELADO" || entrega === "RECHAZADO" || entrega === "ANULADA") return false;
-      const aprob = String(v.estadoAprobacion || "").toUpperCase().trim();
-      if (aprob === "PENDIENTE" || aprob === "RECHAZADO") return false;
-      return true;
-    });
-
-    const productCounts = {};
-    const paymentCounts = { "Efectivo (Punto Físico)": 0, "Wompi (En Línea)": 0, Tarjeta: 0, Transferencia: 0 };
-
-    validVentas.forEach((v) => {
-      const rawFechaV = v.fecha || v.fechaVenta;
-      const parts = rawFechaV ? getColombiaDateParts(rawFechaV) : null;
-      if (parts) {
-        // Agrupación por día de la semana en Colombia
-        const dayName = daysMap[parts.dayOfWeek];
-        if (dailyStats[dayName]) {
-          dailyStats[dayName].ventas += Number(v.total || 0);
-          dailyStats[dayName].pedidos += 1;
-        }
-
-        // Agrupación por mes (Histórico Mensual en Colombia)
-        const monthIdx = parts.month - 1;
-        if (monthIdx >= 0 && monthIdx < 12) {
-          monthlyStats[monthIdx].ventas += Number(v.total || 0);
-          monthlyStats[monthIdx].cantidadVentas += 1;
-        }
-
-        // Agrupación cronológica por fecha Colombia
-        const dateKey = getColombiaDateISO(rawFechaV);
-        if (!fechasMap[dateKey]) {
-          const displayDate = `${String(parts.day).padStart(2, "0")}/${String(parts.month).padStart(2, "0")}`;
-          fechasMap[dateKey] = {
-            fechaKey: dateKey,
-            fecha: displayDate,
-            fechaCompleta: `${displayDate}/${parts.year}`,
-            ventas: 0,
-            cantidadVentas: 0
-          };
-        }
-        fechasMap[dateKey].ventas += Number(v.total || 0);
-        fechasMap[dateKey].cantidadVentas += 1;
-      }
-
-      const metodo = String(v.metodoPago || v.metodo_pago || "Efectivo").toLowerCase();
-      if (metodo.includes("wompi") || metodo.includes("online")) {
-        paymentCounts["Wompi (En Línea)"] += 1;
-      } else if (metodo.includes("tarjeta")) {
-        paymentCounts.Tarjeta += 1;
-      } else if (metodo.includes("transfer") || metodo.includes("nequi") || metodo.includes("davi") || metodo.includes("pse")) {
-        paymentCounts.Transferencia += 1;
-      } else {
-        paymentCounts["Efectivo (Punto Físico)"] += 1;
-      }
-
-      // Priorizar detalles relacionales si existen
-      const prods = (Array.isArray(v.detalles) && v.detalles.length > 0)
-        ? v.detalles.map(d => ({
-            nombre: d.variante?.producto?.nombre || d.variante?.nombre || "Producto",
-            nombreProducto: d.variante?.producto?.nombre,
-            nombreVariante: d.variante?.nombre,
-            cantidad: d.cantidad,
-            precioUnitario: d.precioUnitario || d.variante?.precio || d.variante?.producto?.precio || 0,
-            subtotal: d.subtotal || ((Number(d.precioUnitario) || Number(d.variante?.precio) || 0) * (Number(d.cantidad) || 1))
-          }))
-        : (Array.isArray(v.productos) && v.productos.length > 0 ? v.productos : []);
-
-      const variantToProductMap = {
-        "clásica 150g": "Hamburguesa Clásica Chazin",
-        "doble carne 300g": "Hamburguesa Doble Carne & Tocineta",
-        "pollo crispy 180g": "Hamburguesa Pollo Crispy Gourmet",
-        "individual bbq bacon 150g": "Hamburguesa BBQ Bacon Chazin",
-        "doble carne bbq bacon 300g": "Hamburguesa BBQ Bacon Chazin",
-        "mexicana clásica": "Hamburguesa Mexicana Chazin",
-        "extra picante con doble jalapeño": "Hamburguesa Mexicana Chazin",
-        "individual campesina": "Hamburguesa Campesina Chazin",
-        "perro especial": "Perro Caliente Especial Americano",
-        "perro suizo gourmet": "Perro Suizo Chazin",
-        "salchipapa personal grande": "Salchipapa Salvaje Gourmet",
-        "combo pareja completo": "Combo Pareja Chazin",
-        "perro mexicano clásico": "Perro Caliente Mexicano",
-        "perro criollo gourmet": "Perro Criollo Especial Chazin",
-        "porción personal grande": "Salchipapa Criolla Chazin",
-        "familiar para compartir (2 personas)": "Salchipapa Criolla Chazin",
-        "porción costeña grande": "Salchipapa Costeña Chazin",
-        "porción individual 150g": "Porción Papas a la Francesa (150g)",
-        "porción individual": "Papas Corral Grandes",
-        "sin azúcar / light 400ml": "Gaseosa Coca-Cola 400ml",
-        "botella 1.5 litros": "Gaseosa Manzana Postobón 400ml"
-      };
-
-      prods.forEach((p) => {
-        let rawName = p.nombreProducto || p.variante?.producto?.nombre || p.nombre || p.variante?.nombre || null;
-        if (rawName && (rawName === "Producto" || rawName === "Producto General" || rawName.startsWith("Producto #"))) {
-          rawName = p.variante?.producto?.nombre || p.variante?.nombre || null;
-        }
-
-        const low = String(rawName || "").toLowerCase().trim();
-        if (
-          !rawName ||
-          rawName === "Producto" ||
-          rawName === "Pedido de Venta" ||
-          rawName === "Producto General" ||
-          rawName.startsWith("Producto #") ||
-          low.startsWith("sin ") ||
-          low === "tester" ||
-          low.startsWith("test") ||
-          low.startsWith("prueba") ||
-          low.startsWith("dummy")
-        ) return;
-
-        let nombreLimpio = rawName.replace(/\s*\(.*?\)/g, "").replace(/\s*-\s*base/i, "").trim();
-        if (!nombreLimpio || nombreLimpio === "Producto" || nombreLimpio === "Pedido de Venta" || nombreLimpio === "Producto General") return;
-
-        const cleanLow = nombreLimpio.toLowerCase();
-        if (variantToProductMap[cleanLow]) {
-          nombreLimpio = variantToProductMap[cleanLow];
-        }
-
-        const groupKey = nombreLimpio.toLowerCase();
-        const pQty = Number(p.cantidad) || 1;
-        const pPrice = Number(p.precioUnitario || p.precio || p.costo || 0);
-        const pSubtotal = Number(p.subtotal || (pPrice * pQty) || 0);
-
-        if (!productCounts[groupKey]) {
-          productCounts[groupKey] = { nombre: nombreLimpio, cantidad: 0, ingresos: 0, precioUnitario: pPrice };
-        }
-        productCounts[groupKey].cantidad += pQty;
-        productCounts[groupKey].ingresos += pSubtotal;
-        if (!productCounts[groupKey].precioUnitario && pPrice > 0) {
-          productCounts[groupKey].precioUnitario = pPrice;
+  const activeFilterChips = useMemo(() => {
+    const chips = [];
+    if (fechaInicio || fechaFin) {
+      chips.push({
+        key: "fechas",
+        label: `Fechas: ${fechaInicio || "Inicio"} → ${fechaFin || "Hoy"}`,
+        clear: () => {
+          setFechaInicio("");
+          setFechaFin("");
         }
       });
-    });
-
-    const hasRealSales = validVentas.length > 0;
-
-    const totalVentasMontoGlobal = Object.values(productCounts).reduce((acc, p) => acc + (p.ingresos || 0), 0);
-    const totalVentasUnidadesGlobal = Object.values(productCounts).reduce((acc, p) => acc + (p.cantidad || 0), 0);
-
-    const ingresosDiarios = diasOrder.map((dia) => ({
-      dia,
-      ventas: dailyStats[dia].ventas,
-      cantidadVentas: dailyStats[dia].pedidos,
-      pedidos: dailyStats[dia].pedidos
-    }));
-
-    const historicoFechas = Object.keys(fechasMap)
-      .sort()
-      .map(key => fechasMap[key]);
-
-    const sortedProducts = Object.values(productCounts)
-      .map(({ nombre, cantidad, ingresos, precioUnitario }) => {
-        const avgPrice = cantidad > 0 && ingresos > 0
-          ? Math.round(ingresos / cantidad)
-          : (precioUnitario || 0);
-        const porcentaje = totalVentasMontoGlobal > 0
-          ? Math.round((ingresos / totalVentasMontoGlobal) * 1000) / 10
-          : (totalVentasUnidadesGlobal > 0 ? Math.round((cantidad / totalVentasUnidadesGlobal) * 1000) / 10 : 0);
-
-        return {
-          nombre,
-          nombreLimpio: nombre.replace(/\s*\(.*?\)/g, "").trim(),
-          cantidad,
-          ingresos: Math.round(ingresos),
-          precioUnitario: avgPrice,
-          porcentaje
-        };
-      })
-      .sort((a, b) => b.cantidad - a.cantidad)
-      .slice(0, 5);
-
-    const productosMasVendidos = sortedProducts;
-
-    const totalMetodosCount = (paymentCounts["Efectivo (Punto Físico)"] + paymentCounts["Wompi (En Línea)"] + paymentCounts.Tarjeta + paymentCounts.Transferencia) || 0;
-    
-    let metodosPago = [];
-    if (hasRealSales && totalMetodosCount > 0) {
-      const rawMethods = [
-        { name: "Efectivo (Punto Físico)", count: paymentCounts["Efectivo (Punto Físico)"] },
-        { name: "Wompi (En Línea)", count: paymentCounts["Wompi (En Línea)"] },
-        { name: "Tarjeta", count: paymentCounts.Tarjeta },
-        { name: "Transferencia", count: paymentCounts.Transferencia }
-      ].filter(m => m.count > 0);
-
-      let allocatedSum = 0;
-      metodosPago = rawMethods.map(m => {
-        const exactPct = (m.count / totalMetodosCount) * 100;
-        const floorPct = Math.floor(exactPct);
-        allocatedSum += floorPct;
-        return {
-          name: m.name,
-          count: m.count,
-          value: floorPct,
-          decimal: exactPct - floorPct
-        };
-      });
-
-      let remainder = 100 - allocatedSum;
-      const sortedByDecimal = [...metodosPago].sort((a, b) => b.decimal - a.decimal);
-      for (let i = 0; i < remainder; i++) {
-        const item = metodosPago.find(m => m.name === sortedByDecimal[i]?.name);
-        if (item) item.value += 1;
-      }
-      metodosPago.sort((a, b) => b.count - a.count);
     }
+    if (origen !== "Todos") {
+      chips.push({
+        key: "origen",
+        label: `Canal: ${origen === "ONLINE" ? "Venta Online" : "Punto Físico"}`,
+        clear: () => setOrigen("Todos")
+      });
+    }
+    if (metodoPago !== "Todos") {
+      chips.push({
+        key: "metodo",
+        label: `Pago: ${metodoPago}`,
+        clear: () => setMetodoPago("Todos")
+      });
+    }
+    if (tipoEntrega !== "Todos") {
+      chips.push({
+        key: "entrega",
+        label: `Entrega: ${tipoEntrega}`,
+        clear: () => setTipoEntrega("Todos")
+      });
+    }
+    if (producto !== "Todos") {
+      chips.push({
+        key: "producto",
+        label: `Producto: ${producto}`,
+        clear: () => setProducto("Todos")
+      });
+    }
+    if (fidelidad !== "Todos") {
+      chips.push({
+        key: "fidelidad",
+        label: `Fidelidad: ${fidelidad}`,
+        clear: () => setFidelidad("Todos")
+      });
+    }
+    if (estadoDevolucion !== "Todos") {
+      chips.push({
+        key: "devolucion",
+        label:
+          estadoDevolucion === "con_devolucion"
+            ? "Solo con devolución/reembolso"
+            : "Solo sin devoluciones",
+        clear: () => setEstadoDevolucion("Todos")
+      });
+    }
+    if (montoMin !== "" || montoMax !== "") {
+      chips.push({
+        key: "monto",
+        label: `Monto: $${Number(montoMin || 0).toLocaleString("es-CO")} - ${montoMax !== "" ? `$${Number(montoMax).toLocaleString("es-CO")}` : "∞"}`,
+        clear: () => {
+          setMontoMin("");
+          setMontoMax("");
+        }
+      });
+    }
+    if (busqueda.trim()) {
+      chips.push({
+        key: "busqueda",
+        label: `Búsqueda: "${busqueda.trim()}"`,
+        clear: () => setBusqueda("")
+      });
+    }
+    return chips;
+  }, [
+    fechaInicio,
+    fechaFin,
+    origen,
+    metodoPago,
+    tipoEntrega,
+    producto,
+    fidelidad,
+    estadoDevolucion,
+    montoMin,
+    montoMax,
+    busqueda
+  ]);
 
-    const totalIngresos = Math.round(validVentas.reduce((acc, v) => acc + (parseFloat(v.total) || 0), 0));
-    const totalVentasCount = validVentas.length;
-    const ticketPromedio = totalVentasCount > 0 ? Math.round(totalIngresos / totalVentasCount) : 0;
+  const clearReportFilters = () => {
+    setFechaInicio("");
+    setFechaFin("");
+    setOrigen("Todos");
+    setMetodoPago("Todos");
+    setTipoEntrega("Todos");
+    setFidelidad("Todos");
+    setProducto("Todos");
+    setEstadoDevolucion("Todos");
+    setBusqueda("");
+    setMontoMin("");
+    setMontoMax("");
+  };
 
-    const topMonth = [...monthlyStats].sort((a, b) => b.ventas - a.ventas)[0];
-    const topMonthStr = topMonth && topMonth.ventas > 0 ? `${topMonth.mesCompleto} — $${topMonth.ventas.toLocaleString("es-CO")} COP (${topMonth.cantidadVentas} ventas)` : "N/A";
+  const filtersSummaryText = useMemo(() => {
+    const base = PERIOD_LABELS[selectedPeriod] || "Histórico completo";
+    if (activeFilterChips.length === 0) return `Período: ${base} (sin filtros adicionales)`;
+    return `Período: ${base} | ${activeFilterChips.map((c) => c.label).join(" · ")}`;
+  }, [selectedPeriod, activeFilterChips]);
 
-    const topDay = [...ingresosDiarios].sort((a, b) => b.ventas - a.ventas)[0];
-    const topDayStr = topDay && topDay.ventas > 0 ? `${topDay.dia} — $${topDay.ventas.toLocaleString("es-CO")} COP` : "N/A";
-    const topProdStr = sortedProducts.length > 0 ? `${sortedProducts[0].nombreLimpio} (${sortedProducts[0].cantidad} und.)` : "N/A";
-    const prefMetodoStr = metodosPago.length > 0 ? `${metodosPago[0].name} (${metodosPago[0].value}% · ${metodosPago[0].count} vnt.)` : "N/A";
-
-    return {
-      ingresosDiarios,
-      historicoMensual: monthlyStats,
-      historicoFechas,
-      productosMasVendidos,
-      metodosPago,
-      totalMetodosCount,
-      resumen: [
-        { label: "Ingresos totales históricos acumulados", value: `$${totalIngresos.toLocaleString("es-CO")} COP` },
-        { label: "Total de ventas procesadas", value: `${totalVentasCount} ventas` },
-        { label: "Mejor mes histórico", value: topMonthStr },
-        { label: "Día de mayor facturación semanal", value: topDayStr },
-        { label: "Producto estrella más vendido", value: topProdStr },
-        { label: "Método de pago preferido", value: prefMetodoStr },
-        { label: "Ticket promedio por venta", value: `$${ticketPromedio.toLocaleString("es-CO")} COP` }
-      ]
-    };
-  }, [ventas]);
-
-  // Selección dinámica de datos según la vista temporal activa (Histórico Mensual, Semanal, Fechas)
   const chartConfig = useMemo(() => {
     if (vistaTemporal === "historico") {
       return {
         data: reportData.historicoMensual,
         xKey: "mes",
-        barKey: "ventas",
-        lineKey: "cantidadVentas",
-        barTitle: "Ingresos históricos por mes (COP)",
-        lineTitle: "Número de ventas histórico por mes",
-        tooltipUnit: "Ingresos",
-        lineUnit: "Ventas"
+        barTitle: "Ingresos netos vs. devoluciones por mes (COP)",
+        lineTitle: "Volumen de ventas y unidades netas por mes"
       };
     }
     if (vistaTemporal === "fechas") {
       return {
         data: reportData.historicoFechas,
         xKey: "fecha",
-        barKey: "ventas",
-        lineKey: "cantidadVentas",
-        barTitle: "Ingresos históricos cronológicos por fecha (COP)",
-        lineTitle: "Número de ventas histórico por fecha",
-        tooltipUnit: "Ingresos",
-        lineUnit: "Ventas"
+        barTitle: "Ingresos netos vs. devoluciones por fecha (COP)",
+        lineTitle: "Volumen de ventas y unidades netas por fecha"
       };
     }
-    // semanal
     return {
       data: reportData.ingresosDiarios,
       xKey: "dia",
-      barKey: "ventas",
-      lineKey: "cantidadVentas",
-      barTitle: "Ingresos por día de la semana (COP)",
-      lineTitle: "Número de ventas por día de la semana",
-      tooltipUnit: "Ingresos",
-      lineUnit: "Ventas"
+      barTitle: "Ingresos netos vs. devoluciones por día de la semana (COP)",
+      lineTitle: "Volumen de ventas y unidades netas por día"
     };
   }, [vistaTemporal, reportData]);
 
-  const handleExport = async () => {
-    const data = [
-      ["Reporte General y Estadísticas Históricas de Ventas - Chazin Food"],
+  const { kpis } = reportData;
+
+  const handleExportExcel = async () => {
+    const matrix = [
+      ["CHAZIN FOOD — REPORTE COMERCIAL DE VENTAS, DEVOLUCIONES Y REEMBOLSOS"],
+      ["NIT: 901.458.789-2", "Cl. 21 #80-21, Belén, Medellín"],
       ["Generado el", new Date().toLocaleString("es-CO")],
+      ["Filtros aplicados", filtersSummaryText],
       [],
-      ["Métrica / Indicador", "Valor"],
+      ["RESUMEN FINANCIERO Y CONCILIACIÓN NETA"],
+      ["Indicador", "Valor"],
       ...reportData.resumen.map((r) => [r.label, r.value]),
       [],
-      ["Histórico Mensual de Ventas"],
-      ["Mes", "Facturación (COP)", "Cantidad de Ventas"],
-      ...reportData.historicoMensual.map((m) => [m.mesCompleto, Number(m.ventas || 0), Number(m.cantidadVentas || 0)]),
+      ["CUADRE POR PRODUCTO (VENDIDAS - DEVUELTAS = NETAS)"],
+      [
+        "Producto",
+        "Unidades Vendidas",
+        "Unidades Devueltas",
+        "Unidades Netas",
+        "Venta Bruta (COP)",
+        "Reembolsos (COP)",
+        "Venta Neta (COP)",
+        "% Participación"
+      ],
+      ...reportData.productosDetalle.map((p) => [
+        p.nombreLimpio,
+        p.cantidadBruta,
+        p.cantidadDevuelta,
+        p.cantidadNeta,
+        p.ingresosBrutos,
+        p.montoReembolsado > 0 ? -p.montoReembolsado : 0,
+        p.ingresosNetos,
+        `${p.porcentaje}%`
+      ]),
+      [
+        "TOTAL GENERAL",
+        kpis.unidadesBrutas,
+        kpis.unidadesDevueltas,
+        kpis.unidadesNetas,
+        kpis.ingresosBrutos,
+        kpis.totalReembolsos > 0 ? -kpis.totalReembolsos : 0,
+        kpis.ingresosNetos,
+        "100%"
+      ],
       [],
-      ["Productos Más Vendidos"],
-      ["Producto", "Cantidad Vendida"],
-      ...reportData.productosMasVendidos.map((p) => [p.nombreLimpio || p.nombre, `${p.cantidad} unidades`]),
+      ["DETALLE DE DEVOLUCIONES Y REEMBOLSOS APLICADOS"],
+      [
+        "Código Dev.",
+        "Venta Asociada",
+        "Fecha",
+        "Cliente",
+        "Productos Devueltos",
+        "Resolución",
+        "Estado Reembolso",
+        "Monto Reembolsado (COP)"
+      ],
+      ...(reportData.devolucionesAplicadas.length > 0
+        ? reportData.devolucionesAplicadas.map((d) => [
+            d.codigoDevolucion,
+            d.codigoVenta,
+            formatDateSafe(d.fecha, "—"),
+            d.clienteNombre,
+            d.productosResumen || "—",
+            d.tipoResolucion,
+            d.estadoReembolso,
+            d.valorDevuelto > 0 ? -d.valorDevuelto : 0
+          ])
+        : [["Sin devoluciones confirmadas en el rango filtrado"]]),
       [],
-      ["Distribución por Método de Pago"],
-      ["Método", "N° Ventas", "Porcentaje (%)"],
-      ...reportData.metodosPago.map((m) => [m.name, Number(m.count || 0), `${m.value}%`])
+      ["HISTÓRICO MENSUAL (BRUTO / REEMBOLSOS / NETO)"],
+      ["Mes", "Ventas Brutas (COP)", "Reembolsos (COP)", "Ingresos Netos (COP)", "N° Ventas", "Und. Netas"],
+      ...reportData.historicoMensual.map((m) => [
+        m.mesCompleto,
+        m.ventasBrutas,
+        m.reembolsos > 0 ? -m.reembolsos : 0,
+        m.ventas,
+        m.cantidadVentas,
+        m.unidadesNetas
+      ]),
+      [],
+      ["DISTRIBUCIÓN POR MÉTODO DE PAGO"],
+      ["Método de Pago", "N° Ventas", "Porcentaje (%)"],
+      ...reportData.metodosPago.map((m) => [m.name, m.count, `${m.value}%`])
     ];
 
     await exportMatrixToExcel({
-      sheetName: "Reporte Histórico",
-      fileName: `Reporte_Ventas_Historico_${getColombiaDateISO()}.xlsx`,
-      matrix: data,
-      colWidths: [32, 26, 18]
+      sheetName: "Reporte Ventas Neto",
+      fileName: `Reporte_Ventas_Neto_ChazinFood_${getColombiaDateISO()}.xlsx`,
+      matrix,
+      colWidths: [34, 18, 18, 18, 22, 22, 22, 16]
     });
   };
 
-  const productColors = ["#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5"];
-  const paymentColors = ["#10B981", "#3B82F6", "#F59E0B"];
+  const handleExportPDF = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const headerHtml = buildBrandReportHeaderHtml({
+      title: "Reporte Comercial de Ventas, Devoluciones y Reembolsos",
+      subtitle: PERIOD_LABELS[selectedPeriod] || "Histórico completo",
+      metaItems: [
+        { label: "Ventas analizadas", value: `${kpis.totalVentasCount}` },
+        { label: "Devoluciones aplicadas", value: `${kpis.devolucionesAprobadasCount}` }
+      ],
+      filtersSummary: filtersSummaryText
+    });
+
+    const kpiHtml = `
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Ventas Brutas</div>
+          <div class="kpi-value">$${escapeHtml(kpis.ingresosBrutos.toLocaleString("es-CO"))}</div>
+          <div class="kpi-sub">${escapeHtml(kpis.unidadesBrutas)} und. vendidas · ${escapeHtml(kpis.totalVentasCount)} ventas</div>
+        </div>
+        <div class="kpi-card refund">
+          <div class="kpi-label">Devoluciones y Reembolsos</div>
+          <div class="kpi-value">-$${escapeHtml(kpis.totalReembolsos.toLocaleString("es-CO"))}</div>
+          <div class="kpi-sub">${escapeHtml(kpis.unidadesDevueltas)} und. devueltas · ${escapeHtml(kpis.devolucionesAprobadasCount)} dev.</div>
+        </div>
+        <div class="kpi-card net">
+          <div class="kpi-label">Ingresos Netos Reales</div>
+          <div class="kpi-value">$${escapeHtml(kpis.ingresosNetos.toLocaleString("es-CO"))}</div>
+          <div class="kpi-sub">${escapeHtml(kpis.unidadesNetas)} und. netas · Ticket neto $${escapeHtml(kpis.ticketPromedioNeto.toLocaleString("es-CO"))}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Tasa de Devolución</div>
+          <div class="kpi-value">${escapeHtml(kpis.tasaDevolucionUnidades)}%</div>
+          <div class="kpi-sub">Impacto financiero: ${escapeHtml(kpis.tasaReembolsoDinero)}%</div>
+        </div>
+      </div>
+    `;
+
+    const prodRowsHtml = reportData.productosDetalle.length > 0
+      ? reportData.productosDetalle
+          .map(
+            (p) => `
+          <tr>
+            <td><strong>${escapeHtml(p.nombreLimpio)}</strong></td>
+            <td class="num">${escapeHtml(p.cantidadBruta)}</td>
+            <td class="num ${p.cantidadDevuelta > 0 ? "neg" : ""}">${p.cantidadDevuelta > 0 ? `-${escapeHtml(p.cantidadDevuelta)}` : "0"}</td>
+            <td class="num pos">${escapeHtml(p.cantidadNeta)}</td>
+            <td class="num">$${escapeHtml(p.ingresosBrutos.toLocaleString("es-CO"))}</td>
+            <td class="num ${p.montoReembolsado > 0 ? "neg" : ""}">${p.montoReembolsado > 0 ? `-$${escapeHtml(p.montoReembolsado.toLocaleString("es-CO"))}` : "$0"}</td>
+            <td class="num pos">$${escapeHtml(p.ingresosNetos.toLocaleString("es-CO"))}</td>
+            <td class="num">${escapeHtml(p.porcentaje)}%</td>
+          </tr>
+        `
+          )
+          .join("")
+      : `<tr><td colspan="8" class="center">Sin productos registrados para los filtros seleccionados.</td></tr>`;
+
+    const devRowsHtml = reportData.devolucionesAplicadas.length > 0
+      ? reportData.devolucionesAplicadas
+          .map(
+            (d) => `
+          <tr>
+            <td><strong>${escapeHtml(d.codigoDevolucion)}</strong></td>
+            <td>${escapeHtml(d.codigoVenta)}</td>
+            <td>${escapeHtml(formatDateSafe(d.fecha, "—"))}</td>
+            <td>${escapeHtml(d.clienteNombre)}</td>
+            <td>${escapeHtml(d.productosResumen || "—")}</td>
+            <td>${escapeHtml(d.tipoResolucion)}</td>
+            <td><span class="badge ${d.estadoReembolso === "REALIZADO" ? "" : "badge-amber"}">${escapeHtml(d.estadoReembolso)}</span></td>
+            <td class="num neg">${d.valorDevuelto > 0 ? `-$${escapeHtml(d.valorDevuelto.toLocaleString("es-CO"))}` : "$0"}</td>
+          </tr>
+        `
+          )
+          .join("")
+      : `<tr><td colspan="8" class="center">No se registran devoluciones ni reembolsos aprobados/completados en este período.</td></tr>`;
+
+    const activeMonths = reportData.historicoMensual.filter((m) => m.cantidadVentas > 0 || m.reembolsos > 0);
+    const monthRowsHtml = activeMonths.length > 0
+      ? activeMonths
+          .map(
+            (m) => `
+          <tr>
+            <td><strong>${escapeHtml(m.mesCompleto)}</strong></td>
+            <td class="num">${escapeHtml(m.cantidadVentas)}</td>
+            <td class="num">${escapeHtml(m.unidadesNetas)}</td>
+            <td class="num">$${escapeHtml(m.ventasBrutas.toLocaleString("es-CO"))}</td>
+            <td class="num ${m.reembolsos > 0 ? "neg" : ""}">${m.reembolsos > 0 ? `-$${escapeHtml(m.reembolsos.toLocaleString("es-CO"))}` : "$0"}</td>
+            <td class="num pos">$${escapeHtml(m.ventas.toLocaleString("es-CO"))}</td>
+          </tr>
+        `
+          )
+          .join("")
+      : `<tr><td colspan="6" class="center">Sin movimientos mensuales en el rango seleccionado.</td></tr>`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="es">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Reporte de Ventas Neto - Chazin Food</title>
+          <style>${BRAND_REPORT_CSS}</style>
+        </head>
+        <body>
+          ${headerHtml}
+          ${kpiHtml}
+
+          <h2 class="section-title">1. Cuadre de Unidades e Ingresos por Producto</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th class="num">Vendidas</th>
+                <th class="num">Devueltas</th>
+                <th class="num">Netas</th>
+                <th class="num">Venta Bruta</th>
+                <th class="num">Reembolsos</th>
+                <th class="num">Venta Neta</th>
+                <th class="num">% Part.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${prodRowsHtml}
+              <tr class="total-row">
+                <td>TOTAL CONCILIADO</td>
+                <td class="num">${escapeHtml(kpis.unidadesBrutas)}</td>
+                <td class="num neg">${kpis.unidadesDevueltas > 0 ? `-${escapeHtml(kpis.unidadesDevueltas)}` : "0"}</td>
+                <td class="num pos">${escapeHtml(kpis.unidadesNetas)}</td>
+                <td class="num">$${escapeHtml(kpis.ingresosBrutos.toLocaleString("es-CO"))}</td>
+                <td class="num neg">${kpis.totalReembolsos > 0 ? `-$${escapeHtml(kpis.totalReembolsos.toLocaleString("es-CO"))}` : "$0"}</td>
+                <td class="num pos">$${escapeHtml(kpis.ingresosNetos.toLocaleString("es-CO"))}</td>
+                <td class="num">100%</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2 class="section-title">2. Detalle de Devoluciones y Reembolsos Aplicados</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Venta</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Productos Devueltos</th>
+                <th>Resolución</th>
+                <th>Reembolso</th>
+                <th class="num">Monto Descontado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${devRowsHtml}
+            </tbody>
+          </table>
+
+          <h2 class="section-title">3. Consolidado Mensual (Bruto vs. Reembolsos vs. Neto)</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th class="num">N° Ventas</th>
+                <th class="num">Und. Netas</th>
+                <th class="num">Ventas Brutas</th>
+                <th class="num">Reembolsos</th>
+                <th class="num">Ingreso Neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${monthRowsHtml}
+            </tbody>
+          </table>
+
+          ${buildBrandReportFooterHtml("Reporte Financiero de Ventas y Devoluciones")}
+          <script>
+            window.onload = function() {
+              setTimeout(function() { window.print(); }, 250);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.opener = null;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  const productColors = ["#10B981", "#22C55E", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5"];
+  const paymentColors = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6"];
 
   return (
     <div className="space-y-6">
-      {/* Header Row con Segmented Control de Histórico */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-gray-100 dark:border-gray-800">
-        <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Análisis de ventas acumuladas
-            </h2>
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-              {selectedPeriod === "personalizado" || selectedPeriod === "todos"
-                ? "HISTÓRICO COMPLETO"
-                : selectedPeriod === "este_mes"
-                ? "ESTE MES"
-                : selectedPeriod === "7_dias"
-                ? "ÚLTIMOS 7 DÍAS"
-                : selectedPeriod === "este_ano"
-                ? "ESTE AÑO"
-                : "HOY"}
-            </span>
+      {/* Encabezado corporativo con Logo de Chazin Food y controles de exportación */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-red-50/80 dark:bg-red-950/30 border border-red-200/70 dark:border-red-900/50 p-1.5 flex items-center justify-center shrink-0 shadow-2xs">
+            <img
+              src={logoImg}
+              alt="Logo Chazin Food"
+              width="40"
+              height="40"
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-contain"
+            />
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Visualización de ingresos, tendencias temporales y evolución histórica de ventas
-          </p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
+                Reportes Comerciales &amp; Conciliación Neta
+              </h2>
+              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                {(PERIOD_LABELS[selectedPeriod] || "Histórico completo").toUpperCase()}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Cruce real de unidades vendidas, devoluciones, reembolsos e ingresos netos de Chazin Food
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto w-full md:w-auto">
-          {/* Selector de Vista: Histórico Mensual | Semanal | Fechas */}
-          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 border border-gray-200/80 dark:border-gray-700/80 shadow-2xs w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar touch-scroll-x">
+        <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-auto">
+          {/* Selector de Vista Temporal */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 border border-gray-200/80 dark:border-gray-700/80 shadow-2xs overflow-x-auto no-scrollbar">
             <button
               type="button"
               onClick={() => setVistaTemporal("historico")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 vistaTemporal === "historico"
-                  ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
+                  ? "bg-white dark:bg-gray-700 text-[#D9383A] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5 shrink-0" />
-              <span>Histórico Mensual</span>
+              <span>Mensual</span>
             </button>
-
             <button
               type="button"
               onClick={() => setVistaTemporal("semanal")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 vistaTemporal === "semanal"
-                  ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
+                  ? "bg-white dark:bg-gray-700 text-[#D9383A] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
               <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>Días de Semana</span>
+              <span>Semanal</span>
             </button>
-
             <button
               type="button"
               onClick={() => setVistaTemporal("fechas")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                 vistaTemporal === "fechas"
-                  ? "bg-white dark:bg-gray-700 text-[#F05454] shadow-xs"
+                  ? "bg-white dark:bg-gray-700 text-[#D9383A] shadow-xs"
                   : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
               }`}
             >
               <History className="w-3.5 h-3.5 shrink-0" />
-              <span>Histórico Fechas</span>
+              <span>Por Fecha</span>
             </button>
           </div>
 
           <button
-            onClick={handleExport}
-            className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-center gap-2 shadow-2xs transition-colors shrink-0 cursor-pointer"
+            type="button"
+            onClick={handleExportExcel}
+            className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
           >
-            <Download className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-            <span>Exportar</span>
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Excel (.xlsx)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="px-3.5 py-2 bg-[#D9383A] hover:bg-[#B91C1C] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer shrink-0"
+          >
+            <FileText className="w-4 h-4" />
+            <span>PDF con Logo</span>
           </button>
         </div>
       </div>
 
-      {/* CHART 1: Ingresos (Mensual / Semanal / Cronológico) */}
+      {/* PANEL DE FILTROS ESPECÍFICOS DE REPORTES */}
+      <div className="bg-gray-50/80 dark:bg-gray-800/40 rounded-2xl border border-gray-200/80 dark:border-gray-800 overflow-hidden">
+        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/70 dark:border-gray-800">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-100 cursor-pointer"
+          >
+            <Filter className="w-4 h-4 text-[#D9383A]" />
+            <span>Filtros Específicos del Reporte</span>
+            {activeFilterChips.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-extrabold">
+                {activeFilterChips.length}
+              </span>
+            )}
+            <ChevronDown
+              className={`w-4 h-4 text-gray-400 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-gray-500 dark:text-gray-400 font-medium">
+              Analizando <strong className="text-gray-900 dark:text-gray-100">{kpis.totalVentasCount}</strong> ventas y{" "}
+              <strong className="text-rose-600 dark:text-rose-400">{kpis.devolucionesAprobadasCount}</strong> devoluciones aplicadas
+            </span>
+            {activeFilterChips.length > 0 && (
+              <button
+                type="button"
+                onClick={clearReportFilters}
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#D9383A] hover:underline cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Limpiar filtros</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {filtersOpen && (
+          <div className="p-4 space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Búsqueda específica */}
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Buscar por cliente, cédula, factura o producto
+                </label>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Ej: VEN-0024, María, Hamburguesa Clásica..."
+                    className="w-full pl-9 pr-8 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A]"
+                  />
+                  {busqueda && (
+                    <button
+                      type="button"
+                      onClick={() => setBusqueda("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Fecha Desde */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Fecha inicio (Desde)
+                </label>
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  max={fechaFin || undefined}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A]"
+                />
+              </div>
+
+              {/* Fecha Hasta */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Fecha fin (Hasta)
+                </label>
+                <input
+                  type="date"
+                  value={fechaFin}
+                  min={fechaInicio || undefined}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A]"
+                />
+              </div>
+
+              {/* Producto específico */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Producto específico
+                </label>
+                <select
+                  value={producto}
+                  onChange={(e) => setProducto(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A] cursor-pointer"
+                >
+                  <option value="Todos">Todos los productos ({productosDisponibles.length})</option>
+                  {productosDisponibles.map((pName) => (
+                    <option key={pName} value={pName}>
+                      {pName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Canal / Origen */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Canal de Venta
+                </label>
+                <select
+                  value={origen}
+                  onChange={(e) => setOrigen(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A] cursor-pointer"
+                >
+                  <option value="Todos">Todos los canales</option>
+                  <option value="ONLINE">Venta Online (Web)</option>
+                  <option value="PUNTO_FISICO">Punto Físico (POS)</option>
+                </select>
+              </div>
+
+              {/* Método de pago */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Método de Pago
+                </label>
+                <select
+                  value={metodoPago}
+                  onChange={(e) => setMetodoPago(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A] cursor-pointer"
+                >
+                  <option value="Todos">Todos los métodos</option>
+                  <option value="Wompi">Wompi (En Línea)</option>
+                  <option value="Efectivo">Efectivo (Punto Físico)</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                  <option value="Transferencia">Transferencia</option>
+                </select>
+              </div>
+
+              {/* Tipo de Entrega */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Modalidad de Entrega
+                </label>
+                <select
+                  value={tipoEntrega}
+                  onChange={(e) => setTipoEntrega(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A] cursor-pointer"
+                >
+                  <option value="Todos">Todas las modalidades</option>
+                  <option value="Domicilio">Domicilio</option>
+                  <option value="En Mesa">En Mesa</option>
+                </select>
+              </div>
+
+              {/* Filtro de Devoluciones / Reembolsos */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Impacto de Devoluciones
+                </label>
+                <select
+                  value={estadoDevolucion}
+                  onChange={(e) => setEstadoDevolucion(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A] cursor-pointer"
+                >
+                  <option value="Todos">Todas las ventas</option>
+                  <option value="con_devolucion">Solo ventas con devolución</option>
+                  <option value="sin_devolucion">Solo ventas sin devolución</option>
+                </select>
+              </div>
+
+              {/* Fidelidad Cliente */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Nivel de Fidelidad
+                </label>
+                <select
+                  value={fidelidad}
+                  onChange={(e) => setFidelidad(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A] cursor-pointer"
+                >
+                  <option value="Todos">Todos los niveles</option>
+                  <option value="VIP">VIP (15%)</option>
+                  <option value="Frecuente">Frecuente (10%)</option>
+                  <option value="Regular">Regular (5%)</option>
+                  <option value="Nuevo">Nuevo</option>
+                </select>
+              </div>
+
+              {/* Rango de monto */}
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-1">
+                  Rango de valor de venta (COP)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Mínimo ej: 15000"
+                    value={montoMin}
+                    onChange={(e) => setMontoMin(e.target.value)}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A]"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Máximo ej: 120000"
+                    value={montoMax}
+                    onChange={(e) => setMontoMax(e.target.value)}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-100 outline-none focus:border-[#D9383A]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {activeFilterChips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
+                {activeFilterChips.map((chip) => (
+                  <span
+                    key={chip.key}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-[11px] font-semibold text-gray-700 dark:text-gray-200"
+                  >
+                    <span>{chip.label}</span>
+                    <button
+                      type="button"
+                      onClick={chip.clear}
+                      className="text-gray-400 hover:text-[#D9383A] cursor-pointer"
+                      aria-label={`Quitar filtro ${chip.label}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 4 TARJETAS DE CONCILIACIÓN FINANCIERA Y DE UNIDADES */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+        {/* 1. Ventas Brutas */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200/80 dark:border-gray-800 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Ventas Brutas
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 flex items-center justify-center">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-gray-900 dark:text-gray-100">
+            ${kpis.ingresosBrutos.toLocaleString("es-CO")}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            {kpis.unidadesBrutas} und. vendidas · {kpis.totalVentasCount}{" "}
+            {kpis.totalVentasCount === 1 ? "venta" : "ventas"}
+          </p>
+        </div>
+
+        {/* 2. Devoluciones y Reembolsos */}
+        <div className="bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl p-4 border border-rose-200/80 dark:border-rose-900/50 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
+              Devoluciones &amp; Reembolsos
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <RotateCw className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-rose-700 dark:text-rose-400">
+            {kpis.totalReembolsos > 0 ? `-$${kpis.totalReembolsos.toLocaleString("es-CO")}` : "$0"}
+          </p>
+          <p className="text-xs text-rose-700/80 dark:text-rose-300/80 font-medium">
+            {kpis.unidadesDevueltas} und. devueltas · {kpis.devolucionesAprobadasCount}{" "}
+            {kpis.devolucionesAprobadasCount === 1 ? "devolución" : "devoluciones"}
+          </p>
+        </div>
+
+        {/* 3. Ingresos Netos Reales */}
+        <div className="bg-emerald-50/60 dark:bg-emerald-950/20 rounded-2xl p-4 border border-emerald-200/90 dark:border-emerald-900/50 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+              Ingresos Netos Reales
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">
+            ${kpis.ingresosNetos.toLocaleString("es-CO")}
+          </p>
+          <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 font-medium">
+            {kpis.unidadesNetas} und. netas · Ticket neto ${kpis.ticketPromedioNeto.toLocaleString("es-CO")}
+          </p>
+        </div>
+
+        {/* 4. Impacto y Tasa de Devolución */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-200/80 dark:border-gray-800 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Tasa de Devolución
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Package className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-gray-900 dark:text-gray-100">
+            {kpis.tasaDevolucionUnidades}%
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            Financiero: {kpis.tasaReembolsoDinero}%
+            {kpis.devolucionesPendientesCount > 0 && (
+              <span className="ml-1 text-amber-600 dark:text-amber-400 font-bold">
+                · {kpis.devolucionesPendientesCount} en revisión
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* CHART 1: Ingresos Netos vs. Devoluciones/Reembolsos */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               {chartConfig.barTitle}
             </p>
-            <p className="text-[11px] text-gray-400">
-              {vistaTemporal === "historico" ? "Distribución mensual de ingresos brutos" : vistaTemporal === "fechas" ? "Evolución cronológica por fechas registradas" : "Facturación agregada por día de la semana"}
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Comparativo real entre ingresos netos retenidos y montos reembolsados por devoluciones
             </p>
           </div>
           <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800/60">
-            COP ($)
+            COP ($) Neto
           </span>
         </div>
-        <ResponsiveContainer width="100%" height={210}>
-          <BarChart data={chartConfig.data} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={230}>
+          <BarChart data={chartConfig.data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.2} />
             <XAxis dataKey={chartConfig.xKey} tick={{ fontSize: 11, fill: "#9CA3AF" }} />
             <YAxis tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} tick={{ fontSize: 11, fill: "#9CA3AF" }} />
             <Tooltip
-              content={<CustomChartTooltip unit={chartConfig.tooltipUnit} isCurrency={true} />}
+              content={<CustomChartTooltip mode="money" />}
               cursor={{ fill: "rgba(156, 163, 175, 0.15)" }}
             />
-            <Bar dataKey={chartConfig.barKey} fill="#10B981" radius={[4, 4, 0, 0]} />
+            <Legend wrapperStyle={{ fontSize: "11px" }} />
+            <Bar dataKey="ventas" name="Ingresos Netos" fill="#10B981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="reembolsos" name="Reembolsos" fill="#F43F5E" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* CHART 2: Número de ventas (Mensual / Semanal / Cronológico) */}
+      {/* CHART 2: Volumen de Ventas y Unidades Netas */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <div>
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
               {chartConfig.lineTitle}
             </p>
-            <p className="text-[11px] text-gray-400">
-              {vistaTemporal === "historico" ? "Volumen mensual de transacciones" : vistaTemporal === "fechas" ? "Transacciones por día registrado" : "Cantidad de ventas por día de la semana"}
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Seguimiento de transacciones y unidades netas descontando devoluciones confirmadas
             </p>
           </div>
           <span className="text-[11px] font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 rounded-lg border border-blue-200 dark:border-blue-800/60">
-            Transacciones
+            Transacciones &amp; Unidades
           </span>
         </div>
-        <ResponsiveContainer width="100%" height={190}>
-          <LineChart data={chartConfig.data} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={chartConfig.data} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.2} />
             <XAxis dataKey={chartConfig.xKey} tick={{ fontSize: 11, fill: "#9CA3AF" }} />
             <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} allowDecimals={false} />
             <Tooltip
-              content={<CustomChartTooltip unit={chartConfig.lineUnit} isCurrency={false} />}
+              content={<CustomChartTooltip mode="volume" />}
               cursor={{ stroke: "rgba(59, 130, 246, 0.4)", strokeWidth: 1.5 }}
+            />
+            <Legend wrapperStyle={{ fontSize: "11px" }} />
+            <Line
+              type="monotone"
+              dataKey="cantidadVentas"
+              name="Ventas"
+              stroke="#3B82F6"
+              strokeWidth={2.5}
+              dot={{ r: 3.5, fill: "#3B82F6" }}
+              activeDot={{ r: 6 }}
             />
             <Line
               type="monotone"
-              dataKey={chartConfig.lineKey}
-              stroke="#3B82F6"
-              strokeWidth={2.5}
-              dot={{ r: 4, fill: "#3B82F6" }}
-              activeDot={{ r: 6 }}
+              dataKey="unidadesNetas"
+              name="Unidades Netas"
+              stroke="#10B981"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              dot={{ r: 3, fill: "#10B981" }}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* GRID: Productos más vendidos & Métodos de pago */}
+      {/* GRID: Top Productos (Netas) & Métodos de pago */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Productos más vendidos */}
         <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-              Productos más vendidos
+              Top Productos por Unidades Netas
             </p>
             <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-200/60 dark:bg-gray-800 px-2 py-0.5 rounded-md">
-              Unidades Vendidas
+              Descontando devoluciones
             </span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
@@ -577,7 +1171,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
                 type="number"
                 tick={{ fontSize: 10, fill: "#9CA3AF" }}
                 label={{
-                  value: "Cantidad de unidades vendidas",
+                  value: "Unidades netas vendidas",
                   position: "insideBottom",
                   offset: -12,
                   fill: "#9CA3AF",
@@ -589,17 +1183,17 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
                 dataKey="nombreLimpio"
                 type="category"
                 tick={{ fontSize: 11, fill: "#9CA3AF" }}
-                width={112}
+                width={120}
                 tickLine={false}
-                tickFormatter={(val) => (val && val.length > 17 ? `${val.substring(0, 15)}...` : val)}
+                tickFormatter={(val) => (val && val.length > 18 ? `${val.substring(0, 16)}...` : val)}
               />
               <Tooltip
-                content={<CustomChartTooltip unit="Unidades" isCurrency={false} />}
+                content={<CustomChartTooltip mode="product" />}
                 cursor={{ fill: "rgba(156, 163, 175, 0.15)" }}
                 allowEscapeViewBox={{ x: true, y: true }}
                 wrapperStyle={{ zIndex: 1000, pointerEvents: "none" }}
               />
-              <Bar dataKey="cantidad" radius={[0, 4, 4, 0]} barSize={18}>
+              <Bar dataKey="cantidadNeta" name="Unidades netas" radius={[0, 4, 4, 0]} barSize={18}>
                 {reportData.productosMasVendidos.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={productColors[index % productColors.length]} />
                 ))}
@@ -612,7 +1206,7 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
         <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-              Métodos de pago
+              Distribución por Método de Pago
             </p>
             <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-200/60 dark:bg-gray-800 px-2 py-0.5 rounded-md">
               Distribución 100%
@@ -680,7 +1274,9 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
                   />
                   <span className="text-xs sm:text-sm">
                     {entry.name} <span className="font-bold">({entry.value}%)</span>
-                    <span className="text-[11px] text-gray-400 block sm:inline sm:ml-1">· {entry.count} {entry.count === 1 ? 'venta' : 'ventas'}</span>
+                    <span className="text-[11px] text-gray-400 block sm:inline sm:ml-1">
+                      · {entry.count} {entry.count === 1 ? "venta" : "ventas"}
+                    </span>
                   </span>
                 </div>
               ))}
@@ -689,21 +1285,222 @@ export function VentasReportesView({ ventas = [], selectedPeriod = "personalizad
         </div>
       </div>
 
-      {/* SUMMARY TABLE CON INDICADORES HISTÓRICOS */}
+      {/* TABLA DETALLADA DE CUADRE POR PRODUCTO: VENDIDAS - DEVUELTAS = NETAS */}
+      <div className="border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xs">
+        <div className="bg-gray-50 dark:bg-gray-800/70 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-gray-200/80 dark:border-gray-800">
+          <div>
+            <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+              Cuadre de Unidades e Ingresos por Producto
+            </p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Descuento exacto de unidades devueltas y reembolsos por producto (Bruto − Devoluciones = Neto)
+            </p>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+            {reportData.productosDetalle.length} productos
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-gray-50/70 dark:bg-gray-800/40 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                <th className="px-4 py-2.5">Producto</th>
+                <th className="px-3 py-2.5 text-right">Vendidas</th>
+                <th className="px-3 py-2.5 text-right">Devueltas</th>
+                <th className="px-3 py-2.5 text-right">Netas</th>
+                <th className="px-3 py-2.5 text-right">Venta Bruta</th>
+                <th className="px-3 py-2.5 text-right">Reembolsos</th>
+                <th className="px-3 py-2.5 text-right">Venta Neta</th>
+                <th className="px-4 py-2.5 text-right">% Part.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {reportData.productosDetalle.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                    No hay productos vendidos con los filtros seleccionados.
+                  </td>
+                </tr>
+              ) : (
+                reportData.productosDetalle.map((p) => (
+                  <tr key={p.nombreLimpio} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors">
+                    <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">
+                      {p.nombreLimpio}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-medium text-gray-700 dark:text-gray-300 tabular-nums">
+                      {p.cantidadBruta}
+                    </td>
+                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${p.cantidadDevuelta > 0 ? "text-rose-600 dark:text-rose-400" : "text-gray-400"}`}>
+                      {p.cantidadDevuelta > 0 ? `-${p.cantidadDevuelta}` : "0"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                      {p.cantidadNeta}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-700 dark:text-gray-300 tabular-nums">
+                      ${p.ingresosBrutos.toLocaleString("es-CO")}
+                    </td>
+                    <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${p.montoReembolsado > 0 ? "text-rose-600 dark:text-rose-400" : "text-gray-400"}`}>
+                      {p.montoReembolsado > 0 ? `-$${p.montoReembolsado.toLocaleString("es-CO")}` : "$0"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                      ${p.ingresosNetos.toLocaleString("es-CO")}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-500 dark:text-gray-400 tabular-nums">
+                      {p.porcentaje}%
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+            {reportData.productosDetalle.length > 0 && (
+              <tfoot>
+                <tr className="bg-gray-100/90 dark:bg-gray-800/80 border-t-2 border-gray-200 dark:border-gray-700 font-extrabold text-gray-900 dark:text-gray-100">
+                  <td className="px-4 py-3">TOTAL CONCILIADO</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{kpis.unidadesBrutas}</td>
+                  <td className="px-3 py-3 text-right text-rose-600 dark:text-rose-400 tabular-nums">
+                    {kpis.unidadesDevueltas > 0 ? `-${kpis.unidadesDevueltas}` : "0"}
+                  </td>
+                  <td className="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400 tabular-nums">
+                    {kpis.unidadesNetas}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    ${kpis.ingresosBrutos.toLocaleString("es-CO")}
+                  </td>
+                  <td className="px-3 py-3 text-right text-rose-600 dark:text-rose-400 tabular-nums">
+                    {kpis.totalReembolsos > 0 ? `-$${kpis.totalReembolsos.toLocaleString("es-CO")}` : "$0"}
+                  </td>
+                  <td className="px-3 py-3 text-right text-emerald-700 dark:text-emerald-400 tabular-nums">
+                    ${kpis.ingresosNetos.toLocaleString("es-CO")}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">100%</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {/* DETALLE DE DEVOLUCIONES Y REEMBOLSOS APLICADOS */}
+      <div className="border border-rose-200/70 dark:border-rose-900/50 rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xs">
+        <div className="bg-rose-50/60 dark:bg-rose-950/30 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-rose-100 dark:border-rose-900/50">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+            <div>
+              <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">
+                Devoluciones y Reembolsos Descontados del Reporte
+              </p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                Solo se descuentan devoluciones en estado Aprobada o Completada
+                {kpis.reembolsosRealizados > 0 || kpis.reembolsosPendientes > 0
+                  ? ` · Realizados: $${kpis.reembolsosRealizados.toLocaleString("es-CO")} · Por desembolsar: $${kpis.reembolsosPendientes.toLocaleString("es-CO")}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+          {kpis.devolucionesPendientesCount > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-bold">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{kpis.devolucionesPendientesCount} en revisión (no descontadas aún)</span>
+            </span>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-gray-50/70 dark:bg-gray-800/40 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
+                <th className="px-4 py-2.5">Devolución</th>
+                <th className="px-3 py-2.5">Venta</th>
+                <th className="px-3 py-2.5">Fecha</th>
+                <th className="px-3 py-2.5">Cliente</th>
+                <th className="px-3 py-2.5">Productos Devueltos</th>
+                <th className="px-3 py-2.5">Resolución / Medio</th>
+                <th className="px-3 py-2.5 text-center">Reembolso</th>
+                <th className="px-4 py-2.5 text-right">Monto Descontado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {reportData.devolucionesAplicadas.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-6 text-center text-gray-400">
+                    No hay devoluciones ni reembolsos aprobados/completados para las ventas filtradas.
+                  </td>
+                </tr>
+              ) : (
+                reportData.devolucionesAplicadas.map((d) => (
+                  <tr key={d.idDevolucion} className="hover:bg-rose-50/30 dark:hover:bg-rose-950/15 transition-colors">
+                    <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                      {d.codigoDevolucion}
+                    </td>
+                    <td className="px-3 py-2.5 font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      {d.codigoVenta}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      {formatDateSafe(d.fecha, "—")}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-800 dark:text-gray-200">
+                      {d.clienteNombre}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-700 dark:text-gray-300">
+                      {d.productosResumen || `${d.unidadesDevueltas} und.`}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400">
+                      <div className="font-semibold text-gray-800 dark:text-gray-200">{d.tipoResolucion}</div>
+                      <div className="text-[10.5px] text-gray-400">{d.metodoReembolso}</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          d.estadoReembolso === "REALIZADO"
+                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300"
+                            : d.estadoReembolso === "NO_APLICA"
+                            ? "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400"
+                            : "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300"
+                        }`}
+                      >
+                        {d.estadoReembolso === "NO_APLICA" ? "Reposición" : d.estadoReembolso}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-extrabold text-rose-600 dark:text-rose-400 tabular-nums whitespace-nowrap">
+                      {d.valorDevuelto > 0 ? `-$${d.valorDevuelto.toLocaleString("es-CO")}` : "$0"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* RESUMEN EJECUTIVO DEL PERÍODO */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-2xs">
         <div className="bg-gray-100/80 dark:bg-gray-800/80 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
           <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
-            Resumen ejecutivo del período e histórico
+            Resumen ejecutivo y cuadre contable del período
           </p>
           <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
             Chazin Food Analytics
           </span>
         </div>
-        <div className="divide-y divide-gray-100 dark:divide-gray-750 bg-white dark:bg-gray-900">
+        <div className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
           {reportData.resumen.map((item) => (
-            <div key={item.label} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 px-4 py-3 text-xs sm:text-sm">
+            <div
+              key={item.label}
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 px-4 py-3 text-xs sm:text-sm"
+            >
               <span className="text-gray-600 dark:text-gray-400 font-medium">{item.label}</span>
-              <span className="font-bold text-gray-900 dark:text-gray-100">{item.value}</span>
+              <span
+                className={`font-bold ${
+                  item.tone === "positive"
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : item.tone === "negative"
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-gray-900 dark:text-gray-100"
+                }`}
+              >
+                {item.value}
+              </span>
             </div>
           ))}
         </div>

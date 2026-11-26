@@ -26,6 +26,7 @@ import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
 import { formatTime12h } from "@/shared/utils/dateUtils";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
+import { buildBrandTicketLogoHtml } from "@/shared/utils/reportBranding";
 import { ventasService, isVentaFisicaOPos } from "../../servicios/ventasService";
 import { resolveHybridDeliveryEstimate, recordLocalDeliveryTimeMode } from "@/features/produccion/utils/tiempoProduccionUtils";
 
@@ -346,6 +347,7 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
         </head>
         <body>
           <div class="text-center">
+            ${buildBrandTicketLogoHtml(48)}
             <h1>CHAZIN FOOD</h1>
             <h2>NIT: 901.458.789-2</h2>
             <div style="font-size: 9px;">Cl. 21 #80-21, Belén, Medellín</div>
