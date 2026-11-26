@@ -114,42 +114,120 @@ export function Insumos() {
 
     const headers = [
       "ID",
-      "Nombre",
+      "Nombre del Insumo",
       "Tipo",
       "Categoría",
       "Control Stock",
       "Stock Actual",
-      "Unidad de Medida",
-      "Stock Mínimo",
-      "Stock Máximo",
-      "Precio / Costo",
+      "Unidad",
+      "Stock Mín.",
+      "Stock Máx.",
+      "Alerta Stock",
+      "Costo Unit. (COP)",
+      "Valor en Stock (COP)",
       "Es Adición",
-      "Precio Adición",
+      "Precio Adición (COP)",
       "Estado"
     ];
 
-    const data = rows.map((i, index) => [
-      i.id || i.idInsumo || index + 1,
-      i.nombre || "",
-      i.tipo === "Preparado" ? "Insumo Preparado" : "Insumo Base",
-      i.categoriaNombre || (typeof i.categoria === "string" ? i.categoria : i.categoria?.nombre) || "Sin categoría",
-      i.controlarStock === false ? "Sin control (Disponibilidad)" : "Controlado",
-      i.controlarStock === false ? "N/A" : (i.stock ?? 0),
-      i.unidadMedida || "und",
-      i.controlarStock === false ? "N/A" : (i.stockMinimo ?? 0),
-      i.controlarStock === false ? "N/A" : (i.stockMaximo ?? 100),
-      Number(i.precioUnitario || i.costo || 0),
-      (i.esAdicion === 1 || i.esAdicion === true) ? "Sí" : "No",
-      Number(i.precioAdicion || 0),
-      i.estado || "Activo"
-    ]);
+    let activosCount = 0;
+    let criticosCount = 0;
+    let adicionesCount = 0;
+    let valorInventarioTotal = 0;
+
+    const data = rows.map((i, index) => {
+      const sinControl = i.controlarStock === false;
+      const stockNum = Number(i.stock ?? 0);
+      const minNum = Number(i.stockMinimo ?? 0);
+      const maxNum = Number(i.stockMaximo ?? 100);
+      const costoUnit = Number(i.precioUnitario || i.costo || 0);
+      const valorStock = sinControl ? 0 : Math.round(stockNum * costoUnit);
+      const esAdicion = i.esAdicion === 1 || i.esAdicion === true;
+      const estadoStr = i.estado || "Activo";
+
+      if (estadoStr.toLowerCase() === "activo") activosCount++;
+      if (esAdicion) adicionesCount++;
+      valorInventarioTotal += valorStock;
+
+      let alerta = "Óptimo";
+      let stockCell = stockNum;
+      if (sinControl) {
+        alerta = "Sin control";
+        stockCell = { value: "N/A", align: "center", textColor: "#64748B" };
+      } else if (stockNum <= 0) {
+        alerta = "Agotado";
+        criticosCount++;
+        stockCell = { value: stockNum, backgroundColor: "#FEE2E2", textColor: "#991B1B", fontWeight: "bold", align: "right" };
+      } else if (stockNum <= minNum) {
+        alerta = "Bajo";
+        criticosCount++;
+        stockCell = { value: stockNum, backgroundColor: "#FEF3C7", textColor: "#92400E", fontWeight: "bold", align: "right" };
+      }
+
+      return [
+        i.id || i.idInsumo || index + 1,
+        i.nombre || "",
+        i.tipo === "Preparado" ? "Preparado" : "Insumo Base",
+        i.categoriaNombre || (typeof i.categoria === "string" ? i.categoria : i.categoria?.nombre) || "Sin categoría",
+        sinControl ? "Sin control" : "Controlado",
+        stockCell,
+        i.unidadMedida || "und",
+        sinControl ? { value: "N/A", align: "center", textColor: "#64748B" } : minNum,
+        sinControl ? { value: "N/A", align: "center", textColor: "#64748B" } : maxNum,
+        alerta,
+        costoUnit,
+        valorStock,
+        esAdicion ? "Sí" : "No",
+        Number(i.precioAdicion || 0),
+        estadoStr
+      ];
+    });
+
+    const filtros = [];
+    if (filterTipo && filterTipo !== "Todos") filtros.push(`Tipo: ${filterTipo}`);
+    if (filterCategoria && filterCategoria !== "Todas" && filterCategoria !== "Todos") filtros.push(`Categoría: ${filterCategoria}`);
+    if (filterEstado && filterEstado !== "Todos") filtros.push(`Estado: ${filterEstado}`);
+    if (searchTerm?.trim()) filtros.push(`Búsqueda: "${searchTerm.trim()}"`);
 
     await exportTableToExcel({
-      sheetName: "Insumos",
-      fileName: `reporte_insumos_${getColombiaDateISO()}.xlsx`,
+      sheetName: "Inventario Insumos",
+      fileName: `Inventario_Insumos_ChazinFood_${getColombiaDateISO()}.xlsx`,
+      title: "Reporte de Inventario de Insumos y Adiciones",
+      subtitle: `${rows.length} insumo(s) registrados · Valorización en COP`,
+      filtersText: filtros.length > 0 ? filtros.join(" | ") : "Catálogo completo sin filtros adicionales",
+      sectionTitle: "Control de existencias, alertas de reposición y valorización",
+      kpis: [
+        { label: "Total Insumos", value: rows.length, format: "integer", tone: "slate" },
+        { label: "Activos", value: activosCount, format: "integer", tone: "emerald" },
+        { label: "Bajo Stock / Agotados", value: criticosCount, format: "integer", tone: criticosCount > 0 ? "rose" : "emerald" },
+        { label: "Adiciones / Toppings", value: adicionesCount, format: "integer", tone: "purple" },
+        { label: "Valor Inv. Estimado", value: valorInventarioTotal, format: "currency", tone: "blue" }
+      ],
       headers,
       rows: data,
-      colWidths: [8, 28, 18, 20, 22, 14, 16, 14, 14, 16, 12, 16, 12]
+      columnTypes: [
+        "textId",
+        "text",
+        "status",
+        "text",
+        "status",
+        "decimal",
+        "textId",
+        "decimal",
+        "decimal",
+        "status",
+        "currency",
+        "currency",
+        "status",
+        "currency",
+        "status"
+      ],
+      colWidths: [10, 28, 15, 20, 15, 13, 10, 12, 12, 14, 17, 20, 12, 18, 12],
+      totals: {
+        0: "TOTAL",
+        1: "count",
+        11: "sum"
+      }
     });
     setExportMenuOpen(false);
   };

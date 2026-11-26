@@ -175,7 +175,7 @@ export function GestionVentas() {
     return Math.min(Number(ventaObj?.total || 0), Math.round(sum));
   };
 
-  // Export to Excel (.xlsx) con todos los datos filtrados actualmente (incluyendo reembolsos y monto neto)
+  // Export to Excel (.xlsx) corporativo con encabezado, KPIs, conciliación de reembolsos y fórmulas de totales
   const handleExportExcel = async () => {
     const exportSource = await resolveFullExportSource();
     const headers = [
@@ -193,6 +193,10 @@ export function GestionVentas() {
       "Estado"
     ];
 
+    let sumBruto = 0;
+    let sumReembolsos = 0;
+    let sumNeto = 0;
+
     const rows = exportSource.map((v) => {
       const isOnline =
         (v.origen === "ONLINE" || v.tipoVenta === "DOMICILIO" || v.origenNombre === "Venta Online") &&
@@ -202,9 +206,15 @@ export function GestionVentas() {
         isOnline && (!rawMetodo || rawMetodo.toLowerCase() === "efectivo")
           ? "Wompi"
           : (rawMetodo || "Efectivo");
+      const subtotalVal = Number(v.subtotal || v.total || 0);
       const bruto = Number(v.total || v.subtotal || 0);
       const reembolso = getRefundForVenta(v);
       const neto = Math.max(0, bruto - reembolso);
+
+      sumBruto += bruto;
+      sumReembolsos += reembolso;
+      sumNeto += neto;
+
       return [
         v.numeroVenta || v.codigoPedido || `PED-${String(v.id).padStart(3, "0")}`,
         v.clienteNombre || v.cliente || "Cliente General",
@@ -212,21 +222,68 @@ export function GestionVentas() {
         formatTime12h(v.horario || v.fecha || v.fechaVenta, "—"),
         v.tipoEntrega || "En Mesa",
         metodoLabel,
-        Number(v.subtotal || v.total || 0),
-        v.descuentoPorcentaje ? `${v.descuentoPorcentaje}%` : "0%",
+        subtotalVal,
+        Number(v.descuentoPorcentaje || 0) / 100,
         bruto,
         reembolso > 0 ? -reembolso : 0,
-        neto,
+        { value: neto, fontWeight: "bold", textColor: "#166534", align: "right" },
         v.estado || "Completada"
       ];
     });
 
+    const filtrosActivos = [
+      `Vista: ${activeTab === "historial" ? "Historial de Transacciones" : "Todas las Ventas"}`,
+      `Período: ${periodText}`
+    ];
+    if (filterEstado && filterEstado !== "Todos") filtrosActivos.push(`Estado: ${filterEstado}`);
+    if (filterOrigen && filterOrigen !== "Todos") filtrosActivos.push(`Canal: ${filterOrigen}`);
+    if (filterTipoEntrega && filterTipoEntrega !== "Todos") filtrosActivos.push(`Entrega: ${filterTipoEntrega}`);
+    if (filterMetodoPago && filterMetodoPago !== "Todos") filtrosActivos.push(`Pago: ${filterMetodoPago}`);
+    if (searchTerm?.trim()) filtrosActivos.push(`Búsqueda: "${searchTerm.trim()}"`);
+
     await exportTableToExcel({
       sheetName: "Historial de Ventas",
       fileName: `Historial_Ventas_ChazinFood_${selectedPeriod}_${getColombiaDateISO()}.xlsx`,
+      title: activeTab === "historial" ? "Historial de Ventas Completadas" : "Reporte General de Ventas",
+      subtitle: `${periodText} · ${exportSource.length} transacción(es)`,
+      filtersText: filtrosActivos.join(" | "),
+      sectionTitle: "Detalle conciliado de facturas (Bruto − Reembolsos = Neto)",
+      kpis: [
+        { label: "Total Facturas", value: exportSource.length, format: "integer", tone: "slate" },
+        { label: "Facturación Bruta", value: sumBruto, format: "currency", tone: "blue" },
+        {
+          label: "Total Reembolsos",
+          value: sumReembolsos > 0 ? -sumReembolsos : 0,
+          format: "currency",
+          tone: sumReembolsos > 0 ? "rose" : "slate"
+        },
+        { label: "Ingreso Neto Real", value: sumNeto, format: "currency", tone: "emerald" }
+      ],
       headers,
       rows,
-      colWidths: [22, 24, 14, 16, 14, 18, 16, 12, 18, 18, 18, 16]
+      columnTypes: [
+        "textId",
+        "text",
+        "date",
+        "date",
+        "status",
+        "status",
+        "currency",
+        "percent",
+        "currency",
+        "currency",
+        "currency",
+        "status"
+      ],
+      colWidths: [20, 24, 14, 15, 14, 16, 18, 12, 18, 18, 18, 15],
+      totals: {
+        0: "TOTAL GENERAL",
+        1: "count",
+        6: "sum",
+        8: "sum",
+        9: "sum",
+        10: "sum"
+      }
     });
   };
 

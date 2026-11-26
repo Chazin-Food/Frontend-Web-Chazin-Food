@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import logoImg from "@/shared/assets/logo_optimized.webp";
 import { getColombiaDateISO, formatDateSafe } from "@/shared/utils/dateUtils";
-import { exportMatrixToExcel } from "@/shared/utils/excelExport";
+import { exportWorkbookToExcel, EXCEL_FORMATS } from "@/shared/utils/excelExport";
 import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import {
   BRAND_REPORT_CSS,
@@ -370,61 +370,199 @@ export function VentasReportesView({
   const { kpis } = reportData;
 
   const handleExportExcel = async () => {
-    const matrix = [
-      ["CHAZIN FOOD — REPORTE COMERCIAL DE VENTAS, DEVOLUCIONES Y REEMBOLSOS"],
-      ["NIT: 901.458.789-2", "Cl. 21 #80-21, Belén, Medellín"],
-      ["Generado el", new Date().toLocaleString("es-CO")],
-      ["Filtros aplicados", filtersSummaryText],
-      [],
-      ["RESUMEN FINANCIERO Y CONCILIACIÓN NETA"],
-      ["Indicador", "Valor"],
-      ...reportData.resumen.map((r) => [r.label, r.value]),
-      [],
-      ["CUADRE POR PRODUCTO (VENDIDAS - DEVUELTAS = NETAS)"],
-      [
-        "Producto",
-        "Unidades Vendidas",
-        "Unidades Devueltas",
-        "Unidades Netas",
-        "Venta Bruta (COP)",
-        "Reembolsos (COP)",
-        "Venta Neta (COP)",
-        "% Participación"
-      ],
-      ...reportData.productosDetalle.map((p) => [
-        p.nombreLimpio,
-        p.cantidadBruta,
-        p.cantidadDevuelta,
-        p.cantidadNeta,
-        p.ingresosBrutos,
-        p.montoReembolsado > 0 ? -p.montoReembolsado : 0,
-        p.ingresosNetos,
-        `${p.porcentaje}%`
-      ]),
-      [
-        "TOTAL GENERAL",
-        kpis.unidadesBrutas,
-        kpis.unidadesDevueltas,
-        kpis.unidadesNetas,
-        kpis.ingresosBrutos,
-        kpis.totalReembolsos > 0 ? -kpis.totalReembolsos : 0,
-        kpis.ingresosNetos,
-        "100%"
-      ],
-      [],
-      ["DETALLE DE DEVOLUCIONES Y REEMBOLSOS APLICADOS"],
-      [
-        "Código Dev.",
-        "Venta Asociada",
-        "Fecha",
-        "Cliente",
-        "Productos Devueltos",
-        "Resolución",
-        "Estado Reembolso",
-        "Monto Reembolsado (COP)"
-      ],
-      ...(reportData.devolucionesAplicadas.length > 0
-        ? reportData.devolucionesAplicadas.map((d) => [
+    const periodSubtitle = PERIOD_LABELS[selectedPeriod] || "Histórico completo";
+    const resumenDestacados = reportData.resumen.slice(6).map((r) => [
+      r.label,
+      r.value,
+      "Indicador destacado del período",
+      "Informativo"
+    ]);
+
+    await exportWorkbookToExcel({
+      fileName: `Reporte_Ventas_Neto_ChazinFood_${getColombiaDateISO()}.xlsx`,
+      sheets: [
+        {
+          kind: "sections",
+          sheetName: "Resumen Ejecutivo",
+          title: "Reporte Comercial de Ventas, Devoluciones y Reembolsos",
+          subtitle: periodSubtitle,
+          filtersText: filtersSummaryText,
+          colWidths: [38, 24, 34, 18],
+          kpis: [
+            { label: "Ventas Brutas", value: kpis.ingresosBrutos, format: "currency", tone: "slate" },
+            {
+              label: "Reembolsos Aplicados",
+              value: kpis.totalReembolsos > 0 ? -kpis.totalReembolsos : 0,
+              format: "currency",
+              tone: kpis.totalReembolsos > 0 ? "rose" : "slate"
+            },
+            { label: "Ingresos Netos Reales", value: kpis.ingresosNetos, format: "currency", tone: "emerald" },
+            { label: "Unidades Netas", value: kpis.unidadesNetas, format: "integer", tone: "blue" }
+          ],
+          sections: [
+            {
+              title: "Conciliación Financiera y Operativa (Bruto − Devoluciones = Neto Real)",
+              headers: ["Indicador Financiero / Operativo", "Valor / Cifra", "Detalle y Referencia", "Estado"],
+              columnTypes: ["text", "text", "text", "status"],
+              rows: [
+                [
+                  "Ventas brutas del período",
+                  { value: kpis.ingresosBrutos, format: EXCEL_FORMATS.currency, fontWeight: "bold", align: "right" },
+                  `${kpis.unidadesBrutas} und. brutas · ${kpis.totalVentasCount} ventas procesadas`,
+                  "Completado"
+                ],
+                [
+                  "Devoluciones y reembolsos aplicados",
+                  {
+                    value: kpis.totalReembolsos > 0 ? -kpis.totalReembolsos : 0,
+                    format: EXCEL_FORMATS.currency,
+                    fontWeight: "bold",
+                    textColor: kpis.totalReembolsos > 0 ? "#991B1B" : "#475569",
+                    backgroundColor: kpis.totalReembolsos > 0 ? "#FEF2F2" : undefined,
+                    align: "right"
+                  },
+                  `${kpis.devolucionesAprobadasCount} devoluciones · ${kpis.unidadesDevueltas} und. devueltas`,
+                  kpis.totalReembolsos > 0 ? "Anulada" : "Óptimo"
+                ],
+                [
+                  "Reembolsos ya desembolsados",
+                  { value: kpis.reembolsosRealizados > 0 ? -kpis.reembolsosRealizados : 0, format: EXCEL_FORMATS.currency, align: "right" },
+                  "Reintegros confirmados al cliente",
+                  "Realizado"
+                ],
+                [
+                  "Reembolsos pendientes por desembolsar",
+                  { value: kpis.reembolsosPendientes > 0 ? -kpis.reembolsosPendientes : 0, format: EXCEL_FORMATS.currency, align: "right" },
+                  `${kpis.devolucionesPendientesCount} solicitud(es) pendiente(s) de cierre`,
+                  kpis.reembolsosPendientes > 0 ? "Pendiente" : "Óptimo"
+                ],
+                [
+                  { value: "INGRESOS NETOS REALES (BRUTO − REEMBOLSOS)", fontWeight: "bold", textColor: "#166534", backgroundColor: "#F0FDF4" },
+                  {
+                    value: kpis.ingresosNetos,
+                    format: EXCEL_FORMATS.currency,
+                    fontWeight: "bold",
+                    textColor: "#166534",
+                    backgroundColor: "#DCFCE7",
+                    align: "right"
+                  },
+                  {
+                    value: `${kpis.unidadesNetas} und. netas vendidas efectivamente`,
+                    fontWeight: "bold",
+                    textColor: "#166534",
+                    backgroundColor: "#F0FDF4"
+                  },
+                  "Activo"
+                ],
+                [
+                  "Ticket promedio neto por venta",
+                  { value: kpis.ticketPromedioNeto, format: EXCEL_FORMATS.currency, fontWeight: "bold", align: "right" },
+                  `Ticket promedio bruto: $${kpis.ticketPromedioBruto.toLocaleString("es-CO")} COP`,
+                  "Óptimo"
+                ],
+                [
+                  "Tasa de devolución (unidades / dinero)",
+                  `${kpis.tasaDevolucionUnidades}% und.  |  ${kpis.tasaReembolsoDinero}% COP`,
+                  `${kpis.unidadesDevueltasReembolso} und. reembolsadas · ${kpis.unidadesCambiadas} und. en cambio`,
+                  kpis.tasaDevolucionUnidades > 10 ? "Bajo" : "Óptimo"
+                ],
+                ...resumenDestacados
+              ]
+            },
+            {
+              title: "Distribución de Ventas por Método de Pago",
+              headers: ["Método de Pago", "N° Ventas", "% Participación", "Clasificación"],
+              columnTypes: ["text", "integer", "percent", "status"],
+              emptyText: "Sin registros de métodos de pago en el período seleccionado",
+              rows: reportData.metodosPago.map((m) => [
+                m.name,
+                m.count,
+                Number(m.value || 0) / 100,
+                m.name.toLowerCase().includes("wompi") ? "Wompi" : "Activo"
+              ]),
+              totals: {
+                0: "TOTAL MÉTODOS DE PAGO",
+                1: "sum",
+                2: "sum"
+              }
+            }
+          ]
+        },
+        {
+          kind: "table",
+          sheetName: "Cuadre por Producto",
+          title: "Cuadre por Producto — Vendidas vs. Devueltas vs. Netas",
+          subtitle: periodSubtitle,
+          filtersText: filtersSummaryText,
+          sectionTitle: "Desglose de unidades e ingresos conciliados por producto",
+          kpis: [
+            { label: "Productos Analizados", value: reportData.productosDetalle.length, format: "integer", tone: "slate" },
+            { label: "Unidades Vendidas", value: kpis.unidadesBrutas, format: "integer", tone: "blue" },
+            { label: "Unidades Devueltas", value: kpis.unidadesDevueltas, format: "integer", tone: kpis.unidadesDevueltas > 0 ? "rose" : "slate" },
+            { label: "Unidades Netas", value: kpis.unidadesNetas, format: "integer", tone: "emerald" },
+            { label: "Venta Neta Total", value: kpis.ingresosNetos, format: "currency", tone: "emerald" }
+          ],
+          headers: [
+            "Producto",
+            "Und. Vendidas",
+            "Und. Devueltas",
+            "Und. Netas",
+            "Venta Bruta (COP)",
+            "Reembolsos (COP)",
+            "Venta Neta (COP)",
+            "% Participación"
+          ],
+          columnTypes: ["text", "integer", "integer", "integer", "currency", "currency", "currency", "percent"],
+          colWidths: [34, 15, 16, 15, 20, 20, 20, 16],
+          rows: reportData.productosDetalle.map((p) => [
+            p.nombreLimpio,
+            p.cantidadBruta,
+            p.cantidadDevuelta > 0
+              ? { value: p.cantidadDevuelta, textColor: "#991B1B", backgroundColor: "#FEE2E2", fontWeight: "bold", align: "right" }
+              : 0,
+            { value: p.cantidadNeta, fontWeight: "bold", align: "right" },
+            p.ingresosBrutos,
+            p.montoReembolsado > 0 ? -p.montoReembolsado : 0,
+            { value: p.ingresosNetos, fontWeight: "bold", textColor: "#166534", align: "right" },
+            Number(p.porcentaje || 0) / 100
+          ]),
+          totals: {
+            0: "TOTAL GENERAL",
+            1: "sum",
+            2: "sum",
+            3: "sum",
+            4: "sum",
+            5: "sum",
+            6: "sum",
+            7: "sum"
+          }
+        },
+        {
+          kind: "table",
+          sheetName: "Devoluciones",
+          title: "Detalle de Devoluciones y Reembolsos Aplicados",
+          subtitle: periodSubtitle,
+          filtersText: filtersSummaryText,
+          sectionTitle: "Registro auditado de devoluciones confirmadas que impactan el cuadre",
+          kpis: [
+            { label: "Devoluciones Aplicadas", value: kpis.devolucionesAprobadasCount, format: "integer", tone: "slate" },
+            { label: "Unidades Devueltas", value: kpis.unidadesDevueltas, format: "integer", tone: "amber" },
+            { label: "Total Reembolsado", value: kpis.totalReembolsos > 0 ? -kpis.totalReembolsos : 0, format: "currency", tone: "rose" },
+            { label: "Reembolsos Pendientes", value: kpis.reembolsosPendientes > 0 ? -kpis.reembolsosPendientes : 0, format: "currency", tone: kpis.reembolsosPendientes > 0 ? "amber" : "emerald" }
+          ],
+          headers: [
+            "Código Dev.",
+            "Venta Asociada",
+            "Fecha",
+            "Cliente",
+            "Productos Devueltos",
+            "Resolución",
+            "Estado Reembolso",
+            "Monto Reembolsado (COP)"
+          ],
+          columnTypes: ["textId", "textId", "date", "text", "text", "status", "status", "currency"],
+          colWidths: [16, 18, 15, 24, 34, 20, 18, 22],
+          rows: reportData.devolucionesAplicadas.map((d) => [
             d.codigoDevolucion,
             d.codigoVenta,
             formatDateSafe(d.fecha, "—"),
@@ -433,30 +571,60 @@ export function VentasReportesView({
             d.tipoResolucion,
             d.estadoReembolso,
             d.valorDevuelto > 0 ? -d.valorDevuelto : 0
-          ])
-        : [["Sin devoluciones confirmadas en el rango filtrado"]]),
-      [],
-      ["HISTÓRICO MENSUAL (BRUTO / REEMBOLSOS / NETO)"],
-      ["Mes", "Ventas Brutas (COP)", "Reembolsos (COP)", "Ingresos Netos (COP)", "N° Ventas", "Und. Netas"],
-      ...reportData.historicoMensual.map((m) => [
-        m.mesCompleto,
-        m.ventasBrutas,
-        m.reembolsos > 0 ? -m.reembolsos : 0,
-        m.ventas,
-        m.cantidadVentas,
-        m.unidadesNetas
-      ]),
-      [],
-      ["DISTRIBUCIÓN POR MÉTODO DE PAGO"],
-      ["Método de Pago", "N° Ventas", "Porcentaje (%)"],
-      ...reportData.metodosPago.map((m) => [m.name, m.count, `${m.value}%`])
-    ];
-
-    await exportMatrixToExcel({
-      sheetName: "Reporte Ventas Neto",
-      fileName: `Reporte_Ventas_Neto_ChazinFood_${getColombiaDateISO()}.xlsx`,
-      matrix,
-      colWidths: [34, 18, 18, 18, 22, 22, 22, 16]
+          ]),
+          totals: {
+            0: "TOTAL REEMBOLSOS",
+            1: "count",
+            7: "sum"
+          }
+        },
+        {
+          kind: "table",
+          sheetName: "Histórico Mensual",
+          title: "Evolución Mensual — Ventas Brutas, Reembolsos e Ingreso Neto",
+          subtitle: periodSubtitle,
+          filtersText: filtersSummaryText,
+          sectionTitle: "Consolidado mensual del año operativo",
+          kpis: [
+            { label: "Ventas Brutas", value: kpis.ingresosBrutos, format: "currency", tone: "slate" },
+            { label: "Reembolsos", value: kpis.totalReembolsos > 0 ? -kpis.totalReembolsos : 0, format: "currency", tone: "rose" },
+            { label: "Ingresos Netos", value: kpis.ingresosNetos, format: "currency", tone: "emerald" },
+            { label: "Total Transacciones", value: kpis.totalVentasCount, format: "integer", tone: "blue" }
+          ],
+          headers: [
+            "Mes",
+            "Ventas Brutas (COP)",
+            "Reembolsos (COP)",
+            "Ingresos Netos (COP)",
+            "N° Ventas",
+            "Und. Vendidas",
+            "Und. Devueltas",
+            "Und. Netas"
+          ],
+          columnTypes: ["text", "currency", "currency", "currency", "integer", "integer", "integer", "integer"],
+          colWidths: [18, 22, 20, 22, 14, 15, 16, 15],
+          rows: reportData.historicoMensual.map((m) => [
+            m.mesCompleto,
+            m.ventasBrutas,
+            m.reembolsos > 0 ? -m.reembolsos : 0,
+            { value: m.ventas, fontWeight: "bold", textColor: "#166534", align: "right" },
+            m.cantidadVentas,
+            m.unidadesBrutas ?? 0,
+            m.unidadesDevueltas ?? 0,
+            m.unidadesNetas ?? 0
+          ]),
+          totals: {
+            0: "TOTAL CONSOLIDADO",
+            1: "sum",
+            2: "sum",
+            3: "sum",
+            4: "sum",
+            5: "sum",
+            6: "sum",
+            7: "sum"
+          }
+        }
+      ]
     });
   };
 

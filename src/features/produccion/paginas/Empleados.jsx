@@ -99,47 +99,101 @@ export function Empleados() {
 
     // Documento de identidad de primero en el reporte
     const headers = [
-      "Tipo Documento",
-      "Número Documento",
+      "Tipo Doc.",
+      "N.º Documento",
       "ID",
       "Nombres",
       "Apellidos",
-      "Rol",
+      "Rol / Cargo",
       "Turno",
       "Tipo Contrato",
       "Fecha Inicio",
       "Fecha Fin",
       "Teléfono",
-      "Correo",
+      "Correo Electrónico",
       "Dirección",
       "Salario (COP)",
       "Estado"
     ];
 
-    const data = listToExport.map((e) => [
-      e.tipoDocumento || "C.C.",
-      e.numeroDocumento || "",
-      e.idEmpleado,
-      e.nombre || "",
-      e.apellidos || "",
-      e.rol || e.cargo || "",
-      e.turno || "",
-      e.tipoContrato || "",
-      e.fechaInicio ? (extractDateOnlyISO(e.fechaInicio) || "") : "",
-      e.fechaFin ? (extractDateOnlyISO(e.fechaFin) || "Indefinido") : "Indefinido",
-      e.telefono || "",
-      e.correo || "",
-      e.direccion || "",
-      Number(e.salario || 0),
-      e.estado || "Activo"
-    ]);
+    let activosCount = 0;
+    let noActivosCount = 0;
+    let nominaTotal = 0;
+
+    const data = listToExport.map((e) => {
+      const estadoStr = e.estado || "Activo";
+      const salarioNum = Number(e.salario || 0);
+      if (estadoStr.toLowerCase() === "activo") {
+        activosCount++;
+      } else {
+        noActivosCount++;
+      }
+      nominaTotal += salarioNum;
+
+      return [
+        e.tipoDocumento || "C.C.",
+        e.numeroDocumento || "",
+        e.idEmpleado,
+        e.nombre || "",
+        e.apellidos || "",
+        e.rol || e.cargo || "",
+        e.turno || "",
+        e.tipoContrato || "",
+        e.fechaInicio ? (extractDateOnlyISO(e.fechaInicio) || "") : "",
+        e.fechaFin ? (extractDateOnlyISO(e.fechaFin) || "Indefinido") : "Indefinido",
+        e.telefono || "",
+        e.correo || "",
+        e.direccion || "",
+        salarioNum,
+        estadoStr
+      ];
+    });
+
+    const filtros = [
+      `Vista: ${viewMode === "papelera" ? "Papelera" : "Personal Activo"}`
+    ];
+    if (filterRol && filterRol !== "Todos") filtros.push(`Rol: ${filterRol}`);
+    if (filterEstado && filterEstado !== "Todos") filtros.push(`Estado: ${filterEstado}`);
+    if (searchTerm?.trim()) filtros.push(`Búsqueda: "${searchTerm.trim()}"`);
 
     await exportTableToExcel({
-      sheetName: "Empleados",
-      fileName: `empleados_chazinfood_${getColombiaDateISO()}.xlsx`,
+      sheetName: viewMode === "papelera" ? "Papelera Empleados" : "Empleados",
+      fileName: `Empleados_ChazinFood_${getColombiaDateISO()}.xlsx`,
+      title: viewMode === "papelera" ? "Papelera de Empleados Eliminados" : "Directorio de Personal y Nómina",
+      subtitle: `${listToExport.length} colaborador(es) · Subproceso de Personal`,
+      filtersText: filtros.join(" | "),
+      sectionTitle: "Registro de colaboradores, contratación y salarios vigentes",
+      kpis: [
+        { label: "Total Empleados", value: listToExport.length, format: "integer", tone: "slate" },
+        { label: "Activos", value: activosCount, format: "integer", tone: "emerald" },
+        { label: "Incap. / Inactivos", value: noActivosCount, format: "integer", tone: noActivosCount > 0 ? "amber" : "slate" },
+        { label: "Nómina Mensual Total", value: nominaTotal, format: "currency", tone: "blue" }
+      ],
       headers,
       rows: data,
-      colWidths: [15, 18, 8, 20, 20, 20, 16, 18, 15, 15, 16, 25, 25, 15, 14]
+      columnTypes: [
+        "textId",
+        "textId",
+        "textId",
+        "text",
+        "text",
+        "status",
+        "text",
+        "text",
+        "date",
+        "status",
+        "textId",
+        "text",
+        "text",
+        "currency",
+        "status"
+      ],
+      colWidths: [12, 18, 9, 20, 20, 18, 16, 18, 14, 14, 16, 26, 26, 18, 14],
+      totals: {
+        0: "TOTAL NÓMINA",
+        3: "count",
+        13: "sum"
+      }
     });
   };
 

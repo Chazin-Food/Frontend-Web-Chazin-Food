@@ -117,26 +117,90 @@ export function Usuarios() {
     const rows = filteredUsuarios;
     if (rows.length === 0) return;
 
-    const headers = ["ID", "Tipo Doc", "N.º Documento", "Nombre", "Apellidos", "Email", "Teléfono", "Dirección", "Rol", "Estado"];
-    const data = rows.map((u) => [
-      u.idUsuario || u.id,
-      u.tipoDocumento || "C.C.",
-      u.numeroDocumento || u.documento || "",
-      u.nombre || "",
-      u.apellidos || "",
-      u.email || "",
-      u.telefono || "",
-      u.direccion || "-",
-      u.rolNombre || u.rol?.nombre || u.rol || "",
-      u.estado || ""
-    ]);
+    const headers = [
+      "ID",
+      "Tipo Doc.",
+      "N.º Documento",
+      "Nombre",
+      "Apellidos",
+      "Correo Electrónico",
+      "Teléfono",
+      "Dirección",
+      "Rol",
+      "Estado"
+    ];
+
+    let activosCount = 0;
+    let inactivosCount = 0;
+    const rolesSet = new Set();
+
+    const data = rows.map((u) => {
+      const rolNombre = u.rolNombre || u.rol?.nombre || u.rol || "Sin rol";
+      const estadoStr =
+        u.estado === 1 || u.estado === "1"
+          ? "Activo"
+          : u.estado === 0 || u.estado === "0"
+          ? "Inactivo"
+          : (u.estado || "Activo");
+
+      if (String(estadoStr).toLowerCase() === "activo") {
+        activosCount++;
+      } else {
+        inactivosCount++;
+      }
+      if (rolNombre) rolesSet.add(rolNombre);
+
+      return [
+        u.idUsuario || u.id,
+        u.tipoDocumento || "C.C.",
+        u.numeroDocumento || u.documento || "",
+        u.nombre || "",
+        u.apellidos || "",
+        u.email || "",
+        u.telefono || "",
+        u.direccion || "—",
+        rolNombre,
+        estadoStr
+      ];
+    });
+
+    const filtros = [];
+    if (filterRol && filterRol !== "Todos") filtros.push(`Rol: ${filterRol}`);
+    if (filterEstado && filterEstado !== "Todos") filtros.push(`Estado: ${filterEstado}`);
+    if (searchTerm?.trim()) filtros.push(`Búsqueda: "${searchTerm.trim()}"`);
 
     await exportTableToExcel({
       sheetName: "Usuarios",
-      fileName: `reporte_usuarios_${getColombiaDateISO()}.xlsx`,
+      fileName: `Usuarios_ChazinFood_${getColombiaDateISO()}.xlsx`,
+      title: "Reporte General de Usuarios y Accesos",
+      subtitle: `${rows.length} cuenta(s) exportadas · Gestión de Accesos`,
+      filtersText: filtros.length > 0 ? filtros.join(" | ") : "Todos los usuarios registrados",
+      sectionTitle: "Listado de cuentas registradas, roles asignados y estado de acceso",
+      kpis: [
+        { label: "Total Usuarios", value: rows.length, format: "integer", tone: "slate" },
+        { label: "Cuentas Activas", value: activosCount, format: "integer", tone: "emerald" },
+        { label: "Cuentas Inactivas", value: inactivosCount, format: "integer", tone: inactivosCount > 0 ? "rose" : "slate" },
+        { label: "Roles Distintos", value: rolesSet.size, format: "integer", tone: "purple" }
+      ],
       headers,
       rows: data,
-      colWidths: [8, 10, 16, 18, 18, 26, 16, 24, 14, 12]
+      columnTypes: [
+        "textId",
+        "textId",
+        "textId",
+        "text",
+        "text",
+        "text",
+        "textId",
+        "text",
+        "status",
+        "status"
+      ],
+      colWidths: [10, 11, 18, 19, 19, 28, 16, 26, 18, 14],
+      totals: {
+        0: "TOTAL",
+        3: "count"
+      }
     });
     setExportMenuOpen(false);
   };
