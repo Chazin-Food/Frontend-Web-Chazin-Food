@@ -894,7 +894,7 @@ export function Dashboard() {
                   Prioridad / Platos en Curso
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Órdenes activas en cola, preparación o pendientes de aprobación
+                  Órdenes activas en cola o en preparación en cocina
                 </p>
               </div>
             </div>

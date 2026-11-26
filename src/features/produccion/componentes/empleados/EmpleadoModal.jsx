@@ -146,6 +146,23 @@ export function EmpleadoModal({
     setTouched({});
   }, [empleado, isOpen]);
 
+  const isTerminoIndefinido = (tipo) => {
+    const norm = String(tipo || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return norm === "termino indefinido";
+  };
+
+  const isTerminoFijo = (tipo) => {
+    const norm = String(tipo || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return norm === "termino fijo";
+  };
+
+  const getNextDayISO = (isoStr) => {
+    if (!isoStr || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoStr))) return undefined;
+    const [y, m, d] = String(isoStr).split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + 1));
+    return dt.toISOString().slice(0, 10);
+  };
+
   // Validador individual de campo en tiempo real
   const validateField = (name, value, currentForm = form) => {
     let errorMsg = "";
@@ -202,8 +219,12 @@ export function EmpleadoModal({
         break;
       }
       case "fechaFin": {
-        if (value && currentForm.fechaInicio && value < currentForm.fechaInicio) {
-          errorMsg = "La fecha fin no puede ser anterior a la fecha de inicio.";
+        if (isTerminoIndefinido(currentForm.tipoContrato)) {
+          errorMsg = "";
+        } else if (isTerminoFijo(currentForm.tipoContrato) && !value) {
+          errorMsg = "La fecha de finalización es obligatoria para contratos a Término Fijo.";
+        } else if (value && currentForm.fechaInicio && value <= currentForm.fechaInicio) {
+          errorMsg = "La fecha de finalización debe ser posterior a la fecha de inicio.";
         }
         break;
       }
@@ -239,20 +260,27 @@ export function EmpleadoModal({
       nextVal = rawNum !== "" ? formatMilesCOP(rawNum) : "";
     }
 
-    setForm((prev) => {
-      const updated = { ...prev, [name]: nextVal };
+    const updatedForm = { ...form, [name]: nextVal };
+    if (name === "tipoContrato" && isTerminoIndefinido(nextVal)) {
+      updatedForm.fechaFin = "";
+    }
 
-      // Si cambia tipo de contrato a Término Indefinido, limpiar fechaFin y errores
-      if (name === "tipoContrato" && nextVal === "Término Indefinido") {
-        updated.fechaFin = "";
+    setForm(updatedForm);
+
+    if (name === "tipoContrato") {
+      if (isTerminoIndefinido(nextVal)) {
         setErrors((errs) => ({ ...errs, fechaFin: null }));
+      } else if (touched.fechaFin || updatedForm.fechaFin) {
+        validateField("fechaFin", updatedForm.fechaFin, updatedForm);
       }
+    }
 
-      return updated;
-    });
+    if (name === "fechaInicio" && (touched.fechaFin || updatedForm.fechaFin)) {
+      validateField("fechaFin", updatedForm.fechaFin, updatedForm);
+    }
 
     if (touched[name]) {
-      validateField(name, nextVal, { ...form, [name]: nextVal });
+      validateField(name, nextVal, updatedForm);
     }
   };
 
@@ -313,8 +341,12 @@ export function EmpleadoModal({
         const r = validateRequerido(val, "La fecha de inicio de contratación");
         if (!r.isValid) msg = r.error;
       } else if (f === "fechaFin") {
-        if (val && form.fechaInicio && val < form.fechaInicio) {
-          msg = "La fecha fin no puede ser anterior a la fecha de inicio.";
+        if (isTerminoIndefinido(form.tipoContrato)) {
+          msg = "";
+        } else if (isTerminoFijo(form.tipoContrato) && !val) {
+          msg = "La fecha de finalización es obligatoria para contratos a Término Fijo.";
+        } else if (val && form.fechaInicio && val <= form.fechaInicio) {
+          msg = "La fecha de finalización debe ser posterior a la fecha de inicio.";
         }
       } else if (f === "salario" && val && String(val).trim()) {
         const r = validateNumeroPositivo(val, "salario", { min: 0, allowZero: true, isCurrency: true });
@@ -350,7 +382,7 @@ export function EmpleadoModal({
         cargo: form.rol, // Para retrocompatibilidad
         salario: parsedSalario,
         fechaInicio: form.fechaInicio,
-        fechaFin: form.fechaFin ? form.fechaFin : null,
+        fechaFin: isTerminoIndefinido(form.tipoContrato) ? null : (form.fechaFin ? form.fechaFin : null),
         fechaContratacion: form.fechaInicio
       });
     } finally {
@@ -764,10 +796,15 @@ export function EmpleadoModal({
                 <div>
                   <div className="flex items-center justify-between gap-1 mb-1">
                     <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300">
-                      Fecha de Finalización
+                      Fecha de Finalización{" "}
+                      {isTerminoFijo(form.tipoContrato) && <span className="text-red-500">*</span>}
                     </label>
-                    <span className={`text-[10px] font-medium ${form.tipoContrato === "Término Indefinido" ? "text-amber-600 dark:text-amber-400" : "text-gray-400"}`}>
-                      {form.tipoContrato === "Término Indefinido" ? "(No aplica en Indefinido)" : "(Requerido en Fijo)"}
+                    <span className={`text-[10px] font-medium ${isTerminoIndefinido(form.tipoContrato) ? "text-amber-600 dark:text-amber-400" : isTerminoFijo(form.tipoContrato) ? "text-red-500" : "text-gray-400"}`}>
+                      {isTerminoIndefinido(form.tipoContrato)
+                        ? "(No aplica en Indefinido)"
+                        : isTerminoFijo(form.tipoContrato)
+                        ? "(Obligatorio)"
+                        : "(Opcional)"}
                     </span>
                   </div>
                   <div className="relative">
@@ -775,29 +812,27 @@ export function EmpleadoModal({
                     <input
                       type="date"
                       name="fechaFin"
-                      value={form.fechaFin}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        handleChange(e);
-                        if (val && form.tipoContrato === "Término Indefinido") {
-                          setForm((prev) => ({ ...prev, fechaFin: val, tipoContrato: "Término Fijo" }));
-                        }
-                      }}
+                      value={isTerminoIndefinido(form.tipoContrato) ? "" : form.fechaFin}
+                      disabled={isTerminoIndefinido(form.tipoContrato)}
+                      min={!isTerminoIndefinido(form.tipoContrato) ? getNextDayISO(form.fechaInicio) : undefined}
+                      onChange={handleChange}
                       onBlur={handleBlur}
                       placeholder="dd/mm/aaaa"
-                      className={`w-full pl-8 pr-2.5 py-1.5 rounded-xl border text-xs outline-none dark:bg-gray-750 dark:text-white ${
-                        errors.fechaFin && touched.fechaFin
-                          ? "border-red-500"
-                          : "border-gray-200 dark:border-gray-700 focus:border-red-500"
+                      className={`w-full pl-8 pr-2.5 py-1.5 rounded-xl border text-xs outline-none ${
+                        isTerminoIndefinido(form.tipoContrato)
+                          ? "bg-gray-100 dark:bg-gray-800/80 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 cursor-not-allowed"
+                          : errors.fechaFin && touched.fechaFin
+                          ? "border-red-500 dark:bg-gray-750 dark:text-white"
+                          : "border-gray-200 dark:border-gray-700 focus:border-red-500 dark:bg-gray-750 dark:text-white"
                       }`}
                     />
                   </div>
-                  {form.tipoContrato === "Término Indefinido" && !form.fechaFin && (
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 italic">
-                      * En contratos a Término Indefinido no hay fecha de fin. Si indicas una fecha, el contrato se cambiará automáticamente a Término Fijo.
+                  {isTerminoIndefinido(form.tipoContrato) && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 italic">
+                      En contratos a Término Indefinido no aplica fecha de finalización. Cambia el tipo de contrato si necesitas definir una fecha de cierre.
                     </p>
                   )}
-                  {errors.fechaFin && touched.fechaFin && (
+                  {!isTerminoIndefinido(form.tipoContrato) && errors.fechaFin && touched.fechaFin && (
                     <p className="text-[10px] text-red-500 mt-1 flex items-center gap-0.5 font-medium">
                       <AlertCircle className="w-3 h-3 shrink-0" />
                       {errors.fechaFin}

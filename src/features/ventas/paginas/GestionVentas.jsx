@@ -74,8 +74,7 @@ export function GestionVentas() {
     hasActiveFilters,
     activeFiltersCount,
     updateEstado,
-    updateTiempoEntrega,
-    aprobarPago
+    updateTiempoEntrega
   } = useGestionVentas();
 
   const { user } = useAuth();
@@ -600,7 +599,6 @@ export function GestionVentas() {
                 ventas={filteredVentas}
                 onViewDetail={handleViewDetail}
                 onUpdateEstado={canEdit ? updateEstado : null}
-                onAprobarPago={canEdit ? aprobarPago : null}
                 canEdit={canEdit}
                 currentPage={currentPage}
                 pageSize={pageSize}
@@ -622,7 +620,6 @@ export function GestionVentas() {
             onClose={() => setSelectedVentaDetail(null)}
             venta={activeVentaDetail}
             onUpdateTiempoEntrega={canEdit ? updateTiempoEntrega : null}
-            onAprobarPago={canEdit ? aprobarPago : null}
             canEdit={canEdit}
           />
         </Suspense>

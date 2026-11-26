@@ -10,8 +10,11 @@ import { RolDetalleView } from "../componentes/roles/RolDetalleView";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 
-const isAdministradorRol = (rol) =>
-  Boolean(rol) && (String(rol.id) === "1" || (rol.nombre || "").toLowerCase() === "administrador");
+const isAdministradorRol = (rol) => {
+  if (!rol) return false;
+  const nombreNorm = String(rol.nombre || "").trim().toLowerCase();
+  return String(rol.id) === "1" || nombreNorm === "administrador" || nombreNorm === "admin";
+};
 
 export function Roles() {
   const { user } = useAuth();
@@ -37,12 +40,15 @@ export function Roles() {
   const [filterEstado, setFilterEstado] = useState("Todos");
   const [viewMode, setViewMode] = useState("table"); // "table" | "grid"
 
-  const totalRoles = roles.length;
-  const rolesActivos = roles.filter((r) => r.estado === "Activo" || r.estado === 1 || r.estado === "1").length;
-  const rolesInactivos = roles.filter((r) => r.estado === "Inactivo" || r.estado === 0 || r.estado === "0").length;
-  const totalUsuariosAsignados = roles.reduce((acc, r) => acc + (r.usuarios || 0), 0);
+  // Ocultar por completo el rol Administrador en la vista de Gestión de Roles
+  const visibleRoles = roles.filter((r) => !isAdministradorRol(r));
+  const totalRoles = visibleRoles.length;
+  const rolesActivos = visibleRoles.filter((r) => r.estado === "Activo" || r.estado === 1 || r.estado === "1").length;
+  const rolesInactivos = visibleRoles.filter((r) => r.estado === "Inactivo" || r.estado === 0 || r.estado === "0").length;
+  const totalUsuariosAsignados = visibleRoles.reduce((acc, r) => acc + (r.usuarios || 0), 0);
 
   const rolesToDisplay = filteredRoles.filter((r) => {
+    if (isAdministradorRol(r)) return false;
     const hasSearch = Boolean(searchTerm && searchTerm.trim());
     if (hasSearch) return true;
     if (filterEstado === "Activo") return r.estado === "Activo" || r.estado === 1 || r.estado === "1";
@@ -76,6 +82,10 @@ export function Roles() {
   };
 
   const handleOpenView = (rol) => {
+    if (isAdministradorRol(rol)) {
+      notifWarning("Rol protegido", "El rol Administrador es un rol del sistema y no está disponible en esta vista.");
+      return;
+    }
     setActiveFormView({ mode: "view", rol });
   };
 

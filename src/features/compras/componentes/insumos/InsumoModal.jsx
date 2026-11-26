@@ -366,20 +366,28 @@ export function InsumoModal({
       if (!res.isValid) err = res.error;
     } else if (field === "stock" && tipo === "Base" && currentForm.controlarStock !== false) {
       const res = validateNumeroPositivo(val, "stock actual", { min: 0, allowZero: true });
-      if (!res.isValid) err = res.error;
+      if (!res.isValid) {
+        err = res.error;
+      } else if (!isEditing && currentForm.stockMaximo !== "" && Number(currentForm.stockMaximo) > 0 && Number(val) > Number(currentForm.stockMaximo)) {
+        err = "El stock inicial no puede superar el stock máximo / capacidad.";
+      }
     } else if (field === "stockMinimo" && tipo === "Base" && currentForm.controlarStock !== false) {
       const res = validateNumeroPositivo(val, "stock mínimo", { min: 0, allowZero: true });
       if (!res.isValid) {
         err = res.error;
-      } else if (currentForm.stockMaximo !== "" && Number(val) > Number(currentForm.stockMaximo)) {
-        err = "El stock mínimo no puede ser superior al stock máximo.";
+      } else if (currentForm.stockMaximo !== "" && Number(currentForm.stockMaximo) > 0 && Number(val) >= Number(currentForm.stockMaximo)) {
+        err = "El stock mínimo debe ser estrictamente menor al stock máximo.";
       }
     } else if (field === "stockMaximo" && tipo === "Base" && currentForm.controlarStock !== false) {
-      const res = validateNumeroPositivo(val, "stock máximo", { min: 0, allowZero: true });
+      const res = validateNumeroPositivo(val, "stock máximo", { min: 0.01, allowZero: false });
       if (!res.isValid) {
-        err = res.error;
-      } else if (Number(val) < Number(currentForm.stockMinimo)) {
-        err = "El stock máximo debe ser mayor o igual al stock mínimo.";
+        err = val !== "" && Number(val) <= 0
+          ? "El stock máximo / capacidad debe ser mayor a 0."
+          : res.error;
+      } else if (currentForm.stockMinimo !== "" && Number(val) <= Number(currentForm.stockMinimo)) {
+        err = "El stock máximo debe ser estrictamente mayor al stock mínimo.";
+      } else if (!isEditing && currentForm.stock !== "" && Number(val) < Number(currentForm.stock)) {
+        err = "El stock máximo no puede ser inferior al stock inicial.";
       }
     } else if (field === "precioAdicion" && (currentForm.esAdicion || isSalsaItem(currentForm.nombre, currentForm.categoria))) {
       const esSalsa = isSalsaItem(currentForm.nombre, currentForm.categoria);
@@ -419,11 +427,22 @@ export function InsumoModal({
     const err = validateField(field, sanitized, updated);
     const nextErrors = { ...errors, [field]: err };
 
-    // Validación cruzada coherente de stock mínimo vs stock máximo en tiempo real
-    if (field === "stockMinimo" && (touched.stockMaximo || updated.stockMaximo !== "")) {
-      nextErrors.stockMaximo = validateField("stockMaximo", updated.stockMaximo, updated);
-    } else if (field === "stockMaximo" && (touched.stockMinimo || updated.stockMinimo !== "")) {
-      nextErrors.stockMinimo = validateField("stockMinimo", updated.stockMinimo, updated);
+    // Validación cruzada coherente de stock, stock mínimo y stock máximo en tiempo real
+    if (field === "stockMinimo") {
+      if (touched.stockMaximo || updated.stockMaximo !== "") {
+        nextErrors.stockMaximo = validateField("stockMaximo", updated.stockMaximo, updated);
+      }
+    } else if (field === "stockMaximo") {
+      if (touched.stockMinimo || updated.stockMinimo !== "") {
+        nextErrors.stockMinimo = validateField("stockMinimo", updated.stockMinimo, updated);
+      }
+      if (!isEditing && (touched.stock || updated.stock !== "")) {
+        nextErrors.stock = validateField("stock", updated.stock, updated);
+      }
+    } else if (field === "stock" && !isEditing) {
+      if (touched.stockMaximo || updated.stockMaximo !== "") {
+        nextErrors.stockMaximo = validateField("stockMaximo", updated.stockMaximo, updated);
+      }
     }
 
     setErrors(nextErrors);
@@ -513,13 +532,13 @@ export function InsumoModal({
         }
 
         if (form.stockMaximo === "" || form.stockMaximo === null || form.stockMaximo === undefined) {
-          editErrors.stockMaximo = "El stock máximo es requerido.";
+          editErrors.stockMaximo = "El stock máximo / capacidad es requerido.";
         } else {
           const sMax = Number(form.stockMaximo);
-          if (isNaN(sMax) || sMax < 0) {
-            editErrors.stockMaximo = "El stock máximo debe ser un número mayor o igual a 0.";
-          } else if (!editErrors.stockMinimo && sMax < Number(form.stockMinimo)) {
-            editErrors.stockMaximo = "La cantidad máxima no puede ser inferior a la cantidad mínima.";
+          if (isNaN(sMax) || sMax <= 0) {
+            editErrors.stockMaximo = "El stock máximo / capacidad debe ser mayor a 0.";
+          } else if (!editErrors.stockMinimo && sMax <= Number(form.stockMinimo)) {
+            editErrors.stockMaximo = "El stock máximo debe ser estrictamente mayor al stock mínimo.";
           }
         }
       }
@@ -1240,7 +1259,7 @@ export function InsumoModal({
                     </label>
                     <div className="relative">
                       <NumberInput
-                        min="0"
+                        min={form.unidadMedida === "Kg" || form.unidadMedida === "Lt" ? "0.01" : "1"}
                         step={form.unidadMedida === "Kg" || form.unidadMedida === "Lt" ? "0.01" : "1"}
                         value={form.stockMaximo}
                         onChange={(e) => handleNumberInput("stockMaximo", e.target.value)}
@@ -1400,45 +1419,12 @@ export function InsumoModal({
                     </select>
                   </div>
 
-                  {/* Stock Mínimo y Stock Máximo para Insumo Preparado */}
-                  <div>
-                    <label className={labelCls}>
-                      Stock Mínimo Alerta ({getUnitShort(form.unidadMedida)})
-                    </label>
-                    <div className="relative">
-                      <NumberInput
-                        min="0"
-                        step="1"
-                        value={form.stockMinimo}
-                        onChange={(e) => handleNumberInput("stockMinimo", e.target.value)}
-                        onBlur={() => handleBlur("stockMinimo")}
-                        className={`${baseInputCls} pr-20 ${touched.stockMinimo && errors.stockMinimo
-                            ? "border-red-500 bg-red-50/30 text-red-900 focus:ring-2 focus:ring-red-400"
-                            : "border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#F05454]"
-                          }`}
-                        placeholder="5"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelCls}>
-                      Stock Máximo Capacidad ({getUnitShort(form.unidadMedida)})
-                    </label>
-                    <div className="relative">
-                      <NumberInput
-                        min="0"
-                        step="1"
-                        value={form.stockMaximo}
-                        onChange={(e) => handleNumberInput("stockMaximo", e.target.value)}
-                        onBlur={() => handleBlur("stockMaximo")}
-                        className={`${baseInputCls} pr-20 ${touched.stockMaximo && errors.stockMaximo
-                            ? "border-red-500 bg-red-50/30 text-red-900 focus:ring-2 focus:ring-red-400"
-                            : "border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#F05454]"
-                          }`}
-                        placeholder="100"
-                      />
-                    </div>
+                  {/* Nota informativa de disponibilidad dinámica para Insumo Preparado */}
+                  <div className="sm:col-span-2 rounded-xl border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/25 px-3.5 py-2.5 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-200">
+                    <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <p className="leading-snug">
+                      El stock y disponibilidad de un <strong>insumo preparado</strong> se calculan automáticamente a partir del inventario disponible de sus ingredientes base en la ficha técnica.
+                    </p>
                   </div>
                 </div>
 

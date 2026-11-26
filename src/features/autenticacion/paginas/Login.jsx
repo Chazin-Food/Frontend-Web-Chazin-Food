@@ -32,6 +32,7 @@ import {
   validateNombre,
   validateEmail
 } from "@/shared/utils/validationUtils";
+import { AceptacionLegalCheckbox } from "@/shared/components/ui/PoliticaDatosModal";
 
 const TIPOS_DOC_OPTIONS = [
   { value: "C.C.", label: "C.C. (Cédula de Ciudadanía)" },
@@ -60,6 +61,8 @@ export function Login() {
   const [regDireccion, setRegDireccion] = useState("");
   const [regContraseña, setRegContraseña] = useState("");
   const [regConfirmar, setRegConfirmar] = useState("");
+  const [regAceptaPolitica, setRegAceptaPolitica] = useState(false);
+  const [regPoliticaError, setRegPoliticaError] = useState("");
 
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [isRegLoading, setIsRegLoading] = useState(false);
@@ -304,6 +307,13 @@ export function Login() {
       toast.error("Contraseñas no coinciden", "Verifica que ambas contraseñas sean iguales");
       return;
     }
+    if (!regAceptaPolitica) {
+      const legalErr = "Debes aceptar los Términos y Condiciones y la Política de Tratamiento de Datos (Ley 1581 de 2012).";
+      setRegPoliticaError(legalErr);
+      toast.error("Aceptación legal requerida", legalErr);
+      return;
+    }
+    setRegPoliticaError("");
     setIsRegLoading(true);
 
     const result = await register({
@@ -866,6 +876,19 @@ export function Login() {
                       {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       {showRegPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}
                     </button>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <AceptacionLegalCheckbox
+                      id="login-reg-aceptacion-legal"
+                      checked={regAceptaPolitica}
+                      onChange={(val) => {
+                        setRegAceptaPolitica(val);
+                        if (val) setRegPoliticaError("");
+                      }}
+                      error={regPoliticaError}
+                      context="register"
+                    />
                   </div>
                 </div>
 

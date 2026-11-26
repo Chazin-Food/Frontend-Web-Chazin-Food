@@ -447,11 +447,14 @@ export function useInsumos() {
           }
         }
       } else {
+        const controlaStock = data.controlarStock !== false;
         const payload = {
           nombre: data.nombre,
           idCategoriaInsumo: data.idCategoriaInsumo || 1,
-          stock: Number(data.stock) || 0,
-          stockMinimo: Number(data.stockMinimo) || 0,
+          controlarStock: controlaStock,
+          stock: controlaStock ? (Number(data.stock) || 0) : 0,
+          stockMinimo: controlaStock ? (Number(data.stockMinimo) || 0) : 0,
+          stockMaximo: controlaStock ? (Number(data.stockMaximo) || 0) : 0,
           unidadMedida: data.unidadMedida || "und",
           precioUnitario: Number(data.precioUnitario) || 0,
           idProveedor: data.idProveedor && String(data.idProveedor).trim() !== "" ? Number(data.idProveedor) : null,
@@ -509,11 +512,14 @@ export function useInsumos() {
         };
         await insumosService.updatePreparado(id, payload);
       } else {
+        const controlaStock = data.controlarStock !== false;
         const payload = {
           nombre: data.nombre,
           idCategoriaInsumo: data.idCategoriaInsumo,
+          controlarStock: controlaStock,
           stock: Number(data.stock),
-          stockMinimo: Number(data.stockMinimo),
+          stockMinimo: controlaStock ? Number(data.stockMinimo) : 0,
+          stockMaximo: controlaStock ? Number(data.stockMaximo) : 0,
           unidadMedida: data.unidadMedida,
           precioUnitario: Number(data.precioUnitario),
           idProveedor: data.idProveedor && String(data.idProveedor).trim() !== "" ? Number(data.idProveedor) : null,

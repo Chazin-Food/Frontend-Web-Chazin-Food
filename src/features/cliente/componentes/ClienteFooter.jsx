@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Instagram, Clock, Sparkles } from "lucide-react";
+import { MapPin, Phone, Mail, Instagram, Clock, Sparkles, ShieldCheck, FileText } from "lucide-react";
 import logoImg from "@/shared/assets/logo_optimized.webp";
+import { PoliticaDatosModal } from "@/shared/components/ui/PoliticaDatosModal";
 
 export function ClienteFooter() {
+  const [legalModal, setLegalModal] = useState({ open: false, tab: "terminos" });
+
   return (
     <footer className="w-full bg-slate-950 text-slate-200 border-t border-slate-800/80 mt-16 relative overflow-hidden transition-colors">
       {/* Background Decorative Ambient Glow */}
@@ -144,17 +147,39 @@ export function ClienteFooter() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <p className="text-center sm:text-left">
+        <div className="pt-8 border-t border-slate-800/80 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+          <p className="text-center md:text-left">
             © 2026 <strong className="text-slate-300 font-semibold">Chazin Food</strong>. Todos los derechos reservados.
           </p>
-          <div className="flex items-center gap-4 text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-slate-400">
+            <button
+              type="button"
+              onClick={() => setLegalModal({ open: true, tab: "terminos" })}
+              className="inline-flex items-center gap-1 hover:text-white transition-colors underline underline-offset-2 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#F05454]" />
+              <span>Términos y Condiciones</span>
+            </button>
+            <span className="hidden sm:inline">•</span>
+            <button
+              type="button"
+              onClick={() => setLegalModal({ open: true, tab: "datos" })}
+              className="inline-flex items-center gap-1 hover:text-white transition-colors underline underline-offset-2 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Tratamiento y Política de Datos</span>
+            </button>
+            <span className="hidden sm:inline">•</span>
             <span>Medellín, Colombia</span>
-            <span>•</span>
-            <span className="text-[#F05454] font-medium">Hecho con pasión</span>
           </div>
         </div>
       </div>
+
+      <PoliticaDatosModal
+        isOpen={legalModal.open}
+        initialTab={legalModal.tab}
+        onClose={() => setLegalModal((prev) => ({ ...prev, open: false }))}
+      />
     </footer>
   );
 }

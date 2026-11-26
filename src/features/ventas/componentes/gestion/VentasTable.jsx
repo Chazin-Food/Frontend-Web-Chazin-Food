@@ -3,7 +3,6 @@ import { Eye, TrendingUp, Calendar, Clock, ChevronLeft, ChevronRight, ChevronsLe
 import { formatNombreCompleto } from "@/shared/utils/validationUtils";
 import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
 import FoodIcon from "@/shared/components/ui/FoodIcon";
-import { isVentaFisicaOPos } from "../../servicios/ventasService";
 import { resolveHybridDeliveryEstimate, formatColombiaTime } from "@/features/produccion/utils/tiempoProduccionUtils";
 
 function formatDateSafe(dateVal, fallback = "Hoy") {
@@ -27,7 +26,6 @@ export function VentasTable({
   ventas = [],
   onViewDetail,
   onUpdateEstado,
-  onAprobarPago,
   canEdit = true,
   currentPage: controlledPage,
   pageSize: controlledPageSize,
@@ -138,8 +136,6 @@ export function VentasTable({
           const descPct = Number(v.descuentoPorcentaje || 0);
           const origPrice = Number(v.subtotal || v.precioOriginal || (descPct > 0 && v.total ? Math.round(v.total / (1 - (descPct / 100))) : (v.subtotal > v.total ? v.subtotal : v.total)));
           const hasDiscount = (descPct > 0) || (origPrice > Number(v.total || 0)) || (Number(v.montoDescuento || 0) > 0);
-          const isVentaFisica = isVentaFisicaOPos(v);
-          const canAprobarPago = !isVentaFisica && (v.estado === "Pendiente" || v.estado === "PENDIENTE" || v.estadoPago === "PENDIENTE") && onAprobarPago;
           const hybridEst = resolveHybridDeliveryEstimate(v);
 
           return (
@@ -196,15 +192,6 @@ export function VentasTable({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {canAprobarPago && (
-                    <button
-                      type="button"
-                      onClick={() => onAprobarPago(v.id)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold cursor-pointer"
-                    >
-                      Aprobar pago
-                    </button>
-                  )}
                   <button
                     onClick={() => onViewDetail && onViewDetail(v)}
                     className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#F05454] text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
@@ -243,9 +230,6 @@ export function VentasTable({
               const descPct = Number(v.descuentoPorcentaje || 0);
               const origPrice = Number(v.subtotal || v.precioOriginal || (descPct > 0 && v.total ? Math.round(v.total / (1 - (descPct / 100))) : (v.subtotal > v.total ? v.subtotal : v.total)));
               const hasDiscount = (descPct > 0) || (origPrice > Number(v.total || 0)) || (Number(v.montoDescuento || 0) > 0);
-
-              const isVentaFisica = isVentaFisicaOPos(v);
-              const canAprobarPago = !isVentaFisica && (v.estado === "Pendiente" || v.estado === "PENDIENTE" || v.estadoPago === "PENDIENTE") && onAprobarPago;
 
               return (
                 <tr key={v.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
@@ -371,16 +355,6 @@ export function VentasTable({
                   {/* Acciones */}
                   <td className="px-2 py-2.5 align-middle text-right">
                     <div className="inline-flex items-center justify-end gap-1 flex-wrap">
-                      {canAprobarPago && (
-                        <button
-                          type="button"
-                          onClick={() => onAprobarPago(v.id)}
-                          title="Aprobar pago y enviar a cocina"
-                          className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer text-[11px] font-bold shadow-2xs"
-                        >
-                          Aprobar
-                        </button>
-                      )}
                       <button
                         onClick={() => onViewDetail && onViewDetail(v)}
                         title="Ver Detalle de la Venta"

@@ -174,6 +174,7 @@ function LoteEditor({ lotes, onLotesChange, totalCantidad }) {
                   </div>
                   <input
                     type="date"
+                    min={hoy()}
                     value={l.fechaVencimiento}
                     onChange={(e) => updateLote(idx, "fechaVencimiento", e.target.value)}
                     className="w-full px-2 py-1 text-[11px] border border-gray-200 dark:border-gray-700 dark:bg-gray-800 rounded-lg focus:ring-1 focus:ring-blue-400"
@@ -297,8 +298,18 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
     switch (name) {
       case "numeroFactura":
         return validateTexto(value, "El número de factura", { min: 2, max: 50 })?.error || null;
-      case "fechaFactura":
-        return validateRequerido(value, "La fecha de la factura")?.error || null;
+      case "fechaFactura": {
+        const reqErr = validateRequerido(value, "La fecha de la factura")?.error;
+        if (reqErr) return reqErr;
+        const fechaHoy = hoy();
+        if (String(value) < fechaHoy) {
+          return `La fecha de la factura no puede ser anterior a hoy (${fechaHoy}).`;
+        }
+        if (String(value) > fechaHoy) {
+          return `La fecha de la factura no puede ser posterior a hoy (${fechaHoy}).`;
+        }
+        return null;
+      }
       default:
         return null;
     }
@@ -315,7 +326,13 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
 
   const handleHeaderChange = (name, value) => {
     if (name === "numeroFactura") setNumeroFactura(value);
-    if (name === "fechaFactura") setFechaFactura(value);
+    if (name === "fechaFactura") {
+      setFechaFactura(value);
+      setTouched((prev) => ({ ...prev, fechaFactura: true }));
+      const err = validateHeaderField("fechaFactura", value);
+      setFormErrors((prev) => ({ ...prev, fechaFactura: err }));
+      return;
+    }
     if (touched[name] || submitted) {
       const err = validateHeaderField(name, value);
       setFormErrors((prev) => ({ ...prev, [name]: err }));
@@ -704,11 +721,19 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
     if (!numeroFactura.trim()) {
       errs.numeroFactura = "El número de factura es obligatorio.";
     }
-    if (!fechaFactura) {
-      errs.fechaFactura = "La fecha de la factura es obligatoria.";
+    const fechaErr = validateHeaderField("fechaFactura", fechaFactura);
+    if (fechaErr) {
+      errs.fechaFactura = fechaErr;
     }
     if (ordenItems.length === 0) {
       errs.ordenItems = "Debes agregar al menos un insumo a la compra.";
+    }
+    const fechaHoy = hoy();
+    const hasLoteVencido = ordenItems.some((it) =>
+      (it.lotes || []).some((l) => l.fechaVencimiento && String(l.fechaVencimiento) < fechaHoy)
+    );
+    if (hasLoteVencido) {
+      errs.lotes = `La fecha de vencimiento de los lotes no puede ser anterior a hoy (${fechaHoy}).`;
     }
     return errs;
   };
@@ -725,6 +750,10 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
         notify?.warning?.("Proveedor requerido", errs.idProveedor);
       } else if (errs.numeroFactura) {
         notify?.warning?.("Número de factura requerido", errs.numeroFactura);
+      } else if (errs.fechaFactura) {
+        notify?.warning?.("Fecha de factura inválida", errs.fechaFactura);
+      } else if (errs.lotes) {
+        notify?.warning?.("Fecha de vencimiento inválida", errs.lotes);
       } else if (errs.ordenItems) {
         notify?.warning?.("Orden vacía", errs.ordenItems);
       }
@@ -903,6 +932,8 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
                 <CalendarDays className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="date"
+                  min={hoy()}
+                  max={hoy()}
                   value={fechaFactura}
                   onBlur={() => handleHeaderBlur("fechaFactura")}
                   onChange={(e) => handleHeaderChange("fechaFactura", e.target.value)}

@@ -117,7 +117,7 @@ export function validateTiempoEstimado(text = "") {
   };
 }
 
-export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntrega, onAprobarPago, canEdit = true }) {
+export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntrega, canEdit = true }) {
   let obsMeta = {};
   if (venta?.observaciones) {
     try {
@@ -1020,20 +1020,6 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
               <Printer className="w-4 h-4" />
               <span>Imprimir Comprobante</span>
             </button>
-
-            {!isVentaFisicaOPos(venta) && (venta.estado === "Pendiente" || venta.estado === "PENDIENTE" || venta.estadoPago === "PENDIENTE") && onAprobarPago && (
-              <button
-                type="button"
-                onClick={async () => {
-                  const ok = await onAprobarPago(venta.id || venta.idVenta);
-                  if (ok) onClose();
-                }}
-                className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-xs transition cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Aprobar Pago</span>
-              </button>
-            )}
           </div>
 
           <button
