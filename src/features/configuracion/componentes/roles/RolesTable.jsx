@@ -26,7 +26,8 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
         ) : (
           paginatedRoles.map((r, index) => {
             const isActivo = r.estado === "Activo" || r.estado === 1 || r.estado === "1";
-            const isAdministrador = (r.nombre || "").toLowerCase() === "administrador" || String(r.id) === "1";
+            const nombreNorm = String(r.nombre || "").trim().toLowerCase();
+            const isAdministrador = nombreNorm === "administrador" || nombreNorm === "admin" || String(r.id) === "1";
             const privilegiosGranularesCount = (r.permisos || []).filter((p) => p.includes(":")).length;
             const modulosBaseCount = (r.permisos || []).filter((p) => !p.includes(":") && p !== "Vendedor").length;
 
@@ -165,7 +166,8 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
             ) : (
               paginatedRoles.map((r, index) => {
                 const isActivo = r.estado === "Activo" || r.estado === 1 || r.estado === "1";
-                const isAdministrador = (r.nombre || "").toLowerCase() === "administrador" || String(r.id) === "1";
+                const nombreNorm = String(r.nombre || "").trim().toLowerCase();
+                const isAdministrador = nombreNorm === "administrador" || nombreNorm === "admin" || String(r.id) === "1";
                   const privilegiosGranularesCount = (r.permisos || []).filter((p) => p.includes(":")).length;
                   const modulosBaseCount = (r.permisos || []).filter((p) => !p.includes(":") && p !== "Vendedor").length;
 

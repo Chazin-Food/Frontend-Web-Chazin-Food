@@ -1,4 +1,4 @@
-import { Shield, Users, Edit, Trash2, ToggleLeft, ToggleRight, Eye } from "lucide-react";
+import { Shield, Users, Key, Edit, Trash2, ToggleLeft, ToggleRight, Eye } from "lucide-react";
 
 const MODULOS_PERMISOS_VALIDOS = [
   "Dashboard",
@@ -25,7 +25,8 @@ export function RolesGrid({ roles = [], onView, onEdit, onToggleEstado, onDelete
         const modulosAsignados = (rol.permisos || []).filter((p) => MODULOS_PERMISOS_VALIDOS.includes(p));
         const privilegiosGranularesCount = (rol.permisos || []).filter((p) => p.includes(":")).length;
         const modulosCount = modulosAsignados.length;
-        const isAdministrador = (rol.nombre || "").toLowerCase() === "administrador" || String(rol.id) === "1";
+        const nombreNorm = String(rol.nombre || "").trim().toLowerCase();
+        const isAdministrador = nombreNorm === "administrador" || nombreNorm === "admin" || String(rol.id) === "1";
         const isActivo = rol.estado === "Activo" || rol.estado === 1 || rol.estado === "1";
 
         return (

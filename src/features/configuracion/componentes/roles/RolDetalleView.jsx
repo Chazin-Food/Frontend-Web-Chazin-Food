@@ -32,16 +32,34 @@ export function RolDetalleView({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [rol]);
 
+  const nombreNorm = String(rol?.nombre || "").trim().toLowerCase();
   const isAdministrador =
     Boolean(rol) &&
-    ((rol.nombre || "").toLowerCase() === "administrador" || String(rol.id) === "1");
+    (nombreNorm === "administrador" || nombreNorm === "admin" || String(rol.id) === "1");
   const isActivo =
     rol?.estado === "Activo" || rol?.estado === 1 || rol?.estado === "1";
 
-  const stateMap = useMemo(
-    () => parsePermisosYPrivilegios(rol?.permisos || []),
-    [rol?.permisos]
-  );
+  const stateMap = useMemo(() => {
+    if (isAdministrador) {
+      const fullMap = {};
+      GRUPOS_PERMISOS.forEach((g) => {
+        if (!g.isGroup) {
+          fullMap[g.permiso] = { activo: true, privilegios: { ver: true } };
+        } else {
+          g.subPermisos.forEach((sub) => {
+            const acciones = sub.accionesDisponibles || ["ver", "crear", "editar", "eliminar"];
+            const privs = {};
+            acciones.forEach((a) => {
+              privs[a] = true;
+            });
+            fullMap[sub.id] = { activo: true, privilegios: privs };
+          });
+        }
+      });
+      return fullMap;
+    }
+    return parsePermisosYPrivilegios(rol?.permisos || []);
+  }, [rol?.permisos, isAdministrador]);
 
   const stats = useMemo(() => {
     let modulosActivos = 0;
