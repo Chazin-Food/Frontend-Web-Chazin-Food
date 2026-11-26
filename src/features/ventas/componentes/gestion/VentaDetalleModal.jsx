@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import {
   X,
   CheckCircle2,
@@ -20,7 +20,8 @@ import {
   Check,
   AlertCircle,
   AlertTriangle,
-  Printer
+  Printer,
+  Plus
 } from "lucide-react";
 import { FidelidadBadge } from "@/shared/components/ui/FidelidadBadge";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
@@ -29,6 +30,11 @@ import { escapeHtml } from "@/shared/utils/htmlSanitizer";
 import { buildBrandTicketLogoHtml } from "@/shared/utils/reportBranding";
 import { ventasService, isVentaFisicaOPos } from "../../servicios/ventasService";
 import { resolveHybridDeliveryEstimate, recordLocalDeliveryTimeMode } from "@/features/produccion/utils/tiempoProduccionUtils";
+import { isPedidoEditablePreCocina } from "./AgregarProductosPedidoModal";
+
+const AgregarProductosPedidoModal = lazy(() =>
+  import("./AgregarProductosPedidoModal").then((m) => ({ default: m.AgregarProductosPedidoModal }))
+);
 
 /**
  * Validador en tiempo real de tiempo estimado (Control Exacto)
@@ -118,7 +124,7 @@ export function validateTiempoEstimado(text = "") {
   };
 }
 
-export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntrega, canEdit = true }) {
+export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntrega, onVentaUpdated, canEdit = true }) {
   let obsMeta = {};
   if (venta?.observaciones) {
     try {
@@ -138,6 +144,9 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
   const [isUpdatingTiempo, setIsUpdatingTiempo] = useState(false);
   const [tiempoActualizadoMsg, setTiempoActualizadoMsg] = useState(false);
   const [tiempoValidationTouched, setTiempoValidationTouched] = useState(false);
+  const [agregarProductosOpen, setAgregarProductosOpen] = useState(false);
+
+  const editablePreCocina = useMemo(() => isPedidoEditablePreCocina(venta), [venta]);
 
   const tiempoValidation = useMemo(() => validateTiempoEstimado(tiempoEstimado), [tiempoEstimado]);
 
@@ -890,11 +899,22 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
           })()}
 
           {/* Productos Section Title */}
-          <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider flex items-center gap-2">
               <ShoppingBag className="w-4 h-4 text-[#f05454]" />
               <span>Productos de la Venta ({productos.length})</span>
             </h4>
+            {canEdit && editablePreCocina && (
+              <button
+                type="button"
+                onClick={() => setAgregarProductosOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/70 text-xs font-bold transition cursor-pointer"
+                title="Este pedido aún no ha pasado a cocina: puedes añadir más productos"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Agregar productos</span>
+              </button>
+            )}
           </div>
 
           {/* Products List Cards */}
@@ -1008,6 +1028,15 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
                 ${total.toLocaleString("es-CO")}
               </span>
             </div>
+
+            {Number(venta.saldoPendienteAdicional || obsMeta.saldoPendienteAdicional || 0) > 0 && (
+              <div className="pt-2 border-t border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-300">
+                <span>Saldo adicional por productos agregados</span>
+                <span>
+                  +${Number(venta.saldoPendienteAdicional || obsMeta.saldoPendienteAdicional || 0).toLocaleString("es-CO")} COP
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1033,6 +1062,21 @@ export function VentaDetalleModal({ isOpen, onClose, venta, onUpdateTiempoEntreg
           </button>
         </div>
       </div>
+
+      {agregarProductosOpen && (
+        <Suspense fallback={null}>
+          <AgregarProductosPedidoModal
+            isOpen={agregarProductosOpen}
+            onClose={() => setAgregarProductosOpen(false)}
+            venta={venta}
+            onProductosAgregados={(updated) => {
+              if (updated && onVentaUpdated) {
+                onVentaUpdated(updated);
+              }
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

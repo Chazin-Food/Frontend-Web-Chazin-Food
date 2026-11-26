@@ -352,7 +352,7 @@ export function ClienteLanding() {
     if (userRol === "cliente" || Number(user?.idRol) === 4) return false;
     return Boolean(userRol || (user?.idRol !== undefined && user?.idRol !== null));
   }, [isAuthenticated, user]);
-  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, syncCartWithCatalog, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
+  const { cart, addToCart, updateQuantity, updateItemAdiciones, removeFromCart, clearCart, syncCartWithCatalog, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { success, error, warning, info, confirmAction, confirmLogout } = useNotifications();
 
@@ -370,6 +370,7 @@ export function ClienteLanding() {
     }
   };
   const [showCart, setShowCart] = useState(false);
+  const [editingCartToppingsKey, setEditingCartToppingsKey] = useState(null);
   const [showEmptyCartLoginModal, setShowEmptyCartLoginModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -3305,32 +3306,94 @@ export function ClienteLanding() {
                             </div>
                           )}
 
-                          {/* Controles de cantidad (Stepper) */}
-                          <div className="flex items-center gap-1.5 mt-2">
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.cartItemId || item.id, -1)}
-                              aria-label={`Reducir cantidad de ${item.nombre}`}
-                              className="w-6 h-6 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition"
-                            >
-                              -
-                            </button>
-                            <span className="text-xs font-bold min-w-4 text-center font-mono">{item.cantidad}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (totalInCartForProd >= prodStock) {
-                                  error("Límite de stock", `Solo hay ${prodStock} unidades disponibles de ${item.nombre}.`);
-                                } else {
-                                  updateQuantity(item.cartItemId || item.id, 1);
+                          {/* Controles de cantidad (Stepper) + Edición rápida de toppings */}
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(item.cartItemId || item.id, -1)}
+                                aria-label={`Reducir cantidad de ${item.nombre}`}
+                                className="w-6 h-6 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition"
+                              >
+                                -
+                              </button>
+                              <span className="text-xs font-bold min-w-4 text-center font-mono">{item.cantidad}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (totalInCartForProd >= prodStock) {
+                                    error("Límite de stock", `Solo hay ${prodStock} unidades disponibles de ${item.nombre}.`);
+                                  } else {
+                                    updateQuantity(item.cartItemId || item.id, 1);
+                                  }
+                                }}
+                                aria-label={`Aumentar cantidad de ${item.nombre}`}
+                                className="w-6 h-6 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            {!isDrinkProduct(item) && foodAdiciones.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditingCartToppingsKey((prev) => (prev === itemKey ? null : itemKey))
                                 }
-                              }}
-                              aria-label={`Aumentar cantidad de ${item.nombre}`}
-                              className="w-6 h-6 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition"
-                            >
-                              +
-                            </button>
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 border border-purple-200/80 dark:border-purple-800/60 transition cursor-pointer"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>{editingCartToppingsKey === itemKey ? "Listo" : "Editar toppings"}</span>
+                              </button>
+                            )}
                           </div>
+
+                          {/* Editor inline de toppings del ítem en el carrito */}
+                          {editingCartToppingsKey === itemKey && !isDrinkProduct(item) && foodAdiciones.length > 0 && (
+                            <div className="mt-2.5 p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-purple-200/80 dark:border-purple-800/60 space-y-1.5">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
+                                Selecciona o quita toppings:
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {foodAdiciones.slice(0, 14).map((ad) => {
+                                  const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
+                                  const currentAdds = Array.isArray(item.adiciones) ? item.adiciones : [];
+                                  const isSelected = currentAdds.some(
+                                    (x) => Number(x.idAdicion || x.id) === adId
+                                  );
+                                  return (
+                                    <button
+                                      key={adId}
+                                      type="button"
+                                      onClick={() => {
+                                        const nextAdds = isSelected
+                                          ? currentAdds.filter((x) => Number(x.idAdicion || x.id) !== adId)
+                                          : [
+                                              ...currentAdds,
+                                              {
+                                                idAdicion: adId,
+                                                nombre: ad.nombre,
+                                                precio: Number(ad.precio || 0),
+                                                cantidad: 1,
+                                                imagen: ad.imagen || ""
+                                              }
+                                            ];
+                                        updateItemAdiciones(item.cartItemId, nextAdds);
+                                      }}
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                                        isSelected
+                                          ? "bg-purple-600 text-white border-purple-600"
+                                          : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400"
+                                      }`}
+                                    >
+                                      {isSelected ? "✓ " : "+ "}
+                                      {ad.nombre} (+${Number(ad.precio || 0).toLocaleString("es-CO")})
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Columna Derecha: Precios Apilados & Organizados para Sumar Fácilmente */}

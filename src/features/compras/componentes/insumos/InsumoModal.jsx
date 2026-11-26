@@ -595,8 +595,8 @@ export function InsumoModal({
         if (!ft.tiempoPreparacion || Number(ft.tiempoPreparacion) < 1) {
           missingFields.push("Tiempo de Preparación (mínimo 1 min)");
         }
-        if (!ft.rendimiento || !String(ft.rendimiento).trim()) {
-          missingFields.push("Rendimiento / Porciones");
+        if ((!ft.rendimiento || !String(ft.rendimiento).trim()) && !(Number(ft.cantidad) > 0)) {
+          missingFields.push("Cantidad producida");
         }
         if (!ft.condicionesAlmacenamiento || !String(ft.condicionesAlmacenamiento).trim()) {
           missingFields.push("Condiciones de Almacenamiento");
@@ -1580,12 +1580,12 @@ export function InsumoModal({
                           placeholder="Ej. 3500"
                         />
                       </div>
-                      {!isEditing && touched.precioAdicion && errors.precioAdicion ? (
+                      {touched.precioAdicion && errors.precioAdicion ? (
                         <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1 animate-in fade-in duration-150">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>{errors.precioAdicion}</span>
                         </p>
-                      ) : !isEditing && touched.precioAdicion && form.precioAdicion !== "" && Number(form.precioAdicion) > 0 && !errors.precioAdicion ? (
+                      ) : touched.precioAdicion && form.precioAdicion !== "" && Number(form.precioAdicion) > 0 && !errors.precioAdicion ? (
                         <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium flex items-center gap-1 animate-in fade-in duration-150">
                           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                           <span>Precio de adición válido</span>

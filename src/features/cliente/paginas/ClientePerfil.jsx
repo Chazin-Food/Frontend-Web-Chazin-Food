@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 
@@ -102,7 +102,8 @@ import {
 
   X,
 
-  RotateCcw
+  RotateCcw,
+  Plus
 
 } from "lucide-react";
 
@@ -128,7 +129,9 @@ import { ventasService } from "@/features/ventas/servicios/ventasService";
 import { devolucionesService } from "@/features/ventas/servicios/devolucionesService";
 
 import { SolicitarDevolucionModal } from "@/features/ventas/componentes/devoluciones/SolicitarDevolucionModal";
-import { ClientePedidoDevolucionDetalle } from "@/features/ventas/componentes/devoluciones/ClienteDevolucionResumen";
+import { ClientePedidoDevolucionDetalle } from "@/features/ventas/componentes/devoluciones/ClienteDevolucionResumen";
+import { isPedidoEditablePreCocina } from "@/features/ventas/componentes/gestion/AgregarProductosPedidoModal";
+const AgregarProductosPedidoModal = lazy(() => import("@/features/ventas/componentes/gestion/AgregarProductosPedidoModal").then((m) => ({ default: m.AgregarProductosPedidoModal })));
 
 import { wompiService } from "@/features/ventas/servicios/wompiService";
 
@@ -341,7 +344,8 @@ export function ClientePerfil() {
 
   const [solicitarDevolucionOpen, setSolicitarDevolucionOpen] = useState(false);
 
-  const [pedidoParaDevolucion, setPedidoParaDevolucion] = useState(null);
+  const [pedidoParaDevolucion, setPedidoParaDevolucion] = useState(null);
+  const [pedidoParaAgregarProductos, setPedidoParaAgregarProductos] = useState(null);
 
   const [misDevoluciones, setMisDevoluciones] = useState([]);
 
@@ -3555,7 +3559,18 @@ export function ClientePerfil() {
 
                               </button>
 
-                            )}
+                            )}
+                            {isPedidoEditablePreCocina(ped) && (
+                              <button
+                                type="button"
+                                onClick={() => setPedidoParaAgregarProductos(ped)}
+                                className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/70 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                                title="Aún no ha pasado a cocina: puedes añadir más productos a este pedido"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Agregar productos</span>
+                              </button>
+                            )} 
 
                             <button
 
@@ -4940,7 +4955,21 @@ export function ClientePerfil() {
 
                   <p className="text-xs text-gray-400 mt-0.5">{selectedPedidoDetalle.fecha}</p>
 
-                </div>
+                </div>
+              {isPedidoEditablePreCocina(selectedPedidoDetalle) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedPedidoDetalle;
+                    setSelectedPedidoDetalle(null);
+                    setPedidoParaAgregarProductos(target);
+                  }}
+                  className="w-full py-3 rounded-2xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/70 font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Agregar más productos a este pedido</span>
+                </button>
+              )} 
 
                 <button
 
@@ -5326,7 +5355,17 @@ export function ClientePerfil() {
 
           onSubmit={handleCrearDevolucionCliente}
 
-        />
+        />
+        {Boolean(pedidoParaAgregarProductos) && (
+          <Suspense fallback={null}>
+            <AgregarProductosPedidoModal
+              isOpen={Boolean(pedidoParaAgregarProductos)}
+              onClose={() => setPedidoParaAgregarProductos(null)}
+              venta={pedidoParaAgregarProductos}
+              onProductosAgregados={() => { fetchMyOrders(); }}
+            />
+          </Suspense>
+        )}
 
       </main>
 

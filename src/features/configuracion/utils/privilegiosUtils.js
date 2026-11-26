@@ -100,7 +100,7 @@ export function hasPrivilege(user, modulo, accion = "ver") {
   if (!user) return false;
   const rawRol = typeof user.rol === "object" ? user.rol?.nombre : user.rol;
   const rolLower = String(rawRol || "").toLowerCase().trim();
-  if (rolLower === "administrador" || rolLower === "admin") return true;
+  if (rolLower === "administrador" || rolLower === "admin" || Number(user.idRol) === 1) return true;
 
   const permisos = Array.isArray(user.permisos) ? user.permisos : [];
   if (permisos.length === 0) return false;

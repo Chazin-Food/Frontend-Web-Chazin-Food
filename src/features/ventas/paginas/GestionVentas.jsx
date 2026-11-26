@@ -79,6 +79,8 @@ export function GestionVentas() {
     clearAllFilters,
     hasActiveFilters,
     activeFiltersCount,
+    replaceVentaInState,
+    refetch,
     updateEstado,
     updateTiempoEntrega
   } = useGestionVentas();
@@ -681,6 +683,11 @@ export function GestionVentas() {
             onClose={() => setSelectedVentaDetail(null)}
             venta={activeVentaDetail}
             onUpdateTiempoEntrega={canEdit ? updateTiempoEntrega : null}
+            onVentaUpdated={(updated) => {
+              replaceVentaInState(updated);
+              setSelectedVentaDetail(updated);
+              refetch();
+            }}
             canEdit={canEdit}
           />
         </Suspense>

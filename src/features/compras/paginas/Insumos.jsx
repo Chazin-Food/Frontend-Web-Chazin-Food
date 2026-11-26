@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Bell, Download, FileSpreadsheet, FileText, AlertTriangle, ShoppingCart, Filter, Layers } from "lucide-react";
+import { Plus, Search, Bell, Download, FileSpreadsheet, FileText, AlertTriangle, ShoppingCart, Filter, Layers, Sparkles } from "lucide-react";
 import { useInsumos } from "../hooks/useInsumos";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
@@ -21,6 +21,7 @@ const InsumoModal = lazy(() => import("../componentes/insumos/InsumoModal").then
 const TrazabilidadModal = lazy(() => import("../componentes/insumos/TrazabilidadModal").then((m) => ({ default: m.TrazabilidadModal })));
 const PapeleraReciclajeView = lazy(() => import("../componentes/insumos/PapeleraReciclajeView").then((m) => ({ default: m.PapeleraReciclajeView })));
 const VerInsumoModal = lazy(() => import("../componentes/insumos/VerInsumoModal").then((m) => ({ default: m.VerInsumoModal })));
+const AdicionesModal = lazy(() => import("../componentes/insumos/AdicionesModal").then((m) => ({ default: m.AdicionesModal })));
 
 export function Insumos() {
   const { user } = useAuth();
@@ -86,6 +87,7 @@ export function Insumos() {
   }, [insumosVencidos, notify]);
 
   const [trazabilidadOpen, setTrazabilidadOpen] = useState(false);
+  const [adicionesModalOpen, setAdicionesModalOpen] = useState(false);
   const [modalInsumoOpen, setModalInsumoOpen] = useState(false);
   const [editingInsumo, setEditingInsumo] = useState(null);
   const [viewingInsumo, setViewingInsumo] = useState(null);
@@ -485,6 +487,18 @@ export function Insumos() {
                   )}
                 </div>
 
+                {(canCreate || canEdit) && (
+                  <button
+                    type="button"
+                    onClick={() => setAdicionesModalOpen(true)}
+                    className="w-full sm:w-auto px-3.5 sm:px-4 py-2.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800 rounded-2xl text-purple-700 dark:text-purple-300 font-bold text-xs sm:text-sm shadow-2xs flex items-center justify-center gap-1.5 sm:gap-2 transition-colors cursor-pointer shrink-0"
+                    title="Crear y editar toppings / adiciones disponibles para los productos"
+                  >
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span>Toppings</span>
+                  </button>
+                )}
+
                 {canCreate && (
                   <button
                     onClick={handleOpenCreate}
@@ -662,6 +676,18 @@ export function Insumos() {
               setTrazabilidadOpen(false);
               setViewMode("papelera");
             }}
+          />
+        </Suspense>
+      )}
+
+      {/* Gestión de Toppings / Adiciones Modal */}
+      {adicionesModalOpen && (
+        <Suspense fallback={null}>
+          <AdicionesModal
+            isOpen={adicionesModalOpen}
+            onClose={() => setAdicionesModalOpen(false)}
+            insumos={insumos}
+            onSaved={refetch}
           />
         </Suspense>
       )}

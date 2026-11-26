@@ -49,6 +49,22 @@ export function AuthProvider({ children }) {
     }
   }, [refreshUser]);
 
+  // Soporte multiusuario entre pestañas: sincroniza inicio/cierre/cambio de rol y limpia caché privada
+  useEffect(() => {
+    const handleStorageSync = () => {
+      const latest = loadSessionUser();
+      setUser((prev) => {
+        const prevKey = `${prev?.idUsuario || prev?.id || ""}:${prev?.token || ""}:${prev?.idRol || ""}`;
+        const nextKey = `${latest?.idUsuario || latest?.id || ""}:${latest?.token || ""}:${latest?.idRol || ""}`;
+        if (prevKey === nextKey) return prev;
+        clearApiCache();
+        return latest || null;
+      });
+    };
+    window.addEventListener("storage", handleStorageSync);
+    return () => window.removeEventListener("storage", handleStorageSync);
+  }, []);
+
   const login = async (correo, contraseña) => {
     try {
       const userData = await apiClient.post("/usuarios/login", { email: correo, contrasena: contraseña });

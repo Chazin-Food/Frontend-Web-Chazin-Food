@@ -9,7 +9,7 @@ import { NumberInput } from "@/shared/components/ui/NumberInput";
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/shared/servicios/cloudinaryService";
 import { validateTexto, validateMoneda, validateRequerido } from "@/shared/utils/validationUtils";
 
-export function AdicionesModal({ isOpen, onClose, insumos }) {
+export function AdicionesModal({ isOpen, onClose, insumos = [], onSaved }) {
   const toast = useToast();
   const { confirm } = useConfirm();
   const [adiciones, setAdiciones] = useState([]);
@@ -147,11 +147,12 @@ export function AdicionesModal({ isOpen, onClose, insumos }) {
     if (isConfirmed) {
       try {
         await adicionesService.deleteAdicion(id);
-        toast.success("Adición eliminada", "La adición fue eliminada correctamente");
+        toast.success("Topping deshabilitado", "El topping / adición fue deshabilitado correctamente");
         await loadAdiciones();
+        onSaved?.();
       } catch (err) {
         console.error(err);
-        toast.error("Error", err.message || "Error al eliminar la adición");
+        toast.error("Error", err.message || "Error al eliminar el topping");
       }
     }
   };
@@ -230,14 +231,15 @@ export function AdicionesModal({ isOpen, onClose, insumos }) {
 
       if (isEditing) {
         await adicionesService.updateAdicion(formData.id, payload);
-        toast.success("Adición actualizada", "La adición se actualizó correctamente");
+        toast.success("Topping actualizado", "Los cambios del topping / adición se guardaron correctamente");
       } else {
         await adicionesService.createAdicion(payload);
-        toast.success("Adición creada", "La adición se creó exitosamente");
+        toast.success("Topping creado", "El topping / adición se creó exitosamente");
       }
 
       resetFormState();
       await loadAdiciones();
+      onSaved?.();
     } catch (err) {
       console.error(err);
       toast.error("Error al guardar", err.message || "No se pudo guardar la adición");
@@ -257,10 +259,10 @@ export function AdicionesModal({ isOpen, onClose, insumos }) {
         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              Gestión de Adiciones
+              Gestión de Toppings y Adiciones
             </h2>
-            <p className="text-sm text-gray-500">
-              Administra las adiciones con sus imágenes o emojis para el menú y POS
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Crea, edita precios, íconos y detalles de los toppings disponibles para el menú y el POS
             </p>
           </div>
           <button
@@ -320,6 +322,7 @@ export function AdicionesModal({ isOpen, onClose, insumos }) {
                   </label>
                   <select
                     required
+                    disabled={isEditing}
                     value={formData.idInsumo}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -333,10 +336,14 @@ export function AdicionesModal({ isOpen, onClose, insumos }) {
                       const err = validateField("idInsumo", formData.idInsumo);
                       setErrors((prev) => ({ ...prev, idInsumo: err }));
                     }}
-                    className={`w-full px-4 py-2.5 rounded-xl text-sm cursor-pointer transition-all duration-150 outline-none ${
-                      touched.idInsumo && errors.idInsumo
+                    className={`w-full px-4 py-2.5 rounded-xl text-sm transition-all duration-150 outline-none ${
+                      isEditing ? "opacity-70 cursor-not-allowed bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700" : "cursor-pointer"
+                    } ${
+                      !isEditing && touched.idInsumo && errors.idInsumo
                         ? "border border-red-500 bg-red-50/30 text-red-900 focus:ring-2 focus:ring-red-400"
-                        : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500"
+                        : !isEditing
+                        ? "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-purple-500"
+                        : ""
                     }`}
                   >
                     <option value="">Selecciona un insumo...</option>

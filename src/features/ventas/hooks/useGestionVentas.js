@@ -364,6 +364,17 @@ export function useGestionVentas() {
     }
   };
 
+  const replaceVentaInState = useCallback((updatedVenta) => {
+    if (!updatedVenta) return;
+    const targetId = updatedVenta.idVenta || updatedVenta.id;
+    if (!targetId) return;
+    setVentas((prev) =>
+      prev.map((v) =>
+        String(v.idVenta || v.id) === String(targetId) ? { ...v, ...updatedVenta } : v
+      )
+    );
+  }, []);
+
   return {
     ventas,
     devoluciones,
@@ -408,6 +419,7 @@ export function useGestionVentas() {
     hasActiveFilters,
     activeFiltersCount,
     refetch: fetchVentas,
+    replaceVentaInState,
     createVenta,
     updateEstado,
     updateTiempoEntrega,
