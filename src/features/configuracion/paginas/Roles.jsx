@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, LayoutGrid, List, X, Filter } from "lucide-react";
+import { Plus, Search, Shield, ShieldCheck, ShieldAlert, Users, LayoutGrid, List, X, Filter } from "lucide-react";
 import { useRoles } from "../hooks/useRoles";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
@@ -24,6 +24,7 @@ export function Roles() {
   const canDelete = hasPrivilege(user, "Roles", "eliminar");
 
   const {
+    roles,
     filteredRoles,
     loading,
     searchTerm,
@@ -38,6 +39,11 @@ export function Roles() {
   const [activeFormView, setActiveFormView] = useState(null); // null | { mode: "create" | "edit" | "view", rol: object | null }
   const [filterEstado, setFilterEstado] = useState("Todos");
   const [viewMode, setViewMode] = useState("table"); // "table" | "grid"
+
+  const totalRoles = roles.length;
+  const rolesActivos = roles.filter((r) => r.estado === "Activo" || r.estado === 1 || r.estado === "1").length;
+  const rolesInactivos = roles.filter((r) => r.estado === "Inactivo" || r.estado === 0 || r.estado === "0").length;
+  const totalUsuariosAsignados = roles.reduce((acc, r) => acc + (r.usuarios || 0), 0);
 
   // Listar todos los roles (incluyendo Administrador en modo solo consulta)
   const rolesToDisplay = filteredRoles.filter((r) => {
@@ -99,6 +105,49 @@ export function Roles() {
     );
   }
 
+  const statCards = [
+    {
+      id: "total",
+      title: "Total Roles",
+      value: totalRoles,
+      subtext: "configurados",
+      subtextColor: "text-gray-400 dark:text-gray-500",
+      icon: Shield,
+      bgColor: "bg-blue-50 dark:bg-blue-950/40",
+      iconColor: "text-blue-500 dark:text-blue-400"
+    },
+    {
+      id: "activos",
+      title: "Roles Activos",
+      value: rolesActivos,
+      subtext: "en operación",
+      subtextColor: "text-emerald-600 dark:text-emerald-400",
+      icon: ShieldCheck,
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
+      iconColor: "text-emerald-500 dark:text-emerald-400"
+    },
+    {
+      id: "inactivos",
+      title: "Roles Inactivos",
+      value: rolesInactivos,
+      subtext: "deshabilitados",
+      subtextColor: "text-rose-500 dark:text-rose-400",
+      icon: ShieldAlert,
+      bgColor: "bg-rose-50 dark:bg-rose-950/40",
+      iconColor: "text-rose-500 dark:text-rose-400"
+    },
+    {
+      id: "usuarios",
+      title: "Usuarios Asignados",
+      value: totalUsuariosAsignados,
+      subtext: "con rol activo",
+      subtextColor: "text-purple-600 dark:text-purple-400",
+      icon: Users,
+      bgColor: "bg-purple-50 dark:bg-purple-950/40",
+      iconColor: "text-purple-500 dark:text-purple-400"
+    }
+  ];
+
   return (
     <div className="p-3.5 sm:p-6 lg:p-8 w-full max-w-full space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* Top Header */}
@@ -109,6 +158,37 @@ export function Roles() {
         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           Administra los roles del personal, sus descripciones y los permisos de acceso al sistema
         </p>
+      </div>
+
+      {/* 4 Stat Cards Grid: 2x2 compacto en móvil, 4 columnas en escritorio */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {statCards.map((card) => {
+          const IconComponent = card.icon;
+          return (
+            <div
+              key={card.id}
+              className="bg-white dark:bg-gray-900 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 border border-gray-100 dark:border-gray-800 shadow-xs flex items-center gap-2.5 sm:gap-4 transition-all hover:shadow-sm min-w-0"
+            >
+              <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${card.bgColor} ${card.iconColor} flex items-center justify-center shrink-0`}>
+                <IconComponent className="w-4 h-4 sm:w-6 sm:h-6" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5 truncate">
+                  {card.title}
+                </p>
+                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+                  <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                    {card.value}
+                  </span>
+                  <span className={`text-[10.5px] sm:text-xs font-medium ${card.subtextColor} truncate`}>
+                    {card.subtext}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Filter and Action Bar Box - Responsive limpio sin desbordamiento ni select aplastado */}

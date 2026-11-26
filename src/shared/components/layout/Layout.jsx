@@ -686,68 +686,8 @@ export function Layout() {
         </>
       )}
 
-      {/* Main column: Persistent Top Header + Scrollable Main Content */}
+      {/* Main column: Scrollable Main Content (+ Mobile / POS Top Header) */}
       <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden min-w-0">
-        {/* Top Navigation Header (Persistent across all modules & pages) */}
-        {/* Navbar contextual de escritorio para Admin/Staff cuando no está en POS */}
-        {!showFullTopHeader && (
-          <header className="hidden lg:flex flex-col shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800 z-30 shadow-2xs select-none">
-            <div className="h-0.5 w-full bg-gradient-to-r from-[#c84545] via-amber-400/70 to-[#2e4257]" />
-            <div className="px-6 h-14 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                  Chazin Food
-                </span>
-                <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" />
-                <span className="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">
-                  {getPageTitle(location.pathname)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>En línea</span>
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                {showVentas && (
-                  <Link
-                    to="/ventas/pos"
-                    onMouseEnter={() => prefetchRoute("/ventas/pos")}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200/80 dark:border-red-900/50 transition-all hover:-translate-y-0.5 cursor-pointer"
-                  >
-                    <Store className="w-3.5 h-3.5" />
-                    <span>Ir al POS</span>
-                  </Link>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => toggleDarkMode()}
-                  title={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-                  aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-                  className="w-9 h-9 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
-                >
-                  {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPerfilOpen(true)}
-                  className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all cursor-pointer"
-                  title="Ver mi perfil"
-                >
-                  <span className="w-7 h-7 rounded-lg bg-[#2e4257] text-white text-xs font-bold flex items-center justify-center">
-                    {user?.nombre?.charAt(0).toUpperCase() ?? "U"}
-                  </span>
-                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 max-w-[120px] truncate">
-                    {user?.nombre || "Usuario"}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </header>
-        )}
-
         {/* Mobile top header para Admin cuando no está en POS (solo móvil < lg) */}
         {!showFullTopHeader && (
           <div className="lg:hidden sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 h-14 flex items-center justify-between gap-2 shadow-xs shrink-0 select-none">
