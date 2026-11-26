@@ -387,7 +387,7 @@ export function VentasReportesView({
           title: "Reporte Comercial de Ventas, Devoluciones y Reembolsos",
           subtitle: periodSubtitle,
           filtersText: filtersSummaryText,
-          colWidths: [38, 24, 34, 18],
+          colWidths: [46, 38, 40, 22],
           kpis: [
             { label: "Ventas Brutas", value: kpis.ingresosBrutos, format: "currency", tone: "slate" },
             {

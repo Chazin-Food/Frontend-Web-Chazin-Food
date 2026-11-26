@@ -106,11 +106,174 @@ async function getBrandLogoImageSpec() {
     height: 58,
     dpi: 96,
     anchor: { row: 1, column: 1 },
-    offsetX: 8,
-    offsetY: 4,
+    offsetX: 14,
+    offsetY: 16,
     title: "Logo Chazin Food",
     description: "Logotipo oficial de Chazin Food"
   };
+}
+
+/**
+ * Feature OOXML que inyecta el valor precalculado `<v>...</v>` dentro de cada celda de fórmula `<f>...</f>`.
+ * Esto garantiza que Microsoft Excel en "Vista Protegida" (archivos descargados de internet)
+ * muestre inmediatamente los totales calculados, conservando la fórmula dinámica viva al habilitar edición.
+ */
+export function createCachedFormulaValuesFeature() {
+  return {
+    files: {
+      transform: {
+        "xl/worksheets/sheet{id}.xml": {
+          transform(xml, sheetOptions) {
+            const cache = sheetOptions?.cachedFormulaValues;
+            if (!cache || typeof cache !== "object") return xml;
+            let updated = xml;
+            for (const [cellRef, numVal] of Object.entries(cache)) {
+              if (typeof numVal !== "number" || !Number.isFinite(numVal)) continue;
+              const safeVal = Math.round(numVal * 1e6) / 1e6;
+              const pattern = new RegExp(`(<c r="${cellRef}"[^>]*><f>[^<]+</f>)</c>`);
+              updated = updated.replace(pattern, `$1<v>${safeVal}</v></c>`);
+            }
+            return updated;
+          }
+        }
+      }
+    }
+  };
+}
+
+const CACHED_FORMULA_FEATURE = createCachedFormulaValuesFeature();
+
+function extractNumericValue(raw) {
+  const val = raw && typeof raw === "object" && !(raw instanceof Date) && "value" in raw ? raw.value : raw;
+  if (typeof val === "number" && Number.isFinite(val)) return val;
+  return null;
+}
+
+function isNonEmptyCellValue(raw) {
+  const val = raw && typeof raw === "object" && !(raw instanceof Date) && "value" in raw ? raw.value : raw;
+  return val !== null && val !== undefined && String(val).trim() !== "";
+}
+
+/**
+ * Estima cuántas líneas ocupará un texto con ajuste de línea (word-wrap) dentro de un ancho dado en caracteres.
+ */
+function estimateWrappedLines(text, maxCharsPerLine) {
+  const safeMax = Math.max(8, Math.floor(maxCharsPerLine));
+  const paragraphs = String(text ?? "").split(/\r?\n/);
+  let totalLines = 0;
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (!trimmed) {
+      totalLines += 1;
+      continue;
+    }
+    const words = trimmed.split(/\s+/);
+    let currentLen = 0;
+    let linesInPara = 1;
+
+    for (const word of words) {
+      if (word.length > safeMax) {
+        if (currentLen > 0) {
+          linesInPara += 1;
+          currentLen = 0;
+        }
+        linesInPara += Math.ceil(word.length / safeMax) - 1;
+        currentLen = word.length % safeMax || safeMax;
+      } else if (currentLen === 0) {
+        currentLen = word.length;
+      } else if (currentLen + 1 + word.length <= safeMax) {
+        currentLen += 1 + word.length;
+      } else {
+        linesInPara += 1;
+        currentLen = word.length;
+      }
+    }
+    totalLines += linesInPara;
+  }
+
+  return Math.max(1, totalLines);
+}
+
+/**
+ * Calcula la altura óptima de cada fila de una hoja en función de los anchos reales de columna,
+ * asegurando que ningún texto envuelto (wrap) o encabezado largo se corte verticalmente en Excel.
+ */
+function applyDynamicRowHeights(sheetRows = [], columns = []) {
+  for (let r = 0; r < sheetRows.length; r++) {
+    const row = sheetRows[r];
+    if (!Array.isArray(row)) continue;
+
+    let maxHeight = 0;
+    for (let c = 0; c < row.length; c++) {
+      const cell = row[c];
+      if (!cell || typeof cell !== "object") continue;
+      if (typeof cell.height === "number" && cell.height > maxHeight) {
+        maxHeight = cell.height;
+      }
+
+      if (cell.rowSpan && cell.rowSpan > 1) continue;
+      if (typeof cell.value !== "string" || !cell.value.trim()) continue;
+      if (!cell.wrap && !cell.value.includes("\n")) continue;
+
+      const span = Math.max(1, Number(cell.columnSpan) || 1);
+      let availWidth = 0;
+      for (let k = c; k < Math.min(columns.length, c + span); k++) {
+        availWidth += Number(columns[k]?.width) || 16;
+      }
+
+      const fontSize = Number(cell.fontSize) || 10;
+      const isBold = cell.fontWeight === "bold";
+      const indentChars = (Number(cell.indent) || 0) * 2.2;
+      const fontScale = 10 / fontSize;
+      const boldScale = isBold ? 0.86 : 0.94;
+      const effectiveChars = Math.max(8, (availWidth - 2.5 - indentChars) * fontScale * boldScale);
+
+      const lines = estimateWrappedLines(cell.value, effectiveChars);
+      if (lines > 1) {
+        const linePt = fontSize * 1.48;
+        const neededHeight = Math.ceil(lines * linePt + 9);
+        if (neededHeight > maxHeight) {
+          maxHeight = neededHeight;
+        }
+      }
+    }
+
+    if (maxHeight > 0) {
+      const targetCell = row.find((cell) => cell && typeof cell === "object" && !(cell.rowSpan > 1));
+      if (targetCell) {
+        targetCell.height = Math.max(Number(targetCell.height) || 0, maxHeight);
+      }
+    }
+  }
+}
+
+/**
+ * Estima la longitud visual de una celda (considerando formatos de moneda/porcentaje y negrita).
+ */
+function measureDisplayLength(rawCell, colType = "text") {
+  const isObj = rawCell && typeof rawCell === "object" && !(rawCell instanceof Date) && "value" in rawCell;
+  const val = isObj ? rawCell.value : rawCell;
+  const isBold = isObj && rawCell.fontWeight === "bold";
+  const fmt = isObj ? rawCell.format : undefined;
+  const boldMult = isBold ? 1.14 : 1.04;
+
+  if (val === null || val === undefined || val === "") return 4;
+
+  if (typeof val === "number" && Number.isFinite(val)) {
+    if (colType === "currency" || (fmt && String(fmt).includes("$"))) {
+      const formatted = `${val < 0 ? "-" : ""}$${Math.abs(Math.round(val)).toLocaleString("es-CO")}`;
+      return Math.ceil((formatted.length + 3) * boldMult);
+    }
+    if (colType === "percent" || (fmt && String(fmt).includes("%"))) {
+      return 10;
+    }
+    return Math.ceil((Math.round(val).toLocaleString("es-CO").length + 3) * boldMult);
+  }
+
+  const str = String(val);
+  const longestLine = str.split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0);
+  return Math.ceil((longestLine + 4) * boldMult);
 }
 
 /**
@@ -340,27 +503,29 @@ function buildCorporateHeaderRows({
     value: `${EXCEL_BRAND.name}  |  ${String(title || "REPORTE CORPORATIVO").toUpperCase()}`,
     type: String,
     columnSpan: textSpan,
-    height: 28,
-    fontSize: 13.5,
+    height: 30,
+    fontSize: 12.5,
     fontWeight: "bold",
     textColor: COLORS.white,
     backgroundColor: COLORS.brandDark,
     align: "left",
     alignVertical: "center",
-    indent: 1
+    indent: 1,
+    wrap: true
   };
 
   row2[textStartCol] = {
     value: `${EXCEL_BRAND.nit}  ·  ${EXCEL_BRAND.address}${subtitle ? `  ·  ${subtitle}` : ""}`,
     type: String,
     columnSpan: textSpan,
-    height: 19,
+    height: 22,
     fontSize: 9.5,
     textColor: "#E2E8F0",
     backgroundColor: COLORS.brandDark,
     align: "left",
     alignVertical: "center",
-    indent: 1
+    indent: 1,
+    wrap: true
   };
 
   const metaLine = filtersText
@@ -371,7 +536,7 @@ function buildCorporateHeaderRows({
     value: metaLine,
     type: String,
     columnSpan: textSpan,
-    height: 20,
+    height: 23,
     fontSize: 9,
     fontStyle: "italic",
     textColor: COLORS.textSecondary,
@@ -420,7 +585,7 @@ function buildKpiRows(kpis = [], colCount = 6) {
       value: String(kpi.label || "").toUpperCase(),
       type: String,
       columnSpan: span,
-      height: 17,
+      height: 22,
       fontSize: 8.5,
       fontWeight: "bold",
       textColor: COLORS.textMuted,
@@ -432,7 +597,8 @@ function buildKpiRows(kpis = [], colCount = 6) {
       rightBorderColor: COLORS.borderLight,
       rightBorderStyle: "thin",
       align: "center",
-      alignVertical: "center"
+      alignVertical: "center",
+      wrap: true
     };
 
     const isNum = typeof kpi.value === "number" && Number.isFinite(kpi.value);
@@ -450,7 +616,7 @@ function buildKpiRows(kpis = [], colCount = 6) {
       type: isNum ? Number : String,
       ...(isNum && valFormat ? { format: valFormat } : {}),
       columnSpan: span,
-      height: 24,
+      height: 26,
       fontSize: 12,
       fontWeight: "bold",
       textColor: palette.text,
@@ -501,6 +667,7 @@ function buildDataCell(rawValue, colType, rowIdx, customStyle = {}) {
         ? undefined
         : resolvedFormat;
 
+    const effectiveAlign = rawValue.align || (isNum ? "right" : "left");
     return {
       alignVertical: "center",
       borderColor: COLORS.borderLight,
@@ -508,7 +675,8 @@ function buildDataCell(rawValue, colType, rowIdx, customStyle = {}) {
       backgroundColor: baseBg,
       textColor: COLORS.textPrimary,
       fontSize: 10,
-      align: isNum ? "right" : "left",
+      align: effectiveAlign,
+      ...(inferredType === String && effectiveAlign === "left" ? { indent: 1, wrap: true } : {}),
       ...rawValue,
       ...customStyle,
       type: inferredType,
@@ -620,25 +788,42 @@ function buildDataCell(rawValue, colType, rowIdx, customStyle = {}) {
     value: String(rawValue),
     type: String,
     align: "left",
-    wrap: String(rawValue).length > 36
+    indent: 1,
+    wrap: true
   };
 }
 
-function computeAutoWidths(headers = [], rows = [], colWidths = [], minCol0Width = 0) {
+function computeAutoWidths(headers = [], rows = [], colWidths = [], columnTypes = [], minCol0Width = 0) {
   const colCount = headers.length;
   return Array.from({ length: colCount }, (_, idx) => {
     const explicit = Number(colWidths[idx]);
-    let measured = String(headers[idx] || "").length + 4;
-    for (let r = 0; r < Math.min(rows.length, 250); r++) {
-      const raw = rows[r]?.[idx];
-      const val = raw && typeof raw === "object" && "value" in raw ? raw.value : raw;
-      const len = String(val ?? "").length;
-      if (len + 3 > measured) measured = len + 3;
+    const headerLen = Math.ceil((String(headers[idx] || "").length + 4) * 1.12);
+    let measured = headerLen;
+    for (let r = 0; r < Math.min(rows.length, 300); r++) {
+      const len = measureDisplayLength(rows[r]?.[idx], columnTypes[idx]);
+      if (len > measured) measured = len;
     }
-    const baseWidth = explicit > 0 ? Math.max(explicit, Math.min(measured, explicit + 8)) : Math.min(44, Math.max(12, measured));
+    const clampedMeasured = Math.min(48, Math.max(12, measured));
+    const baseWidth = explicit > 0 ? Math.max(explicit, Math.min(clampedMeasured, explicit + 14)) : clampedMeasured;
     const finalWidth = idx === 0 && minCol0Width > 0 ? Math.max(baseWidth, minCol0Width) : baseWidth;
     return { width: Math.round(finalWidth) };
   });
+}
+
+function ensureBannerMinimumWidth(columns = [], hasLogo = false, title = "") {
+  const startCol = hasLogo ? 1 : 0;
+  if (columns.length <= startCol) return columns;
+  const fullTitle = `${EXCEL_BRAND.name}  |  ${String(title || "").toUpperCase()}`;
+  const needed = Math.min(118, Math.ceil(fullTitle.length * 1.24 + 5));
+  const currentSpanWidth = columns.slice(startCol).reduce((sum, c) => sum + (Number(c.width) || 16), 0);
+  if (currentSpanWidth >= needed) return columns;
+
+  const deficit = needed - currentSpanWidth;
+  const spanCount = columns.length - startCol;
+  const extraPerCol = Math.ceil(deficit / spanCount);
+  return columns.map((c, idx) =>
+    idx >= startCol ? { width: Math.min(50, (Number(c.width) || 16) + extraPerCol) } : c
+  );
 }
 
 /**
@@ -762,12 +947,14 @@ export function buildStyledTableSheet({
   }
   const dataEndExcelRow = sheetRows.length; // 1-based
 
-  // 6. Fila de Totales con fórmulas reales de Excel (=SUM / =AVERAGE / =COUNTA)
+  // 6. Fila de Totales con fórmulas reales de Excel (SUM / AVERAGE / COUNTA) + caché para Vista Protegida
+  const cachedFormulaValues = {};
   if (totals && rows.length > 0) {
+    const totalsExcelRow = sheetRows.length + 1;
     const totalsRow = headers.map((_, cIdx) => {
       const spec = totals[cIdx];
       const baseTotalStyle = {
-        height: 25,
+        height: 26,
         fontSize: 10.5,
         fontWeight: "bold",
         textColor: COLORS.textPrimary,
@@ -788,6 +975,7 @@ export function buildStyledTableSheet({
       }
 
       const colLetter = columnIndexToLetter(cIdx);
+      const cellRef = `${colLetter}${totalsExcelRow}`;
       const colType = resolvedTypes[cIdx];
       const numFormat =
         colType === "currency"
@@ -799,6 +987,8 @@ export function buildStyledTableSheet({
           : EXCEL_FORMATS.integer;
 
       if (spec === "sum") {
+        const computedSum = rows.reduce((acc, r) => acc + (extractNumericValue(r?.[cIdx]) ?? 0), 0);
+        cachedFormulaValues[cellRef] = computedSum;
         return {
           ...baseTotalStyle,
           value: `SUM(${colLetter}${dataStartExcelRow}:${colLetter}${dataEndExcelRow})`,
@@ -808,6 +998,8 @@ export function buildStyledTableSheet({
         };
       }
       if (spec === "avg") {
+        const nums = rows.map((r) => extractNumericValue(r?.[cIdx])).filter((n) => n !== null);
+        cachedFormulaValues[cellRef] = nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
         return {
           ...baseTotalStyle,
           value: `AVERAGE(${colLetter}${dataStartExcelRow}:${colLetter}${dataEndExcelRow})`,
@@ -817,6 +1009,7 @@ export function buildStyledTableSheet({
         };
       }
       if (spec === "count") {
+        cachedFormulaValues[cellRef] = rows.filter((r) => isNonEmptyCellValue(r?.[cIdx])).length;
         return {
           ...baseTotalStyle,
           value: `COUNTA(${colLetter}${dataStartExcelRow}:${colLetter}${dataEndExcelRow})`,
@@ -826,11 +1019,14 @@ export function buildStyledTableSheet({
         };
       }
       if (typeof spec === "string") {
-        return { ...baseTotalStyle, value: spec, type: String, align: cIdx === 0 ? "left" : "center" };
+        return { ...baseTotalStyle, value: spec, type: String, align: cIdx === 0 ? "left" : "center", ...(cIdx === 0 ? { indent: 1 } : {}) };
       }
       if (typeof spec === "object") {
         const isFormula = typeof spec.formula === "string";
         const isNumber = typeof spec.value === "number" && Number.isFinite(spec.value);
+        if (isFormula && typeof spec.cachedValue === "number" && Number.isFinite(spec.cachedValue)) {
+          cachedFormulaValues[cellRef] = spec.cachedValue;
+        }
         return {
           ...baseTotalStyle,
           value: isFormula ? spec.formula.replace(/^=/, "") : (spec.label ?? spec.value ?? ""),
@@ -849,16 +1045,20 @@ export function buildStyledTableSheet({
   sheetRows.push(makeSpacerRow(colCount, 8));
   sheetRows.push(
     makeMergedBannerRow(EXCEL_BRAND.footerNote, colCount, {
-      height: 18,
+      height: 20,
       fontSize: 8.5,
       fontStyle: "italic",
       textColor: COLORS.textMuted,
       align: "left",
-      alignVertical: "center"
+      alignVertical: "center",
+      indent: 1,
+      wrap: true
     })
   );
 
-  const columns = computeAutoWidths(headers, rows, colWidths, hasLogo ? 14 : 0);
+  const rawColumns = computeAutoWidths(headers, rows, colWidths, resolvedTypes, hasLogo ? 15 : 0);
+  const columns = ensureBannerMinimumWidth(rawColumns, hasLogo, title || sheetName);
+  applyDynamicRowHeights(sheetRows, columns);
 
   return {
     data: sheetRows,
@@ -866,7 +1066,8 @@ export function buildStyledTableSheet({
     columns,
     ...(orientation ? { orientation } : {}),
     ...(freezeHeader ? { stickyRowsCount: tableHeaderRowNumber } : {}),
-    ...(logoImage ? { images: [logoImage] } : {})
+    ...(logoImage ? { images: [logoImage] } : {}),
+    ...(Object.keys(cachedFormulaValues).length > 0 ? { cachedFormulaValues } : {})
   };
 }
 
@@ -888,6 +1089,8 @@ export function buildStyledSectionsSheet({
   const colCount = Math.max(maxSectionCols, colWidths.length || 2, 4);
   const sheetRows = [];
   const hasLogo = Boolean(logoImage);
+  const cachedFormulaValues = {};
+  const measuredColMax = Array.from({ length: colCount }, (_, idx) => Math.max(Number(colWidths[idx]) || 18, idx === 0 && hasLogo ? 16 : 14));
 
   sheetRows.push(
     ...buildCorporateHeaderRows({
@@ -910,6 +1113,21 @@ export function buildStyledSectionsSheet({
     const secRows = Array.isArray(sec.rows) ? sec.rows : [];
     const secTypes = secHeaders.map((h, idx) => sec.columnTypes?.[idx] || inferColumnType(h));
     const secCols = Math.max(secHeaders.length, 1);
+
+    // Medir anchos reales por columna para evitar recortes horizontales
+    secHeaders.forEach((h, idx) => {
+      if (idx < colCount && !(idx === secHeaders.length - 1 && secCols < colCount)) {
+        const len = Math.ceil((String(h || "").length + 4) * 1.12);
+        if (len > measuredColMax[idx]) measuredColMax[idx] = Math.min(48, len);
+      }
+    });
+    secRows.forEach((r) => {
+      for (let cIdx = 0; cIdx < Math.min(secCols, colCount); cIdx++) {
+        if (cIdx === secCols - 1 && secCols < colCount) continue;
+        const len = measureDisplayLength(r?.[cIdx], secTypes[cIdx]);
+        if (len > measuredColMax[cIdx]) measuredColMax[cIdx] = Math.min(48, len);
+      }
+    });
 
     if (sec.title) {
       sheetRows.push(
@@ -992,13 +1210,14 @@ export function buildStyledSectionsSheet({
     const endRow = sheetRows.length;
 
     if (sec.totals && secRows.length > 0) {
+      const totExcelRow = sheetRows.length + 1;
       const totRow = Array.from({ length: colCount }, (_, cIdx) => {
         if (cIdx >= secCols) return null;
         const spec = sec.totals[cIdx];
         const spanProp = cIdx === secCols - 1 && lastColSpan > 1 ? { columnSpan: lastColSpan } : {};
         const baseStyle = {
           ...spanProp,
-          height: 24,
+          height: 26,
           fontSize: 10,
           fontWeight: "bold",
           textColor: COLORS.textPrimary,
@@ -1015,6 +1234,7 @@ export function buildStyledSectionsSheet({
         };
         if (!spec) return { ...baseStyle, value: "", type: String };
         const letter = columnIndexToLetter(cIdx);
+        const cellRef = `${letter}${totExcelRow}`;
         const fmt =
           secTypes[cIdx] === "currency"
             ? EXCEL_FORMATS.currency
@@ -1022,6 +1242,8 @@ export function buildStyledSectionsSheet({
             ? EXCEL_FORMATS.percent
             : EXCEL_FORMATS.integer;
         if (spec === "sum") {
+          const computedSum = secRows.reduce((acc, r) => acc + (extractNumericValue(r?.[cIdx]) ?? 0), 0);
+          cachedFormulaValues[cellRef] = computedSum;
           return {
             ...baseStyle,
             value: `SUM(${letter}${startRow}:${letter}${endRow})`,
@@ -1031,6 +1253,7 @@ export function buildStyledSectionsSheet({
           };
         }
         if (spec === "count") {
+          cachedFormulaValues[cellRef] = secRows.filter((r) => isNonEmptyCellValue(r?.[cIdx])).length;
           return {
             ...baseStyle,
             value: `COUNTA(${letter}${startRow}:${letter}${endRow})`,
@@ -1043,7 +1266,8 @@ export function buildStyledSectionsSheet({
           ...baseStyle,
           value: String(spec),
           type: String,
-          align: cIdx === 0 ? "left" : "center"
+          align: cIdx === 0 ? "left" : "center",
+          ...(cIdx === 0 ? { indent: 1 } : {})
         };
       });
       sheetRows.push(totRow);
@@ -1054,18 +1278,22 @@ export function buildStyledSectionsSheet({
 
   sheetRows.push(
     makeMergedBannerRow(EXCEL_BRAND.footerNote, colCount, {
-      height: 18,
+      height: 20,
       fontSize: 8.5,
       fontStyle: "italic",
       textColor: COLORS.textMuted,
       align: "left",
-      alignVertical: "center"
+      alignVertical: "center",
+      indent: 1,
+      wrap: true
     })
   );
 
-  const columns = Array.from({ length: colCount }, (_, idx) => ({
-    width: Math.max(Number(colWidths[idx]) || 22, idx === 0 && hasLogo ? 14 : 12)
+  const rawColumns = measuredColMax.map((w, idx) => ({
+    width: Math.round(Math.max(w, Number(colWidths[idx]) || 16, idx === 0 && hasLogo ? 16 : 14))
   }));
+  const columns = ensureBannerMinimumWidth(rawColumns, hasLogo, title || sheetName);
+  applyDynamicRowHeights(sheetRows, columns);
 
   return {
     data: sheetRows,
@@ -1073,7 +1301,8 @@ export function buildStyledSectionsSheet({
     columns,
     ...(orientation ? { orientation } : {}),
     stickyRowsCount: 3,
-    ...(logoImage ? { images: [logoImage] } : {})
+    ...(logoImage ? { images: [logoImage] } : {}),
+    ...(Object.keys(cachedFormulaValues).length > 0 ? { cachedFormulaValues } : {})
   };
 }
 
@@ -1122,7 +1351,8 @@ export async function exportTableToExcel({
 
   await writeXlsxFile(data, sheetOptions, {
     fontFamily: "Calibri",
-    fontSize: 10.5
+    fontSize: 10.5,
+    features: [CACHED_FORMULA_FEATURE]
   }).toFile(safeFileName);
 }
 
@@ -1153,7 +1383,8 @@ export async function exportWorkbookToExcel({
 
   await writeXlsxFile(builtSheets, {
     fontFamily: "Calibri",
-    fontSize: 10.5
+    fontSize: 10.5,
+    features: [CACHED_FORMULA_FEATURE]
   }).toFile(safeFileName);
 }
 
