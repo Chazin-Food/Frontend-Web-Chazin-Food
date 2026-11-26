@@ -2443,21 +2443,6 @@ export function FastFoodProductModal({
         <div className={asPage ? "flex-1" : "overflow-y-auto overflow-x-hidden flex-1 no-scrollbar"}>
           {/* ═══ 1. LUXURY DUAL-STAGE HERO PHOTO (ENCUADRE PERFECTO & WOW EFFECT) ═══ */}
           <div className={`relative w-full ${asPage ? "h-64 sm:h-80" : "h-52 sm:h-64"} bg-slate-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80`}>
-            {/* Etiqueta/badge discreta de evento (sin pintar toda la barra superior) */}
-            {eventInfo && (
-              <div className="absolute top-3.5 left-3.5 z-20 flex flex-wrap items-center gap-1.5">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100/95 dark:bg-amber-950/90 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/70 shadow-sm backdrop-blur-xs">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span>{eventInfo.nombre}</span>
-                </span>
-                {(eventInfo.vigencia?.label || eventInfo.formattedDate) && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-semibold bg-black/55 text-white backdrop-blur-xs border border-white/15">
-                    <Clock className="w-3 h-3 text-amber-300" />
-                    <span>{eventInfo.vigencia?.label || `Hasta ${eventInfo.formattedDate}`}</span>
-                  </span>
-                )}
-              </div>
-            )}
             {/* Background Ambient Layer (Glow difuminado suave) */}
             {optimizedHeroImage && !imageError ? (
               <>
@@ -2517,16 +2502,33 @@ export function FastFoodProductModal({
             {/* Subtle bottom vignette to blend with info bar */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
 
-            {/* Top-Left Category Badge */}
-            <div className="absolute top-3.5 left-3.5 right-14 z-20 flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md">
-                <FoodIcon name={producto.nombre} category={producto.categoria} size={15} stroke={2} className="text-amber-400" />
+            {/* Top-Left Unified Badges Row (Categoría + Evento + Vigencia sin superposición) */}
+            <div className={`absolute top-3.5 left-3.5 ${asPage ? "right-4" : "right-14"} z-20 flex flex-wrap items-center gap-2`}>
+              <span className="px-3 py-1 rounded-full bg-black/65 backdrop-blur-md text-white border border-white/20 text-[11px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-md whitespace-nowrap">
+                <FoodIcon name={producto.nombre} category={producto.categoria} size={14} stroke={2} className="text-amber-400 shrink-0" />
                 <span>{producto.categoria || "Plato Especial"}</span>
               </span>
               {eventInfo && (
-                <span className="px-3 py-1 rounded-full bg-gradient-to-r from-red-600 to-amber-600 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center gap-1 border border-white/30">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>{eventInfo.tipo === "Descuento" ? `-${eventInfo.discountPercent}% OFF` : eventInfo.tipo === "Promoción Precio" ? "Precio Promo" : (eventInfo.tipo === "Añadir Insumos" || String(eventInfo.tipo).toLowerCase().includes("topping") || String(eventInfo.tipo).toLowerCase().includes("insumo")) ? "+ Topping Extra" : eventInfo.tipo === "COMBO_ESPECIAL" ? "Combo Festivo" : eventInfo.tipo === "PROMOCION_2X1" ? "Promo 2x1" : "Edición Especial"}</span>
+                <span className="px-3 py-1 rounded-full bg-amber-100/95 dark:bg-amber-950/90 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/70 font-bold text-[11px] shadow-md inline-flex items-center gap-1.5 backdrop-blur-xs whitespace-nowrap">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>
+                    {eventInfo.nombre}
+                    {eventInfo.tipo === "Descuento" && eventInfo.discountPercent
+                      ? ` · -${eventInfo.discountPercent}% OFF`
+                      : eventInfo.tipo === "Promoción Precio"
+                      ? " · Precio Promo"
+                      : (eventInfo.tipo === "Añadir Insumos" || String(eventInfo.tipo).toLowerCase().includes("topping") || String(eventInfo.tipo).toLowerCase().includes("insumo"))
+                      ? " · + Topping Extra"
+                      : eventInfo.tipo === "PROMOCION_2X1"
+                      ? " · 2x1"
+                      : ""}
+                  </span>
+                </span>
+              )}
+              {eventInfo && (eventInfo.vigencia?.label || eventInfo.formattedDate) && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/65 text-white backdrop-blur-md border border-white/15 shadow-sm whitespace-nowrap">
+                  <Clock className="w-3 h-3 text-amber-300 shrink-0" />
+                  <span>{eventInfo.vigencia?.label || `Hasta ${eventInfo.formattedDate}`}</span>
                 </span>
               )}
             </div>

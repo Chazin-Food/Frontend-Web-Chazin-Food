@@ -34,6 +34,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  ReferenceLine,
   Tooltip,
   ResponsiveContainer,
   Legend,
@@ -823,22 +824,22 @@ export function Dashboard() {
       {/* ── Segunda Fila de Gráficos Relevantes para el Negocio: Margen Operativo y Canales ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
 
-        {/* 3. Balance Operativo Mensual (Ventas − Compras) */}
+        {/* 3. Balance Operativo (Ventas − Compras) */}
         <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">
-                  Balance Operativo Mensual
+                  Balance Operativo
                 </h2>
                 <HelpTooltip
                   title="Balance Operativo"
-                  content="Muestra el margen bruto mensual restando las compras de insumos a las ventas registradas. Barras verdes indican utilidad operativa y barras rojas indican meses con inversión superior en abastecimiento."
+                  content="Muestra el margen bruto del período restando las compras de insumos a las ventas registradas. Barras verdes indican utilidad operativa y barras rojas indican períodos con inversión superior en abastecimiento."
                 />
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Diferencia mensual entre ingresos por ventas y compras de insumos (COP)
+                Diferencia entre ingresos por ventas y compras de insumos (COP)
               </p>
             </div>
             <span
@@ -855,18 +856,20 @@ export function Dashboard() {
 
           {balanceOperativoData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={balanceOperativoData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+              <BarChart data={balanceOperativoData} margin={{ top: 10, right: 12, left: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#f1f5f9"} />
+                <ReferenceLine y={0} stroke={isDark ? "#4b5563" : "#cbd5e1"} strokeWidth={1.25} />
                 <XAxis dataKey="mes" tick={{ fill: axisColorMuted, fontSize: 11 }} />
                 <YAxis
                   tick={{ fill: axisColorMuted, fontSize: 10 }}
-                  width={72}
+                  width={68}
                   tickFormatter={(val) => {
-                    if (!val || val === 0) return "$ 0";
+                    if (!val || val === 0) return "$0";
                     const sign = val < 0 ? "-" : "";
                     const abs = Math.abs(val);
-                    if (abs >= 1000000) return `${sign}$ ${(abs / 1000000).toLocaleString("es-CO", { maximumFractionDigits: 1 })}M`;
-                    return `${sign}$ ${abs.toLocaleString("es-CO")}`;
+                    if (abs >= 1000000) return `${sign}$${(abs / 1000000).toLocaleString("es-CO", { maximumFractionDigits: 1 })}M`;
+                    if (abs >= 1000) return `${sign}$${Math.round(abs / 1000).toLocaleString("es-CO")}K`;
+                    return `${sign}$${abs.toLocaleString("es-CO")}`;
                   }}
                 />
                 <Tooltip
@@ -893,7 +896,7 @@ export function Dashboard() {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-[240px] text-gray-400 dark:text-gray-600 text-sm">
-              Sin movimientos suficientes para calcular el balance mensual
+              Sin movimientos suficientes para calcular el balance operativo
             </div>
           )}
         </div>
