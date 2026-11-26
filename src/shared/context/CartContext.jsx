@@ -247,43 +247,45 @@ export function CartProvider({ children }) {
 
   /**
    * Permite editar las adiciones/toppings de un ítem ya presente en el carrito sin tener que eliminarlo.
+   * Retorna el nuevo `cartItemId` para mantener paneles de edición abiertos sin parpadeos.
    */
   const updateItemAdiciones = (cartItemId, newAdiciones = []) => {
-    setCart((prev) => {
-      const idx = prev.findIndex((it) => it.cartItemId === cartItemId);
-      if (idx === -1) return prev;
-      const target = prev[idx];
-      const normalized = (Array.isArray(newAdiciones) ? newAdiciones : [])
-        .filter((a) => a && Number(a.cantidad || 1) > 0)
-        .map((a) => ({
-          idAdicion: a.idAdicion || a.id,
-          nombre: a.nombre,
-          precio: Number(a.precio || 0),
-          cantidad: Math.max(1, Number(a.cantidad || 1)),
-          imagen: a.imagen || ""
-        }));
+    const prev = cartRef.current || cart;
+    const idx = prev.findIndex((it) => it.cartItemId === cartItemId);
+    if (idx === -1) return cartItemId;
 
-      const updatedItem = { ...target, adiciones: normalized };
-      const nextCartItemId = generateCartItemId(updatedItem);
-      updatedItem.cartItemId = nextCartItemId;
+    const target = prev[idx];
+    const normalized = (Array.isArray(newAdiciones) ? newAdiciones : [])
+      .filter((a) => a && Number(a.cantidad || 1) > 0)
+      .map((a) => ({
+        idAdicion: a.idAdicion || a.id,
+        nombre: a.nombre,
+        precio: Number(a.precio || 0),
+        cantidad: Math.max(1, Number(a.cantidad || 1)),
+        imagen: a.imagen || ""
+      }));
 
-      const duplicateIdx = prev.findIndex((it, i) => i !== idx && it.cartItemId === nextCartItemId);
-      let next;
-      if (duplicateIdx !== -1) {
-        next = prev
-          .map((it, i) =>
-            i === duplicateIdx
-              ? { ...it, cantidad: Number(it.cantidad || 1) + Number(target.cantidad || 1) }
-              : it
-          )
-          .filter((_, i) => i !== idx);
-      } else {
-        next = prev.map((it, i) => (i === idx ? updatedItem : it));
-      }
+    const updatedItem = { ...target, adiciones: normalized };
+    const nextCartItemId = generateCartItemId(updatedItem);
+    updatedItem.cartItemId = nextCartItemId;
 
-      cartRef.current = next;
-      return next;
-    });
+    const duplicateIdx = prev.findIndex((it, i) => i !== idx && it.cartItemId === nextCartItemId);
+    let next;
+    if (duplicateIdx !== -1) {
+      next = prev
+        .map((it, i) =>
+          i === duplicateIdx
+            ? { ...it, cantidad: Number(it.cantidad || 1) + Number(target.cantidad || 1) }
+            : it
+        )
+        .filter((_, i) => i !== idx);
+    } else {
+      next = prev.map((it, i) => (i === idx ? updatedItem : it));
+    }
+
+    cartRef.current = next;
+    setCart(next);
+    return nextCartItemId;
   };
 
   /**

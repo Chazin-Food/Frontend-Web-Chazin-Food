@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, Phone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers, Lock } from "lucide-react";
+import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, Phone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers, Lock, Trash2 } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
@@ -371,6 +371,7 @@ export function ClienteLanding() {
   };
   const [showCart, setShowCart] = useState(false);
   const [editingCartToppingsKey, setEditingCartToppingsKey] = useState(null);
+  const [cartToppingSearch, setCartToppingSearch] = useState("");
   const [showEmptyCartLoginModal, setShowEmptyCartLoginModal] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -3187,377 +3188,709 @@ export function ClienteLanding() {
         </Suspense>
       )}
 
-      {/* MODAL CARRITO AMPLIADO PARA MAYOR COMODIDAD VISUAL */}
+      {/* DRAWER DE CARRITO DE COMPRAS — REDISEÑO EDITORIAL UX/UI DE ALTA CONVERSIÓN */}
       {showCart && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-xs cursor-pointer"
-          onClick={() => setShowCart(false)}
+          className="fixed inset-0 z-50 flex items-center justify-end bg-slate-950/55 backdrop-blur-xs cursor-pointer animate-in fade-in duration-200"
+          onClick={() => {
+            setShowCart(false);
+            setEditingCartToppingsKey(null);
+            setCartToppingSearch("");
+          }}
         >
-          <div
-            className="bg-white dark:bg-gray-900 w-full max-w-xl lg:max-w-[580px] h-[100dvh] p-5 sm:p-7 pb-safe shadow-2xl flex flex-col justify-between border-l border-gray-100 dark:border-gray-800 animate-in slide-in-from-right duration-300 cursor-default"
+          <aside
+            aria-label="Tu Carrito de Compras"
+            className="bg-[#F8FAFC] dark:bg-gray-950 w-full max-w-xl lg:max-w-[560px] h-[100dvh] pb-safe shadow-2xl flex flex-col justify-between border-l border-slate-200/80 dark:border-gray-800 animate-in slide-in-from-right duration-300 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5 text-red-500" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Tu Carrito de Compras</h3>
-                {cart.length > 0 && (
-                  <span className="text-[11px] bg-red-100 dark:bg-red-950/60 text-[#f05454] dark:text-red-400 font-black px-2 py-0.5 rounded-full">
-                    {cart.reduce((acc, it) => acc + (it.cantidad || 1), 0)} {cart.reduce((acc, it) => acc + (it.cantidad || 1), 0) === 1 ? "ítem" : "ítems"}
-                  </span>
-                )}
+            {/* ═══ 1. ENCABEZADO LIMPIO CON ACCIÓN SEGURA DE VACIAR ═══ */}
+            <div className="px-5 sm:px-6 py-4 bg-white dark:bg-gray-900 border-b border-slate-200/80 dark:border-gray-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-[#D9383A]/10 dark:bg-red-950/60 text-[#D9383A] dark:text-red-400 flex items-center justify-center shrink-0">
+                  <ShoppingCart className="w-5 h-5 stroke-[2.25]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight truncate">
+                      Tu Carrito
+                    </h3>
+                    {cart.length > 0 && (
+                      <span className="text-[11px] bg-slate-900 dark:bg-[#D9383A] text-white font-extrabold px-2.5 py-0.5 rounded-full shrink-0">
+                        {cart.reduce((acc, it) => acc + (it.cantidad || 1), 0)}{" "}
+                        {cart.reduce((acc, it) => acc + (it.cantidad || 1), 0) === 1 ? "producto" : "productos"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-gray-400 truncate">
+                    {cart.length > 0
+                      ? "Personaliza cantidades y toppings antes de pagar"
+                      : "Aún no has agregado productos"}
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowCart(false)}
-                aria-label="Cerrar carrito de compras"
-                className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition cursor-pointer"
-                title="Cerrar carrito"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {cart.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearCart();
+                      setEditingCartToppingsKey(null);
+                      setCartToppingSearch("");
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-[#D9383A] hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-950/30 transition cursor-pointer"
+                    title="Vaciar todos los productos del carrito"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">Vaciar</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCart(false);
+                    setEditingCartToppingsKey(null);
+                    setCartToppingSearch("");
+                  }}
+                  aria-label="Cerrar carrito de compras"
+                  className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 flex items-center justify-center transition cursor-pointer"
+                  title="Cerrar carrito"
+                >
+                  <X className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
             </div>
 
-            {/* Center Body: Scrolleable Products List + Fixed Complementa tu Orden */}
+            {/* ═══ 2. CUERPO CENTRAL: LISTA DE PRODUCTOS + COMPLEMENTOS COMPACTOS ═══ */}
             {cart.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-3">
-                <div className="w-16 h-16 bg-red-50 dark:bg-red-950/40 rounded-full flex items-center justify-center text-red-500">
-                  <ShoppingCart className="w-8 h-8" />
+              <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center space-y-4">
+                <div className="w-20 h-20 bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-3xl shadow-xs flex items-center justify-center text-[#D9383A] dark:text-red-400">
+                  <ShoppingCart className="w-9 h-9 stroke-[1.75]" />
                 </div>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tu carrito está vacío</p>
-                <p className="text-xs text-gray-400">Agrega deliciosos productos de nuestro menú</p>
+                <div className="space-y-1 max-w-xs">
+                  <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Tu carrito está vacío
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+                    Explora nuestras hamburguesas artesanales, perros especiales, salchipapas y combos recién preparados.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCart(false)}
+                  className="px-5 py-2.5 rounded-xl bg-[#D9383A] hover:bg-[#B91C1C] text-white text-xs font-extrabold shadow-sm transition cursor-pointer active:scale-95"
+                >
+                  Explorar el menú
+                </button>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col min-h-0 py-3 gap-3">
-                {/* 1. Listado scrolleable SOLO para los productos */}
-                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* 2A. Listado scrolleable amplio de ítems del pedido */}
+                <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-3 scrollbar-thin">
                   {cart.map((item, index) => {
                     const itemKey = item.cartItemId || `${item.id}-${index}`;
                     const prodStock = Number(item.stock !== undefined ? item.stock : 0);
                     const totalInCartForProd = getProductQuantityInCart(item.id || item.idProducto);
                     const isPromoEvent = Boolean(item.esPromocionEvento || (item.isEvento && Boolean(item.eventoInfo?.nombre)));
-                    const additionsUnit = (item.adiciones || []).reduce((sum, a) => sum + ((Number(a.precio) || 0) * (Number(a.cantidad) || 1)), 0);
+                    const currentAdds = Array.isArray(item.adiciones) ? item.adiciones : [];
+                    const additionsUnit = currentAdds.reduce(
+                      (sum, a) => sum + (Number(a.precio) || 0) * (Number(a.cantidad) || 1),
+                      0
+                    );
+                    const totalToppingsUnits = currentAdds.reduce(
+                      (sum, a) => sum + (Number(a.cantidad) || 1),
+                      0
+                    );
                     const unitPriceWithAdds = (Number(item.precio) || 0) + additionsUnit;
                     const lineTotalPrice = unitPriceWithAdds * (Number(item.cantidad) || 1);
+                    const isItemDrink = isDrinkProduct(item);
+                    const isEditingThisItem = editingCartToppingsKey === itemKey && !isItemDrink && foodAdiciones.length > 0;
+
+                    let displayImg = item.imagen;
+                    if (
+                      !displayImg ||
+                      typeof displayImg !== "string" ||
+                      (!displayImg.startsWith("http") && !displayImg.startsWith("/") && !displayImg.startsWith("data:"))
+                    ) {
+                      if (
+                        isItemDrink ||
+                        String(item.nombre || "").toLowerCase().includes("gaseosa") ||
+                        String(item.nombre || "").toLowerCase().includes("coca")
+                      ) {
+                        displayImg = resolveDrinkImage(item);
+                      }
+                    }
+                    const optimizedItemImg =
+                      displayImg && (displayImg.startsWith("http") || displayImg.startsWith("/") || displayImg.startsWith("data:"))
+                        ? getOptimizedImageUrl(displayImg, 140)
+                        : "";
+
+                    const normalizedToppingQuery = cartToppingSearch.trim().toLowerCase();
+                    const visibleFoodAdiciones = isEditingThisItem
+                      ? foodAdiciones.filter((ad) =>
+                          !normalizedToppingQuery ||
+                          String(ad.nombre || "").toLowerCase().includes(normalizedToppingQuery)
+                        )
+                      : [];
+
+                    const handleToggleOrAddTopping = (ad) => {
+                      const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
+                      const exists = currentAdds.some((x) => Number(x.idAdicion || x.id) === adId);
+                      const nextAdds = exists
+                        ? currentAdds.filter((x) => Number(x.idAdicion || x.id) !== adId)
+                        : [
+                            ...currentAdds,
+                            {
+                              idAdicion: adId,
+                              nombre: ad.nombre,
+                              precio: Number(ad.precio || 0),
+                              cantidad: 1,
+                              imagen: getAdicionImage(ad)
+                            }
+                          ];
+                      const nextKey = updateItemAdiciones(item.cartItemId, nextAdds);
+                      if (isEditingThisItem && nextKey) setEditingCartToppingsKey(nextKey);
+                    };
+
+                    const handleStepToppingQty = (ad, delta, e) => {
+                      if (e) e.stopPropagation();
+                      const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
+                      const nextAdds = currentAdds
+                        .map((x) => {
+                          if (Number(x.idAdicion || x.id) !== adId) return x;
+                          const nextQty = (Number(x.cantidad) || 1) + delta;
+                          return nextQty > 0 ? { ...x, cantidad: nextQty } : null;
+                        })
+                        .filter(Boolean);
+                      const nextKey = updateItemAdiciones(item.cartItemId, nextAdds);
+                      if (isEditingThisItem && nextKey) setEditingCartToppingsKey(nextKey);
+                    };
 
                     return (
-                      <div key={itemKey} className="p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-start justify-between gap-3 shadow-2xs hover:border-gray-200 dark:hover:border-gray-700 transition">
-                        {(() => {
-                          let displayImg = item.imagen;
-                          if (!displayImg || typeof displayImg !== "string" || (!displayImg.startsWith("http") && !displayImg.startsWith("/") && !displayImg.startsWith("data:"))) {
-                            if (isDrinkProduct(item) || String(item.nombre || "").toLowerCase().includes("gaseosa") || String(item.nombre || "").toLowerCase().includes("coca")) {
-                              displayImg = resolveDrinkImage(item);
-                            }
-                          }
-                          return displayImg && (displayImg.startsWith("http") || displayImg.startsWith("/") || displayImg.startsWith("data:")) ? (
+                      <div
+                        key={itemKey}
+                        className={`bg-white dark:bg-gray-900 rounded-2xl border transition-all overflow-hidden ${
+                          isEditingThisItem
+                            ? "border-[#D9383A]/50 dark:border-red-500/50 shadow-md ring-1 ring-[#D9383A]/15"
+                            : "border-slate-200/85 dark:border-gray-800 shadow-2xs hover:border-slate-300 dark:hover:border-gray-700"
+                        }`}
+                      >
+                        {/* ── ZONA SUPERIOR DE LA TARJETA: IMAGEN + INFO + CONTROLES + PRECIO SIEMPRE VISIBLE ── */}
+                        <div className="p-3.5 sm:p-4 flex items-start gap-3.5">
+                          {/* Miniatura nítida */}
+                          {optimizedItemImg ? (
                             <img
-                              src={displayImg}
+                              src={optimizedItemImg}
                               alt={item.nombre}
-                              width="48"
-                              height="48"
-                              style={{ aspectRatio: "1 / 1" }}
-                              className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-2xs border border-gray-100 dark:border-gray-700 mt-0.5"
+                              width="56"
+                              height="56"
+                              loading="lazy"
+                              decoding="async"
+                              className={`w-14 h-14 rounded-xl shrink-0 border border-slate-100 dark:border-gray-800 ${
+                                isItemDrink
+                                  ? "object-contain p-1 bg-slate-50 dark:bg-gray-800"
+                                  : "object-cover bg-slate-100 dark:bg-gray-800"
+                              }`}
                             />
                           ) : (
-                            <FoodIconBadge name={item.nombre} size="md" className="mt-0.5" />
-                          );
-                        })()}
-
-                        {/* Contenido Central: Título, Adiciones, Stepper */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate" title={item.nombre}>
-                            {item.nombre}
-                          </h4>
-                          
-                          {/* Resumen de Bebida o Acompañante de Combo */}
-                          {item.observaciones && item.observaciones.toLowerCase().includes("bebida") && (
-                            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold block mt-0.5">
-                              🥤 {item.observaciones.split("•").find(s => s.toLowerCase().includes("bebida"))?.trim() || item.observaciones}
-                            </span>
-                          )}
-                          
-                          {/* Badge de Promoción de Evento */}
-                          {isPromoEvent && (
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 inline-flex items-center gap-1 mt-0.5">
-                              <Sparkles className="w-2.5 h-2.5 text-amber-500" />
-                              {item.eventoInfo?.nombre ? `Promoción: ${item.eventoInfo.nombre}` : "Promoción de evento"}
-                            </span>
+                            <FoodIconBadge name={item.nombre} size="md" className="mt-0.5 shrink-0" />
                           )}
 
-                          {item.adiciones && item.adiciones.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {item.adiciones.map((a, aIdx) => (
-                                <span key={aIdx} className="text-[10px] bg-rose-50 dark:bg-rose-950/40 text-[#F05454] dark:text-rose-300 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                  <img src={getAdicionImage(a)} alt="" aria-hidden="true" width="13" height="13" className="w-3.5 h-3.5 rounded-full object-cover inline-block" />
-                                  +{a.cantidad > 1 ? `${a.cantidad}x ` : ""}{a.nombre} (+${((Number(a.precio) || 0) * (Number(a.cantidad) || 1)).toLocaleString("es-CO")})
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {item.personalizaciones && item.personalizaciones.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {item.personalizaciones.map((p, pIdx) => (
-                                <span key={pIdx} className="text-[10px] bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-1">
-                                  <Ban className="w-3 h-3 text-red-500 shrink-0" />
-                                  <span>{p}</span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            {/* Fila 1: Nombre del plato + Botón eliminar */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <h4
+                                  className="font-extrabold text-sm text-slate-900 dark:text-white leading-snug line-clamp-2"
+                                  title={item.nombre}
+                                >
+                                  {item.nombre}
+                                </h4>
+                                {(item.cantidad > 1 || additionsUnit > 0) && (
+                                  <p className="text-[11px] text-slate-400 dark:text-gray-500 font-medium mt-0.5 tabular-nums">
+                                    Base ${(Number(item.precio) || 0).toLocaleString("es-CO")}
+                                    {additionsUnit > 0 ? ` + extras $${additionsUnit.toLocaleString("es-CO")}` : ""}
+                                    {item.cantidad > 1 ? ` · $${unitPriceWithAdds.toLocaleString("es-CO")} c/u` : ""}
+                                  </p>
+                                )}
+                              </div>
 
-                          {/* Controles de cantidad (Stepper) + Edición rápida de toppings */}
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(item.cartItemId || item.id, -1)}
-                                aria-label={`Reducir cantidad de ${item.nombre}`}
-                                className="w-6 h-6 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition"
-                              >
-                                -
-                              </button>
-                              <span className="text-xs font-bold min-w-4 text-center font-mono">{item.cantidad}</span>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (totalInCartForProd >= prodStock) {
-                                    error("Límite de stock", `Solo hay ${prodStock} unidades disponibles de ${item.nombre}.`);
-                                  } else {
-                                    updateQuantity(item.cartItemId || item.id, 1);
+                                  if (isEditingThisItem) {
+                                    setEditingCartToppingsKey(null);
+                                    setCartToppingSearch("");
                                   }
+                                  removeFromCart(item.cartItemId || item.id);
                                 }}
-                                aria-label={`Aumentar cantidad de ${item.nombre}`}
-                                className="w-6 h-6 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition"
+                                aria-label={`Eliminar ${item.nombre} del carrito`}
+                                className="w-7 h-7 -mt-0.5 -mr-1 rounded-lg text-slate-400 hover:text-[#D9383A] hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center justify-center transition cursor-pointer shrink-0"
+                                title="Quitar del carrito"
                               >
-                                +
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
 
-                            {!isDrinkProduct(item) && foodAdiciones.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setEditingCartToppingsKey((prev) => (prev === itemKey ? null : itemKey))
-                                }
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 border border-purple-200/80 dark:border-purple-800/60 transition cursor-pointer"
-                              >
-                                <Sparkles className="w-2.5 h-2.5" />
-                                <span>{editingCartToppingsKey === itemKey ? "Listo" : "Editar toppings"}</span>
-                              </button>
-                            )}
-                          </div>
+                            {/* Fila 2: Chips de promoción, bebida de combo, toppings activos (con × directo) y exclusiones */}
+                            {(isPromoEvent ||
+                              (item.observaciones && item.observaciones.toLowerCase().includes("bebida")) ||
+                              currentAdds.length > 0 ||
+                              (item.personalizaciones && item.personalizaciones.length > 0)) && (
+                              <div className="flex flex-wrap gap-1.5 mt-2">
+                                {isPromoEvent && (
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-red-50 dark:bg-red-950/50 text-[#D9383A] dark:text-red-300 border border-red-200/70 dark:border-red-900/50 inline-flex items-center gap-1">
+                                    <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                    <span>{item.eventoInfo?.nombre || "Promoción activa"}</span>
+                                  </span>
+                                )}
 
-                          {/* Editor inline de toppings del ítem en el carrito */}
-                          {editingCartToppingsKey === itemKey && !isDrinkProduct(item) && foodAdiciones.length > 0 && (
-                            <div className="mt-2.5 p-2.5 rounded-xl bg-white dark:bg-gray-900 border border-purple-200/80 dark:border-purple-800/60 space-y-1.5">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
-                                Selecciona o quita toppings:
+                                {item.observaciones && item.observaciones.toLowerCase().includes("bebida") && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 inline-flex items-center gap-1">
+                                    <FoodIcon name="drink" size={11} className="text-[#D9383A] shrink-0" />
+                                    <span className="truncate max-w-[210px]">
+                                      {item.observaciones
+                                        .split("•")
+                                        .find((s) => s.toLowerCase().includes("bebida"))
+                                        ?.trim() || item.observaciones}
+                                    </span>
+                                  </span>
+                                )}
+
+                                {currentAdds.map((a, aIdx) => {
+                                  const chipAdId = Number(a.idAdicion || a.id);
+                                  return (
+                                    <span
+                                      key={chipAdId || aIdx}
+                                      className="text-[10.5px] bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 pl-2 pr-1 py-0.5 rounded-lg font-bold inline-flex items-center gap-1"
+                                    >
+                                      <span>
+                                        +{a.cantidad > 1 ? `${a.cantidad}x ` : ""}
+                                        {a.nombre} (${((Number(a.precio) || 0) * (Number(a.cantidad) || 1)).toLocaleString("es-CO")})
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const nextAdds = currentAdds.filter(
+                                            (x) => Number(x.idAdicion || x.id) !== chipAdId
+                                          );
+                                          const nextKey = updateItemAdiciones(item.cartItemId, nextAdds);
+                                          if (isEditingThisItem && nextKey) setEditingCartToppingsKey(nextKey);
+                                        }}
+                                        aria-label={`Quitar topping ${a.nombre}`}
+                                        className="w-4 h-4 rounded hover:bg-emerald-200/70 dark:hover:bg-emerald-900 flex items-center justify-center text-emerald-700 dark:text-emerald-300 cursor-pointer"
+                                        title={`Quitar ${a.nombre}`}
+                                      >
+                                        <X className="w-2.5 h-2.5 stroke-[2.5]" />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+
+                                {item.personalizaciones &&
+                                  item.personalizaciones.map((p, pIdx) => (
+                                    <span
+                                      key={pIdx}
+                                      className="text-[10.5px] bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 px-2 py-0.5 rounded-lg font-semibold inline-flex items-center gap-1"
+                                    >
+                                      <Ban className="w-2.5 h-2.5 text-[#D9383A] shrink-0" />
+                                      <span>{p}</span>
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+
+                            {/* Fila 3: Stepper + Botón Editar Toppings + Subtotal de línea SIEMPRE visible */}
+                            <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-slate-100 dark:border-gray-800/80">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {/* Stepper táctil */}
+                                <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-gray-800 p-0.5 rounded-xl border border-slate-200/80 dark:border-gray-700">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateQuantity(item.cartItemId || item.id, -1)}
+                                    aria-label={`Reducir cantidad de ${item.nombre}`}
+                                    className="w-7 h-7 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-700 dark:text-gray-200 hover:bg-slate-200/60 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition shadow-2xs"
+                                  >
+                                    <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  </button>
+                                  <span className="text-xs font-black text-slate-900 dark:text-white min-w-6 text-center tabular-nums">
+                                    {item.cantidad}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (totalInCartForProd >= prodStock) {
+                                        error("Límite de stock", `Solo hay ${prodStock} unidades disponibles de ${item.nombre}.`);
+                                      } else {
+                                        updateQuantity(item.cartItemId || item.id, 1);
+                                      }
+                                    }}
+                                    aria-label={`Aumentar cantidad de ${item.nombre}`}
+                                    className="w-7 h-7 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-700 dark:text-gray-200 hover:bg-slate-200/60 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition shadow-2xs"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  </button>
+                                </div>
+
+                                {/* Disparador del Estudio de Toppings (Paleta Cohesiva Chazin) */}
+                                {!isItemDrink && foodAdiciones.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCartToppingSearch("");
+                                      setEditingCartToppingsKey((prev) => (prev === itemKey ? null : itemKey));
+                                    }}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer active:scale-95 ${
+                                      isEditingThisItem
+                                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                                        : "bg-slate-100 hover:bg-slate-200/80 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-200 border border-slate-200/80 dark:border-gray-700"
+                                    }`}
+                                  >
+                                    {isEditingThisItem ? (
+                                      <>
+                                        <Check className="w-3.5 h-3.5 stroke-[2.75]" />
+                                        <span>Listo</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sliders className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
+                                        <span>Toppings</span>
+                                        {totalToppingsUnits > 0 && (
+                                          <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black leading-none">
+                                            {totalToppingsUnits}
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Precio total de línea (nunca se oculta al abrir toppings) */}
+                              <div className="text-right shrink-0">
+                                <span className="text-sm sm:text-[15px] font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                                  ${lineTotalPrice.toLocaleString("es-CO")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ── ZONA INFERIOR DE ANCHO COMPLETO: ESTUDIO VISUAL INTERACTIVO DE TOPPINGS (2 COLUMNAS) ── */}
+                        {isEditingThisItem && (
+                          <div className="border-t border-slate-100 dark:border-gray-800 bg-slate-50/85 dark:bg-gray-800/40 p-3.5 sm:p-4 space-y-3 animate-in fade-in duration-150">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <Flame className="w-4 h-4 text-[#D9383A] dark:text-red-400 shrink-0" />
+                                <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                                  Personaliza tus toppings
+                                </span>
+                                {totalToppingsUnits > 0 && (
+                                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                                    · +${additionsUnit.toLocaleString("es-CO")}
+                                  </span>
+                                )}
+                              </div>
+
+                              {currentAdds.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextKey = updateItemAdiciones(item.cartItemId, []);
+                                    if (nextKey) setEditingCartToppingsKey(nextKey);
+                                  }}
+                                  className="text-[11px] font-bold text-slate-500 hover:text-[#D9383A] dark:text-gray-400 dark:hover:text-red-400 cursor-pointer transition"
+                                >
+                                  Quitar todos
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Buscador rápido cuando hay más de 6 toppings */}
+                            {foodAdiciones.length > 6 && (
+                              <div className="relative">
+                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <input
+                                  type="text"
+                                  value={cartToppingSearch}
+                                  onChange={(e) => setCartToppingSearch(e.target.value)}
+                                  placeholder="Buscar topping (ej. tocineta, cheddar, papas...)"
+                                  className="w-full pl-8 pr-7 py-2 rounded-xl bg-white dark:bg-gray-900 border border-slate-200/90 dark:border-gray-700 text-xs text-slate-800 dark:text-gray-100 placeholder:text-slate-400 outline-none focus:border-[#D9383A]"
+                                />
+                                {cartToppingSearch && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCartToppingSearch("")}
+                                    aria-label="Limpiar búsqueda de toppings"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Grilla visual de 2 columnas con foto, precio y control de porciones (1x, 2x...) */}
+                            {visibleFoodAdiciones.length === 0 ? (
+                              <p className="text-xs text-center py-3 text-slate-500 dark:text-gray-400">
+                                No encontramos toppings con &ldquo;{cartToppingSearch}&rdquo;.
                               </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {foodAdiciones.slice(0, 14).map((ad) => {
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {visibleFoodAdiciones.map((ad) => {
                                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
-                                  const currentAdds = Array.isArray(item.adiciones) ? item.adiciones : [];
-                                  const isSelected = currentAdds.some(
+                                  const selectedEntry = currentAdds.find(
                                     (x) => Number(x.idAdicion || x.id) === adId
                                   );
+                                  const isSelected = Boolean(selectedEntry);
+                                  const selectedQty = Number(selectedEntry?.cantidad || 1);
+                                  const thumbUrl = getOptimizedImageUrl(getAdicionImage(ad), 96);
+
                                   return (
-                                    <button
+                                    <div
                                       key={adId}
-                                      type="button"
-                                      onClick={() => {
-                                        const nextAdds = isSelected
-                                          ? currentAdds.filter((x) => Number(x.idAdicion || x.id) !== adId)
-                                          : [
-                                              ...currentAdds,
-                                              {
-                                                idAdicion: adId,
-                                                nombre: ad.nombre,
-                                                precio: Number(ad.precio || 0),
-                                                cantidad: 1,
-                                                imagen: ad.imagen || ""
-                                              }
-                                            ];
-                                        updateItemAdiciones(item.cartItemId, nextAdds);
-                                      }}
-                                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                                      onClick={() => !isSelected && handleToggleOrAddTopping(ad)}
+                                      className={`p-2 rounded-xl border flex items-center justify-between gap-2 transition-all select-none ${
                                         isSelected
-                                          ? "bg-purple-600 text-white border-purple-600"
-                                          : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400"
+                                          ? "bg-white dark:bg-gray-900 border-[#D9383A] ring-1 ring-[#D9383A]/20 shadow-2xs"
+                                          : "bg-white dark:bg-gray-900/80 border-slate-200/85 dark:border-gray-700/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
                                       }`}
                                     >
-                                      {isSelected ? "✓ " : "+ "}
-                                      {ad.nombre} (+${Number(ad.precio || 0).toLocaleString("es-CO")})
-                                    </button>
+                                      <div
+                                        onClick={(e) => {
+                                          if (isSelected) {
+                                            e.stopPropagation();
+                                            handleToggleOrAddTopping(ad);
+                                          }
+                                        }}
+                                        className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                                      >
+                                        <img
+                                          src={thumbUrl}
+                                          alt={ad.nombre}
+                                          width="36"
+                                          height="36"
+                                          loading="lazy"
+                                          decoding="async"
+                                          className="w-9 h-9 rounded-lg object-cover shrink-0 border border-slate-100 dark:border-gray-700"
+                                        />
+                                        <div className="min-w-0">
+                                          <p
+                                            className="text-[11.5px] font-bold text-slate-900 dark:text-gray-100 leading-tight line-clamp-1"
+                                            title={ad.nombre}
+                                          >
+                                            {ad.nombre}
+                                          </p>
+                                          <p className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums mt-0.5">
+                                            +${Number(ad.precio || 0).toLocaleString("es-CO")}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {isSelected ? (
+                                        <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-gray-800 p-0.5 rounded-lg border border-[#D9383A]/30 shrink-0">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => handleStepToppingQty(ad, -1, e)}
+                                            aria-label={`Restar ${ad.nombre}`}
+                                            className="w-6 h-6 rounded-md bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-red-50 hover:text-[#D9383A] flex items-center justify-center transition cursor-pointer"
+                                          >
+                                            <Minus className="w-3 h-3 stroke-[2.75]" />
+                                          </button>
+                                          <span className="min-w-4 text-center text-[11px] font-black text-slate-900 dark:text-white tabular-nums">
+                                            {selectedQty}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => handleStepToppingQty(ad, 1, e)}
+                                            aria-label={`Sumar ${ad.nombre}`}
+                                            className="w-6 h-6 rounded-md bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-red-50 hover:text-[#D9383A] flex items-center justify-center transition cursor-pointer"
+                                          >
+                                            <Plus className="w-3 h-3 stroke-[2.75]" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleOrAddTopping(ad);
+                                          }}
+                                          aria-label={`Agregar ${ad.nombre}`}
+                                          className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-700 dark:text-gray-200 flex items-center justify-center transition cursor-pointer shrink-0"
+                                        >
+                                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        </button>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Columna Derecha: Precios Apilados & Organizados para Sumar Fácilmente */}
-                        <div className="flex flex-col items-end justify-between shrink-0 text-right min-w-[85px] self-stretch">
-                          <button
-                            type="button"
-                            onClick={() => removeFromCart(item.cartItemId || item.id)}
-                            aria-label={`Eliminar ${item.nombre} del carrito`}
-                            className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md cursor-pointer transition -mr-1"
-                            title="Eliminar este producto"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-
-                          <div className="flex flex-col items-end mt-auto space-y-0.5">
-                            {/* Precio Unitario explícito */}
-                            <div className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-                              Unit: <span className="font-mono tabular-nums font-semibold text-gray-700 dark:text-gray-300">${unitPriceWithAdds.toLocaleString("es-CO")}</span>
-                            </div>
-
-                            {/* Desglose si cantidad > 1 */}
-                            {item.cantidad > 1 && (
-                              <div className="text-[9.5px] text-gray-400 font-mono tabular-nums">
-                                {item.cantidad} × ${unitPriceWithAdds.toLocaleString("es-CO")}
-                              </div>
                             )}
 
-                            {/* Subtotal del producto alineado a la derecha */}
-                            <div className="text-sm font-black text-red-600 dark:text-red-400 font-mono tabular-nums tracking-tight">
-                              ${lineTotalPrice.toLocaleString("es-CO")}
+                            <div className="pt-1 flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-slate-500 dark:text-gray-400">
+                                Tus cambios se actualizan al instante
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCartToppingsKey(null);
+                                  setCartToppingSearch("");
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white text-xs font-extrabold cursor-pointer transition"
+                              >
+                                Guardar y cerrar
+                              </button>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
-                {/* 2. Sección Fija (Sin scroll vertical): Complementa tu orden */}
-                <div className="shrink-0 bg-gradient-to-br from-[#3b0c10] via-[#2d080c] to-[#1c0406] rounded-3xl p-3 sm:p-3.5 text-white shadow-lg border border-red-950/80 relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <span className="text-[9.5px] uppercase font-black tracking-wider text-amber-400 block">
-                        ¿Tienes un antojo?
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-black text-white leading-tight">
-                        Complementa tu orden
-                      </h4>
+                {/* 2B. Franja Compacta y Cohesiva de Complementos (se oculta automáticamente mientras se editan toppings para dar 100% de espacio visual) */}
+                {!editingCartToppingsKey && complementosOrden.length > 0 && (
+                  <div className="shrink-0 bg-white dark:bg-gray-900 border-t border-slate-200/80 dark:border-gray-800 px-5 sm:px-6 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
+                        <h4 className="text-xs font-extrabold text-slate-800 dark:text-gray-200">
+                          Complementa tu orden en 1 clic
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => scrollComplementos("left")}
+                          aria-label="Ver complemento anterior"
+                          className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 flex items-center justify-center transition cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => scrollComplementos("right")}
+                          aria-label="Ver siguiente complemento"
+                          className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 flex items-center justify-center transition cursor-pointer"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => scrollComplementos("left")}
-                        aria-label="Ver complemento anterior"
-                        className="w-6 h-6 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-xs transition active:scale-90 border border-white/10 cursor-pointer"
-                        title="Anterior complemento"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => scrollComplementos("right")}
-                        aria-label="Ver siguiente complemento"
-                        className="w-6 h-6 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-xs transition active:scale-90 border border-white/10 cursor-pointer"
-                        title="Siguiente complemento"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                    <div
+                      ref={complementosRef}
+                      className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-0.5 scroll-smooth snap-x snap-mandatory"
+                    >
+                      {complementosOrden.map((comp) => (
+                        <div
+                          key={comp.id}
+                          className="w-52 sm:w-56 shrink-0 bg-slate-50/90 dark:bg-gray-800/80 hover:bg-slate-100/80 dark:hover:bg-gray-800 rounded-xl p-2 flex items-center justify-between gap-2.5 snap-start border border-slate-200/80 dark:border-gray-700/80 transition-colors"
+                        >
+                          <div className="w-11 h-11 rounded-lg bg-white dark:bg-gray-900 border border-slate-200/70 dark:border-gray-700 flex items-center justify-center p-1 shrink-0">
+                            <img
+                              src={getOptimizedImageUrl(comp.imagen, 96)}
+                              alt={comp.nombre}
+                              width="40"
+                              height="40"
+                              loading="lazy"
+                              decoding="async"
+                              className="max-h-full max-w-full object-contain select-none"
+                            />
+                          </div>
 
-                  {/* Carrusel horizontal */}
-                  <div
-                    ref={complementosRef}
-                    className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar py-1 scroll-smooth snap-x snap-mandatory"
-                  >
-                    {complementosOrden.map((comp) => (
-                      <div
-                        key={comp.id}
-                        className="w-28 sm:w-32 shrink-0 bg-white dark:bg-gray-800 rounded-2xl p-2 shadow-sm flex flex-col justify-between text-gray-900 dark:text-gray-100 snap-start border border-gray-100 dark:border-gray-700/60 group hover:shadow-md transition-all"
-                      >
-                        <div className="relative w-full h-16 sm:h-18 rounded-xl bg-gray-50 dark:bg-gray-900/80 overflow-hidden flex items-center justify-center mb-1">
-                          <img
-                            src={comp.imagen}
-                            alt={comp.nombre}
-                            width="112"
-                            height="64"
-                            loading="lazy"
-                            style={{ aspectRatio: "16 / 10" }}
-                            className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-300 select-none"
-                          />
-                          {comp.badge && (
-                            <span className="absolute top-1 left-1 bg-black/75 backdrop-blur-xs text-white text-[8px] font-black px-1 rounded-md">
-                              {comp.badge}
-                            </span>
-                          )}
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-xs text-slate-900 dark:text-gray-100 truncate" title={comp.nombre}>
+                              {comp.nombre}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-xs font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
+                                ${Number(comp.precio).toLocaleString("es-CO")}
+                              </span>
+                              {comp.tamano && (
+                                <span className="text-[10px] text-slate-400 dark:text-gray-500 truncate">
+                                  · {comp.tamano}
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-                        <div className="flex-1 min-w-0 mb-1">
-                          <p className="font-black text-[11px] text-gray-800 dark:text-gray-100 line-clamp-1 leading-snug">
-                            {comp.nombre}
-                          </p>
-                          <p className="text-[9.5px] text-gray-500 dark:text-gray-400 truncate">
-                            {comp.tamano || comp.descripcion}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1 border-t border-gray-100 dark:border-gray-750">
-                          <span className="text-[11px] font-black text-gray-900 dark:text-gray-100">
-                            ${Number(comp.precio).toLocaleString("es-CO")}
-                          </span>
                           <button
                             type="button"
                             onClick={() => handleAddComplemento(comp)}
-                            className="w-6 h-6 rounded-full bg-[#f05454] hover:bg-[#d94444] text-white flex items-center justify-center shadow-xs active:scale-90 transition-transform cursor-pointer"
-                            title={`Agregar ${comp.nombre} al pedido`}
+                            aria-label={`Agregar ${comp.nombre} al pedido`}
+                            className="w-7 h-7 rounded-lg bg-white dark:bg-gray-900 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 border border-slate-200 dark:border-gray-700 hover:border-[#D9383A] flex items-center justify-center shadow-2xs active:scale-90 transition cursor-pointer shrink-0"
+                            title={`Agregar ${comp.nombre}`}
                           >
-                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                            <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
+            {/* ═══ 3. PIE DE PAGO DE ALTA CONVERSIÓN (CTA DE ANCHO COMPLETO) ═══ */}
             {cart.length > 0 && (
-              <div className="border-t border-gray-100 dark:border-gray-800 pt-3 space-y-2 shrink-0">
-                <div className="flex justify-between items-center text-xs font-semibold text-gray-500 dark:text-gray-400">
-                  <span>Subtotal:</span>
-                  <span className="font-mono font-bold text-gray-900 dark:text-gray-100 tabular-nums text-sm">${clientSubtotal.toLocaleString("es-CO")}</span>
-                </div>
-                {discountPercent > 0 && (
-                  <div className="flex justify-between items-center text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800/40">
-                    <span className="flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Descuento Fidelidad ({discountPercent}%):
+              <div className="px-5 sm:px-6 py-4 bg-white dark:bg-gray-900 border-t border-slate-200/85 dark:border-gray-800 shadow-[0_-10px_30px_rgba(15,23,42,0.06)] space-y-2.5 shrink-0">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-xs text-slate-500 dark:text-gray-400">
+                    <span>Subtotal de productos</span>
+                    <span className="font-bold text-slate-800 dark:text-gray-200 tabular-nums">
+                      ${clientSubtotal.toLocaleString("es-CO")}
                     </span>
-                    <span className="font-mono font-bold tabular-nums">-${clientDiscountMonto.toLocaleString("es-CO")}</span>
                   </div>
-                )}
-                <div className="flex justify-between items-baseline text-base font-extrabold text-gray-900 dark:text-gray-100 pt-1.5 border-t border-gray-100 dark:border-gray-800">
-                  <span>Total Pedido:</span>
-                  <span className="text-red-600 dark:text-red-400 text-xl font-black font-mono tabular-nums">${totalCheckout.toLocaleString("es-CO")}</span>
+
+                  {discountPercent > 0 && (
+                    <div className="flex justify-between items-center text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-200/80 dark:border-emerald-800/50">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Beneficio Fidelidad ({discountPercent}%)</span>
+                      </span>
+                      <span className="font-extrabold tabular-nums">
+                        -${clientDiscountMonto.toLocaleString("es-CO")}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-baseline pt-2 border-t border-slate-100 dark:border-gray-800">
+                    <div>
+                      <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        Total del pedido
+                      </span>
+                      <span className="block text-[10.5px] text-slate-400 dark:text-gray-500">
+                        El domicilio se cancela aparte al recibir
+                      </span>
+                    </div>
+                    <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                      ${totalCheckout.toLocaleString("es-CO")}
+                    </span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={clearCart}
-                    className="py-3 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold rounded-2xl text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
-                  >
-                    Vaciar Carrito
-                  </button>
-                  <button
-                    onClick={handleAbrirCheckout}
-                    className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl text-xs shadow-md active:scale-[0.98] transition cursor-pointer"
-                  >
-                    Proceder al Pago
-                  </button>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAbrirCheckout}
+                  className="w-full py-3.5 px-5 bg-[#D9383A] hover:bg-[#B91C1C] text-white font-extrabold rounded-2xl text-sm shadow-lg shadow-[#D9383A]/25 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-3"
+                >
+                  <span className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 opacity-90" />
+                    <span>Continuar al Pago</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 bg-black/15 px-3 py-1 rounded-xl font-black tabular-nums text-xs sm:text-sm">
+                    <span>${totalCheckout.toLocaleString("es-CO")}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </span>
+                </button>
               </div>
             )}
-          </div>
+          </aside>
         </div>
       )}
 
