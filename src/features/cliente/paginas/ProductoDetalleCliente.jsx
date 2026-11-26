@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, Sun, Moon, ChevronRight } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Sun, Moon, ChevronRight, Sparkles, ArrowUpRight } from "lucide-react";
 import logoImg from "@/shared/assets/logo_optimized.webp";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
@@ -10,6 +10,8 @@ import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fich
 import { adicionesService } from "@/features/compras/servicios/adicionesService";
 import { eventosService } from "@/features/ventas/servicios/eventosService";
 import { apiClient } from "@/shared/api/apiClient";
+import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
 import FastFoodProductModal, { isDrinkProduct, resolveDrinkImage } from "@/shared/components/ui/FastFoodProductModal";
@@ -130,6 +132,42 @@ export function ProductoDetalleCliente() {
   }, [id]);
 
   const totalCartItems = useMemo(() => getTotalItems(), [getTotalItems]);
+
+  const categoryLabel = useMemo(() => {
+    if (!producto) return "Menú";
+    if (typeof producto.categoria === "string" && producto.categoria.trim()) return producto.categoria;
+    if (producto.categoriaNombre) return producto.categoriaNombre;
+    if (producto.categoria?.nombre) return producto.categoria.nombre;
+    return "Especialidad";
+  }, [producto]);
+
+  // Recomendaciones cruzadas inteligentes (misma categoría primero, luego favoritos con stock)
+  const recommendedProducts = useMemo(() => {
+    if (!producto || !Array.isArray(productosList) || productosList.length === 0) return [];
+    const currentId = String(producto.id || producto.idProducto);
+    const currentCat = String(producto.idCategoriaProducto || categoryLabel || "").toLowerCase();
+
+    const activePool = productosList.filter((p) => {
+      const pid = String(p.id || p.idProducto);
+      if (!pid || pid === currentId) return false;
+      const isAct = p.estado === "Activo" || p.estado === 1 || p.estado === "1";
+      const hasStock = Number(p.stock ?? p.stockActual ?? 1) > 0 && !p.agotado;
+      return isAct && hasStock;
+    });
+
+    const sameCat = [];
+    const otherCat = [];
+    for (const item of activePool) {
+      const itemCat = String(item.idCategoriaProducto || item.categoriaNombre || item.categoria?.nombre || item.categoria || "").toLowerCase();
+      if (currentCat && itemCat && itemCat === currentCat) {
+        sameCat.push(item);
+      } else {
+        otherCat.push(item);
+      }
+    }
+
+    return [...sameCat, ...otherCat].slice(0, 4);
+  }, [producto, productosList, categoryLabel]);
 
   const handleConfirmAdd = ({
     producto: prod,
@@ -253,51 +291,55 @@ export function ProductoDetalleCliente() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-950 flex flex-col transition-colors">
-      {/* Navbar superior limpia y viva (SIN llamado a iniciar sesión) */}
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800 shadow-2xs">
-        <div className="h-0.5 w-full bg-gradient-to-r from-[#c84545] via-amber-400/75 to-[#2e4257]" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+    <div className="min-h-[100dvh] bg-[#F8FAFC] dark:bg-gray-950 flex flex-col transition-colors">
+      {/* Navbar superior editorial y limpia (SIN llamado a iniciar sesión) */}
+      <header className="sticky top-0 z-40 bg-white/92 dark:bg-gray-900/92 backdrop-blur-xl border-b border-slate-200/75 dark:border-gray-800/90">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs sm:text-sm font-bold transition-all active:scale-95 cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100/90 hover:bg-slate-200/80 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-800 dark:text-gray-100 text-xs sm:text-sm font-bold transition-all active:scale-95 cursor-pointer shrink-0 border border-slate-200/70 dark:border-gray-700"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Volver al menú</span>
+              <span>Menú</span>
             </button>
 
-            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 min-w-0">
-              <Link to="/" className="inline-flex items-center gap-1.5 hover:text-red-600 transition-colors shrink-0">
+            <nav aria-label="Ruta de navegación" className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-gray-400 min-w-0">
+              <Link to="/" className="inline-flex items-center gap-2 hover:text-[#D9383A] transition-colors shrink-0">
                 <img
                   src={logoImg}
                   alt="Chazin Food"
-                  width="24"
-                  height="24"
-                  className="w-6 h-6 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                  width="26"
+                  height="26"
+                  decoding="async"
+                  className="w-6.5 h-6.5 rounded-full object-cover border border-slate-200 dark:border-gray-700"
                 />
-                <span className="font-bold text-gray-700 dark:text-gray-200">Menú</span>
+                <span className="font-extrabold text-slate-800 dark:text-gray-200 tracking-tight">Chazin Food</span>
               </Link>
-              <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-              <span className="font-semibold text-gray-800 dark:text-gray-100 truncate">
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-gray-600 shrink-0" />
+              <span className="font-medium text-slate-500 dark:text-gray-400 truncate max-w-[140px]">
+                {categoryLabel}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-gray-600 shrink-0" />
+              <span className="font-bold text-slate-900 dark:text-gray-100 truncate max-w-[240px]">
                 {producto?.nombre || "Detalle de producto"}
               </span>
-            </div>
+            </nav>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             <HelpTooltip
               align="right"
-              title="Personaliza tu plato"
-              text="Selecciona el tamaño o variante, retira ingredientes si lo prefieres y agrega tus adiciones o bebidas favoritas antes de añadir al carrito."
+              title="Personaliza tu pedido"
+              text="Elige tu variante preferida, retira ingredientes opcionales, suma adiciones o bebidas y agrégalo al carrito en un clic. El costo de domicilio se cancela aparte al recibir."
             />
 
             <button
               type="button"
               onClick={toggleDarkMode}
               aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
-              className="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-xl text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors cursor-pointer"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -305,12 +347,12 @@ export function ProductoDetalleCliente() {
             <button
               type="button"
               onClick={() => navigate("/?openCart=1")}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <ShoppingCart className="w-4 h-4" />
               <span className="hidden xs:inline">Carrito</span>
               {totalCartItems > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-white text-red-700 text-[10px] font-black leading-none">
+                <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] dark:bg-white text-white dark:text-[#B91C1C] text-[10.5px] font-black leading-none min-w-[18px] text-center">
                   {totalCartItems}
                 </span>
               )}
@@ -319,44 +361,162 @@ export function ProductoDetalleCliente() {
         </div>
       </header>
 
-      {/* Contenido principal independiente */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-8">
+      {/* Contenido principal amplio sin zonas muertas (max-w-7xl) */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-9 space-y-12">
         {loading ? (
-          <div className="py-20">
-            <ChazinLoader text="CARGANDO DETALLE DEL PRODUCTO" size="md" />
+          <div className="py-24">
+            <ChazinLoader text="PREPARANDO EXPERIENCIA GASTRONÓMICA" size="md" />
           </div>
         ) : !producto ? (
-          <div className="bg-white dark:bg-gray-900 rounded-3xl p-10 text-center border border-gray-200 dark:border-gray-800 space-y-4 shadow-xs">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-gray-800 space-y-4 shadow-xs max-w-xl mx-auto">
+            <h1 className="text-xl font-extrabold text-slate-900 dark:text-gray-100">
               Producto no encontrado
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              El producto que buscas no está disponible o fue retirado del menú.
+            <p className="text-sm text-slate-500 dark:text-gray-400">
+              El producto que buscas no está disponible en este momento o fue retirado del menú.
             </p>
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-[#D9383A] hover:bg-[#B91C1C] text-white text-sm font-bold cursor-pointer transition"
             >
-              Volver al menú principal
+              Explorar menú principal
             </button>
           </div>
         ) : (
-          <FastFoodProductModal
-            asPage={true}
-            isOpen={true}
-            onClose={() => navigate("/")}
-            producto={producto}
-            ficha={ficha}
-            productosList={productosList}
-            fichasMap={fichasMap}
-            allAdiciones={allAdiciones}
-            allBebidas={allBebidas}
-            ratingsInfo={ratingsInfo}
-            onConfirm={handleConfirmAdd}
-            mode="cliente"
-            initialTab={state.initialTab || "personalizar"}
-          />
+          <>
+            <FastFoodProductModal
+              asPage={true}
+              isOpen={true}
+              onClose={() => navigate("/")}
+              producto={producto}
+              ficha={ficha}
+              productosList={productosList}
+              fichasMap={fichasMap}
+              allAdiciones={allAdiciones}
+              allBebidas={allBebidas}
+              ratingsInfo={ratingsInfo}
+              onConfirm={handleConfirmAdd}
+              mode="cliente"
+              initialTab={state.initialTab || "personalizar"}
+            />
+
+            {/* Sección Cross-Sell: Sugerencias del Chef */}
+            {recommendedProducts.length > 0 && (
+              <section aria-labelledby="recomendados-heading" className="pt-6 border-t border-slate-200/80 dark:border-gray-800 space-y-5">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#D9383A] dark:text-red-400 block mb-1">
+                      Sugerencias de la Casa
+                    </span>
+                    <h2 id="recomendados-heading" className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                      También te puede encantar
+                    </h2>
+                  </div>
+                  <Link
+                    to="/"
+                    className="text-xs sm:text-sm font-bold text-slate-600 dark:text-gray-300 hover:text-[#D9383A] dark:hover:text-red-400 inline-flex items-center gap-1 transition-colors shrink-0"
+                  >
+                    <span>Ver todo el menú</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                  {recommendedProducts.map((rec) => {
+                    const recId = rec.id || rec.idProducto;
+                    const recIsDrink = isDrinkProduct(rec);
+                    const rawImg = recIsDrink
+                      ? resolveDrinkImage(rec)
+                      : (rec.imagen || rec.imagenUrl || rec.urlImagen || "");
+                    const optImg = rawImg ? getOptimizedImageUrl(rawImg, 420) : "";
+                    const baseP = Number(rec.precio || 0);
+                    const activeEvt = Array.isArray(rec.eventos)
+                      ? rec.eventos.find((ev) => isEventActiveInColombia(ev))
+                      : null;
+                    let finalP = baseP;
+                    if (activeEvt) {
+                      if (Number(activeEvt.nuevoPrecio) > 0) finalP = Number(activeEvt.nuevoPrecio);
+                      else if (Number(activeEvt.descuento) > 0) finalP = Math.round(baseP * (1 - Number(activeEvt.descuento) / 100));
+                    } else if (rec.precioPromo !== undefined && Number(rec.precioPromo) < baseP) {
+                      finalP = Number(rec.precioPromo);
+                    }
+                    const hasRecPromo = finalP < baseP;
+
+                    return (
+                      <button
+                        key={recId}
+                        type="button"
+                        onClick={() =>
+                          navigate(`/producto/${recId}`, {
+                            state: {
+                              producto: rec,
+                              productosList,
+                              fichasMap,
+                              allAdiciones,
+                              allBebidas
+                            }
+                          })
+                        }
+                        className="group text-left bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 shadow-2xs hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col cursor-pointer"
+                      >
+                        <div className="relative aspect-[16/11] w-full bg-slate-100 dark:bg-gray-800/80 overflow-hidden flex items-center justify-center">
+                          {optImg ? (
+                            <img
+                              src={optImg}
+                              alt={rec.nombre}
+                              width="320"
+                              height="220"
+                              loading="lazy"
+                              decoding="async"
+                              className={`w-full h-full transition-transform duration-500 group-hover:scale-105 ${
+                                recIsDrink ? "object-contain p-3" : "object-cover"
+                              }`}
+                            />
+                          ) : null}
+                          {hasRecPromo && (
+                            <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black uppercase tracking-wide shadow-sm inline-flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              <span>Oferta</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="p-4 flex-1 flex flex-col justify-between gap-2">
+                          <div>
+                            <h3 className="font-extrabold text-sm text-slate-900 dark:text-gray-100 line-clamp-1 group-hover:text-[#D9383A] dark:group-hover:text-red-400 transition-colors">
+                              {rec.nombre}
+                            </h3>
+                            {rec.descripcion && (
+                              <p className="text-xs text-slate-500 dark:text-gray-400 line-clamp-2 mt-1 leading-relaxed">
+                                {rec.descripcion}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-sm font-black text-slate-900 dark:text-white">
+                                ${finalP.toLocaleString("es-CO")}
+                              </span>
+                              {hasRecPromo && (
+                                <span className="text-[11px] text-slate-400 line-through font-semibold">
+                                  ${baseP.toLocaleString("es-CO")}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] font-bold text-[#D9383A] dark:text-red-400 group-hover:translate-x-0.5 transition-transform">
+                              Personalizar →
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </main>
 

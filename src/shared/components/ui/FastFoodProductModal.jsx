@@ -2419,28 +2419,8 @@ export function FastFoodProductModal({
   // Early-return guard AFTER all hooks (React rules of hooks)
   if (!isOpen || !producto) return null;
 
-  const innerCard = (
-      <div
-        className={
-          asPage
-            ? "bg-white dark:bg-gray-900 rounded-3xl w-full shadow-lg flex flex-col border border-gray-200/80 dark:border-gray-800 overflow-hidden relative transition-colors"
-            : "bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors"
-        }
-      >
-        {/* ── Close Floating Button (solo en modo modal; en vista página hay botón Volver en el encabezado) ── */}
-        {!asPage && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-3.5 right-3.5 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow-lg active:scale-95"
-            title="Cerrar modal (Esc)"
-          >
-            <X className="w-5 h-5 stroke-[2.5]" />
-          </button>
-        )}
-
-        {/* ── Scrollable Body Area ── */}
-        <div className={asPage ? "flex-1" : "overflow-y-auto overflow-x-hidden flex-1 no-scrollbar"}>
+  const modalHeroAndTabs = (
+    <>
           {/* ═══ 1. LUXURY DUAL-STAGE HERO PHOTO (ENCUADRE PERFECTO & WOW EFFECT) ═══ */}
           <div className={`relative w-full ${asPage ? "h-64 sm:h-80" : "h-52 sm:h-64"} bg-slate-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80`}>
             {/* Background Ambient Layer (Glow difuminado suave) */}
@@ -2889,9 +2869,11 @@ export function FastFoodProductModal({
               )}
             </div>
           </div>
+    </>
+  );
 
-          {/* ═══ 3. TAB CONTENT PANELS ═══ */}
-          <div className="p-4 sm:p-6 space-y-5">
+  const configuratorPanels = (
+          <div className={asPage ? "p-5 sm:p-7 space-y-6" : "p-4 sm:p-6 space-y-5"}>
             {/* ─── TAB 0: VARIANTES SIN TAMAÑO PARA BEBIDAS ─── */}
             {!drinkHasSizes && isDrink && activeTab === "presentacion" && (drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
               <div className="space-y-4 animate-in fade-in duration-200">
@@ -3152,26 +3134,28 @@ export function FastFoodProductModal({
             )}
 
             {/* ─── TAB 1: PERSONALIZAR INGREDIENTES (MISE EN PLACE CON LÓGICA HUMANA DE COCINA) ─── */}
-            {!isDrink && activeTab === "personalizar" && eventInfo && <EventoToppingsCard event={eventInfo} />}
+            {!isDrink && activeTab === "personalizar" && eventInfo && (!asPage || parseEventoInsumos(eventInfo).length > 0) && (
+              <EventoToppingsCard event={eventInfo} />
+            )}
             {!isDrink && activeTab === "personalizar" && !(comboRecipeInfo.isComboProd && comboRecipeInfo.comboItems.length > 0) && (personalizables.length > 0 || foodVariants.length > 0) && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                      <ChefHat className="w-4 h-4 text-red-500" />
-                      Mise & Place & Personalización
+                    <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
+                      <ChefHat className="w-4 h-4 text-[#D9383A] dark:text-red-400" />
+                      <span>Personalización de Receta</span>
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Variante e ingredientes personalizables:
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
+                      Elige tu variante preferida y ajusta los ingredientes opcionales a tu gusto:
                     </p>
                   </div>
                   {removedIngredients.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setRemovedIngredients([])}
-                      className="text-[11px] font-bold text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                      className="text-xs font-bold text-[#D9383A] dark:text-red-400 hover:underline cursor-pointer"
                     >
-                      Restablecer todo
+                      Restablecer receta original
                     </button>
                   )}
                 </div>
@@ -3194,20 +3178,20 @@ export function FastFoodProductModal({
                     includeBaseOption={true}
                     baseOptionLabel="Preparación Clásica / Estándar"
                     isDrink={false}
-                    title="Variantes disponibles, precio y lo que cambia"
+                    title="Elige tu versión o variante"
                   />
                 )}
 
-                {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (PROTEGIDOS POR LÓGICA HUMANA) ── */}
+                {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (DISEÑO NEUTRO Y LIMPIO) ── */}
                 {baseIngredients.length > 0 && (
-                  <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl p-3 space-y-2">
+                  <div className="bg-slate-50/90 dark:bg-gray-800/45 border border-slate-200/80 dark:border-gray-700/70 rounded-2xl p-3.5 sm:p-4 space-y-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 dark:text-amber-300">
-                        <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                        <span>Base Indispensable del Plato</span>
+                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-gray-200">
+                        <ShieldCheck className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
+                        <span>Base esencial de la preparación</span>
                       </div>
-                      <span className="text-[10px] font-bold bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" /> No removible
+                      <span className="text-[10px] font-bold bg-slate-200/80 dark:bg-gray-700 text-slate-700 dark:text-gray-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" /> Fijos en cocina
                       </span>
                     </div>
 
@@ -3215,26 +3199,26 @@ export function FastFoodProductModal({
                       {baseIngredients.map((baseIng) => (
                         <div
                           key={baseIng.id}
-                          className={`p-2.5 rounded-xl flex items-center justify-between gap-2 shadow-2xs select-none border ${
+                          className={`p-2.5 rounded-xl flex items-center justify-between gap-2 select-none border ${
                             baseIng.variantStatus?.kind === "reemplazo"
-                              ? "bg-purple-50/60 dark:bg-purple-950/25 border-purple-300/80 dark:border-purple-800"
+                              ? "bg-slate-100/80 dark:bg-gray-800 border-slate-300 dark:border-gray-600"
                               : baseIng.variantStatus?.isExtra
-                                ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-300/80 dark:border-emerald-800"
-                                : "bg-white/90 dark:bg-gray-800/90 border-amber-200/60 dark:border-amber-900/40"
+                                ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-800/60"
+                                : "bg-white dark:bg-gray-900/70 border-slate-200/80 dark:border-gray-700/70"
                           }`}
-                          title={baseIng.variantStatus?.badgeText || "Ingrediente base indispensable del plato (no se puede retirar)"}
+                          title={baseIng.variantStatus?.badgeText || "Ingrediente esencial de la receta (no removible)"}
                         >
-                          <span className="flex items-center gap-2 min-w-0 flex-1 text-xs font-bold text-gray-800 dark:text-gray-200">
-                            <span className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-950/70 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-300">
+                          <span className="flex items-center gap-2.5 min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-gray-200">
+                            <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-slate-700 dark:text-gray-300">
                               <FoodIcon name={baseIng.icono || baseIng.nombre} size={15} stroke={1.75} />
                             </span>
                             <span className="min-w-0 flex-1 text-left">
                               <span className="block truncate">{baseIng.nombre}</span>
                               {baseIng.variantStatus?.isExtra && (
                                 <span
-                                  className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-black px-1.5 py-0.5 rounded-md border ${
+                                  className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md border ${
                                     baseIng.variantStatus.kind === "reemplazo"
-                                      ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/70 dark:text-purple-200 dark:border-purple-700"
+                                      ? "bg-slate-200/80 text-slate-800 border-slate-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                                       : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700"
                                   }`}
                                 >
@@ -3243,8 +3227,8 @@ export function FastFoodProductModal({
                               )}
                             </span>
                           </span>
-                          <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/40 px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-1">
-                            <Check className="w-3 h-3 stroke-[3]" /> Obligatorio
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" /> Base
                           </span>
                         </div>
                       ))}
@@ -3254,13 +3238,13 @@ export function FastFoodProductModal({
 
                 {/* ── SECCIÓN 2: INGREDIENTES PERSONALIZABLES (EXCLUSIONES A PETICIÓN) ── */}
                 {customizableIngredients.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-1.5">
-                      <p className="text-xs font-extrabold text-gray-700 dark:text-gray-300">
-                        ¿Deseas retirar algún ingrediente de tu pedido?
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-gray-200">
+                        Ingredientes personalizables (toca para retirar o incluir)
                       </p>
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                        Toca para alternar (Con / Sin)
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400">
+                        Sin costo adicional
                       </span>
                     </div>
 
@@ -3272,45 +3256,41 @@ export function FastFoodProductModal({
                             key={ing.id}
                             type="button"
                             onClick={() => toggleRemoveIngredient(ing.nombre)}
-                            className={`p-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-98 select-none ${
+                            className={`p-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] select-none ${
                               isRemoved
-                                ? "border-red-400 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 shadow-xs ring-2 ring-red-400/40"
-                                : ing.variantStatus?.kind === "reemplazo"
-                                  ? "border-purple-300 dark:border-purple-700 bg-purple-50/40 dark:bg-purple-950/20 text-purple-950 dark:text-purple-100 hover:bg-purple-50"
-                                  : ing.variantStatus?.isExtra
-                                    ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-100 hover:bg-emerald-50"
-                                    : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 text-gray-700 dark:text-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750"
+                                ? "border-[#D9383A]/60 bg-red-50/60 dark:bg-red-950/30 text-[#B91C1C] dark:text-red-300 shadow-2xs ring-1 ring-[#D9383A]/25"
+                                : ing.variantStatus?.isExtra
+                                  ? "border-emerald-300 dark:border-emerald-700/80 bg-emerald-50/40 dark:bg-emerald-950/20 text-slate-900 dark:text-gray-100 hover:bg-emerald-50/70"
+                                  : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 text-slate-800 dark:text-gray-200 hover:border-slate-300 dark:hover:border-gray-600 hover:bg-slate-50/70 dark:hover:bg-gray-800"
                             }`}
                           >
                             <span className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <span className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-750 flex items-center justify-center shrink-0 text-gray-700 dark:text-gray-200 shadow-2xs">
-                                <FoodIcon name={ing.icono || ing.nombre} size={18} stroke={1.75} />
+                              <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                isRemoved
+                                  ? "bg-red-100 dark:bg-red-950/60 text-[#D9383A] dark:text-red-400"
+                                  : "bg-slate-100 dark:bg-gray-700/80 text-slate-700 dark:text-gray-200"
+                              }`}>
+                                <FoodIcon name={ing.icono || ing.nombre} size={17} stroke={1.75} />
                               </span>
                               <span className="min-w-0 flex-1 text-left">
                                 <span className={`block truncate ${isRemoved ? "line-through opacity-75" : ""}`}>
                                   {ing.nombre}
                                 </span>
                                 {ing.variantStatus?.isExtra && (
-                                  <span
-                                    className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-black px-1.5 py-0.2 rounded ${
-                                      ing.variantStatus.kind === "reemplazo"
-                                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200"
-                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
-                                    }`}
-                                  >
+                                  <span className="inline-block max-w-full truncate mt-0.5 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
                                     {ing.variantStatus.shortBadge}
                                   </span>
                                 )}
                               </span>
                             </span>
                             <span
-                              className={`text-[10px] font-black px-2 py-0.5 rounded-lg uppercase tracking-wider shrink-0 transition-colors ${
+                              className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0 transition-colors ${
                                 isRemoved
-                                  ? "bg-red-500 text-white"
-                                  : "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40"
+                                  ? "bg-[#D9383A] text-white"
+                                  : "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50"
                               }`}
                             >
-                              {isRemoved ? "Sin" : "Con"}
+                              {isRemoved ? "Sin" : "Incluido"}
                             </span>
                           </button>
                         );
@@ -3318,16 +3298,16 @@ export function FastFoodProductModal({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                    Este plato se prepara exclusivamente con sus ingredientes base indispensables.
+                  <p className="text-xs text-slate-500 dark:text-gray-400 italic">
+                    Este plato se prepara exclusivamente con sus ingredientes esenciales de receta.
                   </p>
                 )}
 
                 {/* Banner de orden personalizada para cocina */}
                 {removedIngredients.length > 0 && (
-                  <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-2xl border border-red-200 dark:border-red-900/50 flex items-center gap-2 text-xs">
-                    <Info className="w-4 h-4 text-red-600 shrink-0" />
-                    <p className="text-red-700 dark:text-red-300 font-bold">
+                  <div className="p-3 bg-red-50/70 dark:bg-red-950/25 rounded-2xl border border-[#D9383A]/30 dark:border-red-900/50 flex items-center gap-2 text-xs">
+                    <Info className="w-4 h-4 text-[#D9383A] dark:text-red-400 shrink-0" />
+                    <p className="text-[#B91C1C] dark:text-red-300 font-bold">
                       Comanda a cocina:{" "}
                       <span className="underline">
                         Sin {removedIngredients.map((r) => r.toLowerCase()).join(", Sin ")}
@@ -3345,53 +3325,53 @@ export function FastFoodProductModal({
                   <>
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                          <ChefHat className="w-4 h-4 text-red-500 shrink-0" />
+                        <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
+                          <ChefHat className="w-4 h-4 text-[#D9383A] shrink-0" />
                           <span>
                             {comboRecipeInfo.isComboProd
                               ? (eventInfo ? "Composición del Combo Promocional" : "Composición del Combo")
                               : (eventInfo ? "Componentes de la Promoción" : "Composición del Plato")}
                           </span>
                         </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-slate-500 dark:text-gray-400">
                           {eventInfo
                             ? "Productos y acompañamientos incluidos en esta oferta:"
                             : "Productos y acompañamientos incluidos en este combo:"}
                         </p>
                       </div>
-                      <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 shrink-0">
+                      <span className="text-[10.5px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700 shrink-0">
                         {comboRecipeInfo.comboItems.length} {comboRecipeInfo.comboItems.length === 1 ? "producto" : "productos"}
                       </span>
                     </div>
 
-                    <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl p-3 space-y-2.5">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 dark:text-amber-300">
-                        <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <div className="bg-slate-50/90 dark:bg-gray-800/45 border border-slate-200/80 dark:border-gray-700/70 rounded-2xl p-3.5 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-gray-200">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span>{eventInfo ? "Qué incluye esta promoción" : "Qué incluye este combo"}</span>
                       </div>
                       <div className="space-y-2">
                         {comboRecipeInfo.comboItems.map((item) => (
                           <div
                             key={item.id}
-                            className="w-full p-3 rounded-xl bg-white/95 dark:bg-gray-800/90 border border-amber-200/70 dark:border-amber-900/50 shadow-2xs transition-colors"
+                            className="w-full p-3 rounded-xl bg-white dark:bg-gray-900/80 border border-slate-200/80 dark:border-gray-700/70 shadow-2xs transition-colors"
                           >
                             <div className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-2.5 min-w-0 flex-1 text-xs sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 leading-snug">
-                                <span className="w-8 h-8 rounded-xl bg-amber-100/90 dark:bg-amber-950/70 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-300">
+                              <span className="flex items-center gap-2.5 min-w-0 flex-1 text-xs sm:text-[13px] font-bold text-slate-900 dark:text-gray-100 leading-snug">
+                                <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-[#D9383A] dark:text-red-400">
                                   <FoodIcon name={item.nombre} size={16} stroke={1.75} />
                                 </span>
                                 <span>{item.nombre}</span>
                               </span>
-                              <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-1">
+                              <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-1">
                                 <Check className="w-3 h-3 stroke-[3]" /> {item.tag}
                               </span>
                             </div>
                             {Array.isArray(item.ingredientes) && item.ingredientes.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-amber-100/80 dark:border-gray-700/60 pl-10 flex flex-wrap gap-1.5">
+                              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-gray-800 pl-10 flex flex-wrap gap-1.5">
                                 {item.ingredientes.map((ing, iIdx) => (
                                   <span
                                     key={iIdx}
-                                    className="inline-flex items-center text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-amber-50/70 dark:bg-gray-700/80 border border-amber-200/50 dark:border-gray-600/40 text-gray-700 dark:text-gray-200"
+                                    className="inline-flex items-center text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-slate-100/80 dark:bg-gray-800 border border-slate-200/70 dark:border-gray-700 text-slate-700 dark:text-gray-300"
                                   >
                                     {ing}
                                   </span>
@@ -3406,12 +3386,12 @@ export function FastFoodProductModal({
                 )}
 
                 {comboRecipeInfo.comboItems.length === 0 && comboRecipeInfo.steps.length > 0 && (
-                  <div className="p-3.5 rounded-2xl bg-white dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 space-y-2">
-                    <p className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-gray-800/70 border border-slate-200 dark:border-gray-700 space-y-2">
+                    <p className="text-xs font-black text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#D9383A]" />
                       Preparación al momento en cocina
                     </p>
-                    <ol className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300 list-decimal list-inside">
+                    <ol className="space-y-1.5 text-xs text-slate-600 dark:text-gray-300 list-decimal list-inside">
                       {comboRecipeInfo.steps.map((step, idx) => (
                         <li key={idx} className="leading-relaxed">{step}</li>
                       ))}
@@ -3420,27 +3400,27 @@ export function FastFoodProductModal({
                 )}
 
                 {comboRecipeInfo.isComboProd && comboRecipeInfo.includedDrinksCount > 0 && availableBebidas.length > 0 && (
-                  <div className="p-3 rounded-2xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 flex items-center justify-center shrink-0">
+                      <span className="w-8 h-8 rounded-xl bg-[#D9383A]/10 dark:bg-red-950/60 text-[#D9383A] dark:text-red-400 flex items-center justify-center shrink-0">
                         <FoodIcon name="drink" size={16} />
                       </span>
-                      <p className="text-blue-900 dark:text-blue-200 font-semibold">
+                      <p className="text-slate-800 dark:text-gray-200 font-semibold">
                         Elige tus bebidas ({comboRecipeInfo.includedDrinksCount} {comboRecipeInfo.includedDrinksCount === 1 ? "incluida" : "incluidas"}) en la pestaña <strong className="font-black">Bebidas</strong>.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab("bebidas")}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] shrink-0 transition cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white font-bold text-xs shrink-0 transition cursor-pointer"
                     >
-                      Ir a Bebidas
+                      Elegir bebidas →
                     </button>
                   </div>
                 )}
 
-                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/80 dark:border-gray-700/80 flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
-                  <Info className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-gray-800/60 border border-slate-200/80 dark:border-gray-700/80 flex items-start gap-2 text-xs text-slate-600 dark:text-gray-300">
+                  <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                   <p>
                     Si necesitas retirar o ajustar algún ingrediente puntual (ej. <em>“sin cebolla”</em> o <em>“salsas aparte”</em>), indícalo en <strong>Instrucciones o Notas Especiales</strong> abajo o agrega complementos en <strong>Adiciones</strong>.
                   </p>
@@ -3450,203 +3430,213 @@ export function FastFoodProductModal({
 
             {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS & EXTRAS) ─── */}
             {!isDrink && activeTab === "adiciones" && (
-              <div className="space-y-3">
+              <div className="space-y-3.5 animate-in fade-in duration-150">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                      <Flame className="w-4 h-4 text-amber-500" />
-                      Toppings y Extras Gourmet
+                    <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
+                      <Flame className="w-4 h-4 text-[#D9383A] dark:text-red-400" />
+                      <span>Toppings y Extras Gourmet</span>
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Agrega ingredientes premium para enriquecer tu comida:
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
+                      Potencia el sabor de tu pedido con porciones extra recién preparadas:
                     </p>
                   </div>
-                  <span className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  <span className="text-[11px] font-extrabold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
                     {filteredAdiciones.length} opciones
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
-                  {filteredAdiciones.map((ad) => {
-                    const adId = ad.idAdicion || ad.id;
-                    const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
-                    const isSelected = Boolean(selectedObj);
-                    const itemQty = selectedObj?.cantidad || 1;
-                    const adImg = getOptimizedImageUrl(getAdicionDisplayImage(ad), 120);
+                {filteredAdiciones.length === 0 ? (
+                  <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-gray-800/50 border border-dashed border-slate-200 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+                    No hay adiciones disponibles en este momento.
+                  </div>
+                ) : (
+                  <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
+                    {filteredAdiciones.map((ad) => {
+                      const adId = ad.idAdicion || ad.id;
+                      const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
+                      const isSelected = Boolean(selectedObj);
+                      const itemQty = selectedObj?.cantidad || 1;
+                      const adImg = getOptimizedImageUrl(getAdicionDisplayImage(ad), 120);
 
-                    return (
-                      <div
-                        key={adId}
-                        className={`p-2.5 sm:p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
-                          isSelected
-                            ? "border-[#f05454] bg-red-50/60 dark:bg-red-950/30 shadow-xs ring-2 ring-red-400/30"
-                            : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750"
-                        }`}
-                      >
-                        {/* Avatar / Photo + Info */}
+                      return (
                         <div
-                          onClick={() => toggleAddition(ad)}
-                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
+                          key={adId}
+                          className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
+                            isSelected
+                              ? "border-[#D9383A] bg-red-50/50 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/25"
+                              : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600"
+                          }`}
                         >
-                          <img
-                            src={adImg}
-                            alt={ad.nombre}
-                            className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-2xs border border-gray-100 dark:border-gray-700"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-gray-900 dark:text-gray-100 font-black text-xs sm:text-sm truncate">
-                              {ad.nombre}
-                            </p>
-                            <p className="text-[#f05454] dark:text-red-400 font-black text-xs mt-0.5">
-                              +${Number(ad.precio).toLocaleString("es-CO")}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Stepper or Add Button */}
-                        {isSelected ? (
-                          <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-red-200 dark:border-red-900/60 shadow-xs shrink-0">
-                            <button
-                              type="button"
-                              onClick={(e) => changeAdditionQty(adId, -1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Restar cantidad"
-                            >
-                              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            <span className="font-black text-gray-900 dark:text-gray-100 min-w-5 text-center text-xs">
-                              {itemQty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => changeAdditionQty(adId, 1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Sumar cantidad"
-                            >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
+                          <div
                             onClick={() => toggleAddition(ad)}
-                            className="px-3.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-[#f05454] hover:text-white text-gray-700 dark:text-gray-200 text-xs font-black transition-all cursor-pointer flex items-center gap-1 active:scale-95 shrink-0"
+                            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
                           >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Agregar</span>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                            <img
+                              src={adImg}
+                              alt={ad.nombre}
+                              width="48"
+                              height="48"
+                              loading="lazy"
+                              decoding="async"
+                              className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-2xs border border-slate-100 dark:border-gray-700"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-sm truncate">
+                                {ad.nombre}
+                              </p>
+                              <p className="text-[#D9383A] dark:text-red-400 font-extrabold text-xs mt-0.5">
+                                +${Number(ad.precio).toLocaleString("es-CO")}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isSelected ? (
+                            <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-[#D9383A]/30 dark:border-red-900/60 shadow-2xs shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => changeAdditionQty(adId, -1, e)}
+                                aria-label={`Restar ${ad.nombre}`}
+                                className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                              >
+                                <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                              </button>
+                              <span className="font-black text-slate-900 dark:text-gray-100 min-w-5 text-center text-xs">
+                                {itemQty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => changeAdditionQty(adId, 1, e)}
+                                aria-label={`Sumar ${ad.nombre}`}
+                                className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                              >
+                                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => toggleAddition(ad)}
+                              className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 active:scale-95 shrink-0"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Agregar</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES ─── */}
+            {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES (PALETA UNIFICADA CHAZIN) ─── */}
             {!isDrink && activeTab === "bebidas" && (
-              <div className="space-y-3">
+              <div className="space-y-3.5 animate-in fade-in duration-150">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <FoodIcon name="drink" size={18} className="shrink-0" />
-                      <span>{isComboWithDrinks ? "Bebidas Incluidas en tu Combo" : "Bebidas Frías & Acompañamientos"}</span>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-2">
+                      <FoodIcon name="drink" size={18} className="text-[#D9383A] dark:text-red-400 shrink-0" />
+                      <span>{isComboWithDrinks ? "Bebidas Incluidas en tu Combo" : "Bebidas Frías & Acompañantes"}</span>
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
                       {isComboWithDrinks
-                        ? `Selecciona ${requiredDrinkCount} bebida${requiredDrinkCount > 1 ? 's' : ''} incluida${requiredDrinkCount > 1 ? 's' : ''} en tu combo sin costo extra:`
-                        : "El maridaje ideal para disfrutar tu pedido al máximo:"}
+                        ? `Selecciona ${requiredDrinkCount} bebida${requiredDrinkCount > 1 ? "s" : ""} incluida${requiredDrinkCount > 1 ? "s" : ""} en tu combo sin costo extra:`
+                        : "Acompaña tu pedido con tu bebida favorita bien fría:"}
                     </p>
                   </div>
-                  <span className={`text-[11px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                  <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full ${
                     isComboWithDrinks
-                      ? (isComboDrinkComplete ? "bg-emerald-500 text-white" : "bg-blue-600 text-white animate-pulse")
-                      : "text-gray-400 dark:text-gray-500"
+                      ? (isComboDrinkComplete ? "bg-emerald-600 text-white" : "bg-[#D9383A] text-white animate-pulse")
+                      : "bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400"
                   }`}>
-                    {isComboWithDrinks ? `${totalSelectedDrinkQty} de ${requiredDrinkCount} seleccionadas` : `${availableBebidas.length} opciones`}
+                    {isComboWithDrinks ? `${totalSelectedDrinkQty} de ${requiredDrinkCount} elegidas` : `${availableBebidas.length} opciones`}
                   </span>
                 </div>
 
                 {/* Banner de estado del combo */}
                 {isComboWithDrinks && (
-                  <div className={`p-3 rounded-2xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 ${
+                  <div className={`p-3.5 rounded-2xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 ${
                     isComboDrinkComplete
-                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-850 text-emerald-800 dark:text-emerald-200"
-                      : "bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-850 text-blue-800 dark:text-blue-200"
+                      ? "bg-emerald-50 dark:bg-emerald-950/35 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200"
+                      : "bg-red-50/70 dark:bg-red-950/30 border-[#D9383A]/30 dark:border-red-900/50 text-slate-900 dark:text-gray-100"
                   }`}>
                     <div className="flex items-center gap-2.5">
                       <FoodIconBadge name="drink" size="md" />
                       <div>
-                        <p className="text-xs font-black">
+                        <p className="text-xs font-extrabold">
                           {isComboDrinkComplete
-                            ? "¡Bebidas del combo seleccionadas!"
-                            : `Selecciona ${requiredDrinkCount} bebida${requiredDrinkCount > 1 ? 's' : ''} para tu combo`}
+                            ? "¡Bebidas del combo completas!"
+                            : `Selecciona ${requiredDrinkCount} bebida${requiredDrinkCount > 1 ? "s" : ""} para tu combo`}
                         </p>
-                        <p className="text-[11px] opacity-80">
+                        <p className="text-[11px] text-slate-600 dark:text-gray-300">
                           {isComboDrinkComplete
-                            ? "Las bebidas seleccionadas están incluidas en el precio base ($0 COP)."
+                            ? "Incluidas sin costo adicional ($0 COP) en tu combo."
                             : `Faltan ${Math.max(0, requiredDrinkCount - totalSelectedDrinkQty)} bebida(s) por elegir.`}
                         </p>
                       </div>
                     </div>
                     <span className={`text-xs font-black px-2.5 py-1 rounded-xl shrink-0 ${
-                      isComboDrinkComplete ? "bg-emerald-600 text-white" : "bg-blue-600 text-white"
+                      isComboDrinkComplete ? "bg-emerald-600 text-white" : "bg-[#D9383A] text-white"
                     }`}>
                       {totalSelectedDrinkQty} / {requiredDrinkCount}
                     </span>
                   </div>
                 )}
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
+                <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
                   {availableBebidas.map((drink) => {
                     const dId = drink.id || drink.idProducto;
                     const selectedObj = selectedDrinks.find((d) => (d.id || d.idProducto) === dId);
                     const isSelected = Boolean(selectedObj);
                     const itemQty = selectedObj?.cantidad || 1;
                     const dStock = Number(drink.stock !== undefined ? drink.stock : 0);
+                    const imgUrl = getOptimizedImageUrl(resolveDrinkImage(drink), 120);
 
                     return (
                       <div
                         key={dId}
-                        className={`p-2.5 sm:p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
+                        className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
                           isSelected
-                            ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 shadow-xs ring-2 ring-blue-400/40"
-                            : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750"
+                            ? "border-[#D9383A] bg-red-50/50 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/25"
+                            : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600"
                         }`}
                       >
                         <div
                           onClick={() => dStock > 0 && toggleDrink(drink)}
                           className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
                         >
-                          {(() => {
-                            const imgUrl = getOptimizedImageUrl(resolveDrinkImage(drink), 120);
-                            return imgUrl ? (
-                              <img
-                                src={imgUrl}
-                                alt={drink.nombre}
-                                className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-2xs border border-gray-100 dark:border-gray-700"
-                              />
-                            ) : (
-                              <FoodIconBadge name={drink.nombre || "drink"} size="md" />
-                            );
-                          })()}
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={drink.nombre}
+                              width="48"
+                              height="48"
+                              loading="lazy"
+                              decoding="async"
+                              className="w-12 h-12 rounded-xl object-contain p-1 bg-slate-50 dark:bg-gray-900 shrink-0 border border-slate-200/70 dark:border-gray-700"
+                            />
+                          ) : (
+                            <FoodIconBadge name={drink.nombre || "drink"} size="md" />
+                          )}
                           <div className="min-w-0">
-                            <p className="text-gray-900 dark:text-gray-100 font-black text-xs sm:text-sm truncate">
+                            <p className="text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-sm truncate">
                               {drink.nombre}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
                               {isComboWithDrinks ? (
-                                <span className="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-extrabold text-[10.5px]">
-                                  {isSelected ? `Incluida ($0 COP)` : `Elegir ($0 COP)`}
+                                <span className="bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 px-2 py-0.5 rounded-md font-extrabold text-[10.5px]">
+                                  {isSelected ? "Incluida ($0)" : "Elegir ($0)"}
                                 </span>
                               ) : (
-                                <span className="text-blue-600 dark:text-blue-400 font-black text-xs">
-                                  ${Number(drink.precio).toLocaleString("es-CO")}
+                                <span className="text-[#D9383A] dark:text-red-400 font-extrabold text-xs">
+                                  +${Number(drink.precio).toLocaleString("es-CO")}
                                 </span>
                               )}
                               <span
-                                className={`text-[10px] font-bold ${
-                                  dStock <= 5 ? "text-amber-600" : "text-emerald-600 dark:text-emerald-400"
+                                className={`text-[10px] font-semibold ${
+                                  dStock <= 5 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-gray-500"
                                 }`}
                               >
                                 {dStock > 0 ? `${dStock} disp.` : "Agotado"}
@@ -3656,23 +3646,23 @@ export function FastFoodProductModal({
                         </div>
 
                         {isSelected ? (
-                          <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-blue-200 dark:border-blue-800/60 shadow-xs shrink-0">
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-[#D9383A]/30 dark:border-red-900/60 shadow-2xs shrink-0">
                             <button
                               type="button"
                               onClick={(e) => changeDrinkQty(dId, -1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Restar cantidad"
+                              aria-label={`Restar ${drink.nombre}`}
+                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
                             >
                               <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
                             </button>
-                            <span className="font-black text-gray-900 dark:text-gray-100 min-w-5 text-center text-xs">
+                            <span className="font-black text-slate-900 dark:text-gray-100 min-w-5 text-center text-xs">
                               {itemQty}
                             </span>
                             <button
                               type="button"
                               onClick={(e) => changeDrinkQty(dId, 1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Sumar cantidad"
+                              aria-label={`Sumar ${drink.nombre}`}
+                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
                             >
                               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                             </button>
@@ -3682,10 +3672,10 @@ export function FastFoodProductModal({
                             type="button"
                             disabled={dStock <= 0}
                             onClick={() => toggleDrink(drink)}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
                               dStock > 0
-                                ? "bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 cursor-pointer"
-                                : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                ? "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
+                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
                             }`}
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -3706,19 +3696,19 @@ export function FastFoodProductModal({
               <div className="space-y-4 animate-in fade-in duration-200">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                      <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                      Opiniones de Clientes & Comensales
+                    <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                      <span>Opiniones de Comensales</span>
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
                       {isReadOnlyReviews
                         ? "Reseñas verificadas de comensales registradas en la web (Modo Consulta POS):"
-                        : "Experiencias reales de quienes han degustado este plato:"}
+                        : "Experiencias reales de quienes han probado este plato:"}
                     </p>
                   </div>
                   {isReadOnlyReviews ? (
-                    <div className="px-3.5 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold border border-blue-200/70 dark:border-blue-800/60 shadow-2xs flex items-center gap-1.5 shrink-0">
-                      <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 text-xs font-bold border border-slate-200 dark:border-gray-700 flex items-center gap-1.5 shrink-0">
+                      <Globe className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       <span>Solo Lectura Web</span>
                     </div>
                   ) : isAuthenticated && user ? (
@@ -3734,10 +3724,10 @@ export function FastFoodProductModal({
                           }
                           setShowWriteReview((prev) => !prev);
                         }}
-                        className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 shrink-0"
+                        className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center gap-1.5 shrink-0"
                       >
                         {myReview ? <Pencil className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                        <span>{showWriteReview ? "Cerrar" : myReview ? "Editar mi reseña" : "Calificar / Opinar"}</span>
+                        <span>{showWriteReview ? "Cerrar" : myReview ? "Editar mi reseña" : "Escribir reseña"}</span>
                       </button>
                       {myReview && (
                         <button
@@ -3745,7 +3735,8 @@ export function FastFoodProductModal({
                           onClick={handleDeleteReview}
                           disabled={deletingReview}
                           title="Eliminar mi reseña"
-                          className="p-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 transition cursor-pointer disabled:opacity-50"
+                          aria-label="Eliminar mi reseña"
+                          className="p-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-[#D9383A] dark:text-red-400 border border-red-200 dark:border-red-800/60 transition cursor-pointer disabled:opacity-50"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -3755,33 +3746,33 @@ export function FastFoodProductModal({
                 </div>
 
                 {/* Score Summary Card */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-white dark:from-amber-950/30 dark:via-gray-850 dark:to-gray-900 border border-amber-200/80 dark:border-amber-900/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/90 dark:bg-gray-800/55 border border-slate-200/80 dark:border-gray-700/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="flex flex-col items-center justify-center h-16 w-16 rounded-2xl bg-amber-500 text-white shadow-md shrink-0">
+                    <div className="flex flex-col items-center justify-center h-16 w-16 rounded-2xl bg-slate-900 dark:bg-[#D9383A] text-white shadow-xs shrink-0">
                       {effectiveReviewsTotal > 0 ? (
                         <>
                           <span className="text-2xl font-black leading-none">{effectiveRating.toFixed(1)}</span>
-                          <span className="text-[10px] font-bold tracking-widest uppercase mt-0.5">de 5</span>
+                          <span className="text-[10px] font-bold tracking-widest uppercase mt-0.5 opacity-80">de 5</span>
                         </>
                       ) : (
                         <>
-                          <Star className="w-6 h-6 fill-white text-white" />
+                          <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
                           <span className="text-[9px] font-black tracking-wider uppercase mt-0.5">Nuevo</span>
                         </>
                       )}
                     </div>
                     <div>
-                      <div className="flex items-center gap-1 text-amber-500">
+                      <div className="flex items-center gap-1 text-amber-400">
                         {[1, 2, 3, 4, 5].map((s) => (
                           <Star
                             key={s}
                             className={`w-4 h-4 ${
-                              effectiveReviewsTotal > 0 && s <= Math.round(effectiveRating) ? "fill-amber-500" : "opacity-25"
+                              effectiveReviewsTotal > 0 && s <= Math.round(effectiveRating) ? "fill-amber-400" : "text-slate-300 dark:text-gray-600"
                             }`}
                           />
                         ))}
                       </div>
-                      <p className="text-xs font-black text-gray-800 dark:text-gray-200 mt-1">
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-gray-100 mt-1">
                         {effectiveReviewsTotal > 0
                           ? `Basado en ${effectiveReviewsTotal} ${effectiveReviewsTotal === 1 ? "opinión verificada" : "opiniones verificadas"}`
                           : "Sin opiniones registradas aún"}
@@ -3794,7 +3785,7 @@ export function FastFoodProductModal({
                           )}% de comensales recomiendan este plato
                         </span>
                       ) : (
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1 mt-0.5">
+                        <span className="text-[11px] text-slate-500 dark:text-gray-400 font-medium flex items-center gap-1 mt-0.5">
                           {isReadOnlyReviews
                             ? "No hay reseñas de clientes en la web todavía."
                             : "Tu opinión ayudará a otros comensales a elegir"}
@@ -3803,9 +3794,9 @@ export function FastFoodProductModal({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs font-extrabold text-amber-700 dark:text-amber-400 bg-amber-100/70 dark:bg-amber-900/40 px-3 py-1.5 rounded-xl border border-amber-200/60 dark:border-amber-800/60">
-                    <Award className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Opiniones 100% Verificadas</span>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-gray-300 bg-white dark:bg-gray-900 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-gray-700">
+                    <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Opiniones Verificadas</span>
                   </div>
                 </div>
 
@@ -3814,8 +3805,8 @@ export function FastFoodProductModal({
                   <div
                     className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
                       reviewFeedback.type === "success"
-                        ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 border border-emerald-300"
-                        : "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border border-red-300"
+                        ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800"
+                        : "bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800"
                     }`}
                   >
                     {reviewFeedback.type === "success" ? (
@@ -3831,14 +3822,14 @@ export function FastFoodProductModal({
                 {!isReadOnlyReviews && isAuthenticated && user && showWriteReview && (
                   <form
                     onSubmit={handleSubmitReview}
-                    className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border-2 border-dashed border-amber-300 dark:border-amber-800/80 space-y-3.5 animate-in fade-in zoom-in-95 duration-200"
+                    className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-gray-800/60 border border-slate-200 dark:border-gray-700 space-y-3.5 animate-in fade-in zoom-in-95 duration-200"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-amber-200/60 dark:border-amber-800/40 pb-2">
-                      <span className="text-xs font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                        <ChefHat className="w-4 h-4 text-amber-500" />
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-slate-200/80 dark:border-gray-700 pb-2.5">
+                      <span className="text-xs font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
+                        <ChefHat className="w-4 h-4 text-[#D9383A]" />
                         {myReview ? "Editar tu Calificación" : "Deja tu Calificación Gastronómica"}
                       </span>
-                      <span className="text-[11px] font-extrabold text-amber-700 dark:text-amber-400">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-gray-300">
                         {newRating === 5 && "¡Excepcional! Lo amé"}
                         {newRating === 4 && "Muy bueno y sabroso"}
                         {newRating === 3 && "Bueno / Aceptable"}
@@ -3849,7 +3840,7 @@ export function FastFoodProductModal({
 
                     {/* Interactive Star Picker */}
                     <div>
-                      <span className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
+                      <span className="block text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1">
                         Puntuación general (haz clic para calificar):
                       </span>
                       <div className="flex items-center gap-2 py-0.5">
@@ -3867,7 +3858,7 @@ export function FastFoodProductModal({
                               className={`w-6 h-6 transition-colors ${
                                 s <= (hoverRating || newRating)
                                   ? "fill-amber-400 text-amber-400 drop-shadow-xs"
-                                  : "text-gray-300 dark:text-gray-600"
+                                  : "text-slate-300 dark:text-gray-600"
                               }`}
                             />
                           </button>
@@ -3877,8 +3868,8 @@ export function FastFoodProductModal({
 
                     {/* Comment Textarea */}
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1">
-                        ¿Qué tal estuvo la cocción, temperatura y salsas? <span className="text-red-500">*</span>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-gray-300 mb-1">
+                        ¿Qué tal estuvo la cocción, temperatura y salsas? <span className="text-[#D9383A]">*</span>
                       </label>
                       <textarea
                         rows={3}
@@ -3889,13 +3880,13 @@ export function FastFoodProductModal({
                         placeholder="Cuéntale a otros comensales qué fue lo que más disfrutaste de este plato..."
                         className={`w-full text-xs p-3 rounded-xl border transition-colors outline-none resize-none ${
                           reviewCommentTouched && (!newComment.trim() || newComment.trim().length < 5)
-                            ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-2 focus:ring-red-400"
-                            : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-amber-400"
+                            ? "border-[#D9383A] bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-2 focus:ring-[#D9383A]/30"
+                            : "border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-200 focus:border-[#D9383A] focus:ring-2 focus:ring-[#D9383A]/15"
                         }`}
                       />
                       {reviewCommentTouched && (!newComment.trim() || newComment.trim().length < 5) && (
-                        <p className="flex items-center gap-1 text-[11px] text-red-600 mt-1 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                        <p className="flex items-center gap-1 text-[11px] text-[#D9383A] mt-1 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>El comentario debe tener al menos 5 caracteres.</span>
                         </p>
                       )}
@@ -3905,8 +3896,8 @@ export function FastFoodProductModal({
                       <div
                         className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
                           reviewFeedback.type === "success"
-                            ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 border border-emerald-300"
-                            : "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border border-red-300"
+                            ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200"
+                            : "bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-200 border border-red-200"
                         }`}
                       >
                         {reviewFeedback.type === "success" ? (
@@ -3925,14 +3916,14 @@ export function FastFoodProductModal({
                           setShowWriteReview(false);
                           setReviewCommentTouched(false);
                         }}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-400 hover:bg-slate-200/70 dark:hover:bg-gray-700 cursor-pointer"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
                         disabled={submittingReview}
-                        className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
+                        className="px-4 py-2 rounded-xl bg-[#D9383A] hover:bg-[#B91C1C] text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
                       >
                         {submittingReview ? (
                           <span>Guardando...</span>
@@ -3948,9 +3939,9 @@ export function FastFoodProductModal({
                 )}
 
                 {/* Lista de Reseñas Reales */}
-                <div className="space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1">
+                <div className={asPage ? "space-y-3" : "space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1"}>
                   {loadingReviews ? (
-                    <div className="py-8 text-center text-xs text-gray-400">
+                    <div className="py-8 text-center text-xs text-slate-400">
                       Cargando opiniones de clientes...
                     </div>
                   ) : reviewsData.resenas.length > 0 ? (
@@ -3976,45 +3967,45 @@ export function FastFoodProductModal({
                       return (
                         <div
                           key={r.id || r.idResena || i}
-                          className={`p-3 rounded-2xl border space-y-1.5 ${
+                          className={`p-3.5 rounded-2xl border space-y-1.5 ${
                             isOwn
-                              ? "bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/60"
-                              : "bg-gray-50 dark:bg-gray-800/70 border-gray-150 dark:border-gray-750"
+                              ? "bg-red-50/40 dark:bg-red-950/15 border-[#D9383A]/30 dark:border-red-900/50"
+                              : "bg-slate-50/80 dark:bg-gray-800/70 border-slate-200/80 dark:border-gray-700/80"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#f05454] to-amber-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-2xs">
+                              <div className="w-7 h-7 rounded-full bg-slate-900 dark:bg-[#D9383A] text-white flex items-center justify-center text-[10px] font-black shrink-0">
                                 {initials}
                               </div>
-                              <span className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
+                              <span className="text-xs font-extrabold text-slate-900 dark:text-gray-100 truncate">
                                 {authorName}
                               </span>
-                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center gap-0.5 shrink-0">
-                                <Check className="w-2.5 h-2.5" /> Compra verificada
+                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50 flex items-center gap-0.5 shrink-0">
+                                <Check className="w-2.5 h-2.5" /> Verificada
                               </span>
                               {isOwn && (
-                                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 shrink-0">
+                                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-gray-700 text-slate-800 dark:text-gray-200 shrink-0">
                                   Tu reseña
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-gray-400 shrink-0">
+                            <span className="text-[10px] text-slate-400 shrink-0">
                               {formatFechaRelativa(r.fecha || r.createdAt)}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1 text-amber-500 pl-9">
+                          <div className="flex items-center gap-1 text-amber-400 pl-9">
                             {[1, 2, 3, 4, 5].map((s) => (
                               <Star
                                 key={s}
-                                className={`w-3 h-3 ${s <= (r.puntuacion || 5) ? "fill-amber-500" : "opacity-25"}`}
+                                className={`w-3 h-3 ${s <= (r.puntuacion || 5) ? "fill-amber-400" : "text-slate-300 dark:text-gray-600"}`}
                               />
                             ))}
                           </div>
 
                           {r.comentario && (
-                            <p className="text-xs text-gray-700 dark:text-gray-300 pl-9 leading-relaxed font-medium">
+                            <p className="text-xs text-slate-700 dark:text-gray-300 pl-9 leading-relaxed font-normal">
                               &ldquo;{r.comentario}&rdquo;
                             </p>
                           )}
@@ -4022,25 +4013,25 @@ export function FastFoodProductModal({
                       );
                     })
                   ) : (
-                    <div className="text-center py-6 px-4 bg-gray-50/70 dark:bg-gray-800/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                      <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-2">
-                        <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
+                    <div className="text-center py-7 px-4 bg-slate-50/70 dark:bg-gray-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-gray-700">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-gray-800 text-amber-400 flex items-center justify-center mx-auto mb-2">
+                        <Star className="w-5 h-5 fill-amber-400" />
                       </div>
-                      <p className="text-xs font-black text-gray-800 dark:text-gray-200">
+                      <p className="text-xs font-extrabold text-slate-800 dark:text-gray-200">
                         Aún no hay opiniones registradas para este plato
                       </p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-xs mx-auto">
+                      <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-1 max-w-xs mx-auto">
                         {isAuthenticated && user && !isReadOnlyReviews
                           ? "¡Sé el primero en compartir tu experiencia gastronómica y calificar este plato!"
-                          : "Las opiniones de clientes que hayan comprado este plato aparecerán aquí."}
+                          : "Las opiniones verificadas de nuestros comensales aparecerán aquí."}
                       </p>
                       {!isReadOnlyReviews && isAuthenticated && user && (
                         <button
                           type="button"
                           onClick={() => setShowWriteReview(true)}
-                          className="mt-3 px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          className="mt-3 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white font-bold text-xs shadow-2xs transition-all cursor-pointer inline-flex items-center gap-1.5"
                         >
-                          <Star className="w-3.5 h-3.5 fill-white text-white" />
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                           <span>Escribir Primera Reseña</span>
                         </button>
                       )}
@@ -4051,13 +4042,13 @@ export function FastFoodProductModal({
             )}
 
             {/* ═══ 4. NOTAS ESPECIALES PARA COCINA (GLOBAL) ═══ */}
-            <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-2">
+            <div className="pt-4 border-t border-slate-100 dark:border-gray-800 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                  <ChefHat className="w-3.5 h-3.5 text-amber-500" />
-                  Instrucciones o Notas Especiales
+                <span className="text-xs font-extrabold text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
+                  <span>Instrucciones o Notas para Cocina</span>
                 </span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                <span className="text-[10.5px] text-slate-400 font-semibold">
                   Opcional
                 </span>
               </div>
@@ -4071,10 +4062,10 @@ export function FastFoodProductModal({
                       key={tag}
                       type="button"
                       onClick={() => toggleQuickTag(tag)}
-                      className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
+                      className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
                         active
-                          ? "bg-amber-500 border-amber-500 text-white shadow-xs"
-                          : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200/70"
+                          ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900 shadow-2xs"
+                          : "bg-slate-100/90 dark:bg-gray-800 border-slate-200/80 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:border-slate-300 dark:hover:border-gray-600"
                       }`}
                     >
                       {active ? `✓ ${tag}` : `+ ${tag}`}
@@ -4094,12 +4085,12 @@ export function FastFoodProductModal({
                   className={`w-full text-xs px-3.5 py-2.5 rounded-xl border outline-none transition ${
                     customObservation.length > 180
                       ? "border-amber-400 focus:border-amber-500"
-                      : "border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 focus:border-[#f05454]"
+                      : "border-slate-200 dark:border-gray-700 bg-slate-50/80 dark:bg-gray-800/80 text-slate-900 dark:text-gray-100 focus:border-[#D9383A] focus:bg-white dark:focus:bg-gray-900"
                   }`}
                 />
                 {customObservation.length > 0 && (
                   <div className="flex justify-end mt-1">
-                    <span className={`text-[10px] ${customObservation.length > 180 ? "text-amber-500 font-bold" : "text-gray-400"}`}>
+                    <span className={`text-[10px] ${customObservation.length > 180 ? "text-amber-500 font-bold" : "text-slate-400"}`}>
                       {customObservation.length}/200 caracteres
                     </span>
                   </div>
@@ -4107,100 +4098,744 @@ export function FastFoodProductModal({
               </div>
             </div>
           </div>
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODO PÁGINA INDEPENDIENTE (/producto/:id): SPLIT-SCREEN EDITORIAL PREMIUM
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (asPage) {
+    const prepMinutes = Number(liveFicha?.tiempoPreparacion || ficha?.tiempoPreparacion || 0);
+    const prepDisplay = isDrink
+      ? "Inmediato"
+      : prepMinutes > 0
+        ? `${prepMinutes}-${prepMinutes + 3} min`
+        : "10-14 min";
+    const portionDisplay = isDrink
+      ? (selectedSizeObj?.porciones || "1 envase")
+      : (liveFicha?.rendimiento || ficha?.rendimiento || "1 porción");
+    const displayTitle = isDrink
+      ? displayDrinkTitle
+      : (drinkHasSizes
+          ? `${producto.nombre.replace(/\s*400\s*ml/gi, "").trim()} ${selectedSizeObj.label}`
+          : producto.nombre);
+    const savingsAmount = hasDiscount && originalPrice > basePrice ? Math.round(originalPrice - basePrice) : 0;
+    const savingsPct = savingsAmount > 0 && originalPrice > 0
+      ? Math.round((savingsAmount / originalPrice) * 100)
+      : (eventInfo?.discountPercent || 0);
+    const eventToppingsList = eventInfo ? parseEventoInsumos(eventInfo) : [];
+    const isSoldOut = stockMax <= 0 || Boolean(producto?.agotado);
+
+    const scrollToConfigurator = (targetTab) => {
+      setActiveTab(targetTab);
+      if (targetTab === "resenas" && !isReadOnlyReviews && isAuthenticated && user) {
+        setShowWriteReview(true);
+      }
+      if (typeof document !== "undefined") {
+        const el = document.getElementById("chazin-product-configurator");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+
+    const promoBadgeLabel = eventInfo?.tipo === "PROMOCION_2X1"
+      ? "PROMO 2X1"
+      : savingsPct > 0
+        ? `-${savingsPct}% OFF`
+        : eventToppingsList.length > 0
+          ? "+ TOPPING GRATIS"
+          : hasDiscount
+            ? "OFERTA"
+            : eventInfo
+              ? "EDICIÓN ESPECIAL"
+              : null;
+
+    const totalAdditionsCount = selectedAdditions.reduce((acc, a) => acc + Number(a.cantidad || 1), 0);
+    const totalDrinksCount = selectedDrinks.reduce((acc, d) => acc + Number(d.cantidad || 1), 0);
+
+    return (
+      <div className="w-full pb-24 sm:pb-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-start">
+          {/* ═══ COLUMNA IZQUIERDA (STICKY): FOTOGRAFÍA EDITORIAL + FICHA RÁPIDA + RESUMEN EN VIVO ═══ */}
+          <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+            {/* 1. Escenario Fotográfico Sin Barras Negras */}
+            <div className="relative w-full aspect-square sm:aspect-[4/3] lg:aspect-square rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/80 dark:border-gray-800 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.18)] group">
+              {optimizedHeroImage && !imageError ? (
+                isDrink ? (
+                  <>
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background: `radial-gradient(circle at 50% 45%, ${ambientGlowColor}40 0%, rgba(15,23,42,0.92) 72%)`
+                      }}
+                    />
+                    <div className="relative z-10 w-full h-full flex items-center justify-center p-6 sm:p-8">
+                      <img
+                        key={optimizedHeroImage}
+                        src={optimizedHeroImage}
+                        alt={displayTitle}
+                        width="480"
+                        height="560"
+                        fetchPriority="high"
+                        decoding="async"
+                        onError={(e) => {
+                          const fallback = isDietSelected ? OFFICIAL_DRINK_IMAGES.coca_cola_light : OFFICIAL_DRINK_IMAGES.coca_cola;
+                          if (e.currentTarget.src !== fallback) {
+                            e.currentTarget.src = fallback;
+                            return;
+                          }
+                          setImageError(true);
+                        }}
+                        className="max-h-[82%] w-auto max-w-[85%] object-contain drop-shadow-[0_28px_36px_rgba(0,0,0,0.65)] transition-transform duration-500 group-hover:scale-105 select-none"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <img
+                      key={optimizedHeroImage}
+                      src={optimizedHeroImage}
+                      alt={isCustomVariantSelected && selectedVariant?.nombre ? `${producto.nombre} - ${selectedVariant.nombre}` : producto.nombre}
+                      width="640"
+                      height="640"
+                      fetchPriority="high"
+                      decoding="async"
+                      onError={() => {
+                        if (!heroFallbackToBase && productImage && effectiveHeroImage !== productImage) {
+                          setHeroFallbackToBase(true);
+                          return;
+                        }
+                        setImageError(true);
+                      }}
+                      className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-[1.03] select-none"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/25 pointer-events-none" />
+                  </>
+                )
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950">
+                  <div className="flex items-center justify-center w-32 h-32 rounded-full bg-white/10 backdrop-blur-md border border-white/15">
+                    <FoodIcon name={producto.nombre} category={producto.categoria} size={64} stroke={1.75} className="text-white" />
+                  </div>
+                </div>
+              )}
+
+              {/* Pills superiores (Categoría + Descuento) */}
+              <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between gap-2">
+                <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/15 text-[11px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+                  <FoodIcon name={producto.nombre} category={producto.categoria} size={14} stroke={2} className="text-white shrink-0" />
+                  <span className="truncate max-w-[160px]">{producto.categoria || "Especialidad"}</span>
+                </span>
+
+                {promoBadgeLabel && (
+                  <span className="px-3 py-1.5 rounded-full bg-[#D9383A] text-white text-[11px] font-black uppercase tracking-wide shadow-lg inline-flex items-center gap-1.5 shrink-0">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span>{promoBadgeLabel}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Pill inferior de frescura y variante activa */}
+              <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-2">
+                <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/15 text-xs font-semibold inline-flex items-center gap-2 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span>{isDrink ? "Servido bien frío" : "Preparado al momento"}</span>
+                </span>
+
+                {(isCustomVariantSelected && selectedVariant?.nombre) ? (
+                  <span className="px-3 py-1.5 rounded-full bg-white/95 text-slate-900 text-[11px] font-extrabold shadow-md truncate max-w-[200px]">
+                    {selectedVariant.nombre}
+                  </span>
+                ) : (isDrink && drinkHasSizes && selectedSizeObj?.label) ? (
+                  <span className="px-3 py-1.5 rounded-full bg-white/95 text-slate-900 text-[11px] font-extrabold shadow-md">
+                    {selectedSizeObj.label}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            {/* 2. Franja de 3 Indicadores Gastronómicos */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3 shadow-2xs flex flex-col justify-between gap-1">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400 shrink-0" />
+                  <span>Tiempo</span>
+                </span>
+                <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
+                  {prepDisplay}
+                </span>
+              </div>
+
+              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3 shadow-2xs flex flex-col justify-between gap-1">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1.5">
+                  <Utensils className="w-3.5 h-3.5 text-slate-700 dark:text-gray-300 shrink-0" />
+                  <span>Porción</span>
+                </span>
+                <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white truncate" title={portionDisplay}>
+                  {portionDisplay}
+                </span>
+              </div>
+
+              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3 shadow-2xs flex flex-col justify-between gap-1">
+                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1.5">
+                  <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isSoldOut ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
+                  <span>Estado</span>
+                </span>
+                <span className={`text-xs sm:text-[13px] font-extrabold truncate ${isSoldOut ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                  {isSoldOut ? "Agotado" : `${stockMax} disp.`}
+                </span>
+              </div>
+            </div>
+
+            {/* 3. Tarjeta de Resumen en Vivo (Desktop) */}
+            <div className="hidden lg:block bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 p-5 shadow-2xs space-y-3.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400">
+                  Resumen de tu pedido
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 text-[11px] font-extrabold">
+                  {quantity} {quantity === 1 ? "unidad" : "unidades"}
+                </span>
+              </div>
+
+              {/* Etiquetas dinámicas de personalización */}
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 text-[11px] font-bold">
+                  {isDrink
+                    ? (drinkHasSizes ? `Tamaño ${selectedSizeObj?.label}` : displayDrinkTitle)
+                    : (isCustomVariantSelected && selectedVariant?.nombre ? selectedVariant.nombre : "Preparación Clásica")}
+                </span>
+                {removedIngredients.map((rem) => (
+                  <span
+                    key={rem}
+                    className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#B91C1C] dark:text-red-300 border border-red-200/70 dark:border-red-900/50 text-[11px] font-bold"
+                  >
+                    Sin {rem.toLowerCase()}
+                  </span>
+                ))}
+                {selectedAdditions.map((ad) => (
+                  <span
+                    key={ad.idAdicion || ad.id}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 text-[11px] font-bold"
+                  >
+                    +{ad.cantidad || 1}x {ad.nombre}
+                  </span>
+                ))}
+                {selectedDrinks.map((dr) => (
+                  <span
+                    key={dr.id || dr.idProducto}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700 text-[11px] font-bold"
+                  >
+                    +{dr.cantidad || 1}x {dr.nombre}
+                  </span>
+                ))}
+              </div>
+
+              {/* Desglose numérico limpio */}
+              <div className="pt-3 border-t border-slate-100 dark:border-gray-800 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
+                  <span>Producto base ({quantity}x)</span>
+                  <span className="font-bold text-slate-900 dark:text-gray-200">
+                    ${(basePrice * quantity).toLocaleString("es-CO")}
+                  </span>
+                </div>
+                {additionsUnitPrice > 0 && (
+                  <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
+                    <span>Adiciones gourmet ({quantity}x)</span>
+                    <span className="font-bold text-slate-900 dark:text-gray-200">
+                      +${(additionsUnitPrice * quantity).toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                )}
+                {drinksTotal > 0 && (
+                  <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
+                    <span>Bebidas acompañantes</span>
+                    <span className="font-bold text-slate-900 dark:text-gray-200">
+                      +${drinksTotal.toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-slate-100 dark:border-gray-800 flex items-baseline justify-between">
+                  <span className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                    Total estimado
+                  </span>
+                  <span className="text-lg font-black text-[#D9383A] dark:text-red-400">
+                    ${grandTotal.toLocaleString("es-CO")}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 dark:text-gray-500 leading-relaxed flex items-start gap-1.5 pt-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span>Pago seguro en línea o al recibir. El valor del domicilio se cancela aparte al repartidor.</span>
+              </p>
+            </div>
+          </div>
+
+          {/* ═══ COLUMNA DERECHA: IDENTIDAD + PRECIO + CONFIGURADOR + DOCK DE COMPRA ═══ */}
+          <div className="lg:col-span-7 space-y-5">
+            {/* 1. Tarjeta Editorial de Identidad, Precio y Promoción */}
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 sm:p-7 border border-slate-200/80 dark:border-gray-800 shadow-2xs space-y-4">
+              {/* Fila superior: Calificación + Etiqueta de receta + Vigencia */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollToConfigurator("resenas")}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-200 text-xs font-bold transition cursor-pointer border border-slate-200/80 dark:border-gray-700"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                    {hasRealRatings ? (
+                      <>
+                        <span className="font-black">{effectiveRating.toFixed(1)}</span>
+                        <span className="text-slate-500 dark:text-gray-400 font-medium">
+                          ({effectiveReviewsTotal} {effectiveReviewsTotal === 1 ? "opinión" : "opiniones"})
+                        </span>
+                      </>
+                    ) : (
+                      <span>Calificar este plato</span>
+                    )}
+                  </button>
+
+                  <span className="px-2.5 py-1 rounded-full bg-slate-100/80 dark:bg-gray-800/80 text-slate-600 dark:text-gray-300 text-[11px] font-bold border border-slate-200/60 dark:border-gray-700/70">
+                    {isCustomVariantSelected && selectedVariant?.nombre
+                      ? `Variante: ${selectedVariant.nombre}`
+                      : isDrink
+                        ? brandMeta.badge
+                        : "Receta de la Casa"}
+                  </span>
+                </div>
+
+                {eventInfo?.vigencia?.label && (
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                    eventInfo.vigencia.urgente
+                      ? "bg-red-50 dark:bg-red-950/40 text-[#D9383A] dark:text-red-300 border-red-200 dark:border-red-900/50"
+                      : "bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700"
+                  }`}>
+                    <Clock className="w-3 h-3 text-[#D9383A] dark:text-red-400 shrink-0" />
+                    <span>{eventInfo.vigencia.label}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Título Principal H1 */}
+              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-black tracking-tight text-slate-900 dark:text-white leading-[1.15]">
+                {displayTitle}
+              </h1>
+
+              {/* Bloque de Precio de Alto Impacto */}
+              <div className="flex flex-wrap items-baseline gap-3 pt-0.5">
+                <span className="text-2xl sm:text-3xl font-black text-[#D9383A] dark:text-red-400 tracking-tight">
+                  ${basePrice.toLocaleString("es-CO")}
+                </span>
+                {hasDiscount && (
+                  <span className="text-sm sm:text-base text-slate-400 dark:text-gray-500 line-through font-semibold">
+                    ${originalPrice.toLocaleString("es-CO")}
+                  </span>
+                )}
+                {savingsAmount > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 text-xs font-extrabold">
+                    Ahorras ${savingsAmount.toLocaleString("es-CO")}
+                    {savingsPct > 0 ? ` (-${savingsPct}%)` : ""}
+                  </span>
+                )}
+              </div>
+
+              {/* Descripción limpia y legible (sin caja amarilla) */}
+              {producto.descripcion && (
+                <p className="text-sm sm:text-[15px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                  {producto.descripcion}
+                </p>
+              )}
+
+              {activeVariantSummary?.especificaciones && activeVariantSummary.especificaciones !== producto.descripcion && (
+                <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800/70 border border-slate-200/80 dark:border-gray-700/80 text-xs text-slate-700 dark:text-gray-200">
+                  <strong className="font-extrabold text-slate-900 dark:text-white">Detalle de variante: </strong>
+                  {activeVariantSummary.especificaciones}
+                </div>
+              )}
+
+              {/* Banner Cohesivo y Elegante de Evento Activo */}
+              {eventInfo && (
+                <div className="rounded-2xl bg-gradient-to-r from-[#D9383A]/[0.06] via-slate-50/90 to-white dark:from-[#D9383A]/15 dark:via-gray-800/70 dark:to-gray-900 border border-[#D9383A]/20 dark:border-red-900/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#D9383A] text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                          {eventInfo.nombre}
+                        </h2>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#D9383A]/10 dark:bg-red-950/70 text-[#D9383A] dark:text-red-300">
+                          Promoción activa
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-gray-300 mt-0.5 leading-relaxed">
+                        {eventInfo.descripcion && !/^(test|prueba|asdf)$/i.test(eventInfo.descripcion.trim())
+                          ? eventInfo.descripcion
+                          : "Beneficio especial aplicado automáticamente a este producto."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {eventToppingsList.length > 0 && (
+                    <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 text-xs font-extrabold shrink-0">
+                      + {formatEventoToppingsText(eventToppingsList)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Tarjeta de Configuración Unificada */}
+            <div
+              id="chazin-product-configurator"
+              className="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-2xs overflow-hidden scroll-mt-20"
+            >
+              {/* Barra de Pestañas Segmentadas con Paleta Unificada */}
+              <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-gray-800 bg-slate-50/60 dark:bg-gray-900/70">
+                <div className="flex items-center gap-1 p-1 bg-slate-200/65 dark:bg-gray-800 rounded-2xl w-full overflow-x-auto no-scrollbar touch-scroll-x">
+                  {isDrink ? (
+                    <>
+                      {(drinkHasSizes || drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("presentacion")}
+                          className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                            activeTab === "presentacion"
+                              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                              : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
+                          }`}
+                        >
+                          <Layers className="w-3.5 h-3.5 shrink-0" />
+                          <span>{drinkHasSizes ? "Tamaño & Presentación" : "Variantes & Sabor"}</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("resenas")}
+                        className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                          activeTab === "resenas"
+                            ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                            : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
+                        }`}
+                      >
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                        <span>Reseñas</span>
+                        {effectiveReviewsTotal > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black leading-none">
+                            {effectiveReviewsTotal}
+                          </span>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {hasRecipeTabContent && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("personalizar")}
+                          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
+                            activeTab === "personalizar"
+                              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                              : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
+                          }`}
+                        >
+                          <ChefHat className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            {comboRecipeInfo.isComboProd && comboRecipeInfo.comboItems.length > 0
+                              ? "Incluye"
+                              : customizableIngredients.length > 0
+                                ? `Personalizar (${customizableIngredients.length})`
+                                : "Receta"}
+                          </span>
+                          {removedIngredients.length > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black leading-none">
+                              -{removedIngredients.length}
+                            </span>
+                          )}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("adiciones")}
+                        className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                          activeTab === "adiciones"
+                            ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                            : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
+                        }`}
+                      >
+                        <Flame className="w-3.5 h-3.5 shrink-0" />
+                        <span>Adiciones</span>
+                        {totalAdditionsCount > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black leading-none">
+                            {totalAdditionsCount}
+                          </span>
+                        )}
+                      </button>
+
+                      {availableBebidas.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("bebidas")}
+                          className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                            activeTab === "bebidas"
+                              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                              : isComboWithDrinks && !isComboDrinkComplete
+                                ? "text-[#D9383A] dark:text-red-400 bg-red-50/80 dark:bg-red-950/40 animate-pulse"
+                                : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
+                          }`}
+                        >
+                          <FoodIcon name="drink" size={14} className="shrink-0" />
+                          <span>{isComboWithDrinks ? "Bebidas Combo" : "Bebidas"}</span>
+                          {isComboWithDrinks ? (
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none ${
+                              isComboDrinkComplete ? "bg-emerald-600 text-white" : "bg-[#D9383A] text-white"
+                            }`}>
+                              {totalSelectedDrinkQty}/{requiredDrinkCount}
+                            </span>
+                          ) : totalDrinksCount > 0 ? (
+                            <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black leading-none">
+                              {totalDrinksCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("resenas")}
+                        className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                          activeTab === "resenas"
+                            ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                            : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
+                        }`}
+                      >
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                        <span>Reseñas</span>
+                        {effectiveReviewsTotal > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] text-white text-[10px] font-black leading-none">
+                            {effectiveReviewsTotal}
+                          </span>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Contenido del tab activo + notas de cocina */}
+              {configuratorPanels}
+            </div>
+
+            {/* 3. Barra de Compra Flotante Siempre Visible (Desktop Sticky Dock) */}
+            <div className="hidden sm:flex sticky bottom-4 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-gray-700/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.22)] items-center justify-between gap-4">
+              {/* Selector de Cantidad */}
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-slate-200/80 dark:border-gray-700 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  aria-label="Disminuir cantidad"
+                  className="w-9 h-9 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-200/70 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
+                >
+                  <Minus className="w-4 h-4 stroke-[2.75]" />
+                </button>
+                <span className="w-9 text-center text-sm font-black text-slate-900 dark:text-white">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
+                  disabled={quantity >= stockMax}
+                  aria-label="Aumentar cantidad"
+                  className="w-9 h-9 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-200/70 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.75]" />
+                </button>
+              </div>
+
+              {/* Resumen del Total */}
+              <div className="flex flex-col text-right ml-auto">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-gray-400">
+                  {additionsUnitPrice > 0 || drinksTotal > 0
+                    ? `Incluye extras seleccionados`
+                    : `${quantity} ${quantity === 1 ? "unidad" : "unidades"}`}
+                </span>
+                <span className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                  ${grandTotal.toLocaleString("es-CO")}
+                </span>
+              </div>
+
+              {/* Botón Primario Chazin Crimson */}
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className={`px-7 py-3.5 rounded-xl text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98] shrink-0 ${
+                  isSoldOut
+                    ? "bg-slate-400 dark:bg-gray-700 cursor-not-allowed"
+                    : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-lg shadow-[#D9383A]/25"
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4 stroke-[2.5]" />
+                <span>
+                  {isSoldOut
+                    ? "Agotado por el momento"
+                    : `Agregar al Carrito · $${grandTotal.toLocaleString("es-CO")}`}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* ═══ 5. STICKY ACTION BAR & TOTALIZER FOOTER ═══ */}
-        <div className="p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3 z-30">
-          {/* Left: Product Quantity Stepper */}
-          <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-            <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={quantity <= 1}
-                className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-                title="Restar cantidad del producto"
-              >
-                <Minus className="w-4 h-4 stroke-[3]" />
-              </button>
-              <span className="w-8 text-center text-sm font-black text-gray-900 dark:text-gray-100">
-                {quantity}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
-                disabled={quantity >= stockMax}
-                className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-                title="Aumentar cantidad del producto"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-              </button>
-            </div>
-
-            {/* Breakdown summary on small screens */}
-            <div className="sm:hidden text-right">
-              <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider block">
-                Total a pagar
-              </span>
-              <span className="text-lg font-black text-[#f05454] dark:text-red-400">
-                ${grandTotal.toLocaleString("es-CO")}
-              </span>
-            </div>
+        {/* Barra Inferior Fija Nativa (Móvil) */}
+        <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-gray-800 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.14)] flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-slate-200 dark:border-gray-700 shrink-0">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+              aria-label="Disminuir cantidad"
+              className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center disabled:opacity-35 transition cursor-pointer active:scale-95"
+            >
+              <Minus className="w-4 h-4 stroke-[2.75]" />
+            </button>
+            <span className="w-7 text-center text-sm font-black text-slate-900 dark:text-white">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
+              disabled={quantity >= stockMax}
+              aria-label="Aumentar cantidad"
+              className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center disabled:opacity-35 transition cursor-pointer active:scale-95"
+            >
+              <Plus className="w-4 h-4 stroke-[2.75]" />
+            </button>
           </div>
 
-          {/* Center: Detailed Breakdown on Desktop */}
-          <div className="hidden sm:flex flex-col text-right">
-            {drinkHasSizes ? (
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 justify-end">
-                <span className="text-[#f05454] dark:text-red-400 font-black">
-                  {isDrink ? displayDrinkTitle : `${producto.nombre.replace(/\s*400\s*ml/gi, "").trim()} • ${selectedSizeObj.label}`}
-                </span>
-              </div>
-            ) : isDrink ? (
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 justify-end">
-                <span className="text-[#f05454] dark:text-red-400 font-black">
-                  {displayDrinkTitle}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-gray-500 dark:text-gray-400 justify-end">
-                <span>Base: ${basePrice.toLocaleString("es-CO")}</span>
-                {additionsUnitPrice > 0 && <span>+ Extras: ${additionsUnitPrice.toLocaleString("es-CO")}</span>}
-                {drinksTotal > 0 && <span>+ Bebidas: ${drinksTotal.toLocaleString("es-CO")}</span>}
-              </div>
-            )}
-            <div className="flex items-baseline gap-1 justify-end">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total:</span>
-              <span className="text-xl font-black text-[#f05454] dark:text-red-400 leading-none">
-                ${grandTotal.toLocaleString("es-CO")}
-              </span>
-            </div>
-          </div>
-
-          {/* Right: Primary CTA Button */}
           <button
             type="button"
             onClick={handleConfirm}
-            className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl text-white font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] shrink-0 ${
-              stockMax <= 0 || producto?.agotado
-                ? "bg-gray-500 hover:bg-gray-600 dark:bg-gray-700"
-                : "bg-red-600 hover:bg-red-700 shadow-md shadow-red-600/20"
+            className={`flex-1 py-3.5 px-4 rounded-xl text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+              isSoldOut
+                ? "bg-slate-400 dark:bg-gray-700"
+                : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-md shadow-[#D9383A]/25"
             }`}
           >
-            <ShoppingCart className="w-4 h-4 stroke-[2.5]" />
-            <span>
-              {stockMax <= 0 || producto?.agotado
-                ? "Agotado por el momento"
-                : `${mode === "pos" ? "Agregar al Pedido" : "Agregar al Carrito"} • $${grandTotal.toLocaleString("es-CO")}`}
+            <ShoppingCart className="w-4 h-4 stroke-[2.5] shrink-0" />
+            <span className="truncate">
+              {isSoldOut ? "Agotado" : `Agregar · $${grandTotal.toLocaleString("es-CO")}`}
             </span>
           </button>
         </div>
       </div>
-  );
-
-  if (asPage) {
-    return innerCard;
+    );
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODO MODAL COMPACTO (POS Vendedor / PersonalizarEventoModal)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const innerCard = (
+    <div className="bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-3.5 right-3.5 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow-lg active:scale-95"
+        title="Cerrar modal (Esc)"
+      >
+        <X className="w-5 h-5 stroke-[2.5]" />
+      </button>
+
+      <div className="overflow-y-auto overflow-x-hidden flex-1 no-scrollbar">
+        {modalHeroAndTabs}
+        {configuratorPanels}
+      </div>
+
+      <div className="p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3 z-30">
+        <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+          <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+              className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
+              title="Restar cantidad del producto"
+            >
+              <Minus className="w-4 h-4 stroke-[3]" />
+            </button>
+            <span className="w-8 text-center text-sm font-black text-gray-900 dark:text-gray-100">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
+              disabled={quantity >= stockMax}
+              className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
+              title="Aumentar cantidad del producto"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+            </button>
+          </div>
+
+          <div className="sm:hidden text-right">
+            <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider block">
+              Total a pagar
+            </span>
+            <span className="text-lg font-black text-[#D9383A] dark:text-red-400">
+              ${grandTotal.toLocaleString("es-CO")}
+            </span>
+          </div>
+        </div>
+
+        <div className="hidden sm:flex flex-col text-right">
+          {drinkHasSizes ? (
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 justify-end">
+              <span className="text-[#D9383A] dark:text-red-400 font-black">
+                {isDrink ? displayDrinkTitle : `${producto.nombre.replace(/\s*400\s*ml/gi, "").trim()} • ${selectedSizeObj.label}`}
+              </span>
+            </div>
+          ) : isDrink ? (
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400 justify-end">
+              <span className="text-[#D9383A] dark:text-red-400 font-black">
+                {displayDrinkTitle}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-gray-500 dark:text-gray-400 justify-end">
+              <span>Base: ${basePrice.toLocaleString("es-CO")}</span>
+              {additionsUnitPrice > 0 && <span>+ Extras: ${additionsUnitPrice.toLocaleString("es-CO")}</span>}
+              {drinksTotal > 0 && <span>+ Bebidas: ${drinksTotal.toLocaleString("es-CO")}</span>}
+            </div>
+          )}
+          <div className="flex items-baseline gap-1 justify-end">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total:</span>
+            <span className="text-xl font-black text-[#D9383A] dark:text-red-400 leading-none">
+              ${grandTotal.toLocaleString("es-CO")}
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleConfirm}
+          className={`w-full sm:w-auto px-6 py-3.5 rounded-2xl text-white font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] shrink-0 ${
+            stockMax <= 0 || producto?.agotado
+              ? "bg-gray-500 hover:bg-gray-600 dark:bg-gray-700"
+              : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-md shadow-[#D9383A]/20"
+          }`}
+        >
+          <ShoppingCart className="w-4 h-4 stroke-[2.5]" />
+          <span>
+            {stockMax <= 0 || producto?.agotado
+              ? "Agotado por el momento"
+              : `${mode === "pos" ? "Agregar al Pedido" : "Agregar al Carrito"} • $${grandTotal.toLocaleString("es-CO")}`}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div
