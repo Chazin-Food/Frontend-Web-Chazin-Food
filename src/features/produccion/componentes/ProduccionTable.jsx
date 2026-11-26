@@ -2,21 +2,14 @@ import { useState, useEffect } from "react";
 import {
   Eye,
   Trash2,
-  User,
-  Clock,
-  AlertCircle,
   ArrowRight,
   CheckCircle2,
-  Check,
-  X,
-  FileText,
   ClipboardCheck,
   Printer,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChefHat,
   UserCheck
 } from "lucide-react";
 import { FoodIconBadge } from "@/shared/components/ui/FoodIcon";
@@ -28,7 +21,6 @@ export function ProduccionTable({
   onUpdateEstado,
   onDelete,
   onViewDetails,
-  onOpenChecklist,
   canEdit = true,
   canDelete = true,
   currentPage: controlledPage,
@@ -40,18 +32,10 @@ export function ProduccionTable({
 }) {
   const [internalPage, setInternalPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(5);
-  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (!onPageChange) setInternalPage(1);
   }, [ordenes.length, onPageChange]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNowMs(Date.now());
-    }, 15000);
-    return () => clearInterval(interval);
-  }, []);
 
   const currentPage = controlledPage !== undefined ? Number(controlledPage) || 1 : internalPage;
   const pageSize = controlledPageSize !== undefined ? Number(controlledPageSize) || 5 : internalPageSize;
@@ -159,7 +143,7 @@ export function ProduccionTable({
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
-      {/* Mobile / Tablet Cards (< lg) */}
+      {/* Mobile / Tablet Cards (< lg) — Vista resumida; información completa en "Ver detalle" */}
       <div className="lg:hidden divide-y divide-gray-100 dark:divide-gray-800">
         {totalRecords === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -168,7 +152,14 @@ export function ProduccionTable({
         ) : (
           paginatedOrdenes.map((o) => {
             const nextConfig = getNextStatusConfig(o.estado, o);
-            const timings = resolveOrderTimings(o, nowMs);
+            const timings = resolveOrderTimings(o);
+            const esDomicilio = isOrderDomicilio(o);
+            const firstDish = Array.isArray(o.productos) && o.productos.length > 0
+              ? o.productos[0].nombre
+              : o.platilloNombre;
+            const extraDishesCount = Array.isArray(o.productos) && o.productos.length > 1
+              ? o.productos.length - 1
+              : 0;
 
             return (
               <div key={o.id} className="p-4 space-y-3">
@@ -176,34 +167,36 @@ export function ProduccionTable({
                 <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-start gap-2.5 min-w-0">
                     <div className="shrink-0 mt-0.5">
-                      <FoodIconBadge name={o.productos?.[0]?.nombre || o.nombreProducto || o.producto || "burger"} size="sm" />
+                      <FoodIconBadge name={firstDish || "burger"} size="sm" />
                     </div>
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs font-mono font-black text-gray-500 dark:text-gray-400">{o.codigo || `OP-00${o.id}`}</span>
+                        <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400">
+                          {o.codigo || `OP-00${o.id}`}
+                        </span>
                         {o.prioridad ? (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            o.prioridad === 1
-                              ? "bg-red-500 text-white"
-                              : o.prioridad === 2
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                              : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                          }`}>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                             Turno #{o.prioridad}
                           </span>
                         ) : null}
-                        <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-black">
+                        <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-[10px] font-bold">
                           x{o.cantidad || 1}
                         </span>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-semibold">
+                          {esDomicilio ? "Domicilio" : (o.mesa || "En Mesa")}
+                        </span>
                       </div>
-                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-snug break-words [overflow-wrap:anywhere] line-clamp-2">
-                        {Array.isArray(o.productos) && o.productos.length > 2
-                          ? `${o.productos.slice(0, 2).map((p) => `${p.nombre} (x${p.cantidad})`).join(", ")} (+${o.productos.length - 2})`
-                          : o.platilloNombre}
+                      <p className="font-bold text-sm text-gray-900 dark:text-gray-100 leading-snug truncate">
+                        {firstDish}
+                        {extraDishesCount > 0 ? ` (+${extraDishesCount} más)` : ""}
                       </p>
-                      <div className="flex items-center gap-1.5 text-xs text-blue-700 dark:text-blue-300 font-semibold min-w-0">
-                        <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                        <span className="truncate" title={o.cliente || "Cliente Mostrador"}>{o.cliente || "Cliente Mostrador"}</span>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 min-w-0">
+                        <span className="inline-flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 truncate">
+                          <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span className="truncate">{o.cliente || "Cliente Mostrador"}</span>
+                        </span>
+                        <span className="text-gray-300 dark:text-gray-600">·</span>
+                        <span className="font-mono text-[11px] shrink-0">{timings.horaPedido}</span>
                       </div>
                     </div>
                   </div>
@@ -222,42 +215,9 @@ export function ProduccionTable({
                   </span>
                 </div>
 
-                {/* Meta chips */}
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl p-2.5">
-                  <span className="inline-flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200 max-w-full min-w-0">
-                    <ChefHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span className="truncate" title={o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}>{o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno"}</span>
-                  </span>
-                  <span className="text-gray-300 dark:text-gray-600">•</span>
-                  <span className="inline-flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200">
-                    <Clock className="w-3.5 h-3.5 text-[#F05454] shrink-0" />
-                    <span>{timings.tiempoPreparacion}</span>
-                  </span>
-                  <span className="text-gray-300 dark:text-gray-600">•</span>
-                  <span className="font-mono text-[11px]">Pedido: {timings.horaPedido}</span>
-                  {o.mesa && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
-                      {o.mesa}
-                    </span>
-                  )}
-                  {Array.isArray(o.checklistPreparacion) && o.checklistPreparacion.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => (onOpenChecklist ? onOpenChecklist(o) : onViewDetails && onViewDetails(o))}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border cursor-pointer ${
-                        o.pedidoCompleto
-                          ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200"
-                          : "bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300"
-                      }`}
-                    >
-                      {o.pedidoCompleto ? "✅ Completo" : "⚠️ Incompleto"}
-                    </button>
-                  )}
-                </div>
-
                 {/* Action bar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <div className="flex-1 min-w-[140px]">
+                  <div className="flex-1 min-w-[130px]">
                     {nextConfig && canEdit ? (
                       <button
                         type="button"
@@ -278,19 +238,19 @@ export function ProduccionTable({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
+                      onClick={() => onViewDetails && onViewDetails(o)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold cursor-pointer transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Ver detalle</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => imprimirComanda(o)}
                       title="Imprimir comanda"
                       className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 cursor-pointer"
                     >
                       <Printer className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onViewDetails && onViewDetails(o)}
-                      title="Ver detalles"
-                      className="p-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 cursor-pointer"
-                    >
-                      <Eye className="w-4 h-4" />
                     </button>
                     {canDelete && (
                       <button
@@ -310,179 +270,100 @@ export function ProduccionTable({
         )}
       </div>
 
-      {/* Desktop Table (lg+) — sin scroll horizontal */}
+      {/* Desktop Table (lg+) — Listado simplificado de 5 columnas; detalle completo en "Ver detalle" */}
       <div className="hidden lg:block w-full overflow-hidden">
         <table className="w-full table-fixed text-left border-collapse">
           <thead>
-            <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="px-3 py-3 w-[25%]">Orden / Cliente</th>
-              <th className="px-2 py-3 text-center w-[6%]">Cant.</th>
-              <th className="px-2.5 py-3 w-[14%]">Resp. Cocina</th>
-              <th className="px-2.5 py-3 w-[15%]">Tiempo / Inicio</th>
-              <th className="px-2 py-3 text-center w-[8%]">Turno</th>
-              <th className="px-2 py-3 text-center w-[13%]">Estado / Hora</th>
-              <th className="px-2 py-3 text-center w-[11%]">Avanza a</th>
-              <th className="px-2 py-3 text-center w-[8%]">Acciones</th>
+            <tr className="bg-gray-50/70 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <th className="px-4 py-3.5 w-[35%]">Orden y Cliente</th>
+              <th className="px-3 py-3.5 text-center w-[15%]">Cant. / Entrega</th>
+              <th className="px-3 py-3.5 text-center w-[16%]">Estado</th>
+              <th className="px-3 py-3.5 text-center w-[16%]">Avanza a</th>
+              <th className="px-3 py-3.5 text-center w-[18%]">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
             {totalRecords === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   No se encontraron órdenes de producción
                 </td>
               </tr>
             ) : (
               paginatedOrdenes.map((o) => {
                 const nextConfig = getNextStatusConfig(o.estado, o);
-                const timings = resolveOrderTimings(o, nowMs);
+                const timings = resolveOrderTimings(o);
+                const esDomicilio = isOrderDomicilio(o);
                 const clienteLabel = o.cliente || "Cliente Mostrador";
-                const responsableLabel = o.cocinero || o.responsableCocina || o.responsable || "Chef de Turno";
-                const platilloText = Array.isArray(o.productos) && o.productos.length > 2
-                  ? o.productos.slice(0, 2).map((p) => `${p.nombre} (x${p.cantidad})`).join(", ")
+                const firstDish = Array.isArray(o.productos) && o.productos.length > 0
+                  ? o.productos[0].nombre
                   : o.platilloNombre;
+                const extraDishesCount = Array.isArray(o.productos) && o.productos.length > 1
+                  ? o.productos.length - 1
+                  : 0;
 
                 return (
-                  <tr key={o.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                    {/* Orden / Código + Nombre del Cliente Prominente */}
-                    <td className="px-3 py-3 align-middle overflow-hidden max-w-0">
-                      <div className="flex items-start gap-2 min-w-0 overflow-hidden">
-                        <div className="shrink-0 mt-0.5">
-                          <FoodIconBadge name={o.productos?.[0]?.nombre || o.nombreProducto || o.producto || "burger"} size="sm" />
+                  <tr key={o.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors">
+                    {/* 1. Orden, Cliente y resumen limpio */}
+                    <td className="px-4 py-3.5 align-middle overflow-hidden max-w-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="shrink-0">
+                          <FoodIconBadge name={firstDish || "burger"} size="sm" />
                         </div>
-                        <div className="space-y-0.5 min-w-0 flex-1 overflow-hidden">
-                          {/* Cliente que recibe la orden */}
-                          <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 font-bold min-w-0 overflow-hidden">
-                            <UserCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <span className="truncate block min-w-0 flex-1" title={clienteLabel}>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 shrink-0">
+                              {o.codigo || `OP-00${o.id}`}
+                            </span>
+                            {o.prioridad ? (
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                  o.prioridad === 1
+                                    ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                }`}
+                              >
+                                Turno #{o.prioridad}
+                              </span>
+                            ) : null}
+                            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate" title={clienteLabel}>
                               {clienteLabel}
                             </span>
                           </div>
-
-                          {/* Platillo / Platillos */}
-                          <div className="flex items-center gap-1 font-bold text-gray-900 dark:text-gray-100 text-xs min-w-0 overflow-hidden">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span
-                              className="line-clamp-2 break-words [overflow-wrap:anywhere] min-w-0 flex-1"
-                              title={platilloText}
+                              className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate"
+                              title={o.platilloNombre || firstDish}
                             >
-                              {platilloText}
+                              {firstDish}
                             </span>
-                            {Array.isArray(o.productos) && o.productos.length > 2 && (
-                              <button
-                                type="button"
-                                onClick={() => onViewDetails && onViewDetails(o)}
-                                className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 cursor-pointer transition shrink-0 whitespace-nowrap"
-                                title="Ver todos los platillos en el detalle de la orden"
-                              >
-                                +{o.productos.length - 2}
-                              </button>
-                            )}
-                            {o.alerta && (
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="Pedido incompleto registrado en checklist" />
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <span className="text-[10.5px] text-gray-400 font-mono font-bold truncate">{o.codigo || `OP-00${o.id}`}</span>
-                            {o.mesa && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 truncate max-w-[90px]" title={o.mesa}>
-                                {o.mesa}
+                            {extraDishesCount > 0 && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 shrink-0">
+                                +{extraDishesCount} más
                               </span>
                             )}
-                            {Array.isArray(o.checklistPreparacion) && o.checklistPreparacion.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => (onOpenChecklist ? onOpenChecklist(o) : onViewDetails && onViewDetails(o))}
-                                className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9.5px] font-black border transition cursor-pointer ${
-                                  o.pedidoCompleto
-                                    ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                                    : "bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800"
-                                }`}
-                                title="Ver o actualizar el checklist de verificación del pedido"
-                              >
-                                <span>{o.pedidoCompleto ? "✅ Completo" : "⚠️ Incomp."}</span>
-                              </button>
-                            )}
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* Cantidad */}
-                    <td className="px-2 py-3 text-center font-black text-gray-900 dark:text-gray-100 text-xs align-middle">
-                      x{o.cantidad || 1}
-                    </td>
-
-                    {/* Responsable Cocina — truncado seguro ante nombres exageradamente largos */}
-                    <td className="px-2.5 py-3 align-middle overflow-hidden max-w-0">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-800 dark:text-gray-200 min-w-0 overflow-hidden">
-                        <ChefHat className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <span className="truncate block min-w-0 flex-1" title={responsableLabel}>
-                          {responsableLabel}
+                    {/* 2. Cantidad y modalidad de entrega */}
+                    <td className="px-3 py-3.5 text-center align-middle">
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="font-extrabold text-gray-900 dark:text-gray-100 text-xs">
+                          x{o.cantidad || 1} {Number(o.cantidad || 1) === 1 ? "und." : "unds."}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 truncate max-w-full">
+                          {esDomicilio ? "Domicilio" : (o.mesa || "En Mesa")}
                         </span>
                       </div>
                     </td>
 
-                    {/* Tiempo / Inicio */}
-                    <td className="px-2.5 py-3 align-middle">
-                      <div className="flex flex-col text-xs space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-1 font-bold text-gray-800 dark:text-gray-200 flex-wrap">
-                          <Clock className="w-3 h-3 text-[#F05454] shrink-0" />
-                          <span className="truncate" title="Tiempo total de cocción en cocina según recetas">{timings.tiempoPreparacion}</span>
-                          {timings.elapsedInfo && (
-                            <span
-                              className={`text-[9.5px] font-bold px-1 py-0.2 rounded border shrink-0 ${
-                                timings.elapsedInfo.level === "fresh"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
-                                  : timings.elapsedInfo.level === "warning"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
-                                  : timings.elapsedInfo.level === "critical"
-                                  ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
-                                  : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
-                              }`}
-                            >
-                              {timings.elapsedInfo.text}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-gray-500 dark:text-gray-400 font-mono text-[10.5px] truncate">
-                          <span>{timings.horaPedido}</span>
-                          {!timings.esDeHoy && timings.fechaColombia && (
-                            <span className="ml-1 text-[9.5px] text-gray-400">{timings.fechaColombia}</span>
-                          )}
-                        </div>
-                        {timings.tiempoEstimadoEntrega && (
-                          <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 truncate" title={`Entrega est.: ${timings.tiempoEstimadoEntrega}`}>
-                            Est.: {timings.tiempoEstimadoEntrega}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Prioridad Secuencial */}
-                    <td className="px-2 py-3 text-center align-middle">
-                      {o.prioridad ? (
+                    {/* 3. Estado único y hora de pedido */}
+                    <td className="px-3 py-3.5 text-center align-middle">
+                      <div className="flex flex-col items-center gap-1">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-black shadow-2xs ${
-                            o.prioridad === 1
-                              ? "bg-red-500 text-white ring-2 ring-red-300 dark:ring-red-900"
-                              : o.prioridad === 2
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300 dark:border-amber-800"
-                              : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                          }`}
-                        >
-                          #{o.prioridad}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs font-medium">-</span>
-                      )}
-                    </td>
-
-                    {/* Estado de Cocina + Historial */}
-                    <td className="px-2 py-3 text-center align-middle">
-                      <div className="flex flex-col items-center gap-1 min-w-0">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold max-w-full truncate ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold max-w-full truncate ${
                             o.estado === "En Preparación"
                               ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                               : o.estado === "Listo" || o.estado === "Listos"
@@ -497,56 +378,46 @@ export function ProduccionTable({
                         >
                           <span className="truncate">{o.estado}</span>
                         </span>
-
-                        <div className="flex flex-col items-stretch gap-0.5 bg-gray-50/90 dark:bg-gray-800/70 px-1.5 py-1 rounded-lg border border-gray-200/70 dark:border-gray-700/70 w-full text-left overflow-hidden">
-                          {Array.isArray(timings.estadosAlcanzados) && timings.estadosAlcanzados.length > 0 ? (
-                            timings.estadosAlcanzados.slice(-2).map((st) => (
-                              <div
-                                key={st.key}
-                                className={`flex items-center justify-between gap-1 text-[9.5px] font-mono leading-tight ${
-                                  st.current
-                                    ? "font-extrabold text-gray-900 dark:text-white"
-                                    : "font-semibold text-gray-500 dark:text-gray-400"
-                                }`}
-                              >
-                                <span className="truncate">{st.label}:</span>
-                                <span className="shrink-0">{st.hora}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-[9.5px] font-mono font-bold text-gray-600 dark:text-gray-300 truncate">
-                              {timings.etiquetaHoraEstado}
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-[11px] font-mono text-gray-400 dark:text-gray-500">
+                          {timings.horaPedido}
+                        </span>
                       </div>
                     </td>
 
-                    {/* Avanza a */}
-                    <td className="px-2 py-3 text-center align-middle">
+                    {/* 4. Avanza a */}
+                    <td className="px-3 py-3.5 text-center align-middle">
                       {nextConfig && canEdit ? (
                         <button
                           type="button"
                           onClick={() => onUpdateEstado && onUpdateEstado(o.id, nextConfig.next, o)}
                           title={nextConfig.next === "Listo" ? "Abrir Checklist de Verificación y pasar a Listo" : `Avanzar estado a: ${nextConfig.next}`}
-                          className={`inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer shadow-2xs max-w-full ${nextConfig.color}`}
+                          className={`inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer shadow-2xs max-w-full ${nextConfig.color}`}
                         >
                           <span className="truncate">{nextConfig.next === "Listo" ? "Listo" : nextConfig.label}</span>
                           <ArrowRight className="w-3 h-3 shrink-0" />
                         </button>
                       ) : !nextConfig ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 max-w-full truncate">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 max-w-full truncate">
                           <CheckCircle2 className="w-3 h-3 shrink-0" />
-                          <span className="truncate">Listo</span>
+                          <span className="truncate">Completado</span>
                         </span>
                       ) : (
                         <span className="text-gray-400 text-xs">—</span>
                       )}
                     </td>
 
-                    {/* Acciones */}
-                    <td className="px-2 py-3 text-center align-middle">
-                      <div className="flex items-center justify-center gap-0.5">
+                    {/* 5. Acciones — Ver detalle destacado + Comanda + Eliminar */}
+                    <td className="px-3 py-3.5 text-center align-middle">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onViewDetails && onViewDetails(o)}
+                          title="Ver detalle completo (recetas, cocinero, tiempos, checklist y notas)"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+                        >
+                          <Eye className="w-3.5 h-3.5 shrink-0" />
+                          <span>Ver detalle</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => imprimirComanda(o)}
@@ -554,14 +425,6 @@ export function ProduccionTable({
                           className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-600 dark:text-amber-400 transition-colors cursor-pointer"
                         >
                           <Printer className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onViewDetails && onViewDetails(o)}
-                          title="Ver detalles de la orden"
-                          className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
                         </button>
                         {canDelete && (
                           <button

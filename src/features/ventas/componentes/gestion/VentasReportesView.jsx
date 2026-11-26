@@ -30,6 +30,7 @@ import {
   computeSalesReportMetrics,
   extractAvailableReportProducts
 } from "../../utils/ventasReportMetrics";
+import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
 import {
   ResponsiveContainer,
   BarChart,
@@ -670,6 +671,10 @@ export function VentasReportesView({
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                 Reportes Comerciales &amp; Conciliación Neta
               </h2>
+              <HelpTooltip
+                title="Conciliación Bruto vs. Neto"
+                content="Los totales netos descuentan automáticamente las unidades devueltas y reembolsos aprobados o completados. Puedes combinar los filtros inferiores antes de exportar a Excel o PDF."
+              />
               <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                 {(PERIOD_LABELS[selectedPeriod] || "Histórico completo").toUpperCase()}
               </span>

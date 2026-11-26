@@ -82,6 +82,7 @@ function SmartPerfilRoute({ user, isCliente, staffHomePath = "/" }) {
 
 // ── ClienteLanding: lazy-loaded para reducir el bundle inicial (≈177KB menos) ──
 const ClienteLanding = lazy(() => import("@/features/cliente/paginas/ClienteLanding").then(m => ({ default: m.ClienteLanding })));
+const ProductoDetalleCliente = lazy(() => import("@/features/cliente/paginas/ProductoDetalleCliente").then(m => ({ default: m.ProductoDetalleCliente })));
 
 // ── Code Splitting con React.lazy para ChazinLoader y rutas secundarias ──
 const ChazinLoader = lazy(() => import("@/shared/components/ui/ChazinLoader").then(m => ({ default: m.ChazinLoader })));
@@ -142,6 +143,14 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
         <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route
+          path="/producto/:id"
+          element={
+            <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO PRODUCTO..." />}>
+              <ProductoDetalleCliente />
+            </Suspense>
+          }
+        />
         <Route path="/perfil" element={<RedirectToLoginPreservingTarget />} />
         <Route
           path="/login"
@@ -190,6 +199,14 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
         <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route
+          path="/producto/:id"
+          element={
+            <Suspense fallback={<ChazinLoader fullScreen size="lg" text="CARGANDO PRODUCTO..." />}>
+              <ProductoDetalleCliente />
+            </Suspense>
+          }
+        />
         <Route path="/perfil" element={<SmartPerfilRoute user={user} isCliente={true} />} />
         <Route
           path="/activar-cuenta"
@@ -228,6 +245,7 @@ export function AppRoutes() {
         <Routes>
           <Route path="/" element={<CocineroDashboard />} />
           <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+          <Route path="/producto/:id" element={<ProductoDetalleCliente />} />
           <Route path="/perfil" element={<SmartPerfilRoute user={user} isCliente={false} />} />
           <Route path="/fichas-tecnicas" element={<FichasTecnicas readOnly />} />
           <Route path="/activar-cuenta" element={<ActivarCuenta />} />
@@ -250,6 +268,7 @@ export function AppRoutes() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+          <Route path="/producto/:id" element={<ProductoDetalleCliente />} />
           <Route path="/tienda" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/cliente" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
           <Route path="/perfil" element={<SmartPerfilRoute user={user} isCliente={false} />} />
@@ -330,6 +349,7 @@ export function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/menu" element={<Suspense fallback={null}><ClienteLanding /></Suspense>} />
+        <Route path="/producto/:id" element={<ProductoDetalleCliente />} />
         <Route
           path="/perfil"
           element={<SmartPerfilRoute user={user} isCliente={false} staffHomePath={defaultPath ? `/${defaultPath}` : "/"} />}

@@ -569,6 +569,17 @@ export function ClienteLanding() {
     return eventosList.some((e) => isEventActiveInColombia(e, liveTick));
   }, [eventosList, liveTick]);
 
+  // Abrir carrito automáticamente si se regresa desde /producto/:id con ?openCart=1
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("openCart") === "1") {
+      setShowCart(true);
+      params.delete("openCart");
+      const nextSearch = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`);
+    }
+  }, []);
+
   // Manejador de flecha Atrás / Adelante del navegador (popstate) para cerrar modales sin salir de la página
   useEffect(() => {
     const handlePopState = () => {
@@ -1417,17 +1428,8 @@ export function ClienteLanding() {
       return;
     }
 
-    // Si el producto tiene un evento activo, abrir personalización individual de eventos
-    const activeEvt = getActiveEvent(producto);
-    if (activeEvt) {
-      setEventoParaPersonalizar(activeEvt);
-      setProductoParaEvento(producto);
-      setShowPersonalizarEventoModal(true);
-      return;
-    }
-
     const prodId = producto.id || producto.idProducto;
-    let ficha = fichasMap[prodId] || fichasTecnicasDefault[prodId];
+    let ficha = fichasMap[prodId] || fichasTecnicasDefault[prodId] || null;
     if (!ficha) {
       try {
         const fetchedFicha = await fichasTecnicasService.getFichaByProducto(prodId);
@@ -1440,15 +1442,19 @@ export function ClienteLanding() {
       }
     }
 
-    setProductoSeleccionado({
-      producto,
-      cantidad: 1,
-      adicionesSeleccionadas: [],
-      bebidasSeleccionadas: [],
-      ingredientesRemovidos: [],
-      ficha: ficha || fichasTecnicasDefault[prodId] || null
+    // Navegar a la vista independiente del producto (/producto/:id) en lugar de abrir modal
+    navigate(`/producto/${prodId}`, {
+      state: {
+        producto,
+        ficha: ficha || fichasTecnicasDefault[prodId] || null,
+        productosList: activeProductos,
+        fichasMap,
+        allAdiciones: foodAdiciones.length > 0 ? foodAdiciones : activeAdiciones,
+        allBebidas: bebidasDisponibles,
+        ratingsInfo: ratingsMap[prodId] || null,
+        initialTab: targetTab || "personalizar"
+      }
     });
-    setShowProductModal(true);
   };
 
   const handleToggleRemoverIngrediente = (nombreIngrediente) => {
@@ -2345,12 +2351,13 @@ export function ClienteLanding() {
 
   return (
     <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-950 transition-colors">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 dark:border-b dark:border-gray-800 shadow-md sticky top-0 z-40">
-        <div className="w-full px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-2 py-3 sm:py-4">
+      {/* Header — Navbar dinámico con barra de acento, navegación interactiva y efecto cristal */}
+      <header className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800 shadow-xs sticky top-0 z-40 transition-colors">
+        <div className="h-0.5 w-full bg-gradient-to-r from-[#c84545] via-amber-400/80 to-[#2e4257]" />
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-3 py-3 sm:py-3.5">
             <div
-              className="flex items-center gap-2.5 sm:gap-4 min-w-0 cursor-pointer select-none group"
+              className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 cursor-pointer select-none group"
               onClick={() => {
                 if (isStaffUser) {
                   navigate("/menu");
@@ -2361,12 +2368,12 @@ export function ClienteLanding() {
               }}
               title="Ir al menú - Chazin Food"
             >
-              <div className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:scale-105 transition-transform">
+              <div className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-white shadow-xs ring-2 ring-red-100 dark:ring-red-900/40 group-hover:scale-105 group-hover:ring-red-300 transition-all duration-200">
                 <img
                   src={logoImg}
                   alt="Chazin Food"
-                  width="48"
-                  height="48"
+                  width="44"
+                  height="44"
                   fetchpriority="high"
                   loading="eager"
                   className="w-full h-full object-cover"
@@ -2374,8 +2381,10 @@ export function ClienteLanding() {
                 />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  <h1 className="text-base sm:text-2xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors truncate">Chazin Food</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-base sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors truncate tracking-tight">
+                    Chazin <span className="text-red-600 dark:text-red-400">Food</span>
+                  </h1>
                   {isAuthenticated && !isStaffUser && (
                     <div className="hidden xs:inline-flex sm:inline-flex">
                       <FidelidadBadge
@@ -2387,11 +2396,60 @@ export function ClienteLanding() {
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-                  {isAuthenticated ? `¡Bienvenido, ${user?.nombre}!` : "Bienvenido a Chazin Food"}
+                <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 truncate flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span>{isAuthenticated ? `Hola, ${user?.nombre}` : "Medellín · Pedidos en línea"}</span>
                 </p>
               </div>
             </div>
+
+            {/* Navegación central interactiva en escritorio */}
+            <nav aria-label="Navegación principal" className="hidden lg:flex items-center gap-1 bg-gray-100/80 dark:bg-gray-800/80 p-1 rounded-2xl border border-gray-200/70 dark:border-gray-700/70">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategoria(null);
+                  const menuEl = document.getElementById("catalogo-menu");
+                  if (menuEl) menuEl.scrollIntoView({ behavior: "smooth" });
+                  else window.scrollTo({ top: 380, behavior: "smooth" });
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedCategoria !== "eventos"
+                    ? "bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-2xs"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                Menú
+              </button>
+              {hasActiveEvents && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategoria("eventos");
+                    const menuEl = document.getElementById("catalogo-menu");
+                    if (menuEl) menuEl.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    selectedCategoria === "eventos"
+                      ? "bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-2xs"
+                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Eventos</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const footerEl = document.querySelector("footer");
+                  if (footerEl) footerEl.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all cursor-pointer"
+              >
+                Contacto y Horarios
+              </button>
+            </nav>
 
             <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               <button
@@ -2825,12 +2883,11 @@ export function ClienteLanding() {
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div id="catalogo-menu" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 scroll-mt-24">
           {productosFiltrados.slice(0, maxVisibleProducts).map((producto) => {
             const hasRealImage = producto.imagen && (producto.imagen.includes('/') || producto.imagen.includes('.'));
             const activeEvent = getActiveEvent(producto);
             const hasEvent = Boolean(activeEvent);
-            const eventToDisplay = activeEvent;
             const prodStock = Number(producto.stock !== undefined ? producto.stock : 0);
             const isAgotado = Boolean(producto.agotado || prodStock <= 0 || producto.estado === "Inactivo" || producto.estado === 0);
 
@@ -2841,34 +2898,15 @@ export function ClienteLanding() {
                   setModalInitialTab("personalizar");
                   handleProductClick(producto, "personalizar");
                 }}
-                className={`bg-white dark:bg-gray-900 cv-auto rounded-3xl shadow-md hover:shadow-2xl transition-all overflow-hidden flex flex-col justify-between cursor-pointer group hover:-translate-y-2 duration-300 relative ${
+                className={`bg-white dark:bg-gray-900 cv-auto rounded-3xl shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between cursor-pointer group hover:-translate-y-1.5 duration-300 relative ${
                   isAgotado
-                    ? "border-2 border-gray-300 dark:border-gray-700 opacity-85"
-                    : hasEvent
-                    ? "border-2 border-orange-500/90 dark:border-orange-500 shadow-lg shadow-orange-500/15 dark:shadow-orange-950/40 ring-2 ring-orange-400/30"
+                    ? "border border-gray-300 dark:border-gray-700 opacity-85"
                     : "border border-gray-200/90 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700"
                 }`}
               >
-                {/* ═══ FAST FOOD EVENT BANNER (BURGER FEST / EDICIÓN LIMITADA) ═══ */}
-                {hasEvent && eventToDisplay && (
-                  <div className="bg-gradient-to-r from-[#D9383A] via-[#E03E3E] to-amber-600 text-white font-black text-[10.5px] uppercase tracking-wider py-1.5 px-3 flex items-center justify-between shadow-md relative z-20 border-b border-orange-500/30">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-                      <span className="truncate max-w-[170px] sm:max-w-[210px] text-white tracking-wide">
-                        {eventToDisplay.nombreEvento || eventToDisplay.nombre || "Edición Especial"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[9.5px] font-bold text-white shrink-0 bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-xs border border-white/25">
-                      <Clock className="w-3 h-3 text-amber-200" />
-                      <span className={eventToDisplay.vigencia?.urgente ? "animate-pulse font-black text-white" : "text-amber-100"}>
-                        {eventToDisplay.vigencia?.label ? eventToDisplay.vigencia.label : (eventToDisplay.formattedDate ? `Hasta ${eventToDisplay.formattedDate}` : "Limitado")}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                {/* ═══ ESCENARIO GOURMET AMBIENTAL DUAL-LAYER (ENCUADRE 100% PERFECTO & SOMBRA 3D) ═══ */}
-                <div className="relative h-48 sm:h-52 w-full bg-gray-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80">
-                  {/* Capa 1: Glow ambiental difuminado con los colores vivos de la comida */}
+                {/* ═══ ESCENARIO GOURMET AMBIENTAL (Eventos resaltados únicamente con etiqueta/badge) ═══ */}
+                <div className="relative h-48 sm:h-52 w-full bg-slate-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80">
+                  {/* Capa 1: Glow ambiental sutil */}
                   {hasRealImage ? (
                     <>
                       <img
@@ -2877,7 +2915,7 @@ export function ClienteLanding() {
                         width="384"
                         height="208"
                         style={{ aspectRatio: "384 / 208" }}
-                        className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 dark:opacity-40 filter saturate-150 pointer-events-none"
+                        className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-25 dark:opacity-30 filter saturate-110 pointer-events-none"
                         loading="lazy"
                         aria-hidden="true"
                       />
@@ -3065,12 +3103,10 @@ export function ClienteLanding() {
                       handleProductClick(producto, "personalizar");
                     }}
                     aria-label={isAgotado ? `${producto.nombre} agotado por el momento` : `Agregar ${producto.nombre} al pedido`}
-                    className={`w-full py-3 text-white rounded-2xl transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-[0.98] ${
+                    className={`w-full py-3 text-white rounded-2xl transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-[0.98] ${
                       isAgotado
                         ? "bg-gray-500 hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 shadow-none"
-                        : hasEvent
-                        ? "bg-gradient-to-r from-orange-600 via-amber-600 to-red-600 hover:from-orange-700 hover:via-amber-700 hover:to-red-700 shadow-orange-500/30"
-                        : "bg-red-700 hover:bg-red-800 shadow-red-700/20"
+                        : "bg-red-600 hover:bg-red-700 shadow-red-600/15"
                     }`}
                   >
                     {isAgotado ? (
@@ -3150,14 +3186,14 @@ export function ClienteLanding() {
         </Suspense>
       )}
 
-      {/* MODAL CARRITO */}
+      {/* MODAL CARRITO AMPLIADO PARA MAYOR COMODIDAD VISUAL */}
       {showCart && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 backdrop-blur-xs cursor-pointer"
           onClick={() => setShowCart(false)}
         >
           <div
-            className="bg-white dark:bg-gray-900 w-full max-w-md h-[100dvh] p-4 sm:p-6 pb-safe shadow-2xl flex flex-col justify-between border-l border-gray-100 dark:border-gray-800 animate-in slide-in-from-right duration-300 cursor-default"
+            className="bg-white dark:bg-gray-900 w-full max-w-xl lg:max-w-[580px] h-[100dvh] p-5 sm:p-7 pb-safe shadow-2xl flex flex-col justify-between border-l border-gray-100 dark:border-gray-800 animate-in slide-in-from-right duration-300 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

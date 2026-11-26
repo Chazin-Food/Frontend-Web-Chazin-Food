@@ -232,8 +232,8 @@ export function EventosModal({
                   key={evt.id || evt.idEvento}
                   className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                     evt.isActivo
-                      ? "bg-white dark:bg-gray-850/90 border-2 border-orange-400/80 dark:border-orange-500/80 shadow-md shadow-orange-500/10 ring-2 ring-orange-400/20"
-                      : "bg-gray-50/70 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/60 opacity-85"
+                      ? "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 shadow-xs"
+                      : "bg-gray-50/70 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/60 opacity-80"
                   }`}
                 >
                   {/* Left: Info */}

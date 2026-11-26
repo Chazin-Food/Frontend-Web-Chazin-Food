@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/features/configuracion/utils/privilegiosUtils";
@@ -75,6 +75,8 @@ export function Layout() {
   const [ventasExpanded, setVentasExpanded] = useState(false);
   const [configExpanded, setConfigExpanded] = useState(false);
   const [usuariosExpanded, setUsuariosExpanded] = useState(false);
+  const [openTopGroup, setOpenTopGroup] = useState(null); // "ventas" | "produccion" | null
+  const topNavRef = useRef(null);
   const [perfilOpen, setPerfilOpen] = useState(false);
   const [darkMode, toggleDarkMode] = useDarkMode();
   const location = useLocation();
@@ -94,10 +96,29 @@ export function Layout() {
     setSidebarOpen(false);
   };
 
-  // Cerrar el drawer móvil automáticamente al navegar o presionar Escape
+  // Cerrar el drawer móvil y menús agrupados automáticamente al navegar
   useEffect(() => {
     setSidebarOpen(false);
+    setOpenTopGroup(null);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!openTopGroup) return;
+    const handleOutside = (e) => {
+      if (topNavRef.current && !topNavRef.current.contains(e.target)) {
+        setOpenTopGroup(null);
+      }
+    };
+    const handleEsc = (e) => {
+      if (e.key === "Escape") setOpenTopGroup(null);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    window.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, [openTopGroup]);
 
   // Abrir automáticamente MiPerfilModal si se llega desde /perfil o correo (?abrirPerfil=1)
   useEffect(() => {
@@ -196,13 +217,18 @@ export function Layout() {
   const produccionPaths = produccionItems.map((i) => i.to);
 
   const allVentasItems = [
-    { to: "/ventas/clientes", label: "Clientes", perm: "Clientes" },
+    { to: "/ventas/pos", label: "Punto de Venta (POS)", perm: "Gestión de Ventas" },
     { to: "/ventas/gestion-ventas", label: "Gestión de Ventas", perm: "Gestión de Ventas" },
+    { to: "/ventas/clientes", label: "Clientes", perm: "Clientes" },
     { to: "/ventas/devoluciones", label: "Devoluciones", perm: "Devoluciones" }
   ];
   const ventasItems = isVendedor
     ? allVentasItems
-    : allVentasItems.filter(i => hasPerm(i.perm) || (i.perm === "Devoluciones" && (hasPerm("Gestión de Ventas") || hasPerm("Ventas"))));
+    : allVentasItems.filter((i) =>
+        hasPerm(i.perm) ||
+        (i.to === "/ventas/pos" && (hasPerm("Punto de Venta") || hasPerm("Vendedor") || hasPerm("Ventas"))) ||
+        (i.perm === "Devoluciones" && (hasPerm("Gestión de Ventas") || hasPerm("Ventas")))
+      );
   const showVentas = isVendedor || hasPerm("Ventas") || ventasItems.length > 0;
   const ventasPaths = [...ventasItems.map((i) => i.to), "/ventas/pos"];
 
@@ -240,50 +266,36 @@ export function Layout() {
   const isPosView = location.pathname === "/ventas/pos";
   const showFullTopHeader = isVendedor || isPosView;
 
-  const modulePills = [
+  // Menús agrupados para la barra superior (POS / Vendedor) — reduce ruido visual de íconos sueltos
+  const topGroupedMenus = [
     {
-      to: "/ventas/pos",
-      label: "Punto de Venta",
-      icon: Store,
-      isActive: (p) => p === "/ventas/pos"
-    },
-    {
-      to: "/ventas/gestion-ventas",
-      label: "Ventas",
+      id: "ventas",
+      label: "Ventas y Clientes",
       icon: TrendingUp,
-      iconColor: "text-[#A91B2E]",
-      isActive: (p) => p.startsWith("/ventas/gestion-ventas") || p.startsWith("/ventas/detalle")
+      isActive: (p) =>
+        p.startsWith("/ventas/gestion-ventas") ||
+        p.startsWith("/ventas/detalle") ||
+        p.startsWith("/ventas/clientes") ||
+        p.startsWith("/ventas/devoluciones"),
+      items: [
+        { to: "/ventas/gestion-ventas", label: "Gestión de Ventas" },
+        { to: "/ventas/clientes", label: "Clientes" },
+        { to: "/ventas/devoluciones", label: "Devoluciones" }
+      ]
     },
     {
-      to: "/ventas/clientes",
-      label: "Clientes",
-      icon: Users,
-      iconColor: "text-blue-500",
-      isActive: (p) => p.startsWith("/ventas/clientes")
-    },
-    {
-      isDivider: true
-    },
-    {
-      to: "/ventas/categoria-productos",
-      label: "Categoría Productos",
-      icon: Layers,
-      iconColor: "text-purple-500",
-      isActive: (p) => p.startsWith("/ventas/categoria-productos")
-    },
-    {
-      to: "/ventas/productos",
-      label: "Productos Terminados",
-      icon: UtensilsCrossed,
-      iconColor: "text-emerald-500",
-      isActive: (p) => p === "/ventas/productos"
-    },
-    {
-      to: "/produccion/gestion",
-      label: "Gestión de Producción",
+      id: "produccion",
+      label: "Producción y Menú",
       icon: ChefHat,
-      iconColor: "text-amber-500",
-      isActive: (p) => p.startsWith("/produccion")
+      isActive: (p) =>
+        p.startsWith("/ventas/categoria-productos") ||
+        p === "/ventas/productos" ||
+        p.startsWith("/produccion"),
+      items: [
+        { to: "/ventas/categoria-productos", label: "Categoría Productos" },
+        { to: "/ventas/productos", label: "Productos Terminados" },
+        { to: "/produccion/gestion", label: "Gestión de Producción" }
+      ]
     }
   ];
 
@@ -397,11 +409,11 @@ export function Layout() {
               </li>
             )}
 
-            {/* Ventas */}
+            {/* Ventas y POS (agrupado para limpieza visual) */}
             {showVentas && (
               <li>
-                <button onClick={() => handleSectionClick("ventas", ventasExpanded)} onMouseEnter={() => prefetchRoutes(ventasItems.map((i) => i.to))} title="Ventas" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${ventasPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
-                  <div className="flex items-center gap-3"><TrendingUp className="w-5 h-5 shrink-0" /><span className="font-medium">Ventas</span></div>
+                <button onClick={() => handleSectionClick("ventas", ventasExpanded)} onMouseEnter={() => prefetchRoutes(ventasItems.map((i) => i.to))} title="Ventas y Punto de Venta (POS)" className={`w-full flex items-center justify-between px-3 py-3 rounded-lg transition-all ${ventasPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}>
+                  <div className="flex items-center gap-3"><TrendingUp className="w-5 h-5 shrink-0" /><span className="font-medium">Ventas y POS</span></div>
                   {ventasExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                 </button>
                 {ventasExpanded && (
@@ -615,7 +627,7 @@ export function Layout() {
                 onClick={() => handleMobileSectionClick("ventas", ventasExpanded)}
                 className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition-colors ${ventasPaths.includes(location.pathname) ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
               >
-                <div className="flex items-center gap-3"><TrendingUp className="w-5 h-5 shrink-0" /><span className="font-medium">Ventas</span></div>
+                <div className="flex items-center gap-3"><TrendingUp className="w-5 h-5 shrink-0" /><span className="font-medium">Ventas y POS</span></div>
                 {ventasExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
               {ventasExpanded && (
@@ -677,6 +689,65 @@ export function Layout() {
       {/* Main column: Persistent Top Header + Scrollable Main Content */}
       <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden min-w-0">
         {/* Top Navigation Header (Persistent across all modules & pages) */}
+        {/* Navbar contextual de escritorio para Admin/Staff cuando no está en POS */}
+        {!showFullTopHeader && (
+          <header className="hidden lg:flex flex-col shrink-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800 z-30 shadow-2xs select-none">
+            <div className="h-0.5 w-full bg-gradient-to-r from-[#c84545] via-amber-400/70 to-[#2e4257]" />
+            <div className="px-6 h-14 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                  Chazin Food
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" />
+                <span className="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">
+                  {getPageTitle(location.pathname)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>En línea</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {showVentas && (
+                  <Link
+                    to="/ventas/pos"
+                    onMouseEnter={() => prefetchRoute("/ventas/pos")}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 border border-red-200/80 dark:border-red-900/50 transition-all hover:-translate-y-0.5 cursor-pointer"
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Ir al POS</span>
+                  </Link>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => toggleDarkMode()}
+                  title={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                  className="w-9 h-9 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
+                >
+                  {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPerfilOpen(true)}
+                  className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all cursor-pointer"
+                  title="Ver mi perfil"
+                >
+                  <span className="w-7 h-7 rounded-lg bg-[#2e4257] text-white text-xs font-bold flex items-center justify-center">
+                    {user?.nombre?.charAt(0).toUpperCase() ?? "U"}
+                  </span>
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 max-w-[120px] truncate">
+                    {user?.nombre || "Usuario"}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </header>
+        )}
+
         {/* Mobile top header para Admin cuando no está en POS (solo móvil < lg) */}
         {!showFullTopHeader && (
           <div className="lg:hidden sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 h-14 flex items-center justify-between gap-2 shadow-xs shrink-0 select-none">
@@ -797,37 +868,66 @@ export function Layout() {
                 )}
               </div>
 
-              {/* Center: Barra de módulos para Vendedor (fila completa scrolleable en < xl, centrada en xl+) */}
+              {/* Center: Navegación agrupada para Vendedor / POS (sin saturación de íconos sueltos) */}
               {!isAdmin && (
                 <nav
+                  ref={topNavRef}
                   aria-label="Módulos accesibles"
-                  className="w-full xl:w-auto xl:min-w-0 flex items-center gap-1 sm:gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xs overflow-x-auto no-scrollbar touch-scroll-x"
+                  className="w-full xl:w-auto xl:min-w-0 flex flex-wrap items-center gap-1.5 bg-gray-100/90 dark:bg-gray-800/90 p-1 rounded-2xl border border-gray-200/80 dark:border-gray-700 shadow-2xs"
                 >
-                  {modulePills.map((item, idx) => {
-                    if (item.isDivider) {
-                      return (
-                        <div key={idx} className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5 shrink-0" />
-                      );
-                    }
-                    const Icon = item.icon;
-                    const active = item.isActive(location.pathname);
+                  <Link
+                    to="/ventas/pos"
+                    onMouseEnter={() => prefetchRoute("/ventas/pos")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                      location.pathname === "/ventas/pos"
+                        ? "bg-red-600 text-white shadow-xs font-bold"
+                        : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700 font-semibold"
+                    }`}
+                  >
+                    <Store className="w-3.5 h-3.5 shrink-0" />
+                    <span>Punto de Venta</span>
+                  </Link>
+
+                  {topGroupedMenus.map((group) => {
+                    const GroupIcon = group.icon;
+                    const groupActive = group.isActive(location.pathname);
+                    const isOpen = openTopGroup === group.id;
                     return (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        onMouseEnter={() => prefetchRoute(item.to)}
-                        onTouchStart={() => prefetchRoute(item.to)}
-                        onFocus={() => prefetchRoute(item.to)}
-                        className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
-                          active
-                            ? "bg-[#A91B2E] text-white shadow-xs font-black"
-                            : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700 font-bold"
-                        }`}
-                        title={item.label}
-                      >
-                        <Icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-white" : item.iconColor || ""}`} />
-                        <span>{item.label}</span>
-                      </Link>
+                      <div key={group.id} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setOpenTopGroup(isOpen ? null : group.id)}
+                          onMouseEnter={() => prefetchRoutes(group.items.map((i) => i.to))}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                            groupActive || isOpen
+                              ? "bg-white dark:bg-gray-700 text-red-700 dark:text-red-300 shadow-xs font-bold"
+                              : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-gray-700/70 font-semibold"
+                          }`}
+                        >
+                          <GroupIcon className="w-3.5 h-3.5 shrink-0" />
+                          <span>{group.label}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {isOpen && (
+                          <div className="absolute left-0 mt-2 w-52 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200/80 dark:border-gray-700 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                            {group.items.map((sub) => (
+                              <Link
+                                key={sub.to}
+                                to={sub.to}
+                                onClick={() => setOpenTopGroup(null)}
+                                className={`block px-3.5 py-2 text-xs font-semibold transition-colors ${
+                                  isActive(sub.to)
+                                    ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 font-bold"
+                                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                }`}
+                              >
+                                {sub.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </nav>

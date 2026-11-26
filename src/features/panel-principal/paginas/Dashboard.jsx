@@ -19,13 +19,18 @@ import {
   Star,
   MessageSquare,
   Heart,
-  RotateCcw
+  RotateCcw,
+  BarChart3,
+  Globe,
+  Store
 } from "lucide-react";
 import {
   AreaChart,
   Area,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -38,6 +43,7 @@ import { useDashboardStats } from "../hooks/useDashboardStats";
 import { formatTime12h } from "@/shared/utils/dateUtils";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/shared/utils/privilegiosUtils";
+import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
 
 function StatVariation({ value, label = "vs mes anterior" }) {
   const num = Number(value || 0);
@@ -265,6 +271,65 @@ export function Dashboard() {
 
   const finalAlertas = Array.isArray(alertasStock) && alertasStock.length > 0 ? alertasStock : defaultAlertasStock;
 
+  // Balance Operativo Mensual (Ventas - Compras en COP) para gráfica financiera adicional
+  const balanceOperativoData = finalVentasData.map((row) => {
+    const ventasVal = Number(row.ventas || 0);
+    const comprasVal = Number(row.compras || 0);
+    return {
+      mes: row.mes,
+      ventas: ventasVal,
+      compras: comprasVal,
+      balance: ventasVal - comprasVal
+    };
+  });
+  const balanceNetoAcumulado = balanceOperativoData.reduce((acc, item) => acc + item.balance, 0);
+
+  // Distribución de pedidos por canal (Punto Físico / Mesa vs. Online / Domicilio)
+  const canalesPedidosData = (() => {
+    const list = Array.isArray(ventasRecientes) ? ventasRecientes : [];
+    let onlineDomicilio = 0;
+    let puntoFisico = 0;
+    let ingresosOnline = 0;
+    let ingresosFisico = 0;
+
+    list.forEach((v) => {
+      const st = String(v.estado || "").toLowerCase();
+      if (st.includes("anul") || st.includes("cancel")) return;
+      const isOnline =
+        String(v.origen || "").toUpperCase() === "ONLINE" ||
+        String(v.tipoVenta || "").toLowerCase().includes("online") ||
+        String(v.tipoEntrega || "").toLowerCase().includes("domicilio");
+      const monto = Number(v.total || v.monto || 0);
+      if (isOnline) {
+        onlineDomicilio += 1;
+        ingresosOnline += monto;
+      } else {
+        puntoFisico += 1;
+        ingresosFisico += monto;
+      }
+    });
+
+    const total = onlineDomicilio + puntoFisico;
+    if (total === 0) return [];
+    return [
+      {
+        name: "Punto Físico / Mesa",
+        value: puntoFisico,
+        ingresos: ingresosFisico,
+        pct: Math.round((puntoFisico / total) * 100),
+        color: "#3b82f6"
+      },
+      {
+        name: "Online / Domicilio",
+        value: onlineDomicilio,
+        ingresos: ingresosOnline,
+        pct: Math.round((onlineDomicilio / total) * 100),
+        color: "#10b981"
+      }
+    ].filter((d) => d.value > 0);
+  })();
+  const totalPedidosCanales = canalesPedidosData.reduce((acc, d) => acc + d.value, 0);
+
   const periods = [
     { id: "hoy", label: "Hoy" },
     { id: "7_dias", label: "7 días" },
@@ -279,11 +344,17 @@ export function Dashboard() {
       {/* ── Header con Filtro Global de Período y Año (Ítem 37) ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
-            Panel de Control
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+              Panel de Control
+            </h1>
+            <HelpTooltip
+              title="Panel de Control"
+              content="Filtra por período o año en la barra derecha para recalcular ventas, balance operativo, productos más vendidos y canales de atención."
+            />
+          </div>
           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Indicadores financieros, stock crítico y métricas operativas en tiempo real
+            Indicadores financieros, balance operativo y alertas de inventario en tiempo real
           </p>
         </div>
 
@@ -359,9 +430,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ── KPI Cards Rediseñadas (Ítems 29, 30 y 31) ── */}
-      {/* 5 Tarjetas simétricas con divisa COP explícita y distribución equilibrada (Ítem #29) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3.5 sm:gap-4 lg:gap-5">
+      {/* ── KPI Cards Rediseñadas (4 tarjetas equilibradas; el indicador de Stock Crítico vive en su bloque único inferior) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 sm:gap-4 lg:gap-5">
 
         {/* 1. Total de Ventas (COP) - Ítem 31 y 30 */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
@@ -464,31 +534,6 @@ export function Dashboard() {
             <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px] truncate">
               {Number(stats.clientesActivos ?? stats.clientesTotal ?? 0).toLocaleString("es-CO")} activos
             </span>
-          </div>
-        </div>
-
-        {/* 5. Insumos en Stock Crítico */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">
-                Stock Crítico
-              </span>
-              <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
-                {stats.insumosBajoStock || 0}
-              </span>
-            </div>
-            <div className={`w-10 h-10 rounded-2xl ${Number(stats.insumosBajoStock || 0) > 0 ? "bg-rose-100/80 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400" : "bg-emerald-100/80 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"} flex items-center justify-center shrink-0 shadow-2xs`}>
-              <AlertCircle className="w-5 h-5 stroke-[2.2]" />
-            </div>
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between text-xs">
-            <span className={`font-semibold ${Number(stats.insumosBajoStock || 0) > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-              {Number(stats.insumosBajoStock || 0) > 0 ? "Insumos bajo mínimo" : "Inventario al día"}
-            </span>
-            <Link to="/compras/insumos" className="text-gray-400 hover:text-red-500 transition-colors text-[11px] font-medium">
-              Ver
-            </Link>
           </div>
         </div>
 
@@ -775,10 +820,195 @@ export function Dashboard() {
 
       </div>
 
-      {/* ── Operación en Tiempo Real: Stock Bajo & Prioridad / Platos en Curso ── */}
+      {/* ── Segunda Fila de Gráficos Relevantes para el Negocio: Margen Operativo y Canales ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+
+        {/* 3. Balance Operativo Mensual (Ventas − Compras) */}
+        <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">
+                  Balance Operativo Mensual
+                </h2>
+                <HelpTooltip
+                  title="Balance Operativo"
+                  content="Muestra el margen bruto mensual restando las compras de insumos a las ventas registradas. Barras verdes indican utilidad operativa y barras rojas indican meses con inversión superior en abastecimiento."
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Diferencia mensual entre ingresos por ventas y compras de insumos (COP)
+              </p>
+            </div>
+            <span
+              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border whitespace-nowrap tabular-nums ${
+                balanceNetoAcumulado >= 0
+                  ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200/80 dark:border-emerald-800/60"
+                  : "text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-200/80 dark:border-rose-800/60"
+              }`}
+            >
+              {balanceNetoAcumulado >= 0 ? "+" : "-"}$
+              {Math.abs(balanceNetoAcumulado).toLocaleString("es-CO")} COP
+            </span>
+          </div>
+
+          {balanceOperativoData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={balanceOperativoData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#f1f5f9"} />
+                <XAxis dataKey="mes" tick={{ fill: axisColorMuted, fontSize: 11 }} />
+                <YAxis
+                  tick={{ fill: axisColorMuted, fontSize: 10 }}
+                  width={72}
+                  tickFormatter={(val) => {
+                    if (!val || val === 0) return "$ 0";
+                    const sign = val < 0 ? "-" : "";
+                    const abs = Math.abs(val);
+                    if (abs >= 1000000) return `${sign}$ ${(abs / 1000000).toLocaleString("es-CO", { maximumFractionDigits: 1 })}M`;
+                    return `${sign}$ ${abs.toLocaleString("es-CO")}`;
+                  }}
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
+                  formatter={(value) => {
+                    const num = Number(value || 0);
+                    return [
+                      `${num >= 0 ? "+" : "-"}$${Math.abs(num).toLocaleString("es-CO")} COP`,
+                      "Balance neto"
+                    ];
+                  }}
+                />
+                <Bar dataKey="balance" name="Balance neto" radius={[6, 6, 0, 0]} maxBarSize={36}>
+                  {balanceOperativoData.map((entry, idx) => (
+                    <Cell
+                      key={`balance-cell-${idx}`}
+                      fill={entry.balance >= 0 ? "#10b981" : "#e11d48"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[240px] text-gray-400 dark:text-gray-600 text-sm">
+              Sin movimientos suficientes para calcular el balance mensual
+            </div>
+          )}
+        </div>
+
+        {/* 4. Distribución de Pedidos por Canal (Punto Físico vs. Online/Domicilio) */}
+        <div className="bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base">
+                  Canales de Venta y Entrega
+                </h2>
+                <HelpTooltip
+                  title="Canales de Venta"
+                  content="Compara los pedidos recientes recibidos en punto físico / mesa frente a pedidos online y a domicilio para orientar el personal de salón y despachos."
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Participación entre punto físico (POS) y tienda online / domicilio
+              </p>
+            </div>
+            <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 rounded-md whitespace-nowrap">
+              {totalPedidosCanales} {totalPedidosCanales === 1 ? "pedido reciente" : "pedidos recientes"}
+            </span>
+          </div>
+
+          {canalesPedidosData.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+              <div className="sm:col-span-6 h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={canalesPedidosData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={54}
+                      outerRadius={82}
+                      paddingAngle={4}
+                    >
+                      {canalesPedidosData.map((entry, idx) => (
+                        <Cell key={`canal-cell-${idx}`} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      labelStyle={tooltipLabelStyle}
+                      itemStyle={tooltipItemStyle}
+                      formatter={(value, name, props) => [
+                        `${value} ped. (${props?.payload?.pct || 0}%) · $${Number(props?.payload?.ingresos || 0).toLocaleString("es-CO")} COP`,
+                        name
+                      ]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="sm:col-span-6 space-y-2.5">
+                {canalesPedidosData.map((canal) => {
+                  const isOnline = canal.name.includes("Online");
+                  return (
+                    <div
+                      key={canal.name}
+                      className="p-3 rounded-xl bg-gray-50/80 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: canal.color }}
+                          />
+                          {isOnline ? (
+                            <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          ) : (
+                            <Store className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                          )}
+                          <span className="text-xs font-bold text-gray-800 dark:text-gray-100 truncate">
+                            {canal.name}
+                          </span>
+                        </div>
+                        <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 tabular-nums shrink-0">
+                          {canal.pct}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
+                        <span>{canal.value} {canal.value === 1 ? "orden" : "órdenes"}</span>
+                        <span className="font-bold text-gray-700 dark:text-gray-200 tabular-nums">
+                          ${Number(canal.ingresos || 0).toLocaleString("es-CO")} COP
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-gray-200/80 dark:bg-gray-700/70 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${canal.pct}%`, backgroundColor: canal.color }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-[220px] text-gray-400 dark:text-gray-600 text-sm">
+              Sin pedidos recientes para analizar distribución por canal
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* ── Operación en Tiempo Real: Stock Crítico (bloque único) & Prioridad / Platos en Curso ── */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-6 items-stretch">
 
-        {/* Stock Bajo */}
+        {/* Stock Crítico / Bajo (único indicador en el Dashboard) */}
         <div className="xl:col-span-5 bg-white dark:bg-gray-900 p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 min-w-0 flex flex-col">
           <div className="flex items-start justify-between gap-3 mb-4">
             <div className="flex items-start gap-2.5 min-w-0">
@@ -786,11 +1016,17 @@ export function Dashboard() {
                 <Package className="w-4 h-4 stroke-[2.2]" />
               </div>
               <div className="min-w-0">
-                <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base leading-tight">
-                  Stock bajo
-                </h2>
+                <div className="flex items-center gap-1.5">
+                  <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base leading-tight">
+                    Stock crítico
+                  </h2>
+                  <HelpTooltip
+                    title="Alertas de Stock Crítico"
+                    content="Consolida en un solo bloque los insumos activos cuya existencia actual es menor o igual a su stock mínimo configurado."
+                  />
+                </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Insumos activos con existencia mínima requerida
+                  Insumos activos en o por debajo de su existencia mínima
                 </p>
               </div>
             </div>

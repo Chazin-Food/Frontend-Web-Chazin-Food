@@ -7,6 +7,7 @@ import { ProduccionTable } from "../componentes/ProduccionTable";
 import { VerOrdenModal } from "../componentes/VerOrdenModal";
 import { ChecklistPreparacionModal } from "../componentes/ChecklistPreparacionModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
 
 export function GestionProduccion() {
   const { user } = useAuth();
@@ -119,11 +120,17 @@ export function GestionProduccion() {
     <div className="p-4 sm:p-6 lg:p-8 w-full space-y-6">
       {/* Top Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Gestión de Producción
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Gestión de Producción
+          </h1>
+          <HelpTooltip
+            title="Gestión de Producción (KDS)"
+            content="El listado muestra solo lo esencial para avanzar órdenes ágilmente. Usa el botón «Ver detalle» en cada fila para ver recetas completas, responsable de cocina, tiempos, checklist y observaciones."
+          />
+        </div>
         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Administra las órdenes de cocina, estados de preparación y despachos en tiempo real
+          Administra las órdenes de cocina y avanza estados; consulta recetas y tiempos en «Ver detalle»
         </p>
       </div>
 

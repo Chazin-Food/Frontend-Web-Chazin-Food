@@ -79,38 +79,24 @@ export default function KioskProductCard({ producto, onSelect }) {
           handleCardClick();
         }
       }}
-      className={`group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 transition-all cursor-pointer select-none overflow-hidden min-h-[236px] sm:min-h-[300px] ${
-        activeEvent
-          ? "bg-linear-to-b from-amber-50/40 via-white to-white dark:from-amber-950/40 dark:via-gray-900 dark:to-gray-900 border-2 sm:border-3 border-amber-500 dark:border-amber-500 ring-2 sm:ring-4 ring-amber-400/40 dark:ring-amber-500/30 shadow-lg sm:shadow-xl shadow-amber-500/20 dark:shadow-amber-500/10"
-          : "bg-white dark:bg-gray-900 border-2 border-gray-200/90 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500/60 shadow-sm hover:shadow-xl shadow-red-500/10"
-      }`}
+      className="group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 transition-all cursor-pointer select-none overflow-hidden min-h-[236px] sm:min-h-[300px] bg-white dark:bg-gray-900 border border-gray-200/90 dark:border-gray-800 hover:border-red-300 dark:hover:border-red-500/50 shadow-xs hover:shadow-lg"
     >
-      {/* ═══ CONTORNO & BANNER DE EVENTO ACTIVO (100% SVG Vectorial, Cero Emojis) ═══ */}
-      {activeEvent && (
-        <div className="w-full bg-linear-to-r from-red-600 via-rose-600 to-amber-500 dark:from-red-700 dark:via-rose-700 dark:to-amber-600 text-white font-black text-[10px] sm:text-xs py-1 sm:py-1.5 px-2 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-between gap-1 shadow-xs mb-1.5 sm:mb-2">
-          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-            <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white shrink-0 stroke-[2.2]" />
-            <span className="truncate uppercase tracking-wider">
-              {stripEmojis(activeEvent.nombre || activeEvent.nombreEvento || "Evento Activo")}
-            </span>
-          </div>
-          <span className="bg-white/20 text-white text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full shrink-0">
-            {discountPercent > 0 ? `-${discountPercent}%` : is2x1Promo ? "2X1" : "PROMO"}
+      {/* Etiqueta/badge única de evento o promoción (sin pintar toda la tarjeta) */}
+      {(activeEvent || is2x1Promo || discountPercent > 0) && (
+        <div className="absolute top-3.5 left-3.5 sm:top-5 sm:left-5 z-10 inline-flex items-center gap-1 max-w-[calc(100%-2.5rem)] px-2.5 py-1 rounded-full bg-amber-50/95 dark:bg-amber-950/90 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/70 font-bold text-[10px] sm:text-[11px] shadow-xs backdrop-blur-xs">
+          <Tag className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.2]" />
+          <span className="truncate">
+            {activeEvent
+              ? stripEmojis(activeEvent.nombre || activeEvent.nombreEvento || "Evento")
+              : is2x1Promo
+              ? "Promoción 2x1"
+              : `-${discountPercent}% OFF`}
           </span>
-        </div>
-      )}
-
-      {/* Promo badge floating at top right of image */}
-      {is2x1Promo && !activeEvent && (
-        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1 bg-amber-400 text-amber-950 font-black text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-md uppercase tracking-wider">
-          <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-950 stroke-[2.2]" />
-          <span>2x1</span>
-        </div>
-      )}
-      {!is2x1Promo && discountPercent > 0 && !activeEvent && (
-        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1 bg-red-600 text-white font-black text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-md">
-          <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-          <span>-{discountPercent}%</span>
+          {activeEvent && (discountPercent > 0 || is2x1Promo) && (
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[9.5px] font-extrabold shrink-0">
+              {discountPercent > 0 ? `-${discountPercent}%` : "2X1"}
+            </span>
+          )}
         </div>
       )}
 

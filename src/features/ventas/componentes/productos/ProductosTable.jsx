@@ -17,7 +17,6 @@ import {
   Power
 } from "lucide-react";
 import { FoodIcon, EventBadge } from "@/shared/components/ui/FoodIcon";
-import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { getProductVariantSummary, isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
@@ -403,15 +402,6 @@ export function ProductosTable({
                           const activeEvt = getActiveEvent(p, eventos);
                           const variantSummary = getProductVariantSummary(p, { includeInactive: true });
                           const basePrice = Number(p.precio || 0);
-                          const toppings = activeEvt ? parseEventoInsumos(activeEvt) : [];
-                          const isToppingEvt = Boolean(
-                            activeEvt && (
-                              toppings.length > 0 ||
-                              activeEvt.tipoEvento === "Añadir Insumos" ||
-                              String(activeEvt.tipoEvento).toLowerCase().includes("insumo") ||
-                              String(activeEvt.tipoEvento).toLowerCase().includes("topping")
-                            )
-                          );
 
                           return (
                             <>
@@ -484,40 +474,6 @@ export function ProductosTable({
                                       +{variantSummary.count - 3} más
                                     </span>
                                   )}
-                                </div>
-                              )}
-
-                              {activeEvt && (
-                                <div className="flex items-center gap-1.5 flex-wrap mt-1 text-[11px]">
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">
-                                    <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                                    <span>Evento:</span>
-                                  </span>
-                                  {activeEvt.tipoEvento === "Descuento" && activeEvt.descuento && (
-                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                                      (-{Number(activeEvt.descuento)}% OFF)
-                                    </span>
-                                  )}
-                                  {activeEvt.tipoEvento === "Promoción Precio" && activeEvt.nuevoPrecio && (
-                                    <span className="text-orange-600 dark:text-orange-400 font-bold">
-                                      (Promo: ${Number(activeEvt.nuevoPrecio).toLocaleString("es-CO")})
-                                    </span>
-                                  )}
-                                  {isToppingEvt && (
-                                    <span
-                                      className="text-purple-600 dark:text-purple-400 font-bold"
-                                      title={toppings.length > 0 ? formatEventoToppingsText(toppings) : "Topping extra gratis"}
-                                    >
-                                      {toppings.length > 0 ? `(+ ${formatEventoToppingsText(toppings)})` : "(Topping extra)"}
-                                    </span>
-                                  )}
-                                  {!(activeEvt.tipoEvento === "Descuento" && activeEvt.descuento) &&
-                                    !(activeEvt.tipoEvento === "Promoción Precio" && activeEvt.nuevoPrecio) &&
-                                    !isToppingEvt && (
-                                      <span className="text-orange-700 dark:text-orange-300 font-semibold">
-                                        {activeEvt.nombreEvento || activeEvt.nombre || activeEvt.tipoEvento || "Promoción activa"}
-                                      </span>
-                                    )}
                                 </div>
                               )}
                             </>
