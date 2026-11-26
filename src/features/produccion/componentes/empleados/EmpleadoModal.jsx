@@ -30,6 +30,7 @@ import {
   sanitizeTelefono
 } from "@/shared/utils/validationUtils";
 import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
+import { AceptacionLegalCheckbox } from "@/shared/components/ui/PoliticaDatosModal";
 
 const normalizeDate = (raw) => {
   if (!raw) return "";
@@ -98,6 +99,7 @@ export function EmpleadoModal({
   const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [isCustomRol, setIsCustomRol] = useState(false);
+  const [aceptaPoliticaDatos, setAceptaPoliticaDatos] = useState(false);
 
   useEffect(() => {
     if (empleado) {
@@ -144,6 +146,7 @@ export function EmpleadoModal({
     }
     setErrors({});
     setTouched({});
+    setAceptaPoliticaDatos(Boolean(empleado));
   }, [empleado, isOpen]);
 
   const isTerminoIndefinido = (tipo) => {
@@ -355,6 +358,10 @@ export function EmpleadoModal({
 
       if (msg) errObj[f] = msg;
     });
+
+    if (!isEditing && !aceptaPoliticaDatos) {
+      errObj.politicaDatos = "Debes confirmar la autorización de tratamiento de datos personales (Ley 1581 de 2012).";
+    }
 
     setTouched(markTouched);
     setErrors(errObj);
@@ -891,6 +898,26 @@ export function EmpleadoModal({
             </div>
 
           </div>
+
+          {/* Autorización de tratamiento de datos personales (Ley 1581 de 2012) */}
+          {!isEditing && (
+            <AceptacionLegalCheckbox
+              id="empleado-modal-politica-datos"
+              context="admin_register"
+              checked={aceptaPoliticaDatos}
+              onChange={(checked) => {
+                setAceptaPoliticaDatos(checked);
+                if (checked) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.politicaDatos;
+                    return next;
+                  });
+                }
+              }}
+              error={errors.politicaDatos || ""}
+            />
+          )}
 
           {/* Footer Compacto y Fijo */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800 shrink-0">

@@ -13,6 +13,7 @@ import {
   getPasswordCriteria,
   formatNombreCompleto
 } from "@/shared/utils/validationUtils";
+import { AceptacionLegalCheckbox } from "@/shared/components/ui/PoliticaDatosModal";
 
 const baseInputCls = "w-full px-4 py-2.5 border rounded-xl transition-all duration-150 text-xs placeholder:text-gray-400 outline-none";
 const inputCls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-[#F05454]/40 transition-colors text-xs placeholder:text-gray-400";
@@ -39,6 +40,7 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
   const [touched, setTouched] = useState({});
   const [showPasswords, setShowPasswords] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [aceptaPoliticaDatos, setAceptaPoliticaDatos] = useState(false);
 
   const validateSingleField = (name, value, currentForm = form) => {
     let err = "";
@@ -173,6 +175,7 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
     setErrors({});
     setTouched({});
     setErrorMsg("");
+    setAceptaPoliticaDatos(Boolean(usuario));
   }, [usuario, isOpen, rolesList]);
 
   if (!isOpen) return null;
@@ -200,6 +203,11 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
         hasErrors = true;
       }
     });
+
+    if (!isEditing && !aceptaPoliticaDatos) {
+      newErrors.politicaDatos = "Debes confirmar la autorización de tratamiento de datos personales (Ley 1581 de 2012).";
+      hasErrors = true;
+    }
 
     if (hasErrors) {
       setErrors(newErrors);
@@ -765,6 +773,24 @@ export function UsuarioModal({ isOpen, onClose, onSave, usuario = null, rolesLis
                   <span>Enviar correo de bienvenida con credenciales de acceso</span>
                 </label>
               </div>
+
+              {/* Autorización de tratamiento de datos personales (Ley 1581 de 2012) */}
+              <AceptacionLegalCheckbox
+                id="usuario-modal-politica-datos"
+                context="admin_register"
+                checked={aceptaPoliticaDatos}
+                onChange={(checked) => {
+                  setAceptaPoliticaDatos(checked);
+                  if (checked) {
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.politicaDatos;
+                      return next;
+                    });
+                  }
+                }}
+                error={errors.politicaDatos || ""}
+              />
             </>
           )}
 

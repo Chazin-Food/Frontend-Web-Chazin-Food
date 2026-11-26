@@ -12,6 +12,7 @@ import {
   formatNombreCompleto
 } from "@/shared/utils/validationUtils";
 import { MedellinAddressStatus, useMedellinAddressValidation } from "@/shared/components/ui/MedellinAddressStatus";
+import { AceptacionLegalCheckbox } from "@/shared/components/ui/PoliticaDatosModal";
 import { clientesService } from "../../servicios/clientesService";
 
 export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes = [], zIndex = "z-50" }) {
@@ -33,6 +34,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
   const [touched, setTouched] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aceptaPoliticaDatos, setAceptaPoliticaDatos] = useState(false);
   const [docCheck, setDocCheck] = useState({ status: "idle", doc: "", ownerName: "" });
   const docCheckSeqRef = useRef(0);
 
@@ -78,6 +80,7 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
     setTouched({});
     setSubmitted(false);
     setIsSubmitting(false);
+    setAceptaPoliticaDatos(Boolean(cliente));
     docCheckSeqRef.current += 1;
     setDocCheck({ status: "idle", doc: "", ownerName: "" });
   }, [cliente, isOpen]);
@@ -247,6 +250,9 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
     if (errDir) newErrors.direccion = errDir;
     else if (form.direccion.trim() && addressValidation.status === "invalid" && addressValidation.error) {
       newErrors.direccion = addressValidation.error;
+    }
+    if (!isEditing && !aceptaPoliticaDatos) {
+      newErrors.politicaDatos = "Debes confirmar la autorización de tratamiento de datos personales (Ley 1581 de 2012).";
     }
 
     setErrors(newErrors);
@@ -823,6 +829,26 @@ export function ClienteModal({ isOpen, onClose, onSave, cliente = null, clientes
               <span>Fidelización: cada 3 compras acumuladas desbloquean beneficios y descuentos para la siguiente compra.</span>
             </p>
           </div>
+
+          {/* Autorización de tratamiento de datos personales (Ley 1581 de 2012) */}
+          {!isEditing && (
+            <AceptacionLegalCheckbox
+              id="cliente-modal-politica-datos"
+              context="admin_register"
+              checked={aceptaPoliticaDatos}
+              onChange={(checked) => {
+                setAceptaPoliticaDatos(checked);
+                if (checked) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.politicaDatos;
+                    return next;
+                  });
+                }
+              }}
+              error={errors.politicaDatos || ""}
+            />
+          )}
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">

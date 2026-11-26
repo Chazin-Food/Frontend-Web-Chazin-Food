@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
-import { X, ShieldCheck, FileText, CheckCircle2, Lock, AlertTriangle } from "lucide-react";
+import { X, ShieldCheck, FileText, CheckCircle2, Lock, AlertTriangle, Scale } from "lucide-react";
 
 /**
- * Modal de Términos y Condiciones + Política de Tratamiento de Datos Personales
- * (Ley 1581 de 2012 y Decreto 1377 de 2013 — Colombia)
+ * Modal de Marco Legal: Términos y Condiciones, Política de Tratamiento de Datos Personales
+ * (Ley 1581 de 2012 y Decreto 1377 de 2013 — Colombia) y Licenciamiento del Software (MIT).
  */
 export function PoliticaDatosModal({
   isOpen,
   onClose,
-  initialTab = "terminos",
+  initialTab = "terminos", // "terminos" | "datos" | "licencia"
   onAccept
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -47,16 +47,18 @@ export function PoliticaDatosModal({
             <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
               {activeTab === "datos" ? (
                 <ShieldCheck className="w-5 h-5" />
+              ) : activeTab === "licencia" ? (
+                <Scale className="w-5 h-5" />
               ) : (
                 <FileText className="w-5 h-5" />
               )}
             </div>
             <div className="min-w-0">
               <h3 id="politica-datos-modal-title" className="text-base sm:text-lg font-extrabold leading-tight truncate">
-                Marco Legal — Chazin Food
+                Marco Legal y Licenciamiento — Chazin Food
               </h3>
               <p className="text-[11px] text-white/85 truncate">
-                Términos de servicio y protección de datos personales (Ley 1581 de 2012)
+                Términos de servicio, protección de datos (Ley 1581 de 2012) y licencia de software
               </p>
             </div>
           </div>
@@ -71,30 +73,42 @@ export function PoliticaDatosModal({
         </div>
 
         {/* Tabs */}
-        <div className="px-5 pt-3 pb-2 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800 flex gap-2 shrink-0">
+        <div className="px-4 sm:px-5 pt-3 pb-2 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800 grid grid-cols-3 gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab("terminos")}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-2 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === "terminos"
                 ? "bg-white dark:bg-gray-900 text-[#B91C1C] dark:text-red-400 shadow-xs border border-red-200 dark:border-red-900/50"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
             }`}
           >
-            <FileText className="w-4 h-4 shrink-0" />
-            <span>Términos y Condiciones</span>
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Términos</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("datos")}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-2 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === "datos"
                 ? "bg-white dark:bg-gray-900 text-[#B91C1C] dark:text-red-400 shadow-xs border border-red-200 dark:border-red-900/50"
                 : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
             }`}
           >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>Política de Tratamiento de Datos</span>
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Datos (Ley 1581)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("licencia")}
+            className={`py-2 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === "licencia"
+                ? "bg-white dark:bg-gray-900 text-[#B91C1C] dark:text-red-400 shadow-xs border border-red-200 dark:border-red-900/50"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Licenciamiento</span>
           </button>
         </div>
 
@@ -147,7 +161,7 @@ export function PoliticaDatosModal({
                 </p>
               </section>
             </>
-          ) : (
+          ) : activeTab === "datos" ? (
             <>
               <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-900/50 flex items-start gap-2.5">
                 <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -200,7 +214,59 @@ export function PoliticaDatosModal({
                 </p>
               </section>
             </>
-          )}
+          ) : activeTab === "licencia" ? (
+            <>
+              <div className="p-3.5 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-start gap-2.5">
+                <Scale className="w-4 h-4 text-[#C92A2A] dark:text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-gray-900 dark:text-gray-100">
+                    Licencia de Software — Chazin Food Web v2.0 (MIT License)
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    Copyright © 2026 <strong>Chazin Food — Equipo de Desarrollo ADSO (SENA, Medellín)</strong>. Todos los derechos morales de autor se reconocen conforme a la Ley 23 de 1982 y Decisión Andina 351 de 1993.
+                  </p>
+                </div>
+              </div>
+
+              <section className="space-y-1.5">
+                <h4 className="font-extrabold text-gray-900 dark:text-gray-100">
+                  1. Condiciones de la Licencia MIT
+                </h4>
+                <p>
+                  Se concede permiso, de forma gratuita, a cualquier persona autorizada que obtenga una copia de este software y de los archivos de documentación asociados, para utilizar, copiar, modificar, fusionar, publicar y distribuir copias del software, sujeto a conservar el aviso de derechos de autor y este aviso de permiso en todas las copias o partes sustanciales del sistema.
+                </p>
+              </section>
+
+              <section className="space-y-1.5">
+                <h4 className="font-extrabold text-gray-900 dark:text-gray-100">
+                  2. Propiedad de marca y datos del negocio
+                </h4>
+                <p>
+                  La licencia del código fuente no otorga derechos sobre las marcas comerciales, logotipos oficiales (<strong>Chazin Food</strong>, <strong>Saimon Bread</strong>), fotografías de catálogo ni bases de datos operativas de clientes, ventas o proveedores, los cuales son de uso exclusivo del establecimiento.
+                </p>
+              </section>
+
+              <section className="space-y-1.5">
+                <h4 className="font-extrabold text-gray-900 dark:text-gray-100">
+                  3. Atribución de software de terceros (Open Source)
+                </h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>Frontend:</strong> React, Vite, React Router, Tailwind CSS, Lucide Icons, Recharts y write-excel-file (Licencias MIT / ISC).</li>
+                  <li><strong>Backend:</strong> Node.js, Express, Sequelize ORM, MySQL2, Helmet, JWT, Nodemailer y Swagger UI (Licencias MIT / Apache-2.0).</li>
+                  <li><strong>Servicios integrados:</strong> Wompi (pasarela de pagos), Cloudinary (almacenamiento multimedia) y TiDB Cloud (base de datos).</li>
+                </ul>
+              </section>
+
+              <section className="space-y-1.5">
+                <h4 className="font-extrabold text-gray-900 dark:text-gray-100">
+                  4. Exención de garantía
+                </h4>
+                <p>
+                  El software se proporciona &ldquo;tal cual&rdquo;, sin garantía de ningún tipo, expresa o implícita. Los autores no se responsabilizan por daños derivados de modificaciones no autorizadas o configuraciones externas de infraestructura.
+                </p>
+              </section>
+            </>
+          ) : null}
         </div>
 
         {/* Footer */}
@@ -267,6 +333,8 @@ export function AceptacionLegalCheckbox({
         >
           {context === "register"
             ? "Declaro haber leído y acepto los "
+            : context === "admin_register"
+            ? "Confirmo que el titular autorizó el tratamiento de sus datos personales conforme a los "
             : "Confirmo que he leído y acepto los "}
           <button
             type="button"

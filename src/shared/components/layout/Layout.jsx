@@ -6,6 +6,8 @@ import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { prefetchRoute, prefetchRoutes } from "@/routes/routePrefetch";
 const MiPerfilModal = lazy(() => import("@/shared/components/profile/MiPerfilModal").then((m) => ({ default: m.MiPerfilModal })));
+const AyudaEnLineaModal = lazy(() => import("@/shared/components/ui/AyudaEnLineaModal").then((m) => ({ default: m.AyudaEnLineaModal })));
+const PoliticaDatosModal = lazy(() => import("@/shared/components/ui/PoliticaDatosModal").then((m) => ({ default: m.PoliticaDatosModal })));
 
 function PageTransitionSkeleton() {
   return (
@@ -58,7 +60,9 @@ import {
   Store,
   UtensilsCrossed,
   ArrowLeft,
-  Layers
+  Layers,
+  HelpCircle,
+  Scale
 } from "lucide-react";
 import {
   NavIconInicio,
@@ -78,6 +82,8 @@ export function Layout() {
   const [openTopGroup, setOpenTopGroup] = useState(null); // "ventas" | "produccion" | null
   const topNavRef = useRef(null);
   const [perfilOpen, setPerfilOpen] = useState(false);
+  const [ayudaOpen, setAyudaOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
   const [darkMode, toggleDarkMode] = useDarkMode();
   const location = useLocation();
   const navigate = useNavigate();
@@ -437,6 +443,20 @@ export function Layout() {
               <span className="font-medium">Perfil</span>
             </button>
             <button
+              onClick={() => setAyudaOpen(true)}
+              className="flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] text-left cursor-pointer"
+            >
+              <HelpCircle className="w-5 h-5 shrink-0 text-amber-500" />
+              <span className="font-medium">Ayuda en Línea</span>
+            </button>
+            <button
+              onClick={() => setLegalOpen(true)}
+              className="flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] text-left cursor-pointer"
+            >
+              <Scale className="w-5 h-5 shrink-0 text-slate-500" />
+              <span className="font-medium">Legal y Licencia</span>
+            </button>
+            <button
               onClick={() => toggleDarkMode()}
               className="flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
             >
@@ -658,6 +678,22 @@ export function Layout() {
             >
               <UserCircle className="w-5 h-5 shrink-0 text-blue-500" />
               <span className="font-medium">Perfil</span>
+            </button>
+
+            <button
+              onClick={() => { setSidebarOpen(false); setAyudaOpen(true); }}
+              className="flex items-center gap-3 w-full px-3 py-3 rounded-xl transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] text-left cursor-pointer"
+            >
+              <HelpCircle className="w-5 h-5 shrink-0 text-amber-500" />
+              <span className="font-medium">Ayuda en Línea</span>
+            </button>
+
+            <button
+              onClick={() => { setSidebarOpen(false); setLegalOpen(true); }}
+              className="flex items-center gap-3 w-full px-3 py-3 rounded-xl transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] text-left cursor-pointer"
+            >
+              <Scale className="w-5 h-5 shrink-0 text-slate-500" />
+              <span className="font-medium">Legal y Licencia</span>
             </button>
 
             <button
@@ -886,6 +922,16 @@ export function Layout() {
 
                   <button
                     type="button"
+                    onClick={() => setAyudaOpen(true)}
+                    title="Ayuda en Línea"
+                    aria-label="Abrir centro de ayuda en línea"
+                    className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-amber-500 flex items-center justify-center transition-all cursor-pointer active:scale-95 border border-gray-200 dark:border-gray-700"
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setPerfilOpen(true)}
                     title="Mi Perfil"
                     aria-label="Abrir mi perfil"
@@ -935,6 +981,29 @@ export function Layout() {
       {perfilOpen && (
         <Suspense fallback={null}>
           <MiPerfilModal isOpen={perfilOpen} onClose={() => setPerfilOpen(false)} />
+        </Suspense>
+      )}
+
+      {/* Modal de Centro de Ayuda en Línea (contextual por ruta) */}
+      {ayudaOpen && (
+        <Suspense fallback={null}>
+          <AyudaEnLineaModal
+            isOpen={ayudaOpen}
+            onClose={() => setAyudaOpen(false)}
+            currentPath={location.pathname}
+            audience="admin"
+          />
+        </Suspense>
+      )}
+
+      {/* Modal Legal y Licenciamiento */}
+      {legalOpen && (
+        <Suspense fallback={null}>
+          <PoliticaDatosModal
+            isOpen={legalOpen}
+            initialTab="licencia"
+            onClose={() => setLegalOpen(false)}
+          />
         </Suspense>
       )}
     </div>

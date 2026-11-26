@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Instagram, Clock, Sparkles, ShieldCheck, FileText } from "lucide-react";
+import { MapPin, Phone, Mail, Instagram, Clock, Sparkles, ShieldCheck, FileText, Scale, HelpCircle } from "lucide-react";
 import logoImg from "@/shared/assets/logo_optimized.webp";
-import { PoliticaDatosModal } from "@/shared/components/ui/PoliticaDatosModal";
+const PoliticaDatosModal = lazy(() => import("@/shared/components/ui/PoliticaDatosModal").then((m) => ({ default: m.PoliticaDatosModal })));
+const AyudaEnLineaModal = lazy(() => import("@/shared/components/ui/AyudaEnLineaModal").then((m) => ({ default: m.AyudaEnLineaModal })));
 
 export function ClienteFooter() {
   const [legalModal, setLegalModal] = useState({ open: false, tab: "terminos" });
+  const [ayudaOpen, setAyudaOpen] = useState(false);
 
   return (
     <footer className="w-full bg-slate-950 text-slate-200 border-t border-slate-800/80 mt-16 relative overflow-hidden transition-colors">
@@ -170,16 +172,49 @@ export function ClienteFooter() {
               <span>Tratamiento y Política de Datos</span>
             </button>
             <span className="hidden sm:inline">•</span>
+            <button
+              type="button"
+              onClick={() => setLegalModal({ open: true, tab: "licencia" })}
+              className="inline-flex items-center gap-1 hover:text-white transition-colors underline underline-offset-2 cursor-pointer"
+            >
+              <Scale className="w-3.5 h-3.5 text-sky-400" />
+              <span>Licenciamiento</span>
+            </button>
+            <span className="hidden sm:inline">•</span>
+            <button
+              type="button"
+              onClick={() => setAyudaOpen(true)}
+              className="inline-flex items-center gap-1 hover:text-white transition-colors underline underline-offset-2 cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+              <span>Ayuda en Línea</span>
+            </button>
+            <span className="hidden sm:inline">•</span>
             <span>Medellín, Colombia</span>
           </div>
         </div>
       </div>
 
-      <PoliticaDatosModal
-        isOpen={legalModal.open}
-        initialTab={legalModal.tab}
-        onClose={() => setLegalModal((prev) => ({ ...prev, open: false }))}
-      />
+      {legalModal.open && (
+        <Suspense fallback={null}>
+          <PoliticaDatosModal
+            isOpen={legalModal.open}
+            initialTab={legalModal.tab}
+            onClose={() => setLegalModal((prev) => ({ ...prev, open: false }))}
+          />
+        </Suspense>
+      )}
+
+      {ayudaOpen && (
+        <Suspense fallback={null}>
+          <AyudaEnLineaModal
+            isOpen={ayudaOpen}
+            onClose={() => setAyudaOpen(false)}
+            initialModule="tienda"
+            audience="cliente"
+          />
+        </Suspense>
+      )}
     </footer>
   );
 }

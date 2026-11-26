@@ -17,6 +17,7 @@ import { EmpleadosTable } from "../componentes/empleados/EmpleadosTable";
 import { EmpleadoModal } from "../componentes/empleados/EmpleadoModal";
 import { VerEmpleadoModal } from "../componentes/empleados/VerEmpleadoModal";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
 import { useConfirm } from "@/shared/context/ConfirmContext";
 import { getColombiaDateISO, extractDateOnlyISO } from "@/shared/utils/dateUtils";
 import { exportTableToExcel } from "@/shared/utils/excelExport";
@@ -207,6 +208,10 @@ export function Empleados() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
               Gestión de Empleados
             </h1>
+            <HelpTooltip
+              title="Ayuda — Empleados y Contratos"
+              text="Registra colaboradores permitiendo nombres homónimos (unicidad por documento). En contratos a Término Indefinido la fecha fin se deshabilita; en Término Fijo es obligatoria."
+            />
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400 border border-red-200/60 dark:border-red-900/40">
               Subproceso de Personal
             </span>

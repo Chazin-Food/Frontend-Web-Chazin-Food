@@ -8,6 +8,7 @@ import { RolesGrid } from "../componentes/roles/RolesGrid";
 import { RolFormView } from "../componentes/roles/RolFormView";
 import { RolDetalleView } from "../componentes/roles/RolDetalleView";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
+import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 
 const isAdministradorRol = (rol) => {
@@ -152,9 +153,15 @@ export function Roles() {
     <div className="p-3.5 sm:p-6 lg:p-8 w-full max-w-full space-y-4 sm:space-y-6 overflow-x-hidden">
       {/* Top Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Gestión de Roles
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Gestión de Roles
+          </h1>
+          <HelpTooltip
+            title="Ayuda — Gestión de Roles"
+            text="Configura roles operativos con permisos granulares (Ver, Crear, Editar, Eliminar). El rol Administrador está protegido del sistema: solo se puede consultar su detalle."
+          />
+        </div>
         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           Administra los roles del personal, sus descripciones y los permisos de acceso al sistema
         </p>
