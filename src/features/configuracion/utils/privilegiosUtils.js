@@ -29,16 +29,6 @@ export const GRUPOS_PERMISOS = [
     accionesDisponibles: ["ver"]
   },
   {
-    id: "usuarios",
-    nombre: "Usuarios",
-    icon: Users,
-    isGroup: true,
-    parentPermiso: "Usuarios",
-    subPermisos: [
-      { id: "Usuarios", nombre: "Gestión de Usuarios", descripcion: "Gestión de cuentas, colaboradores y estados de acceso", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] }
-    ]
-  },
-  {
     id: "configuracion",
     nombre: "Configuración",
     icon: Settings,
@@ -46,6 +36,16 @@ export const GRUPOS_PERMISOS = [
     parentPermiso: "Configuración",
     subPermisos: [
       { id: "Roles", nombre: "Roles", descripcion: "Administración de roles, módulos y privilegios del sistema", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] }
+    ]
+  },
+  {
+    id: "usuarios",
+    nombre: "Usuarios",
+    icon: Users,
+    isGroup: true,
+    parentPermiso: "Usuarios",
+    subPermisos: [
+      { id: "Usuarios", nombre: "Gestión de Usuarios", descripcion: "Gestión de cuentas, colaboradores y estados de acceso", accionesDisponibles: ["ver", "crear", "editar", "eliminar"] }
     ]
   },
   {
