@@ -33,40 +33,27 @@ import { getProductEmoji, getAdditionEmoji, stripEmojis, isDummyOrBaseVariant, p
 import { isVariantActive, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { classifyVariantCategory, classifyVariantIngredientStatus, summarizeVariantExtras, buildVariantChangesSummary } from "@/features/ventas/utils/variantFichaUtils";
 import ProductVariantInspector from "@/shared/components/ui/ProductVariantInspector";
+import QuantityStepperInput, { AdicionAvatar } from "@/shared/components/ui/QuantityStepperInput";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import {
+  resolveAdicionUnitMeta,
+  resolveAdicionMaxPortions,
+  getAdicionQuantityInCart,
+  resolveDrinkUnitBadge,
+  resolveValidAdicionImage
+} from "@/shared/utils/adicionUtils";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
 import { apiClient } from "@/shared/api/apiClient";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { useCart } from "@/shared/context/CartContext";
 import { isEventActiveInColombia, evaluateEventVigencia } from "@/shared/utils/dateUtils";
 import postobonUvaImg from "@/shared/assets/drinks/postobon_uva.jpg";
 import postobonNaranjaImg from "@/shared/assets/drinks/postobon_naranja.jpg";
 
-const FALLBACK_ADICION_IMAGES = {
-  tocineta: "https://images.unsplash.com/photo-1528607929212-2636ec44253e?w=500&auto=format&fit=crop&q=80",
-  queso: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=500&auto=format&fit=crop&q=80",
-  papa: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop&q=80",
-  cebolla: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=80",
-  jalapeno: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&auto=format&fit=crop&q=80",
-  salsa: "https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=500&auto=format&fit=crop&q=80",
-  default: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=80"
-};
-
 export const getAdicionDisplayImage = (ad) => {
-  if (!ad) return FALLBACK_ADICION_IMAGES.default;
-  if (typeof ad.imagen === "string" && ad.imagen.startsWith("http")) return ad.imagen;
-  if (typeof ad.foto === "string" && ad.foto.startsWith("http")) return ad.foto;
-
-  const name = String(ad.nombre || "").toLowerCase();
-  if (name.includes("tocineta") || name.includes("bacon")) return FALLBACK_ADICION_IMAGES.tocineta;
-  if (name.includes("queso") || name.includes("cheddar")) return FALLBACK_ADICION_IMAGES.queso;
-  if (name.includes("papa") || name.includes("francesa")) return FALLBACK_ADICION_IMAGES.papa;
-  if (name.includes("cebolla")) return FALLBACK_ADICION_IMAGES.cebolla;
-  if (name.includes("jalapeño") || name.includes("jalapeno") || name.includes("picante")) return FALLBACK_ADICION_IMAGES.jalapeno;
-  if (name.includes("salsa")) return FALLBACK_ADICION_IMAGES.salsa;
-
-  return FALLBACK_ADICION_IMAGES.default;
+  return resolveValidAdicionImage(ad);
 };
 
 export const OFFICIAL_DRINK_IMAGES = {
@@ -1868,14 +1855,51 @@ export function FastFoodProductModal({
     };
   })();
 
-  // Stock disponible
-  const stockMax = Number(
+  // Stock disponible y descuento en vivo frente al carrito del cliente
+  const cartCtx = useCart?.() || {};
+  const cartItems = mode === "pos" ? [] : (cartCtx.cart || []);
+  const stockMaxRaw = Number(
     producto?.stock !== undefined
       ? producto.stock
       : producto?.stockActual !== undefined
       ? producto.stockActual
       : 0
   );
+  const inCartMainQty =
+    mode === "pos"
+      ? 0
+      : Number(cartCtx.getProductQuantityInCart?.(producto?.id || producto?.idProducto) || 0);
+  const stockMax = Math.max(0, Math.floor(stockMaxRaw) - inCartMainQty);
+  const liveRemainingMainStock = Math.max(0, stockMax - (stockMax > 0 ? quantity : 0));
+
+  // Ajustar automáticamente adiciones seleccionadas si al aumentar la cantidad de platos superan el stock
+  useEffect(() => {
+    if (selectedAdditions.length === 0) return;
+    setSelectedAdditions((prev) => {
+      let changed = false;
+      const next = prev
+        .map((a) => {
+          const adId = a.idAdicion || a.id;
+          const catalogAd = filteredAdiciones.find((x) => Number(x.idAdicion || x.id) === Number(adId)) || a;
+          const noCtrl = catalogAd?.controlarStock === false || String(catalogAd?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
+          if (noCtrl) return a;
+          const totalPortions = resolveAdicionMaxPortions(catalogAd);
+          const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId);
+          const maxPerDish = Math.floor(Math.max(0, totalPortions - inCartPortions) / Math.max(1, quantity));
+          if (maxPerDish <= 0) {
+            changed = true;
+            return null;
+          }
+          if ((a.cantidad || 1) > maxPerDish) {
+            changed = true;
+            return { ...a, cantidad: maxPerDish };
+          }
+          return a;
+        })
+        .filter(Boolean);
+      return changed ? next : prev;
+    });
+  }, [quantity, filteredAdiciones, cartItems, mode]);
 
   // Toggle remover ingrediente (protegido por lógica humana de cocina)
   const toggleRemoveIngredient = (nombre) => {
@@ -1885,14 +1909,61 @@ export function FastFoodProductModal({
     );
   };
 
+  const getAdditionMaxPerDish = useCallback(
+    (ad) => {
+      const adId = ad?.idAdicion || ad?.id;
+      const noCtrl = ad?.controlarStock === false || String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
+      if (noCtrl) return { maxPerDish: 99, availableBeforeThis: 99, noCtrl: true };
+      const totalPortions = resolveAdicionMaxPortions(ad);
+      const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId);
+      const availableBeforeThis = Math.max(0, totalPortions - inCartPortions);
+      const maxPerDish = Math.floor(availableBeforeThis / Math.max(1, quantity));
+      return { maxPerDish, availableBeforeThis, noCtrl: false };
+    },
+    [cartItems, mode, quantity]
+  );
+
   // Toggle o cambiar adición
   const toggleAddition = (ad) => {
     const adId = ad.idAdicion || ad.id;
+    const { maxPerDish } = getAdditionMaxPerDish(ad);
     setSelectedAdditions((prev) => {
       const exists = prev.find((a) => (a.idAdicion || a.id) === adId);
       if (exists) {
         return prev.filter((a) => (a.idAdicion || a.id) !== adId);
-      } else {
+      }
+      if (maxPerDish <= 0) {
+        warning("Adición agotada", `No quedan más porciones disponibles de "${ad.nombre}".`);
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          idAdicion: adId,
+          id: adId,
+          nombre: ad.nombre,
+          precio: Number(ad.precio || 0),
+          cantidad: 1,
+          unidadMedida: ad.unidadMedida,
+          porcionMinimaCantidad: ad.porcionMinimaCantidad,
+          porcionMinimaUnidad: ad.porcionMinimaUnidad,
+          imagen: getAdicionDisplayImage(ad)
+        }
+      ];
+    });
+  };
+
+  const setAdditionExactQty = (ad, nextQty) => {
+    const adId = ad.idAdicion || ad.id;
+    const { maxPerDish } = getAdditionMaxPerDish(ad);
+    const cleanQty = Math.floor(Number(nextQty) || 0);
+    setSelectedAdditions((prev) => {
+      if (cleanQty <= 0) {
+        return prev.filter((a) => (a.idAdicion || a.id) !== adId);
+      }
+      const clamped = Math.min(Math.max(1, maxPerDish), cleanQty);
+      const exists = prev.some((a) => (a.idAdicion || a.id) === adId);
+      if (!exists) {
         return [
           ...prev,
           {
@@ -1900,37 +1971,67 @@ export function FastFoodProductModal({
             id: adId,
             nombre: ad.nombre,
             precio: Number(ad.precio || 0),
-            cantidad: 1,
+            cantidad: clamped,
+            unidadMedida: ad.unidadMedida,
+            porcionMinimaCantidad: ad.porcionMinimaCantidad,
+            porcionMinimaUnidad: ad.porcionMinimaUnidad,
             imagen: getAdicionDisplayImage(ad)
           }
         ];
       }
+      return prev.map((a) => ((a.idAdicion || a.id) === adId ? { ...a, cantidad: clamped } : a));
     });
   };
 
-  const changeAdditionQty = (adId, delta, e) => {
-    if (e) e.stopPropagation();
-    setSelectedAdditions((prev) =>
-      prev
-        .map((a) => {
-          if ((a.idAdicion || a.id) === adId) {
-            const newQty = (a.cantidad || 1) + delta;
-            return newQty > 0 ? { ...a, cantidad: newQty } : null;
-          }
-          return a;
-        })
-        .filter(Boolean)
-    );
-  };
+  const getDrinkMaxSelectable = useCallback(
+    (drink) => {
+      const dId = drink?.id || drink?.idProducto;
+      const dStock = Math.max(0, Math.floor(Number(drink?.stock ?? 0)));
+      const inCartD = mode === "pos" ? 0 : Number(cartCtx.getProductQuantityInCart?.(dId) || 0);
+      return Math.max(0, dStock - inCartD);
+    },
+    [cartCtx, mode]
+  );
 
   // Toggle o cambiar bebida/acompañante
   const toggleDrink = (drink) => {
     const dId = drink.id || drink.idProducto;
+    const maxD = getDrinkMaxSelectable(drink);
     setSelectedDrinks((prev) => {
       const exists = prev.find((d) => (d.id || d.idProducto) === dId);
       if (exists) {
         return prev.filter((d) => (d.id || d.idProducto) !== dId);
-      } else {
+      }
+      if (maxD <= 0) {
+        warning("Bebida agotada", `No quedan más unidades disponibles de "${drink.nombre}".`);
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: dId,
+          idProducto: dId,
+          nombre: drink.nombre,
+          precio: Number(drink.precio || 0),
+          cantidad: 1,
+          imagen: resolveDrinkImage(drink),
+          stock: Number(drink.stock !== undefined ? drink.stock : 0)
+        }
+      ];
+    });
+  };
+
+  const setDrinkExactQty = (drink, nextQty) => {
+    const dId = drink.id || drink.idProducto;
+    const maxD = getDrinkMaxSelectable(drink);
+    const cleanQty = Math.floor(Number(nextQty) || 0);
+    setSelectedDrinks((prev) => {
+      if (cleanQty <= 0) {
+        return prev.filter((d) => (d.id || d.idProducto) !== dId);
+      }
+      const clamped = Math.min(Math.max(1, maxD), cleanQty);
+      const exists = prev.some((d) => (d.id || d.idProducto) === dId);
+      if (!exists) {
         return [
           ...prev,
           {
@@ -1938,28 +2039,14 @@ export function FastFoodProductModal({
             idProducto: dId,
             nombre: drink.nombre,
             precio: Number(drink.precio || 0),
-            cantidad: 1,
+            cantidad: clamped,
             imagen: resolveDrinkImage(drink),
             stock: Number(drink.stock !== undefined ? drink.stock : 0)
           }
         ];
       }
+      return prev.map((d) => ((d.id || d.idProducto) === dId ? { ...d, cantidad: clamped } : d));
     });
-  };
-
-  const changeDrinkQty = (dId, delta, e) => {
-    if (e) e.stopPropagation();
-    setSelectedDrinks((prev) =>
-      prev
-        .map((d) => {
-          if ((d.id || d.idProducto) === dId) {
-            const newQty = (d.cantidad || 1) + delta;
-            return newQty > 0 ? { ...d, cantidad: newQty } : null;
-          }
-          return d;
-        })
-        .filter(Boolean)
-    );
   };
 
   // Quick tag toggle en observación
@@ -2595,10 +2682,10 @@ export function FastFoodProductModal({
                 <span>{isDrink ? selectedSizeObj.porciones : (ficha?.rendimiento || "1 unidad")}</span>
               </span>
 
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs whitespace-nowrap" title="Disponibilidad actual en cocina">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white dark:bg-gray-800 border border-gray-200/60 dark:border-gray-700/60 shadow-2xs whitespace-nowrap" title="Disponibilidad en tiempo real">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span className={stockMax > 0 ? "text-emerald-700 dark:text-emerald-400 font-bold" : "text-rose-500 font-bold"}>
-                  {stockMax > 0 ? `${stockMax} disp.` : "Agotado"}
+                <span className={stockMax > 0 ? "text-emerald-700 dark:text-emerald-400 font-bold tabular-nums" : "text-rose-500 font-bold"}>
+                  {stockMax > 0 ? `${liveRemainingMainStock} disp.` : "Agotado"}
                 </span>
               </span>
             </div>
@@ -2873,7 +2960,13 @@ export function FastFoodProductModal({
   );
 
   const configuratorPanels = (
-          <div className={asPage ? "p-4 sm:p-5 space-y-4" : "p-4 sm:p-6 space-y-5"}>
+          <div
+            className={
+              asPage
+                ? "h-[480px] sm:h-[520px] overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-4 scrollbar-thin"
+                : "h-[370px] sm:h-[400px] overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4 scrollbar-thin"
+            }
+          >
             {/* ─── TAB 0: VARIANTES SIN TAMAÑO PARA BEBIDAS ─── */}
             {!drinkHasSizes && isDrink && activeTab === "presentacion" && (drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
               <div className="space-y-4 animate-in fade-in duration-200">
@@ -3452,7 +3545,7 @@ export function FastFoodProductModal({
               </div>
             )}
 
-            {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS & EXTRAS) ─── */}
+            {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS & EXTRAS CON UNIDAD Y STOCK EN VIVO) ─── */}
             {!isDrink && activeTab === "adiciones" && (
               <div className="space-y-3.5 animate-in fade-in duration-150">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3462,7 +3555,7 @@ export function FastFoodProductModal({
                       <span>Toppings y Extras Gourmet</span>
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-gray-400">
-                      Potencia el sabor de tu pedido con porciones extra recién preparadas:
+                      Cada adición indica su unidad de servicio y descuenta la disponibilidad en tiempo real:
                     </p>
                   </div>
                   <span className="text-[11px] font-extrabold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
@@ -3475,78 +3568,118 @@ export function FastFoodProductModal({
                     No hay adiciones disponibles en este momento.
                   </div>
                 ) : (
-                  <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2.5" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {filteredAdiciones.map((ad) => {
                       const adId = ad.idAdicion || ad.id;
                       const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
                       const isSelected = Boolean(selectedObj);
-                      const itemQty = selectedObj?.cantidad || 1;
-                      const adImg = getOptimizedImageUrl(getAdicionDisplayImage(ad), 120);
+                      const itemQty = Number(selectedObj?.cantidad || 1);
+                      const unitMeta = resolveAdicionUnitMeta(ad, itemQty);
+                      const { maxPerDish, availableBeforeThis, noCtrl } = getAdditionMaxPerDish(ad);
+                      const consumedPortions = isSelected ? itemQty * Math.max(1, quantity) : 0;
+                      const liveRemaining = Math.max(0, availableBeforeThis - consumedPortions);
+                      const isAdSoldOut = !noCtrl && maxPerDish <= 0 && !isSelected;
 
                       return (
                         <div
                           key={adId}
-                          className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
+                          onClick={() => !isSelected && !isAdSoldOut && toggleAddition(ad)}
+                          className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2.5 transition-all select-none ${
                             isSelected
-                              ? "border-[#D9383A] bg-red-50/50 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/25"
-                              : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600"
+                              ? "border-[#D9383A] bg-red-50/45 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/20"
+                              : isAdSoldOut
+                                ? "border-slate-200 dark:border-gray-800 bg-slate-50/70 dark:bg-gray-900/50 opacity-65"
+                                : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
                           }`}
                         >
                           <div
-                            onClick={() => toggleAddition(ad)}
-                            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
+                            onClick={(e) => {
+                              if (isSelected) {
+                                e.stopPropagation();
+                                toggleAddition(ad);
+                              }
+                            }}
+                            className={`flex items-start gap-3 min-w-0 ${isSelected || !isAdSoldOut ? "cursor-pointer" : ""}`}
                           >
-                            <img
-                              src={adImg}
-                              alt={ad.nombre}
-                              width="48"
-                              height="48"
-                              loading="lazy"
-                              decoding="async"
-                              className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-2xs border border-slate-100 dark:border-gray-700"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-sm truncate">
+                            <AdicionAvatar adicion={ad} size="md" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-[13px] leading-snug line-clamp-2 break-words">
                                 {ad.nombre}
                               </p>
-                              <p className="text-[#D9383A] dark:text-red-400 font-extrabold text-xs mt-0.5">
-                                +${Number(ad.precio).toLocaleString("es-CO")}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 text-[10.5px] font-bold">
+                                  {unitMeta.badge}
+                                </span>
+                                {isSelected && itemQty > 1 && (
+                                  <span className="text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                                    ({unitMeta.formattedQty})
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {isSelected ? (
-                            <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-[#D9383A]/30 dark:border-red-900/60 shadow-2xs shrink-0">
-                              <button
-                                type="button"
-                                onClick={(e) => changeAdditionQty(adId, -1, e)}
-                                aria-label={`Restar ${ad.nombre}`}
-                                className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              >
-                                <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                              </button>
-                              <span className="font-black text-slate-900 dark:text-gray-100 min-w-5 text-center text-xs">
-                                {itemQty}
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-gray-700/60">
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <span className="text-[#D9383A] dark:text-red-400 font-extrabold text-xs sm:text-[13px] tabular-nums whitespace-nowrap">
+                                +${Number(ad.precio).toLocaleString("es-CO")}
                               </span>
+                              <span
+                                className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap ${
+                                  isAdSoldOut
+                                    ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                                    : noCtrl
+                                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                                      : liveRemaining === 0
+                                        ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                        : liveRemaining <= 5
+                                          ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+                                          : "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300"
+                                }`}
+                              >
+                                {isAdSoldOut
+                                  ? "Agotado"
+                                  : noCtrl
+                                    ? "Disponible"
+                                    : `${liveRemaining} disp.`}
+                              </span>
+                            </div>
+
+                            {isSelected ? (
+                              <QuantityStepperInput
+                                value={itemQty}
+                                min={1}
+                                max={Math.max(1, maxPerDish)}
+                                allowZeroRemove={true}
+                                ariaLabel={`cantidad de ${ad.nombre}`}
+                                onChange={(val) => setAdditionExactQty(ad, val)}
+                                onRemove={() => toggleAddition(ad)}
+                                onMaxReached={(limit) =>
+                                  warning(
+                                    "Límite disponible alcanzado",
+                                    `Solo puedes agregar hasta ${limit} ${limit === 1 ? unitMeta.shortUnit : `${unitMeta.shortUnit}es`} de "${ad.nombre}" según el stock actual.`
+                                  )
+                                }
+                              />
+                            ) : (
                               <button
                                 type="button"
-                                onClick={(e) => changeAdditionQty(adId, 1, e)}
-                                aria-label={`Sumar ${ad.nombre}`}
-                                className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                                disabled={isAdSoldOut}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleAddition(ad);
+                                }}
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
+                                  isAdSoldOut
+                                    ? "bg-slate-100 dark:bg-gray-800 text-slate-400 cursor-not-allowed"
+                                    : "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
+                                }`}
                               >
-                                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>{isAdSoldOut ? "Agotado" : "Agregar"}</span>
                               </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => toggleAddition(ad)}
-                              className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 active:scale-95 shrink-0"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>Agregar</span>
-                            </button>
-                          )}
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -3555,7 +3688,7 @@ export function FastFoodProductModal({
               </div>
             )}
 
-            {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES (PALETA UNIFICADA CHAZIN) ─── */}
+            {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES (STOCK EN VIVO + INPUT EDITABLE) ─── */}
             {!isDrink && activeTab === "bebidas" && (
               <div className="space-y-3.5 animate-in fade-in duration-150">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3609,103 +3742,126 @@ export function FastFoodProductModal({
                   </div>
                 )}
 
-                <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2.5" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {availableBebidas.map((drink) => {
                     const dId = drink.id || drink.idProducto;
                     const selectedObj = selectedDrinks.find((d) => (d.id || d.idProducto) === dId);
                     const isSelected = Boolean(selectedObj);
-                    const itemQty = selectedObj?.cantidad || 1;
-                    const dStock = Number(drink.stock !== undefined ? drink.stock : 0);
+                    const itemQty = Number(selectedObj?.cantidad || 1);
+                    const maxDrinkSelectable = getDrinkMaxSelectable(drink);
+                    const liveRemainingDrink = Math.max(0, maxDrinkSelectable - (isSelected ? itemQty : 0));
+                    const isDrinkSoldOut = maxDrinkSelectable <= 0 && !isSelected;
                     const imgUrl = getOptimizedImageUrl(resolveDrinkImage(drink), 120);
+                    const drinkUnitLabel = resolveDrinkUnitBadge(drink);
 
                     return (
                       <div
                         key={dId}
-                        className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
+                        onClick={() => !isSelected && !isDrinkSoldOut && toggleDrink(drink)}
+                        className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2.5 transition-all select-none ${
                           isSelected
-                            ? "border-[#D9383A] bg-red-50/50 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/25"
-                            : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600"
+                            ? "border-[#D9383A] bg-red-50/45 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/20"
+                            : isDrinkSoldOut
+                              ? "border-slate-200 dark:border-gray-800 bg-slate-50/70 dark:bg-gray-900/50 opacity-65"
+                              : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
                         }`}
                       >
                         <div
-                          onClick={() => dStock > 0 && toggleDrink(drink)}
-                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
+                          onClick={(e) => {
+                            if (isSelected) {
+                              e.stopPropagation();
+                              toggleDrink(drink);
+                            }
+                          }}
+                          className={`flex items-start gap-3 min-w-0 ${isSelected || !isDrinkSoldOut ? "cursor-pointer" : ""}`}
                         >
                           {imgUrl ? (
                             <img
                               src={imgUrl}
                               alt={drink.nombre}
-                              width="48"
-                              height="48"
+                              width="44"
+                              height="44"
                               loading="lazy"
                               decoding="async"
-                              className="w-12 h-12 rounded-xl object-contain p-1 bg-slate-50 dark:bg-gray-900 shrink-0 border border-slate-200/70 dark:border-gray-700"
+                              onError={(e) => {
+                                e.currentTarget.src = OFFICIAL_DRINK_IMAGES.coca_cola;
+                              }}
+                              className="w-11 h-11 rounded-xl object-contain p-1 bg-slate-50 dark:bg-gray-900 shrink-0 border border-slate-200/70 dark:border-gray-700"
                             />
                           ) : (
                             <FoodIconBadge name={drink.nombre || "drink"} size="md" />
                           )}
-                          <div className="min-w-0">
-                            <p className="text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-sm truncate">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-slate-900 dark:text-gray-100 font-bold text-xs sm:text-[13px] leading-snug line-clamp-2 break-words">
                               {drink.nombre}
                             </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {isComboWithDrinks ? (
-                                <span className="bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 px-2 py-0.5 rounded-md font-extrabold text-[10.5px]">
-                                  {isSelected ? "Incluida ($0)" : "Elegir ($0)"}
-                                </span>
-                              ) : (
-                                <span className="text-[#D9383A] dark:text-red-400 font-extrabold text-xs">
-                                  +${Number(drink.precio).toLocaleString("es-CO")}
-                                </span>
-                              )}
-                              <span
-                                className={`text-[10px] font-semibold ${
-                                  dStock <= 5 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-gray-500"
-                                }`}
-                              >
-                                {dStock > 0 ? `${dStock} disp.` : "Agotado"}
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 text-[10.5px] font-bold">
+                              {drinkUnitLabel}
+                            </span>
                           </div>
                         </div>
 
-                        {isSelected ? (
-                          <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-[#D9383A]/30 dark:border-red-900/60 shadow-2xs shrink-0">
-                            <button
-                              type="button"
-                              onClick={(e) => changeDrinkQty(dId, -1, e)}
-                              aria-label={`Restar ${drink.nombre}`}
-                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-gray-700/60">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            {isComboWithDrinks ? (
+                              <span className="bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 px-2 py-0.5 rounded-md font-extrabold text-[10.5px] whitespace-nowrap">
+                                {isSelected ? "Incluida ($0)" : "Elegir ($0)"}
+                              </span>
+                            ) : (
+                              <span className="text-[#D9383A] dark:text-red-400 font-extrabold text-xs sm:text-[13px] tabular-nums whitespace-nowrap">
+                                +${Number(drink.precio).toLocaleString("es-CO")}
+                              </span>
+                            )}
+                            <span
+                              className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap ${
+                                isDrinkSoldOut
+                                  ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                                  : liveRemainingDrink === 0
+                                    ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                    : liveRemainingDrink <= 5
+                                      ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+                                      : "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300"
+                              }`}
                             >
-                              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            <span className="font-black text-slate-900 dark:text-gray-100 min-w-5 text-center text-xs">
-                              {itemQty}
+                              {isDrinkSoldOut ? "Agotado" : `${liveRemainingDrink} disp.`}
                             </span>
+                          </div>
+
+                          {isSelected ? (
+                            <QuantityStepperInput
+                              value={itemQty}
+                              min={1}
+                              max={Math.max(1, maxDrinkSelectable)}
+                              allowZeroRemove={true}
+                              ariaLabel={`cantidad de ${drink.nombre}`}
+                              onChange={(val) => setDrinkExactQty(drink, val)}
+                              onRemove={() => toggleDrink(drink)}
+                              onMaxReached={(limit) =>
+                                warning(
+                                  "Límite de unidades disponible",
+                                  `Solo hay ${limit} ${limit === 1 ? "unidad disponible" : "unidades disponibles"} de "${drink.nombre}".`
+                                )
+                              }
+                            />
+                          ) : (
                             <button
                               type="button"
-                              onClick={(e) => changeDrinkQty(dId, 1, e)}
-                              aria-label={`Sumar ${drink.nombre}`}
-                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
+                              disabled={isDrinkSoldOut}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDrink(drink);
+                              }}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
+                                !isDrinkSoldOut
+                                  ? "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
+                                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                              }`}
                             >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{isDrinkSoldOut ? "Agotado" : "Agregar"}</span>
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={dStock <= 0}
-                            onClick={() => toggleDrink(drink)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
-                              dStock > 0
-                                ? "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
-                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            }`}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Agregar</span>
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -3963,7 +4119,7 @@ export function FastFoodProductModal({
                 )}
 
                 {/* Lista de Reseñas Reales */}
-                <div className={asPage ? "space-y-3" : "space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1"}>
+                <div className="space-y-3">
                   {loadingReviews ? (
                     <div className="py-8 text-center text-xs text-slate-400">
                       Cargando opiniones de clientes...
@@ -4064,64 +4220,69 @@ export function FastFoodProductModal({
                 </div>
               </div>
             )}
-
-            {/* ═══ 4. NOTAS ESPECIALES PARA COCINA (EN XL+ VIVE EN EL TICKET DERECHO) ═══ */}
-            <div className={`${asPage ? "xl:hidden pt-3" : "pt-4"} border-t border-slate-100 dark:border-gray-800 space-y-2.5`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
-                  <span>Instrucciones o Notas para Cocina</span>
-                </span>
-                <span className="text-[10.5px] text-slate-400 font-semibold">
-                  Opcional
-                </span>
-              </div>
-
-              {/* Quick Tags Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {(isDrink ? QUICK_DRINK_TAGS : QUICK_KITCHEN_TAGS).map((tag) => {
-                  const active = customObservation.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleQuickTag(tag)}
-                      className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
-                        active
-                          ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900 shadow-2xs"
-                          : "bg-slate-100/90 dark:bg-gray-800 border-slate-200/80 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:border-slate-300 dark:hover:border-gray-600"
-                      }`}
-                    >
-                      {active ? `✓ ${tag}` : `+ ${tag}`}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Input */}
-              <div>
-                <input
-                  type="text"
-                  maxLength={200}
-                  placeholder={isDrink ? "Ej: Vaso con hielo adicional, sin pitillo..." : "Ej: Carne 3/4, servilletas extras, salsas en pote aparte..."}
-                  value={customObservation}
-                  onChange={(e) => setCustomObservation(e.target.value)}
-                  className={`w-full text-xs px-3.5 py-2.5 rounded-xl border outline-none transition ${
-                    customObservation.length > 180
-                      ? "border-amber-400 focus:border-amber-500"
-                      : "border-slate-200 dark:border-gray-700 bg-slate-50/80 dark:bg-gray-800/80 text-slate-900 dark:text-gray-100 focus:border-[#D9383A] focus:bg-white dark:focus:bg-gray-900"
-                  }`}
-                />
-                {customObservation.length > 0 && (
-                  <div className="flex justify-end mt-1">
-                    <span className={`text-[10px] ${customObservation.length > 180 ? "text-amber-500 font-bold" : "text-slate-400"}`}>
-                      {customObservation.length}/200 caracteres
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
+  );
+
+  const kitchenNotesBlock = (
+    <div
+      className={
+        asPage
+          ? "xl:hidden bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 p-4 shadow-2xs space-y-2.5"
+          : "px-4 sm:px-6 py-3.5 border-t border-slate-100 dark:border-gray-800 space-y-2.5 bg-white dark:bg-gray-900"
+      }
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-extrabold text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
+          <span>Instrucciones o Notas para Cocina</span>
+        </span>
+        <span className="text-[10.5px] text-slate-400 font-semibold">
+          Opcional
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {(isDrink ? QUICK_DRINK_TAGS : QUICK_KITCHEN_TAGS).map((tag) => {
+          const active = customObservation.includes(tag);
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => toggleQuickTag(tag)}
+              className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
+                active
+                  ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900 shadow-2xs"
+                  : "bg-slate-100/90 dark:bg-gray-800 border-slate-200/80 dark:border-gray-700 text-slate-700 dark:text-gray-300 hover:border-slate-300 dark:hover:border-gray-600"
+              }`}
+            >
+              {active ? `✓ ${tag}` : `+ ${tag}`}
+            </button>
+          );
+        })}
+      </div>
+
+      <div>
+        <input
+          type="text"
+          maxLength={200}
+          placeholder={isDrink ? "Ej: Vaso con hielo adicional, sin pitillo..." : "Ej: Carne 3/4, servilletas extras, salsas en pote aparte..."}
+          value={customObservation}
+          onChange={(e) => setCustomObservation(e.target.value)}
+          className={`w-full text-xs px-3.5 py-2.5 rounded-xl border outline-none transition ${
+            customObservation.length > 180
+              ? "border-amber-400 focus:border-amber-500"
+              : "border-slate-200 dark:border-gray-700 bg-slate-50/80 dark:bg-gray-800/80 text-slate-900 dark:text-gray-100 focus:border-[#D9383A] focus:bg-white dark:focus:bg-gray-900"
+          }`}
+        />
+        {customObservation.length > 0 && (
+          <div className="flex justify-end mt-1">
+            <span className={`text-[10px] ${customObservation.length > 180 ? "text-amber-500 font-bold" : "text-slate-400"}`}>
+              {customObservation.length}/200 caracteres
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -4303,8 +4464,8 @@ export function FastFoodProductModal({
                   <ShieldCheck className={`w-3 h-3 shrink-0 ${isSoldOut ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
                   <span>Estado</span>
                 </span>
-                <span className={`text-xs font-extrabold truncate ${isSoldOut ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-                  {isSoldOut ? "Agotado" : `${stockMax} disp.`}
+                <span className={`text-xs font-extrabold truncate tabular-nums ${isSoldOut ? "text-rose-600 dark:text-rose-400" : liveRemainingMainStock === 0 ? "text-amber-600 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                  {isSoldOut ? "Agotado" : `${liveRemainingMainStock} disp.`}
                 </span>
               </div>
             </div>
@@ -4571,31 +4732,21 @@ export function FastFoodProductModal({
               {configuratorPanels}
             </div>
 
+            {kitchenNotesBlock}
+
             {/* Dock intermedio solo para tablets (sm..lg); en XL+ el pago vive en la Columna 3 sin tapar nada */}
             <div className="hidden sm:flex xl:hidden bg-white dark:bg-gray-900 border border-slate-200/90 dark:border-gray-700/90 rounded-2xl p-3.5 shadow-sm items-center justify-between gap-4">
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-slate-200/80 dark:border-gray-700 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                  aria-label="Disminuir cantidad"
-                  className="w-9 h-9 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-200/70 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-                >
-                  <Minus className="w-4 h-4 stroke-[2.75]" />
-                </button>
-                <span className="w-9 text-center text-sm font-black text-slate-900 dark:text-white">
-                  {quantity}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
-                  disabled={quantity >= stockMax}
-                  aria-label="Aumentar cantidad"
-                  className="w-9 h-9 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-200/70 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-                >
-                  <Plus className="w-4 h-4 stroke-[2.75]" />
-                </button>
-              </div>
+              <QuantityStepperInput
+                value={quantity}
+                min={1}
+                max={Math.max(1, stockMax)}
+                size="md"
+                ariaLabel={`cantidad de ${producto.nombre}`}
+                onChange={(val) => setQuantity(val)}
+                onMaxReached={(limit) =>
+                  warning("Límite de stock", `Solo hay ${limit} unidades disponibles de "${producto.nombre}".`)
+                }
+              />
 
               <div className="flex flex-col text-right ml-auto">
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-gray-400">
@@ -4653,14 +4804,17 @@ export function FastFoodProductModal({
                     Sin {rem.toLowerCase()}
                   </span>
                 ))}
-                {selectedAdditions.map((ad) => (
-                  <span
-                    key={ad.idAdicion || ad.id}
-                    className="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 text-[10.5px] font-bold"
-                  >
-                    +{ad.cantidad || 1}x {ad.nombre}
-                  </span>
-                ))}
+                {selectedAdditions.map((ad) => {
+                  const uMeta = resolveAdicionUnitMeta(ad, ad.cantidad || 1);
+                  return (
+                    <span
+                      key={ad.idAdicion || ad.id}
+                      className="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 text-[10.5px] font-bold"
+                    >
+                      +{uMeta.formattedQty} · {ad.nombre}
+                    </span>
+                  );
+                })}
                 {selectedDrinks.map((dr) => (
                   <span
                     key={dr.id || dr.idProducto}
@@ -4745,35 +4899,30 @@ export function FastFoodProductModal({
                 </div>
               </div>
 
-              {/* Selector de Cantidad + Botón Primario */}
+              {/* Selector de Cantidad Editable + Botón Primario */}
               <div className="space-y-2.5 pt-1">
                 <div className="flex items-center justify-between bg-slate-50 dark:bg-gray-800/70 px-3 py-2 rounded-xl border border-slate-200/80 dark:border-gray-700/80">
-                  <span className="text-xs font-bold text-slate-700 dark:text-gray-300">
-                    Cantidad
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      disabled={quantity <= 1}
-                      aria-label="Disminuir cantidad"
-                      className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-100 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95"
-                    >
-                      <Minus className="w-3.5 h-3.5 stroke-[2.75]" />
-                    </button>
-                    <span className="w-8 text-center text-sm font-black text-slate-900 dark:text-white tabular-nums">
-                      {quantity}
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 dark:text-gray-300 block">
+                      Cantidad
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
-                      disabled={quantity >= stockMax}
-                      aria-label="Aumentar cantidad"
-                      className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-100 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95"
-                    >
-                      <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
-                    </button>
+                    {!isSoldOut && (
+                      <span className="text-[10.5px] font-semibold text-slate-400 dark:text-gray-500 tabular-nums">
+                        {liveRemainingMainStock} disp. restantes
+                      </span>
+                    )}
                   </div>
+                  <QuantityStepperInput
+                    value={quantity}
+                    min={1}
+                    max={Math.max(1, stockMax)}
+                    size="sm"
+                    ariaLabel={`cantidad de ${producto.nombre}`}
+                    onChange={(val) => setQuantity(val)}
+                    onMaxReached={(limit) =>
+                      warning("Límite de stock", `Solo hay ${limit} unidades disponibles de "${producto.nombre}".`)
+                    }
+                  />
                 </div>
 
                 <button
@@ -4804,29 +4953,17 @@ export function FastFoodProductModal({
 
         {/* Barra Inferior Fija Nativa (Móvil) */}
         <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-gray-800 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.14)] flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-slate-200 dark:border-gray-700 shrink-0">
-            <button
-              type="button"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1}
-              aria-label="Disminuir cantidad"
-              className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center disabled:opacity-35 transition cursor-pointer active:scale-95"
-            >
-              <Minus className="w-4 h-4 stroke-[2.75]" />
-            </button>
-            <span className="w-7 text-center text-sm font-black text-slate-900 dark:text-white">
-              {quantity}
-            </span>
-            <button
-              type="button"
-              onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
-              disabled={quantity >= stockMax}
-              aria-label="Aumentar cantidad"
-              className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 text-slate-800 dark:text-gray-100 flex items-center justify-center disabled:opacity-35 transition cursor-pointer active:scale-95"
-            >
-              <Plus className="w-4 h-4 stroke-[2.75]" />
-            </button>
-          </div>
+          <QuantityStepperInput
+            value={quantity}
+            min={1}
+            max={Math.max(1, stockMax)}
+            size="sm"
+            ariaLabel={`cantidad de ${producto.nombre}`}
+            onChange={(val) => setQuantity(val)}
+            onMaxReached={(limit) =>
+              warning("Límite de stock", `Solo hay ${limit} unidades disponibles de "${producto.nombre}".`)
+            }
+          />
 
           <button
             type="button"
@@ -4851,7 +4988,7 @@ export function FastFoodProductModal({
   // MODO MODAL COMPACTO (POS Vendedor / PersonalizarEventoModal)
   // ═══════════════════════════════════════════════════════════════════════════
   const innerCard = (
-    <div className="bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl sm:max-w-[700px] w-full shadow-2xl flex flex-col max-h-[92dvh] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
+    <div className="bg-white dark:bg-gray-900 rounded-3xl sm:rounded-[32px] max-w-2xl sm:max-w-[720px] w-full shadow-2xl flex flex-col h-[92dvh] max-h-[860px] border border-gray-100 dark:border-gray-800 overflow-hidden relative transition-colors">
       <button
         type="button"
         onClick={onClose}
@@ -4864,33 +5001,22 @@ export function FastFoodProductModal({
       <div className="overflow-y-auto overflow-x-hidden flex-1 no-scrollbar">
         {modalHeroAndTabs}
         {configuratorPanels}
+        {kitchenNotesBlock}
       </div>
 
       <div className="p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3 z-30">
         <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-          <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
-            <button
-              type="button"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1}
-              className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-              title="Restar cantidad del producto"
-            >
-              <Minus className="w-4 h-4 stroke-[3]" />
-            </button>
-            <span className="w-8 text-center text-sm font-black text-gray-900 dark:text-gray-100">
-              {quantity}
-            </span>
-            <button
-              type="button"
-              onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
-              disabled={quantity >= stockMax}
-              className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-              title="Aumentar cantidad del producto"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-            </button>
-          </div>
+          <QuantityStepperInput
+            value={quantity}
+            min={1}
+            max={Math.max(1, stockMax)}
+            size="md"
+            ariaLabel={`cantidad de ${producto.nombre}`}
+            onChange={(val) => setQuantity(val)}
+            onMaxReached={(limit) =>
+              warning("Límite de stock", `Solo hay ${limit} unidades disponibles de "${producto.nombre}".`)
+            }
+          />
 
           <div className="sm:hidden text-right">
             <span className="text-[10px] text-gray-400 uppercase font-black tracking-wider block">

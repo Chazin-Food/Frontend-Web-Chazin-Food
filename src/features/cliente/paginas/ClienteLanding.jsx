@@ -34,6 +34,7 @@ import { FoodIcon, FoodIconBadge, EventBadge, getEventBadgeConfig, stripEmojis }
 import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { getProductVariantSummary, isVariantActive } from "@/shared/utils/productVariantUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import { resolveValidAdicionImage } from "@/shared/utils/adicionUtils";
 import { ClienteFooter } from "../componentes/ClienteFooter";
 import { isEssentialIngredient } from "@/shared/utils/ingredientUtils";
 const ClienteAuthModal = lazy(() => import("../componentes/ClienteAuthModal").then((m) => ({ default: m.ClienteAuthModal })));
@@ -104,30 +105,7 @@ const eventosDefault = [];
 const adicionesDisponibles = [];
 
 export const getAdicionImage = (ad) => {
-  if (!ad) return "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=80";
-  if (typeof ad.imagen === "string" && ad.imagen.startsWith("http")) {
-    return ad.imagen;
-  }
-  const name = String(ad.nombre || "").toLowerCase();
-  if (name.includes("tocineta") || name.includes("bacon")) {
-    return "https://images.unsplash.com/photo-1528607929212-2636ec44253e?w=500&auto=format&fit=crop&q=80";
-  }
-  if (name.includes("queso") || name.includes("cheddar")) {
-    return "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=500&auto=format&fit=crop&q=80";
-  }
-  if (name.includes("papa") || name.includes("francesa")) {
-    return "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop&q=80";
-  }
-  if (name.includes("cebolla")) {
-    return "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=80";
-  }
-  if (name.includes("jalapeño") || name.includes("jalapeno") || name.includes("picante")) {
-    return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&auto=format&fit=crop&q=80";
-  }
-  if (name.includes("salsa")) {
-    return "https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=500&auto=format&fit=crop&q=80";
-  }
-  return "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=80";
+  return resolveValidAdicionImage(ad);
 };
 
 const fichasTecnicasDefault = {};
@@ -743,15 +721,17 @@ export function ClienteLanding() {
 
       let apiAdicsList = [];
       if (adicRes.status === "fulfilled" && Array.isArray(adicRes.value) && adicRes.value.length > 0) {
-        apiAdicsList = adicRes.value.map(a => ({
+        apiAdicsList = adicRes.value.map((a) => ({
+          ...a,
           idAdicion: a.idAdicion || a.id,
+          id: a.id || a.idAdicion,
           nombre: a.nombre,
           precio: parseFloat(a.precio || 0),
           stock: Number(a.stock !== undefined ? a.stock : (a.stockActual !== undefined ? a.stockActual : 0)),
           stockActual: Number(a.stockActual !== undefined ? a.stockActual : (a.stock !== undefined ? a.stock : 0)),
           tipo: a.tipo || "Adición",
           estado: a.estado !== undefined ? a.estado : 1,
-          imagen: (a.imagen && typeof a.imagen === "string" && a.imagen.startsWith("http")) ? a.imagen : getAdicionImage(a)
+          imagen: resolveValidAdicionImage(a)
         }));
         setAdicionesList(apiAdicsList);
       }

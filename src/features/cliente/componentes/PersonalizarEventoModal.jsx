@@ -22,15 +22,25 @@ import {
   Trash2,
   Globe
 } from "lucide-react";
-import { extractPersonalizables, resolveNutritionalSpecs, isEssentialIngredient } from "@/shared/components/ui/FastFoodProductModal";
+import { extractPersonalizables, resolveNutritionalSpecs, isEssentialIngredient, resolveDrinkImage } from "@/shared/components/ui/FastFoodProductModal";
 import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fichasTecnicasService";
 import { apiClient } from "@/shared/api/apiClient";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
+import { useCart } from "@/shared/context/CartContext";
+import { useNotifications } from "@/shared/hooks/useNotifications";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
+import QuantityStepperInput, { AdicionAvatar } from "@/shared/components/ui/QuantityStepperInput";
 import { stripEmojis, formatTipoEvento, parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
 import { getDisplayProductVariants, isVariantFromEvent } from "@/shared/utils/productVariantUtils";
 import { buildVariantChangesSummary } from "@/features/ventas/utils/variantFichaUtils";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import {
+  resolveAdicionUnitMeta,
+  resolveAdicionMaxPortions,
+  getAdicionQuantityInCart,
+  resolveDrinkUnitBadge,
+  resolveValidAdicionImage
+} from "@/shared/utils/adicionUtils";
 import ProductVariantInspector from "@/shared/components/ui/ProductVariantInspector";
 
 const QUICK_KITCHEN_TAGS = [
@@ -79,6 +89,9 @@ export function PersonalizarEventoModal({
   getProductQuantityInCart
 }) {
   const { user, isAuthenticated } = useAuth?.() || {};
+  const cartCtx = useCart?.() || {};
+  const { warning } = useNotifications();
+  const cartItems = cartCtx.cart || [];
   const userRole = Number(user?.idRol || user?.rolId || user?.rol || 0);
   const isReadOnlyReviews = userRole === 1 || userRole === 2 || userRole === 3;
 
@@ -723,13 +736,31 @@ export function PersonalizarEventoModal({
   const unitTotal = promoPrice + additionsTotal;
   const grandTotal = unitTotal * cantidad + drinksTotal;
 
-  // Handlers
+  // Handlers con stock en vivo e input numérico directo
+  const getAdicionStockMeta = (ad) => {
+    const adId = ad?.idAdicion || ad?.id;
+    const noCtrl =
+      ad?.controlarStock === false ||
+      String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
+    if (noCtrl) return { maxPerDish: 99, availableBeforeThis: 99, noCtrl: true };
+    const totalPortions = resolveAdicionMaxPortions(ad);
+    const inCartPortions = getAdicionQuantityInCart(cartItems, adId);
+    const availableBeforeThis = Math.max(0, totalPortions - inCartPortions);
+    const maxPerDish = Math.floor(availableBeforeThis / Math.max(1, cantidad));
+    return { maxPerDish, availableBeforeThis, noCtrl: false };
+  };
+
   const toggleAdicion = (ad) => {
     const adId = ad.idAdicion || ad.id;
     const exists = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
     if (exists) {
       setSelectedAdditions(selectedAdditions.filter((a) => (a.idAdicion || a.id) !== adId));
     } else {
+      const { maxPerDish, noCtrl } = getAdicionStockMeta(ad);
+      if (!noCtrl && maxPerDish <= 0) {
+        warning("Adición agotada", `No quedan porciones disponibles de "${ad.nombre}".`);
+        return;
+      }
       setSelectedAdditions([
         ...selectedAdditions,
         {
@@ -738,24 +769,26 @@ export function PersonalizarEventoModal({
           nombre: ad.nombre,
           precio: Number(ad.precio) || 0,
           cantidad: 1,
-          imagen: ad.imagen || "sauce"
+          unidadMedida: ad.unidadMedida,
+          porcionMinimaCantidad: ad.porcionMinimaCantidad,
+          porcionMinimaUnidad: ad.porcionMinimaUnidad,
+          imagen: resolveValidAdicionImage(ad) || "sauce"
         }
       ]);
     }
   };
 
-  const changeAdicionQty = (adId, delta, e) => {
-    if (e) e.stopPropagation();
+  const setAdicionExactQty = (ad, exactQty) => {
+    const adId = ad.idAdicion || ad.id;
+    const cleanQty = Math.floor(Number(exactQty) || 0);
+    if (cleanQty <= 0) {
+      setSelectedAdditions((prev) => prev.filter((a) => (a.idAdicion || a.id) !== adId));
+      return;
+    }
+    const { maxPerDish, noCtrl } = getAdicionStockMeta(ad);
+    const clamped = noCtrl ? Math.min(99, cleanQty) : Math.min(Math.max(1, maxPerDish), cleanQty);
     setSelectedAdditions((prev) =>
-      prev
-        .map((a) => {
-          if ((a.idAdicion || a.id) === adId) {
-            const next = (a.cantidad || 1) + delta;
-            return next > 0 ? { ...a, cantidad: next } : null;
-          }
-          return a;
-        })
-        .filter(Boolean)
+      prev.map((a) => ((a.idAdicion || a.id) === adId ? { ...a, cantidad: clamped } : a))
     );
   };
 
@@ -766,12 +799,24 @@ export function PersonalizarEventoModal({
     );
   };
 
+  const getDrinkMaxSelectable = (drink) => {
+    const dId = drink?.id || drink?.idProducto;
+    const dStock = Math.max(0, Math.floor(Number(drink?.stock ?? 0)));
+    const inCartD = getProductQuantityInCart ? Number(getProductQuantityInCart(dId) || 0) : 0;
+    return Math.max(0, dStock - inCartD);
+  };
+
   const toggleDrink = (drink) => {
     const drinkId = drink.id || drink.idProducto;
     const exists = selectedDrinks.find((d) => (d.id || d.idProducto) === drinkId);
     if (exists) {
       setSelectedDrinks(selectedDrinks.filter((d) => (d.id || d.idProducto) !== drinkId));
     } else {
+      const maxD = getDrinkMaxSelectable(drink);
+      if (maxD <= 0) {
+        warning("Bebida agotada", `No quedan unidades disponibles de "${drink.nombre}".`);
+        return;
+      }
       setSelectedDrinks([
         ...selectedDrinks,
         {
@@ -780,24 +825,24 @@ export function PersonalizarEventoModal({
           nombre: drink.nombre,
           precio: Number(drink.precio) || 0,
           cantidad: 1,
-          imagen: drink.imagen || "drink"
+          stock: Number(drink.stock || 0),
+          imagen: resolveDrinkImage(drink)
         }
       ]);
     }
   };
 
-  const changeDrinkQty = (drinkId, delta, e) => {
-    if (e) e.stopPropagation();
+  const setDrinkExactQty = (drink, exactQty) => {
+    const drinkId = drink.id || drink.idProducto;
+    const cleanQty = Math.floor(Number(exactQty) || 0);
+    if (cleanQty <= 0) {
+      setSelectedDrinks((prev) => prev.filter((d) => (d.id || d.idProducto) !== drinkId));
+      return;
+    }
+    const maxD = getDrinkMaxSelectable(drink);
+    const clamped = Math.min(Math.max(1, maxD), cleanQty);
     setSelectedDrinks((prev) =>
-      prev
-        .map((d) => {
-          if ((d.id || d.idProducto) === drinkId) {
-            const next = (d.cantidad || 1) + delta;
-            return next > 0 ? { ...d, cantidad: next } : null;
-          }
-          return d;
-        })
-        .filter(Boolean)
+      prev.map((d) => ((d.id || d.idProducto) === drinkId ? { ...d, cantidad: clamped } : d))
     );
   };
 
@@ -905,10 +950,11 @@ export function PersonalizarEventoModal({
     onClose();
   };
 
-  // Stock check
+  // Stock check con descuento en tiempo real
   const stockTot = Number(selectedProduct?.stock !== undefined ? selectedProduct.stock : (selectedProduct?.stockActual !== undefined ? selectedProduct.stockActual : 0));
   const inCart = getProductQuantityInCart ? getProductQuantityInCart(selectedProduct?.id || selectedProduct?.idProducto) : 0;
-  const remainingStock = Math.max(0, stockTot - inCart);
+  const remainingStock = Math.max(0, Math.floor(stockTot) - inCart);
+  const liveRemainingEventStock = Math.max(0, remainingStock - (remainingStock > 0 ? cantidad : 0));
 
   const baseProductImage =
     selectedProduct?.imagen ||
@@ -1141,9 +1187,9 @@ export function PersonalizarEventoModal({
                 {specs?.rendimiento || "1 porción"}
               </span>
               <span>•</span>
-              <span className="flex items-center gap-1 whitespace-nowrap">
+              <span className="flex items-center gap-1 whitespace-nowrap tabular-nums">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                {remainingStock > 0 ? `${remainingStock} disp.` : "Agotado"}
+                {remainingStock > 0 ? `${liveRemainingEventStock} disp.` : "Agotado"}
               </span>
             </div>
           </div>
@@ -1285,8 +1331,8 @@ export function PersonalizarEventoModal({
             </div>
           </div>
 
-          {/* ═══ 8. TAB CONTENT PANELS (CON MIN-HEIGHT PARA CERO SALTOS VISUALES) ═══ */}
-          <div className="p-4 sm:p-6 space-y-5 min-h-[300px]">
+          {/* ═══ 8. TAB CONTENT PANELS (ALTO FIJO UNIFORME ENTRE PESTAÑAS) ═══ */}
+          <div className="h-[380px] sm:h-[400px] overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-5 scrollbar-thin">
             {activeTab === "personalizar" && <EventoToppingsCard event={evento} />}
 
             {activeTab === "personalizar" && activeFoodVariants.length > 0 && (
@@ -1544,7 +1590,7 @@ export function PersonalizarEventoModal({
               </div>
             )}
 
-            {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS Y EXTRAS) ─── */}
+            {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS Y EXTRAS CON UNIDAD Y STOCK EN VIVO) ─── */}
             {activeTab === "adiciones" && (
               <div className="space-y-3 animate-in fade-in duration-150">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1554,7 +1600,7 @@ export function PersonalizarEventoModal({
                       Toppings y Extras Gourmet
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Agrega ingredientes premium para enriquecer tu plato:
+                      Cada extra indica su unidad correspondiente y descuenta disponibilidad en vivo:
                     </p>
                   </div>
                   <span className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -1562,75 +1608,112 @@ export function PersonalizarEventoModal({
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {adicionesList.map((ad) => {
                     const adId = ad.idAdicion || ad.id;
                     const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
                     const isSelected = Boolean(selectedObj);
-                    const itemQty = selectedObj?.cantidad || 1;
+                    const itemQty = Number(selectedObj?.cantidad || 1);
+                    const unitMeta = resolveAdicionUnitMeta(ad, itemQty);
+                    const { maxPerDish, availableBeforeThis, noCtrl } = getAdicionStockMeta(ad);
+                    const consumedHere = isSelected ? itemQty * Math.max(1, cantidad) : 0;
+                    const liveRemaining = Math.max(0, availableBeforeThis - consumedHere);
+                    const isSoldOut = !noCtrl && maxPerDish <= 0 && !isSelected;
 
                     return (
                       <div
                         key={adId}
-                        className={`p-2.5 sm:p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
+                        onClick={() => !isSelected && !isSoldOut && toggleAdicion(ad)}
+                        className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2.5 transition-all select-none ${
                           isSelected
-                            ? "border-amber-500 bg-amber-50/60 dark:bg-amber-950/30 shadow-xs ring-2 ring-amber-400/40"
-                            : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750"
+                            ? "border-[#D9383A] bg-red-50/45 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/20"
+                            : isSoldOut
+                              ? "border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/50 opacity-65"
+                              : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
                         }`}
                       >
                         <div
-                          onClick={() => toggleAdicion(ad)}
-                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
+                          onClick={(e) => {
+                            if (isSelected) {
+                              e.stopPropagation();
+                              toggleAdicion(ad);
+                            }
+                          }}
+                          className={`flex items-start gap-3 min-w-0 ${isSelected || !isSoldOut ? "cursor-pointer" : ""}`}
                         >
-                          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center shrink-0 text-xl overflow-hidden border border-amber-100 dark:border-amber-900/30">
-                            {ad.imagen && typeof ad.imagen === "string" && (ad.imagen.startsWith("http") || ad.imagen.startsWith("/") || ad.imagen.startsWith("data:")) ? (
-                              <img src={ad.imagen} alt={ad.nombre} className="w-full h-full object-cover" />
-                            ) : (
-                              <FoodIcon name={ad.nombre || "sauce"} size={18} />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-extrabold text-gray-900 dark:text-gray-100 truncate">
+                          <AdicionAvatar adicion={ad} size="md" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs sm:text-[13px] text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 break-words">
                               {ad.nombre}
                             </p>
-                            <p className="text-xs font-black text-amber-700 dark:text-amber-400">
-                              +${Number(ad.precio || 0).toLocaleString("es-CO")}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200/80 dark:border-gray-700 text-[10.5px] font-bold">
+                                {unitMeta.badge}
+                              </span>
+                              {isSelected && itemQty > 1 && (
+                                <span className="text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                                  ({unitMeta.formattedQty})
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {isSelected ? (
-                          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-amber-300 dark:border-amber-800 shadow-2xs">
-                            <button
-                              type="button"
-                              onClick={(e) => changeAdicionQty(adId, -1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Restar cantidad"
-                            >
-                              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            <span className="font-black text-gray-900 dark:text-gray-100 min-w-5 text-center text-xs">
-                              {itemQty}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <span className="text-xs font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums whitespace-nowrap">
+                              +${Number(ad.precio || 0).toLocaleString("es-CO")}
                             </span>
+                            <span
+                              className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap ${
+                                isSoldOut
+                                  ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                                  : noCtrl
+                                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                                    : liveRemaining === 0
+                                      ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                              }`}
+                            >
+                              {isSoldOut ? "Agotado" : noCtrl ? "Disponible" : `${liveRemaining} disp.`}
+                            </span>
+                          </div>
+
+                          {isSelected ? (
+                            <QuantityStepperInput
+                              value={itemQty}
+                              min={1}
+                              max={Math.max(1, maxPerDish)}
+                              allowZeroRemove={true}
+                              ariaLabel={`cantidad de ${ad.nombre}`}
+                              onChange={(val) => setAdicionExactQty(ad, val)}
+                              onRemove={() => toggleAdicion(ad)}
+                              onMaxReached={(limit) =>
+                                warning(
+                                  "Límite disponible alcanzado",
+                                  `Solo puedes agregar hasta ${limit} ${unitMeta.shortUnit}(es) de "${ad.nombre}".`
+                                )
+                              }
+                            />
+                          ) : (
                             <button
                               type="button"
-                              onClick={(e) => changeAdicionQty(adId, 1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Sumar cantidad"
+                              disabled={isSoldOut}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleAdicion(ad);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
+                                isSoldOut
+                                  ? "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
+                                  : "bg-gray-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-gray-700 dark:text-gray-200 cursor-pointer"
+                              }`}
                             >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{isSoldOut ? "Agotado" : "Agregar"}</span>
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => toggleAdicion(ad)}
-                            className="px-3.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-[#f05454] hover:text-white text-gray-700 dark:text-gray-200 text-xs font-black transition-all cursor-pointer flex items-center gap-1 active:scale-95 shrink-0"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Agregar</span>
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1638,7 +1721,7 @@ export function PersonalizarEventoModal({
               </div>
             )}
 
-            {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES ─── */}
+            {/* ─── TAB 3: BEBIDAS & ACOMPAÑANTES (STOCK EN VIVO + INPUT EDITABLE) ─── */}
             {activeTab === "bebidas" && (
               <div className="space-y-3 animate-in fade-in duration-150">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1656,91 +1739,115 @@ export function PersonalizarEventoModal({
                   </span>
                 </div>
 
-                <div className="space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {allBebidas.map((drink) => {
                     const dId = drink.id || drink.idProducto;
                     const selectedObj = selectedDrinks.find((d) => (d.id || d.idProducto) === dId);
                     const isSelected = Boolean(selectedObj);
-                    const itemQty = selectedObj?.cantidad || 1;
+                    const itemQty = Number(selectedObj?.cantidad || 1);
+                    const maxDrinkSelectable = getDrinkMaxSelectable(drink);
+                    const liveRemainingDrink = Math.max(0, maxDrinkSelectable - (isSelected ? itemQty : 0));
+                    const isDrinkSoldOut = maxDrinkSelectable <= 0 && !isSelected;
+                    const imgUrl = getOptimizedImageUrl(resolveDrinkImage(drink), 120);
+                    const drinkUnitLabel = resolveDrinkUnitBadge(drink);
 
                     return (
                       <div
                         key={dId}
-                        className={`p-2.5 sm:p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 transition-all ${
+                        onClick={() => !isSelected && !isDrinkSoldOut && toggleDrink(drink)}
+                        className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2.5 transition-all select-none ${
                           isSelected
-                            ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 shadow-xs ring-2 ring-blue-400/40"
-                            : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750"
+                            ? "border-[#D9383A] bg-red-50/45 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/20"
+                            : isDrinkSoldOut
+                              ? "border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/50 opacity-65"
+                              : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
                         }`}
                       >
                         <div
-                          onClick={() => toggleDrink(drink)}
-                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none"
+                          onClick={(e) => {
+                            if (isSelected) {
+                              e.stopPropagation();
+                              toggleDrink(drink);
+                            }
+                          }}
+                          className={`flex items-start gap-3 min-w-0 ${isSelected || !isDrinkSoldOut ? "cursor-pointer" : ""}`}
                         >
-                          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center shrink-0 text-xl overflow-hidden border border-blue-100 dark:border-blue-900/30">
-                            {(() => {
-                              let imgUrl = null;
-                              if (drink.imagen && typeof drink.imagen === "string" && (drink.imagen.startsWith("http") || drink.imagen.startsWith("/") || drink.imagen.startsWith("data:"))) {
-                                imgUrl = drink.imagen;
-                              } else {
-                                const n = String(drink.nombre || "").toLowerCase();
-                                if (n.includes("naranja")) imgUrl = "/images/drinks/images__Gaseosa_naranja_-removebg-preview.png";
-                                else if (n.includes("uva")) imgUrl = "/images/drinks/uva_postobon-removebg-preview.png";
-                                else if (n.includes("manzana")) imgUrl = "/images/drinks/manzana_400ml-removebg-preview.png";
-                                else if (n.includes("colombiana")) imgUrl = "https://res.cloudinary.com/dckwtknmq/image/upload/v1789001495/qy8wy9igmgb0wppnjavw.png";
-                                else if (n.includes("coca")) imgUrl = "/images/drinks/coca_cola-removebg-preview.png";
-                                else if (n.includes("pepsi")) imgUrl = "/images/drinks/pepsi_400ml-removebg-preview.png";
-                                else if (n.includes("sprite")) imgUrl = "/images/drinks/sprite-removebg-preview.png";
-                                else if (n.includes("quatro") || n.includes("cuatro")) imgUrl = "/images/drinks/gaseosa-quatro-15-lt-removebg-preview.png";
-                              }
-                              return imgUrl ? (
-                                <img src={imgUrl} alt={drink.nombre} className="w-full h-full object-cover" />
-                              ) : (
-                                <FoodIcon name="drink" size={18} />
-                              );
-                            })()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-extrabold text-gray-900 dark:text-gray-100 truncate">
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={drink.nombre}
+                              width="44"
+                              height="44"
+                              loading="lazy"
+                              decoding="async"
+                              className="w-11 h-11 rounded-xl object-contain p-1 bg-slate-50 dark:bg-gray-900 shrink-0 border border-gray-200/70 dark:border-gray-700"
+                            />
+                          ) : (
+                            <FoodIconBadge name="drink" size="md" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs sm:text-[13px] text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 break-words">
                               {drink.nombre}
                             </p>
-                            <p className="text-xs font-black text-blue-600 dark:text-blue-400">
-                              +${Number(drink.precio || 0).toLocaleString("es-CO")}
-                            </p>
+                            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200/80 dark:border-gray-700 text-[10.5px] font-bold">
+                              {drinkUnitLabel}
+                            </span>
                           </div>
                         </div>
 
-                        {isSelected ? (
-                          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 px-2 py-1 rounded-xl border border-blue-300 dark:border-blue-800 shadow-2xs">
-                            <button
-                              type="button"
-                              onClick={(e) => changeDrinkQty(dId, -1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Restar cantidad"
-                            >
-                              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            <span className="font-black text-gray-900 dark:text-gray-100 min-w-5 text-center text-xs">
-                              {itemQty}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700/60">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <span className="text-xs font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums whitespace-nowrap">
+                              +${Number(drink.precio || 0).toLocaleString("es-CO")}
                             </span>
+                            <span
+                              className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap ${
+                                isDrinkSoldOut
+                                  ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                                  : liveRemainingDrink === 0
+                                    ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                              }`}
+                            >
+                              {isDrinkSoldOut ? "Agotado" : `${liveRemainingDrink} disp.`}
+                            </span>
+                          </div>
+
+                          {isSelected ? (
+                            <QuantityStepperInput
+                              value={itemQty}
+                              min={1}
+                              max={Math.max(1, maxDrinkSelectable)}
+                              allowZeroRemove={true}
+                              ariaLabel={`cantidad de ${drink.nombre}`}
+                              onChange={(val) => setDrinkExactQty(drink, val)}
+                              onRemove={() => toggleDrink(drink)}
+                              onMaxReached={(limit) =>
+                                warning(
+                                  "Límite de unidades disponible",
+                                  `Solo hay ${limit} unidades disponibles de "${drink.nombre}".`
+                                )
+                              }
+                            />
+                          ) : (
                             <button
                               type="button"
-                              onClick={(e) => changeDrinkQty(dId, 1, e)}
-                              className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-gray-700 dark:text-gray-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95"
-                              title="Sumar cantidad"
+                              disabled={isDrinkSoldOut}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDrink(drink);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
+                                !isDrinkSoldOut
+                                  ? "bg-gray-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-gray-700 dark:text-gray-200 cursor-pointer"
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              }`}
                             >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{isDrinkSoldOut ? "Agotado" : "Agregar"}</span>
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => toggleDrink(drink)}
-                            className="px-3.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white text-gray-700 dark:text-gray-200 text-xs font-black transition-all cursor-pointer flex items-center gap-1 active:scale-95 shrink-0"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Agregar</span>
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1929,7 +2036,7 @@ export function PersonalizarEventoModal({
                 )}
 
                 {/* Lista de Opiniones Reales */}
-                <div className="space-y-2.5 max-h-[300px] overflow-y-auto overflow-x-hidden pr-1">
+                <div className="space-y-2.5">
                   {loadingReviews ? (
                     <div className="py-8 text-center text-xs text-gray-400">
                       Cargando opiniones de clientes...
@@ -2020,80 +2127,66 @@ export function PersonalizarEventoModal({
                 </div>
               </div>
             )}
+          </div>
 
-            {/* ═══ 9. NOTAS ESPECIALES PARA COCINA (GLOBAL) ═══ */}
-            <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                  <ChefHat className="w-3.5 h-3.5 text-amber-500" />
-                  Instrucciones o Notas Especiales
-                </span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                  Opcional
-                </span>
-              </div>
-
-              {/* Quick Tags Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_KITCHEN_TAGS.map((tag) => {
-                  const active = customObservation.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleQuickTag(tag)}
-                      className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
-                        active
-                          ? "bg-amber-500 border-amber-500 text-white shadow-xs"
-                          : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200/70"
-                      }`}
-                    >
-                      {active ? `✓ ${tag}` : `+ ${tag}`}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Custom Observation Input */}
-              <input
-                type="text"
-                placeholder="Ej: Término medio, salsas aparte, servilletas adicionales..."
-                value={customObservation}
-                onChange={(e) => setCustomObservation(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:border-red-500 transition"
-              />
+          {/* ═══ 9. NOTAS ESPECIALES PARA COCINA (SEPARADAS DEL VIEWPORT FIJO DE PESTAÑAS) ═══ */}
+          <div className="px-4 sm:px-6 py-3.5 border-t border-gray-150 dark:border-gray-800 space-y-2 bg-white dark:bg-gray-900">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                <ChefHat className="w-3.5 h-3.5 text-amber-500" />
+                Instrucciones o Notas Especiales
+              </span>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                Opcional
+              </span>
             </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_KITCHEN_TAGS.map((tag) => {
+                const active = customObservation.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleQuickTag(tag)}
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
+                      active
+                        ? "bg-amber-500 border-amber-500 text-white shadow-xs"
+                        : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200/70"
+                    }`}
+                  >
+                    {active ? `✓ ${tag}` : `+ ${tag}`}
+                  </button>
+                );
+              })}
+            </div>
+
+            <input
+              type="text"
+              placeholder="Ej: Término medio, salsas aparte, servilletas adicionales..."
+              value={customObservation}
+              onChange={(e) => setCustomObservation(e.target.value)}
+              className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:border-red-500 transition"
+            />
           </div>
         </div>
 
-        {/* ═══ 10. STICKY ACTION BAR & TOTALIZER FOOTER (IDÉNTICO A FASTFOODPRODUCTMODAL) ═══ */}
+        {/* ═══ 10. STICKY ACTION BAR & TOTALIZER FOOTER ═══ */}
         <div className="p-3.5 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-3 z-30 shrink-0">
           
-          {/* Left: Event Product Quantity Stepper */}
+          {/* Left: Event Product Quantity Stepper Editable */}
           <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-            <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xs">
-              <button
-                type="button"
-                onClick={() => setCantidad((q) => Math.max(1, q - 1))}
-                disabled={cantidad <= 1}
-                className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-                title="Restar cantidad"
-              >
-                <Minus className="w-4 h-4 stroke-[3]" />
-              </button>
-              <span className="w-8 text-center text-sm font-black text-gray-900 dark:text-gray-100">
-                {cantidad}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCantidad((q) => Math.min(remainingStock, q + 1))}
-                disabled={cantidad >= remainingStock}
-                className="w-8 h-8 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95 shadow-2xs"
-                title="Aumentar cantidad"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-              </button>
-            </div>
+            <QuantityStepperInput
+              value={cantidad}
+              min={1}
+              max={Math.max(1, remainingStock)}
+              size="md"
+              ariaLabel={`cantidad de ${selectedProduct?.nombre || "promoción"}`}
+              onChange={(val) => setCantidad(val)}
+              onMaxReached={(limit) =>
+                warning("Límite de stock", `Solo hay ${limit} unidades disponibles de este plato.`)
+              }
+            />
 
             {/* Breakdown summary on small screens */}
             <div className="sm:hidden text-right">

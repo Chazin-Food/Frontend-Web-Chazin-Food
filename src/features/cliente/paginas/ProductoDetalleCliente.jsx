@@ -127,7 +127,13 @@ export function ProductoDetalleCliente() {
           }
         }
         if (adicsArr.length > 0 && allAdiciones.length === 0) {
-          const activeAdics = adicsArr.filter((a) => a.estado === "Activo" || a.estado === 1 || a.estado === "1");
+          const activeAdics = adicsArr.filter(
+            (a) =>
+              !isDrinkProduct(a) &&
+              Number(a.idAdicion || a.id) !== 1 &&
+              Number(a.idAdicion || a.id) !== 2 &&
+              (a.estado === "Activo" || a.estado === 1 || a.estado === "1" || a.estado === true)
+          );
           setAllAdiciones(activeAdics);
         }
         setRatingsInfo(ratingRes && ratingRes[prodId] ? ratingRes[prodId] : null);
@@ -248,6 +254,9 @@ export function ProductoDetalleCliente() {
         nombre: a.nombre,
         precio: Number(a.precio) || 0,
         cantidad: Number(a.cantidad) || 1,
+        unidadMedida: a.unidadMedida || undefined,
+        porcionMinimaCantidad: a.porcionMinimaCantidad ?? undefined,
+        porcionMinimaUnidad: a.porcionMinimaUnidad || undefined,
         imagen: a.imagen || ""
       }))
     };

@@ -20,7 +20,14 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
+import QuantityStepperInput, { AdicionAvatar } from "@/shared/components/ui/QuantityStepperInput";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import {
+  resolveAdicionUnitMeta,
+  resolveAdicionMaxPortions,
+  getAdicionQuantityInCart,
+  resolveValidAdicionImage
+} from "@/shared/utils/adicionUtils";
 
 /**
  * Clasifica cada topping/adición en una categoría gastronómica clara
@@ -59,50 +66,6 @@ const TOPPING_CATEGORY_TABS = [
 ];
 
 const formatCOP = (value) => `$${Math.round(Number(value || 0)).toLocaleString("es-CO")}`;
-
-/**
- * Miniatura consistente con fallback vectorial limpio si la URL falla o no existe.
- */
-function ToppingAvatar({ adicion, getAdicionImage, size = "md" }) {
-  const [imgError, setImgError] = useState(false);
-  const rawImg =
-    (typeof adicion?.imagen === "string" && adicion.imagen.startsWith("http") ? adicion.imagen : "") ||
-    (typeof adicion?.foto === "string" && adicion.foto.startsWith("http") ? adicion.foto : "") ||
-    (typeof getAdicionImage === "function" ? getAdicionImage(adicion) : "");
-
-  const optimized = rawImg ? getOptimizedImageUrl(rawImg, 112) : "";
-  const cat = classifyToppingCategory(adicion);
-  const dims = size === "sm" ? "w-9 h-9 rounded-lg" : "w-11 h-11 rounded-xl";
-  const px = size === "sm" ? 36 : 44;
-
-  if (!optimized || imgError) {
-    const tone =
-      cat === "salsas"
-        ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200/70 dark:border-amber-800/50"
-        : cat === "proteinas_quesos"
-          ? "bg-red-50 dark:bg-red-950/40 text-[#D9383A] dark:text-red-300 border-red-200/70 dark:border-red-800/50"
-          : "bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border-slate-200/80 dark:border-gray-700";
-
-    return (
-      <div className={`${dims} shrink-0 border flex items-center justify-center ${tone}`}>
-        <FoodIcon name={adicion?.nombre || "burger"} size={size === "sm" ? 16 : 20} stroke={1.85} />
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={optimized}
-      alt={adicion?.nombre || "Topping"}
-      width={px}
-      height={px}
-      loading="lazy"
-      decoding="async"
-      onError={() => setImgError(true)}
-      className={`${dims} object-cover shrink-0 border border-slate-200/80 dark:border-gray-700 bg-slate-100 dark:bg-gray-800`}
-    />
-  );
-}
 
 /**
  * Carrito de Compras Amplio Split-Panel ("Tu Carrito") de Chazin Food.
@@ -411,10 +374,32 @@ export function CartDrawer({
                   return nextKey;
                 };
 
+                const getToppingStockInfo = (ad) => {
+                  const adId = Number(ad?.idAdicion || ad?.id || ad?.idInsumo);
+                  const noCtrl =
+                    ad?.controlarStock === false ||
+                    String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
+                  if (noCtrl) return { maxPerDish: 99, availableBeforeThisLine: 99, noCtrl: true };
+                  const totalPortions = resolveAdicionMaxPortions(ad);
+                  const usedInOtherLines = getAdicionQuantityInCart(cart, adId, item.cartItemId);
+                  const availableBeforeThisLine = Math.max(0, totalPortions - usedInOtherLines);
+                  const maxPerDish = Math.floor(
+                    availableBeforeThisLine / Math.max(1, Number(item.cantidad || 1))
+                  );
+                  return { maxPerDish, availableBeforeThisLine, noCtrl: false };
+                };
+
                 const handleToggleOrAddTopping = (ad) => {
                   setUndoToppingsSnapshot(null);
                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
                   const exists = currentAdds.some((x) => Number(x.idAdicion || x.id) === adId);
+                  if (!exists) {
+                    const { maxPerDish, noCtrl } = getToppingStockInfo(ad);
+                    if (!noCtrl && maxPerDish <= 0) {
+                      onStockLimitError?.(ad.nombre, 0);
+                      return;
+                    }
+                  }
                   const nextAdds = exists
                     ? currentAdds.filter((x) => Number(x.idAdicion || x.id) !== adId)
                     : [
@@ -424,23 +409,29 @@ export function CartDrawer({
                           nombre: ad.nombre,
                           precio: Number(ad.precio || 0),
                           cantidad: 1,
-                          imagen: typeof getAdicionImage === "function" ? getAdicionImage(ad) : (ad.imagen || "")
+                          unidadMedida: ad.unidadMedida,
+                          porcionMinimaCantidad: ad.porcionMinimaCantidad,
+                          porcionMinimaUnidad: ad.porcionMinimaUnidad,
+                          imagen: resolveValidAdicionImage(ad)
                         }
                       ];
                   applyUpdatedAdiciones(nextAdds);
                 };
 
-                const handleStepToppingQty = (ad, delta, e) => {
-                  if (e) e.stopPropagation();
+                const handleSetToppingExactQty = (ad, exactQty) => {
                   setUndoToppingsSnapshot(null);
                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
-                  const nextAdds = currentAdds
-                    .map((x) => {
-                      if (Number(x.idAdicion || x.id) !== adId) return x;
-                      const nextQty = (Number(x.cantidad) || 1) + delta;
-                      return nextQty > 0 ? { ...x, cantidad: nextQty } : null;
-                    })
-                    .filter(Boolean);
+                  const cleanQty = Math.floor(Number(exactQty) || 0);
+                  if (cleanQty <= 0) {
+                    const nextAdds = currentAdds.filter((x) => Number(x.idAdicion || x.id) !== adId);
+                    applyUpdatedAdiciones(nextAdds);
+                    return;
+                  }
+                  const { maxPerDish, noCtrl } = getToppingStockInfo(ad);
+                  const clamped = noCtrl ? Math.min(99, cleanQty) : Math.min(Math.max(1, maxPerDish), cleanQty);
+                  const nextAdds = currentAdds.map((x) =>
+                    Number(x.idAdicion || x.id) === adId ? { ...x, cantidad: clamped } : x
+                  );
                   applyUpdatedAdiciones(nextAdds);
                 };
 
@@ -567,14 +558,18 @@ export function CartDrawer({
                             {currentAdds.map((a, aIdx) => {
                               const chipAdId = Number(a.idAdicion || a.id);
                               const chipTotal = (Number(a.precio) || 0) * (Number(a.cantidad) || 1);
+                              const catalogAd =
+                                foodAdiciones.find(
+                                  (fa) => Number(fa.idAdicion || fa.id || fa.idInsumo) === chipAdId
+                                ) || a;
+                              const chipUnitMeta = resolveAdicionUnitMeta(catalogAd, a.cantidad || 1);
                               return (
                                 <span
                                   key={chipAdId || aIdx}
                                   className="text-xs bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-200/90 dark:border-emerald-800/60 pl-3 pr-1.5 py-1 rounded-xl font-bold inline-flex items-center gap-1.5"
                                 >
                                   <span>
-                                    +{a.cantidad > 1 ? `${a.cantidad}x ` : ""}
-                                    {a.nombre}{" "}
+                                    +{chipUnitMeta.formattedQty} · {a.nombre}{" "}
                                     <span className="text-emerald-700 dark:text-emerald-400 tabular-nums">
                                       ({formatCOP(chipTotal)})
                                     </span>
@@ -628,36 +623,45 @@ export function CartDrawer({
                           </div>
                         )}
 
-                        {/* Fila inferior del plato: Stepper táctil + Botón Toppings + Subtotal de línea */}
+                        {/* Fila inferior del plato: Stepper táctil editable + Stock vivo + Botón Toppings + Subtotal de línea */}
                         <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-gray-800/80">
                           <div className="flex items-center gap-2.5 flex-wrap">
-                            <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-slate-200/80 dark:border-gray-700">
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity?.(item.cartItemId || item.id, -1)}
-                                aria-label={`Reducir cantidad de ${item.nombre}`}
-                                className="w-8 h-8 sm:w-9 sm:h-9 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-800 dark:text-gray-100 hover:bg-slate-200/70 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition shadow-2xs"
-                              >
-                                <Minus className="w-4 h-4 stroke-[2.75]" />
-                              </button>
-                              <span className="text-sm font-black text-slate-900 dark:text-white min-w-8 text-center tabular-nums">
-                                {item.cantidad}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (totalInCartForProd >= prodStock) {
-                                    onStockLimitError?.(item.nombre, prodStock);
-                                  } else {
-                                    updateQuantity?.(item.cartItemId || item.id, 1);
-                                  }
-                                }}
-                                aria-label={`Aumentar cantidad de ${item.nombre}`}
-                                className="w-8 h-8 sm:w-9 sm:h-9 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center text-slate-800 dark:text-gray-100 hover:bg-slate-200/70 dark:hover:bg-gray-600 cursor-pointer active:scale-95 transition shadow-2xs"
-                              >
-                                <Plus className="w-4 h-4 stroke-[2.75]" />
-                              </button>
-                            </div>
+                            {(() => {
+                              const otherLinesQty = Math.max(0, totalInCartForProd - Number(item.cantidad || 1));
+                              const maxLineStock = prodStock > 0 ? Math.max(1, Math.floor(prodStock) - otherLinesQty) : 99;
+                              const liveRemainingProd = Math.max(0, Math.floor(prodStock) - totalInCartForProd);
+                              return (
+                                <>
+                                  <QuantityStepperInput
+                                    value={item.cantidad}
+                                    min={1}
+                                    max={maxLineStock}
+                                    allowZeroRemove={true}
+                                    size="md"
+                                    ariaLabel={`cantidad de ${item.nombre}`}
+                                    onChange={(nextVal) => {
+                                      const delta = nextVal - Number(item.cantidad || 1);
+                                      if (delta !== 0) updateQuantity?.(item.cartItemId || item.id, delta);
+                                    }}
+                                    onRemove={() => removeFromCart?.(item.cartItemId || item.id)}
+                                    onMaxReached={() => onStockLimitError?.(item.nombre, prodStock)}
+                                  />
+                                  {prodStock > 0 && (
+                                    <span
+                                      className={`text-[11px] font-bold px-2.5 py-1 rounded-full tabular-nums ${
+                                        liveRemainingProd === 0
+                                          ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                          : liveRemainingProd <= 5
+                                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+                                            : "bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400"
+                                      }`}
+                                    >
+                                      {liveRemainingProd} disp.
+                                    </span>
+                                  )}
+                                </>
+                              );
+                            })()}
 
                             {!isItemDrink && foodAdiciones.length > 0 && (
                               <button
@@ -753,6 +757,9 @@ export function CartDrawer({
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                               {contextualRecommendedToppings.map((recAd) => {
                                 const recId = Number(recAd.idAdicion || recAd.id || recAd.idInsumo);
+                                const recUnit = resolveAdicionUnitMeta(recAd, 1);
+                                const { maxPerDish, availableBeforeThisLine, noCtrl } = getToppingStockInfo(recAd);
+                                if (!noCtrl && maxPerDish <= 0) return null;
                                 return (
                                   <button
                                     key={recId}
@@ -760,14 +767,24 @@ export function CartDrawer({
                                     onClick={() => handleToggleOrAddTopping(recAd)}
                                     className="p-2.5 rounded-xl bg-slate-50/90 hover:bg-red-50/60 dark:bg-gray-800 dark:hover:bg-red-950/25 border border-slate-200/80 hover:border-[#D9383A]/40 dark:border-gray-700 text-left flex items-center justify-between gap-2.5 transition cursor-pointer group"
                                   >
-                                    <ToppingAvatar adicion={recAd} getAdicionImage={getAdicionImage} size="sm" />
+                                    <AdicionAvatar adicion={recAd} size="sm" />
                                     <div className="min-w-0 flex-1">
                                       <p className="text-xs font-bold text-slate-800 dark:text-gray-100 leading-snug line-clamp-2">
                                         {recAd.nombre}
                                       </p>
-                                      <span className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
-                                        +{formatCOP(recAd.precio)}
-                                      </span>
+                                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                        <span className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
+                                          +{formatCOP(recAd.precio)}
+                                        </span>
+                                        <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400">
+                                          · {recUnit.badge}
+                                        </span>
+                                        {!noCtrl && (
+                                          <span className="text-[10px] font-semibold text-slate-400 dark:text-gray-500 tabular-nums">
+                                            · {availableBeforeThisLine} disp.
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                     <span className="w-7 h-7 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-600 group-hover:bg-[#D9383A] group-hover:text-white group-hover:border-[#D9383A] text-slate-700 dark:text-gray-200 flex items-center justify-center shrink-0 transition">
                                       <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -840,7 +857,7 @@ export function CartDrawer({
                             No encontramos extras para este filtro.
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                             {visibleToppings.map((ad) => {
                               const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
                               const selectedEntry = currentAdds.find(
@@ -848,15 +865,24 @@ export function CartDrawer({
                               );
                               const isSelected = Boolean(selectedEntry);
                               const selectedQty = Number(selectedEntry?.cantidad || 1);
+                              const unitMeta = resolveAdicionUnitMeta(ad, selectedQty);
+                              const { maxPerDish, availableBeforeThisLine, noCtrl } = getToppingStockInfo(ad);
+                              const consumedHere = isSelected
+                                ? selectedQty * Math.max(1, Number(item.cantidad || 1))
+                                : 0;
+                              const liveRemaining = Math.max(0, availableBeforeThisLine - consumedHere);
+                              const isSoldOut = !noCtrl && maxPerDish <= 0 && !isSelected;
 
                               return (
                                 <div
                                   key={adId}
-                                  onClick={() => !isSelected && handleToggleOrAddTopping(ad)}
-                                  className={`p-3 rounded-2xl border flex items-center justify-between gap-3 transition-all select-none ${
+                                  onClick={() => !isSelected && !isSoldOut && handleToggleOrAddTopping(ad)}
+                                  className={`p-3 rounded-2xl border flex flex-col justify-between gap-2.5 transition-all select-none ${
                                     isSelected
                                       ? "bg-white dark:bg-gray-900 border-[#D9383A] ring-1 ring-[#D9383A]/20 shadow-xs"
-                                      : "bg-white dark:bg-gray-900/90 border-slate-200/85 dark:border-gray-700/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
+                                      : isSoldOut
+                                        ? "bg-white/60 dark:bg-gray-900/50 border-slate-200/70 dark:border-gray-800 opacity-65"
+                                        : "bg-white dark:bg-gray-900/90 border-slate-200/85 dark:border-gray-700/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
                                   }`}
                                 >
                                   <div
@@ -866,58 +892,85 @@ export function CartDrawer({
                                         handleToggleOrAddTopping(ad);
                                       }
                                     }}
-                                    className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                                    className={`flex items-start gap-3 min-w-0 ${isSelected || !isSoldOut ? "cursor-pointer" : ""}`}
                                   >
-                                    <ToppingAvatar
-                                      adicion={ad}
-                                      getAdicionImage={getAdicionImage}
-                                      size="md"
-                                    />
+                                    <AdicionAvatar adicion={ad} size="md" />
                                     <div className="min-w-0 flex-1">
                                       <p className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-gray-100 leading-snug line-clamp-2 break-words">
                                         {ad.nombre}
                                       </p>
-                                      <p className="text-xs font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums mt-0.5">
-                                        +{formatCOP(ad.precio)}
-                                      </p>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 text-[10.5px] font-bold">
+                                          {unitMeta.badge}
+                                        </span>
+                                        {isSelected && selectedQty > 1 && (
+                                          <span className="text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                                            ({unitMeta.formattedQty})
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
 
-                                  {isSelected ? (
-                                    <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-[#D9383A]/30 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => handleStepToppingQty(ad, -1, e)}
-                                        aria-label={`Reducir porción de ${ad.nombre}`}
-                                        className="w-7 h-7 rounded-lg bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-red-50 hover:text-[#D9383A] flex items-center justify-center transition cursor-pointer active:scale-95"
-                                      >
-                                        <Minus className="w-3.5 h-3.5 stroke-[2.75]" />
-                                      </button>
-                                      <span className="min-w-5 text-center text-xs font-black text-slate-900 dark:text-white tabular-nums">
-                                        {selectedQty}
+                                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-gray-800">
+                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                      <span className="text-xs font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums whitespace-nowrap">
+                                        +{formatCOP(ad.precio)}
                                       </span>
+                                      <span
+                                        className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tabular-nums whitespace-nowrap ${
+                                          isSoldOut
+                                            ? "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400"
+                                            : noCtrl
+                                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                                              : liveRemaining === 0
+                                                ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                                : liveRemaining <= 5
+                                                  ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400"
+                                                  : "bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300"
+                                        }`}
+                                      >
+                                        {isSoldOut
+                                          ? "Agotado"
+                                          : noCtrl
+                                            ? "Disponible"
+                                            : `${liveRemaining} disp.`}
+                                      </span>
+                                    </div>
+
+                                    {isSelected ? (
+                                      <QuantityStepperInput
+                                        value={selectedQty}
+                                        min={1}
+                                        max={Math.max(1, maxPerDish)}
+                                        allowZeroRemove={true}
+                                        ariaLabel={`porción de ${ad.nombre}`}
+                                        onChange={(val) => handleSetToppingExactQty(ad, val)}
+                                        onRemove={() => handleToggleOrAddTopping(ad)}
+                                        onMaxReached={(limit) =>
+                                          onStockLimitError?.(ad.nombre, limit)
+                                        }
+                                      />
+                                    ) : (
                                       <button
                                         type="button"
-                                        onClick={(e) => handleStepToppingQty(ad, 1, e)}
-                                        aria-label={`Aumentar porción de ${ad.nombre}`}
-                                        className="w-7 h-7 rounded-lg bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-200 hover:bg-red-50 hover:text-[#D9383A] flex items-center justify-center transition cursor-pointer active:scale-95"
+                                        disabled={isSoldOut}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleOrAddTopping(ad);
+                                        }}
+                                        aria-label={`Agregar ${ad.nombre}`}
+                                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1 transition shrink-0 active:scale-95 ${
+                                          isSoldOut
+                                            ? "bg-slate-100 dark:bg-gray-800 text-slate-400 cursor-not-allowed"
+                                            : "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
+                                        }`}
                                       >
-                                        <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
+                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        <span>{isSoldOut ? "Agotado" : "Agregar"}</span>
                                       </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggleOrAddTopping(ad);
-                                      }}
-                                      aria-label={`Agregar ${ad.nombre}`}
-                                      className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-700 dark:text-gray-200 flex items-center justify-center transition cursor-pointer shrink-0 active:scale-95"
-                                    >
-                                      <Plus className="w-4 h-4 stroke-[2.5]" />
-                                    </button>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}

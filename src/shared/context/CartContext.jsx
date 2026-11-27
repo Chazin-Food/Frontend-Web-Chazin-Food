@@ -262,6 +262,9 @@ export function CartProvider({ children }) {
         nombre: a.nombre,
         precio: Number(a.precio || 0),
         cantidad: Math.max(1, Number(a.cantidad || 1)),
+        unidadMedida: a.unidadMedida || undefined,
+        porcionMinimaCantidad: a.porcionMinimaCantidad ?? undefined,
+        porcionMinimaUnidad: a.porcionMinimaUnidad || undefined,
         imagen: a.imagen || ""
       }));
 
@@ -446,7 +449,10 @@ export function CartProvider({ children }) {
             return {
               ...ad,
               nombre: liveAd.nombre || ad.nombre,
-              precio: Number(liveAd.precio !== undefined ? liveAd.precio : ad.precio) || 0
+              precio: Number(liveAd.precio !== undefined ? liveAd.precio : ad.precio) || 0,
+              unidadMedida: liveAd.unidadMedida || ad.unidadMedida,
+              porcionMinimaCantidad: liveAd.porcionMinimaCantidad ?? ad.porcionMinimaCantidad,
+              porcionMinimaUnidad: liveAd.porcionMinimaUnidad || ad.porcionMinimaUnidad
             };
           })
           .filter(Boolean);
