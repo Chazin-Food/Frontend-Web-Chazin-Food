@@ -1,10 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { rolesService } from "../servicios/rolesService";
 import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useConfirm } from "@/shared/context/ConfirmContext";
 import { matchesSmartSearch, formatStatusTokens, formatIdTokens } from "@/shared/utils/searchUtils";
 import { validateNombreRol } from "@/shared/utils/validationUtils";
-import { AlertTriangle, AlertCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle } from "lucide-react";
+
+const isRolActivo = (estado) =>
+  estado === "Activo" ||
+  estado === 1 ||
+  estado === "1" ||
+  estado === true ||
+  String(estado || "").trim().toLowerCase() === "activo";
 
 export function useRoles() {
   const { success, error: notifError, confirmDelete } = useNotifications();
@@ -12,17 +19,18 @@ export function useRoles() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const togglingIdsRef = useRef(new Set());
 
-  const fetchRoles = useCallback(async () => {
+  const fetchRoles = useCallback(async ({ forceRefresh = false, silent = false } = {}) => {
     try {
-      setLoading(true);
-      const data = await rolesService.getRoles();
+      if (!silent) setLoading(true);
+      const data = await rolesService.getRoles({ forceRefresh });
       setRoles(data || []);
     } catch (err) {
       console.error(err);
       notifError("Error", err.message || "Error al cargar los roles");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -108,7 +116,7 @@ export function useRoles() {
       if (created && created.id) {
         setRoles((prev) => [...prev, created]);
       }
-      fetchRoles();
+      await fetchRoles({ forceRefresh: true, silent: true });
       return true;
     } catch (err) {
       notifError("Error", err.message || "Error al crear el rol");
@@ -143,9 +151,9 @@ export function useRoles() {
       success("Éxito", "Rol actualizado correctamente");
       // Actualización optimista instantánea en el estado
       if (updated && updated.id) {
-        setRoles((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
+        setRoles((prev) => prev.map((r) => (String(r.id) === String(updated.id) ? { ...r, ...updated } : r)));
       }
-      fetchRoles();
+      await fetchRoles({ forceRefresh: true, silent: true });
       return true;
     } catch (err) {
       notifError("Error", err.message || "Error al actualizar el rol");
@@ -167,9 +175,9 @@ export function useRoles() {
       const updated = await rolesService.updatePermisos(id, permisos);
       success("Éxito", "Permisos actualizados correctamente");
       if (updated && updated.id) {
-        setRoles((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
+        setRoles((prev) => prev.map((r) => (String(r.id) === String(updated.id) ? { ...r, ...updated } : r)));
       }
-      fetchRoles();
+      await fetchRoles({ forceRefresh: true, silent: true });
       return true;
     } catch (err) {
       notifError("Error", err.message || "Error al actualizar permisos");
@@ -178,18 +186,23 @@ export function useRoles() {
   };
 
   const toggleEstadoRol = async (id) => {
-    const rolActual = roles.find((r) => r.id === id);
-    if (!rolActual) return;
-    if (rolActual.nombre?.toLowerCase() === "administrador" || String(rolActual.id) === "1") {
+    const idKey = String(id);
+    if (togglingIdsRef.current.has(idKey)) return false;
+
+    const rolActual = roles.find((r) => String(r.id) === idKey);
+    if (!rolActual) return false;
+    const nombreNorm = String(rolActual.nombre || "").trim().toLowerCase();
+    if (nombreNorm === "administrador" || nombreNorm === "admin" || idKey === "1") {
       notifError("Acción no permitida", "El rol Administrador debe permanecer activo y no se puede desactivar.");
       return false;
     }
-    const nuevoEstado = rolActual.estado === "Activo" ? "Inactivo" : "Activo";
+    const isActivoActual = isRolActivo(rolActual.estado);
+    const nuevoEstado = isActivoActual ? "Inactivo" : "Activo";
     const isInactivar = nuevoEstado === "Inactivo";
 
     const confirmed = await confirm({
-      type: "danger",
-      icon: isInactivar ? AlertTriangle : AlertCircle,
+      type: isInactivar ? "danger" : "success",
+      icon: isInactivar ? AlertTriangle : CheckCircle,
       title: isInactivar
         ? `¿Deseas inactivar el rol ${rolActual.nombre}?`
         : `¿Deseas activar el rol ${rolActual.nombre}?`,
@@ -202,14 +215,29 @@ export function useRoles() {
 
     if (!confirmed) return false;
 
+    togglingIdsRef.current.add(idKey);
     try {
-      await rolesService.updateRol(id, { estado: nuevoEstado });
-      success("Estado Cambiado", `El rol ahora está ${nuevoEstado}`);
-      await fetchRoles();
+      const updated = await rolesService.updateRol(rolActual.id, { estado: nuevoEstado });
+      const estadoFinal = updated?.estado ? (isRolActivo(updated.estado) ? "Activo" : "Inactivo") : nuevoEstado;
+      setRoles((prev) =>
+        prev.map((r) =>
+          String(r.id) === idKey
+            ? {
+                ...r,
+                ...(updated && typeof updated === "object" ? updated : {}),
+                estado: estadoFinal
+              }
+            : r
+        )
+      );
+      success("Estado Cambiado", `El rol "${rolActual.nombre}" ahora está ${estadoFinal}`);
+      await fetchRoles({ forceRefresh: true, silent: true });
       return true;
     } catch (err) {
       notifError("Error", err.message || "Error al cambiar el estado del rol");
       return false;
+    } finally {
+      togglingIdsRef.current.delete(idKey);
     }
   };
 
@@ -234,7 +262,7 @@ export function useRoles() {
     try {
       await rolesService.deleteRol(id);
       success("Éxito", "Rol eliminado correctamente");
-      await fetchRoles();
+      await fetchRoles({ forceRefresh: true, silent: true });
       return true;
     } catch (err) {
       notifError("Error", err.message || "Error al eliminar el rol");

@@ -1,8 +1,12 @@
 import { apiClient } from "@/shared/api/apiClient";
 
 export const rolesService = {
-  getRoles: async () => {
-    return await apiClient.get("/roles");
+  getRoles: async ({ forceRefresh = false } = {}) => {
+    return await apiClient.get("/roles", {
+      noCache: true,
+      cache: "no-store",
+      ...(forceRefresh ? { params: { refresh: "true" } } : {})
+    });
   },
 
   createRol: async (data) => {
