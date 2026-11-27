@@ -31,7 +31,7 @@ import { proveedoresService } from "../../servicios/proveedoresService";
 import { ProveedorModal } from "../proveedores/ProveedorModal";
 import { apiClient } from "@/shared/api/apiClient";
 import { useNotifications } from "@/shared/hooks/useNotifications";
-import { isSalsaItem } from "../insumos/InsumoModal";
+import { InsumoModal, isSalsaItem } from "../insumos/InsumoModal";
 import { validateTexto, validateNumeroPositivo, validateRequerido } from "@/shared/utils/validationUtils";
 import { NumberInput } from "@/shared/components/ui/NumberInput";
 import { FoodIcon } from "@/shared/components/ui/FoodIcon";
@@ -242,8 +242,8 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
   // Modal Crear Proveedor
   const [modalProveedorOpen, setModalProveedorOpen] = useState(false);
 
-  // Apartado lateral / Drawer para crear nuevo insumo (#77)
-  const [panelNuevoInsumoOpen, setPanelNuevoInsumoOpen] = useState(false);
+  // Modal completo para crear nuevo insumo (#77)
+  const [modalNuevoInsumoOpen, setModalNuevoInsumoOpen] = useState(false);
   const [savingNuevoInsumo, setSavingNuevoInsumo] = useState(false);
   const [uploadingNuevoInsumo, setUploadingNuevoInsumo] = useState(false);
   const nuevoInsumoFileInputRef = useRef(null);
@@ -433,82 +433,64 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
       setOrdenItems([]);
       setFormErrors({});
       setTouched({});
-      setPanelNuevoInsumoOpen(false);
+      setModalNuevoInsumoOpen(false);
       setNuevoInsumoForm(initialNuevoInsumoForm);
       setNuevoInsumoErrors({});
       setNuevoInsumoTouched({});
     }
   }, [isOpen, loadCatalogos]);
 
-  /* ── Apertura y guardado de nuevo insumo desde el apartado lateral (#77) ── */
-  const handleOpenNuevoInsumo = (suggestedName = "") => {
-    const defaultCatId = categorias[0]?.id || categorias[0]?.idCategoriaInsumo || "";
-    const defaultCatNom = categorias[0]?.nombre || "";
-    const nameToUse = suggestedName || search || "";
-    const esSalsa = isSalsaItem(nameToUse, defaultCatNom);
-
-    setNuevoInsumoForm({
-      ...initialNuevoInsumoForm,
-      nombre: nameToUse,
-      idProveedor: idProveedor || (proveedores[0]?.id || proveedores[0]?.idProveedor || ""),
-      idCategoriaInsumo: String(defaultCatId),
-      categoria: defaultCatNom,
-      esAdicion: esSalsa,
-      precioAdicion: esSalsa ? "1500" : "",
-      imagen: esSalsa ? "sauce" : "bacon",
-    });
-    setNuevoInsumoErrors({});
-    setNuevoInsumoTouched({});
-    setPanelNuevoInsumoOpen(true);
+  /* ── Apertura y guardado de nuevo insumo usando InsumoModal completo (#77) ── */
+  const handleOpenNuevoInsumo = () => {
+    setModalNuevoInsumoOpen(true);
   };
 
-  const handleGuardarNuevoInsumo = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    const errs = {};
-    const errNombre = validateNuevoInsumoField("nombre", nuevoInsumoForm.nombre);
-    if (errNombre) errs.nombre = errNombre;
-    const errCat = validateNuevoInsumoField("idCategoriaInsumo", nuevoInsumoForm.idCategoriaInsumo);
-    if (errCat) errs.idCategoriaInsumo = errCat;
-    if (nuevoInsumoForm.esAdicion) {
-      const errAdic = validateNuevoInsumoField("precioAdicion", nuevoInsumoForm.precioAdicion);
-      if (errAdic) errs.precioAdicion = errAdic;
-    }
-    setNuevoInsumoTouched({
-      nombre: true,
-      idCategoriaInsumo: true,
-      precioUnitario: true,
-      stock: true,
-      stockMinimo: true,
-      precioAdicion: true,
-    });
-    setNuevoInsumoErrors(errs);
-    if (Object.keys(errs).length > 0) {
-      notify?.warning?.("Datos requeridos", Object.values(errs)[0]);
-      return;
-    }
-
-    setSavingNuevoInsumo(true);
+  const handleGuardarNuevoInsumo = async (formData) => {
     try {
-      const payload = {
-        nombre: nuevoInsumoForm.nombre.trim(),
-        idCategoriaInsumo: parseInt(nuevoInsumoForm.idCategoriaInsumo),
-        unidadMedida: nuevoInsumoForm.unidadMedida || "Kg",
-        precioUnitario: parseFloat(nuevoInsumoForm.precioUnitario) || 0,
-        idProveedor: nuevoInsumoForm.idProveedor ? parseInt(nuevoInsumoForm.idProveedor) : (idProveedor ? parseInt(idProveedor) : null),
-        stock: parseFloat(nuevoInsumoForm.stock) || 0,
-        stockMinimo: parseFloat(nuevoInsumoForm.stockMinimo) || 5,
-        descripcion: (nuevoInsumoForm.descripcion || "").trim(),
-        incluyeIva: nuevoInsumoForm.incluyeIva ? 1 : 0,
-        porcentajeIva: nuevoInsumoForm.incluyeIva
-          ? (parseFloat(nuevoInsumoForm.porcentajeIva) || 19)
-          : 0,
-        esAdicion: nuevoInsumoForm.esAdicion ? 1 : 0,
-        precioAdicion: parseFloat(nuevoInsumoForm.precioAdicion) || 0,
-        imagen: nuevoInsumoForm.esAdicion ? (nuevoInsumoForm.imagen || "bacon") : "",
-        estado: 1,
-      };
+      const isPrep = formData.tipo === "Preparado";
+      const payload = isPrep
+        ? {
+            nombre: formData.nombre,
+            descripcion: formData.descripcion || "",
+            unidadMedida: formData.unidadMedida || "und",
+            precioVenta: Number(formData.precio) || 0,
+            costoTotal: Number(formData.precioUnitario || formData.precio) || 0,
+            estado: formData.estado || "Activo",
+            esAdicion: formData.esAdicion ? 1 : 0,
+            precioAdicion: Number(formData.precioAdicion) || 0,
+            imagen: formData.imagen || "",
+            porcionMinimaCantidad: formData.porcionMinimaCantidad || null,
+            porcionMinimaUnidad: formData.porcionMinimaUnidad || null,
+            insumos: (formData.ingredientes || []).map(i => ({
+              idInsumo: i.id || i.idInsumo,
+              cantidad: i.cantidad,
+              unidadMedida: i.unidadMedida || "und"
+            })),
+            fichaTecnica: formData.fichaTecnica || null
+          }
+        : {
+            nombre: String(formData.nombre || "").trim(),
+            idCategoriaInsumo: parseInt(formData.idCategoriaInsumo, 10) || (categorias[0]?.id || 1),
+            unidadMedida: formData.unidadMedida || "Kg",
+            tamanioPaquete: formData.tamanioPaquete || null,
+            precioUnitario: parseFloat(formData.precioUnitario) || 0,
+            idProveedor: formData.idProveedor ? parseInt(formData.idProveedor, 10) : (idProveedor ? parseInt(idProveedor, 10) : null),
+            stock: 0,
+            stockMinimo: parseFloat(formData.stockMinimo) || 0,
+            stockMaximo: parseFloat(formData.stockMaximo) || 100,
+            descripcion: (formData.descripcion || "").trim(),
+            incluyeIva: formData.incluyeIva ? 1 : 0,
+            porcentajeIva: formData.incluyeIva ? (parseFloat(formData.porcentajeIva) || 19) : 0,
+            esAdicion: formData.esAdicion ? 1 : 0,
+            precioAdicion: parseFloat(formData.precioAdicion) || 0,
+            porcionMinimaCantidad: formData.porcionMinimaCantidad || null,
+            porcionMinimaUnidad: formData.porcionMinimaUnidad || null,
+            imagen: formData.esAdicion ? (formData.imagen || "bacon") : "",
+            estado: formData.estado === "Inactivo" ? 0 : 1,
+          };
 
-      const res = await apiClient.post("/insumos", payload);
+      const endpoint = isPrep ? "/insumos-preparados" : "/insumos";
+      const res = await apiClient.post(endpoint, payload);
       const nuevoItem = res?.data || res;
 
       const insumoCreado = {
@@ -517,23 +499,21 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
         id: nuevoItem.idInsumo || nuevoItem.id,
         nombre: nuevoItem.nombre || payload.nombre,
         unidadMedida: nuevoItem.unidadMedida || payload.unidadMedida,
-        precioUnitario: nuevoItem.precioUnitario !== undefined ? nuevoItem.precioUnitario : payload.precioUnitario,
-        stock: nuevoItem.stock !== undefined ? nuevoItem.stock : payload.stock,
-        stockMinimo: nuevoItem.stockMinimo !== undefined ? nuevoItem.stockMinimo : payload.stockMinimo,
-        idProveedor: nuevoItem.idProveedor || payload.idProveedor,
-        incluyeIva: nuevoItem.incluyeIva !== undefined ? nuevoItem.incluyeIva : payload.incluyeIva,
-        porcentajeIva: nuevoItem.porcentajeIva !== undefined ? nuevoItem.porcentajeIva : payload.porcentajeIva,
+        precioUnitario: nuevoItem.precioUnitario !== undefined ? nuevoItem.precioUnitario : (payload.precioUnitario || 0),
+        stock: nuevoItem.stock !== undefined ? nuevoItem.stock : 0,
+        stockMinimo: nuevoItem.stockMinimo !== undefined ? nuevoItem.stockMinimo : (payload.stockMinimo || 0),
+        stockMaximo: nuevoItem.stockMaximo !== undefined ? nuevoItem.stockMaximo : (payload.stockMaximo || 100),
+        idProveedor: nuevoItem.idProveedor || payload.idProveedor || null,
+        incluyeIva: nuevoItem.incluyeIva !== undefined ? nuevoItem.incluyeIva : (payload.incluyeIva || 0),
+        porcentajeIva: nuevoItem.porcentajeIva !== undefined ? nuevoItem.porcentajeIva : (payload.porcentajeIva || 0),
       };
 
-      // Agregar a la lista de insumos localmente para que esté disponible de inmediato
       setInsumos((prev) => [insumoCreado, ...prev]);
 
-      // Si la compra aún no tenía proveedor asignado y este insumo tiene uno, asociarlo automáticamente
       if (!idProveedor && insumoCreado.idProveedor) {
         setIdProveedor(String(insumoCreado.idProveedor));
       }
 
-      // Seleccionar de inmediato el nuevo insumo para configurarlo en la compra
       setConfigurando({
         insumo: insumoCreado,
         cantidad: "1",
@@ -541,11 +521,8 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
         lotes: [],
       });
 
-      // Asegurar que el catálogo muestre el nuevo insumo
       setSearch(insumoCreado.nombre);
-
-      // Cerrar panel lateral
-      setPanelNuevoInsumoOpen(false);
+      setModalNuevoInsumoOpen(false);
 
       notify?.success?.(
         "Insumo Creado",
@@ -554,8 +531,6 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
     } catch (err) {
       console.error("Error al crear insumo desde compras:", err);
       notify?.error?.("Error al crear insumo", err.message || "No se pudo registrar el insumo.");
-    } finally {
-      setSavingNuevoInsumo(false);
     }
   };
 
@@ -660,6 +635,20 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
     const cant = parseFloat(configurando.cantidad);
     const precio = parseFloat(configurando.precioUnitario);
     if (!cant || !precio || cant <= 0 || precio <= 0) return;
+
+    // Validar que la compra no exceda el stockMaximo del insumo
+    const stockActual = parseFloat(configurando.insumo?.stock || 0);
+    const stockMax = configurando.insumo?.stockMaximo !== undefined && configurando.insumo?.stockMaximo !== null
+      ? parseFloat(configurando.insumo.stockMaximo)
+      : 100;
+    if (stockMax > 0 && stockActual + cant > stockMax) {
+      const espacio = Math.max(0, Math.round((stockMax - stockActual) * 100) / 100);
+      notify?.warning?.(
+        "Capacidad Máxima Excedida",
+        `No puedes comprar ${cant} ${configurando.insumo?.unidadMedida || "und"} de "${configurando.insumo?.nombre}". Stock actual: ${stockActual}, Stock máximo: ${stockMax} (espacio disponible: ${espacio}). Descarta stock o lotes primero.`
+      );
+      return;
+    }
     const idStr = String(configurando.insumo?.idInsumo || configurando.insumo?.id);
     const subtotal = cant * precio;
 
@@ -822,7 +811,7 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm">
       <div
-        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[96dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
+        className="relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-7xl max-h-[96dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
         style={{ animation: "fadeInScale 0.22s ease-out" }}
       >
         {/* ── Header ── */}
@@ -1435,591 +1424,6 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
           </form>
         )}
 
-        {/* ── Apartado Lateral / Drawer: Crear Nuevo Insumo (#77) ── */}
-        {panelNuevoInsumoOpen && (
-          <>
-            {/* Backdrop semitransparente */}
-            <div
-              className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-40 transition-opacity"
-              onClick={() => setPanelNuevoInsumoOpen(false)}
-            />
-
-            {/* Panel lateral deslizante */}
-            <div className="absolute inset-y-0 right-0 z-50 w-full sm:w-[500px] bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-800 flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
-              {/* Header del apartado lateral */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50/70 dark:bg-gray-850">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#F05454]/10 text-[#F05454] flex items-center justify-center font-bold">
-                    <Package className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                      Crear Nuevo Insumo
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Se guardará en Gestión de Insumos y se seleccionará en esta orden (#77)
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPanelNuevoInsumoOpen(false)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  title="Cerrar panel lateral"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Formulario scrollable */}
-              <form
-                onSubmit={handleGuardarNuevoInsumo}
-                className="flex flex-col flex-1 overflow-hidden min-h-0"
-              >
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                  {/* Tarjeta de guía */}
-                  <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-2xl border border-red-200/60 dark:border-red-900/40 flex items-center gap-2.5 text-xs text-red-800 dark:text-red-300">
-                    <Sparkles className="w-4 h-4 text-[#F05454] shrink-0" />
-                    <span>
-                      Completa los datos del insumo. Al guardarlo quedará registrado de forma permanente en el inventario y se agregará listo para configurar en esta compra.
-                    </span>
-                  </div>
-
-                  {/* Nombre */}
-                  <div>
-                    <label className={labelCls}>
-                      Nombre del Insumo <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ej. Queso Mozzarella, Pan Brioche, Tomate..."
-                      value={nuevoInsumoForm.nombre}
-                      onBlur={() => handleNuevoInsumoBlur("nombre")}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const esSalsa = isSalsaItem(val, nuevoInsumoForm.categoria);
-                        const updated = {
-                          ...nuevoInsumoForm,
-                          nombre: val,
-                          esAdicion: esSalsa ? true : nuevoInsumoForm.esAdicion,
-                          precioAdicion:
-                            esSalsa && (!nuevoInsumoForm.precioAdicion || Number(nuevoInsumoForm.precioAdicion) <= 0)
-                              ? "1500"
-                              : nuevoInsumoForm.precioAdicion,
-                        };
-                        setNuevoInsumoForm(updated);
-                        if (nuevoInsumoTouched.nombre) {
-                          const err = validateNuevoInsumoField("nombre", val, updated);
-                          setNuevoInsumoErrors((prev) => ({ ...prev, nombre: err }));
-                        }
-                      }}
-                      className={`${inputCls} ${(nuevoInsumoTouched.nombre) && nuevoInsumoErrors.nombre
-                          ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                          : ""
-                        }`}
-                    />
-                    {(nuevoInsumoTouched.nombre) && nuevoInsumoErrors.nombre && (
-                      <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        {nuevoInsumoErrors.nombre}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Categoría */}
-                  <div>
-                    <label className={labelCls}>
-                      Categoría <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={String(nuevoInsumoForm.idCategoriaInsumo || "")}
-                      onBlur={() => handleNuevoInsumoBlur("idCategoriaInsumo")}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const selectedCat = categorias.find(
-                          (c) => String(c.id || c.idCategoriaInsumo) === String(val)
-                        );
-                        const catNom = selectedCat?.nombre || "";
-                        const esSalsa = isSalsaItem(nuevoInsumoForm.nombre, catNom);
-                        const updated = {
-                          ...nuevoInsumoForm,
-                          idCategoriaInsumo: val,
-                          categoria: catNom,
-                          esAdicion: esSalsa ? true : nuevoInsumoForm.esAdicion,
-                          precioAdicion:
-                            esSalsa && (!nuevoInsumoForm.precioAdicion || Number(nuevoInsumoForm.precioAdicion) <= 0)
-                              ? "1500"
-                              : nuevoInsumoForm.precioAdicion,
-                        };
-                        setNuevoInsumoForm(updated);
-                        if (nuevoInsumoTouched.idCategoriaInsumo) {
-                          const err = validateNuevoInsumoField("idCategoriaInsumo", val, updated);
-                          setNuevoInsumoErrors((prev) => ({ ...prev, idCategoriaInsumo: err }));
-                        }
-                      }}
-                      className={`${inputCls} cursor-pointer ${(nuevoInsumoTouched.idCategoriaInsumo) && nuevoInsumoErrors.idCategoriaInsumo
-                          ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                          : ""
-                        }`}
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      {categorias.map((c) => {
-                        const catId = c.id || c.idCategoriaInsumo;
-                        return (
-                          <option key={catId || c.nombre} value={String(catId)}>
-                            {c.nombre}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    {(nuevoInsumoTouched.idCategoriaInsumo) && nuevoInsumoErrors.idCategoriaInsumo && (
-                      <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        {nuevoInsumoErrors.idCategoriaInsumo}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Unidad de Medida y Precio de Compra */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelCls}>Unidad de Medida</label>
-                      <select
-                        value={nuevoInsumoForm.unidadMedida}
-                        onChange={(e) =>
-                          setNuevoInsumoForm((prev) => ({ ...prev, unidadMedida: e.target.value }))
-                        }
-                        className={`${inputCls} cursor-pointer`}
-                      >
-                        <option value="Kg">Kilogramos (Kg)</option>
-                        <option value="Gr">Gramos (Gr)</option>
-                        <option value="Lt">Litros (Lt)</option>
-                        <option value="Ml">Mililitros (Ml)</option>
-                        <option value="Unidad">Unidad (Ud)</option>
-                        <option value="Paquete">Paquete</option>
-                        <option value="Porción">Porción</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className={labelCls}>Precio Unitario / Costo</label>
-                      <div className="relative">
-                        <DollarSign className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
-                        <NumberInput
-                          min="0"
-                          step="1000"
-                          formatThousands={true}
-                          placeholder="0"
-                          value={nuevoInsumoForm.precioUnitario}
-                          onBlur={() => handleNuevoInsumoBlur("precioUnitario")}
-                          onChange={(e) => handleNuevoInsumoChange("precioUnitario", e.target.value)}
-                          className={`${inputCls} pl-8 ${(nuevoInsumoTouched.precioUnitario) && nuevoInsumoErrors.precioUnitario
-                              ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                              : ""
-                            }`}
-                        />
-                      </div>
-                      {(nuevoInsumoTouched.precioUnitario) && nuevoInsumoErrors.precioUnitario && (
-                        <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          {nuevoInsumoErrors.precioUnitario}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Stock Inicial y Stock Mínimo */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelCls}>Stock Inicial Inventario</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0"
-                        value={nuevoInsumoForm.stock}
-                        onKeyDown={(e) => {
-                          if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-                        }}
-                        onBlur={() => handleNuevoInsumoBlur("stock")}
-                        onChange={(e) => handleNuevoInsumoChange("stock", e.target.value)}
-                        className={`${inputCls} ${(nuevoInsumoTouched.stock) && nuevoInsumoErrors.stock
-                            ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                            : ""
-                          }`}
-                      />
-                      {(nuevoInsumoTouched.stock) && nuevoInsumoErrors.stock && (
-                        <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          {nuevoInsumoErrors.stock}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className={labelCls}>Stock Mínimo (Alerta)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="5"
-                        value={nuevoInsumoForm.stockMinimo}
-                        onKeyDown={(e) => {
-                          if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-                        }}
-                        onBlur={() => handleNuevoInsumoBlur("stockMinimo")}
-                        onChange={(e) => handleNuevoInsumoChange("stockMinimo", e.target.value)}
-                        className={`${inputCls} ${(nuevoInsumoTouched.stockMinimo) && nuevoInsumoErrors.stockMinimo
-                            ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                            : ""
-                          }`}
-                      />
-                      {(nuevoInsumoTouched.stockMinimo) && nuevoInsumoErrors.stockMinimo && (
-                        <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          {nuevoInsumoErrors.stockMinimo}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ════ SECCIÓN IVA SELECCIONABLE Y MANUAL (#83) ════ */}
-                  <div className={`p-4 rounded-2xl border transition-all ${nuevoInsumoForm.incluyeIva
-                      ? "border-blue-300 dark:border-blue-800/80 bg-blue-50/40 dark:bg-blue-950/20 shadow-xs"
-                      : "border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40"
-                    }`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${nuevoInsumoForm.incluyeIva
-                            ? "bg-blue-600 text-white shadow-xs"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                          }`}>
-                          <Percent className="w-4 h-4 stroke-[2.5]" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5 flex-wrap">
-                            <span>¿Lleva impuesto IVA?</span>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${nuevoInsumoForm.incluyeIva
-                                ? "bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300"
-                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                              }`}>
-                              {nuevoInsumoForm.incluyeIva ? `IVA ${nuevoInsumoForm.porcentajeIva || 19}% Activo` : "Exento"}
-                            </span>
-                          </p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            Indica si este insumo grava IVA y digita el porcentaje de tarifa que le corresponde
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Switch Toggle */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={nuevoInsumoForm.incluyeIva}
-                        onClick={() => setNuevoInsumoForm(prev => ({
-                          ...prev,
-                          incluyeIva: !prev.incluyeIva,
-                          porcentajeIva: !prev.incluyeIva ? (prev.porcentajeIva || "19") : "0"
-                        }))}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${nuevoInsumoForm.incluyeIva ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'
-                          }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${nuevoInsumoForm.incluyeIva ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Subformulario de Tarifa Manual de IVA */}
-                    {nuevoInsumoForm.incluyeIva && (
-                      <div className="mt-3.5 pt-3.5 border-t border-blue-100 dark:border-blue-900/40 space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                          <div>
-                            <label className={labelCls}>
-                              Porcentaje de IVA Manual (%) <span className="text-red-500">*</span>
-                            </label>
-                            <div className="relative">
-                              <Percent className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                              <NumberInput
-                                min="0"
-                                max="100"
-                                step="1"
-                                value={nuevoInsumoForm.porcentajeIva}
-                                onChange={(e) => handleNuevoInsumoChange("porcentajeIva", e.target.value)}
-                                className={`${inputCls} pl-8 font-bold text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 focus:ring-2 focus:ring-blue-400`}
-                                placeholder="19"
-                              />
-                            </div>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                              Digita cualquier tarifa manual aplicable al insumo (ej. 19, 5, 8 ó 0).
-                            </p>
-                          </div>
-
-                          {/* Botones de selección rápida de tarifas comunes */}
-                          <div>
-                            <label className={labelCls}>Tarifas comunes sugeridas</label>
-                            <div className="flex flex-wrap gap-1.5">
-                              {[
-                                { val: "19", label: "19% (General)" },
-                                { val: "5", label: "5% (Reducido)" },
-                                { val: "8", label: "8% (Consumo)" },
-                                { val: "0", label: "0% (Exento)" }
-                              ].map(tarifa => {
-                                const isSelected = String(nuevoInsumoForm.porcentajeIva) === tarifa.val;
-                                return (
-                                  <button
-                                    key={tarifa.val}
-                                    type="button"
-                                    onClick={() => setNuevoInsumoForm(prev => ({ ...prev, porcentajeIva: tarifa.val }))}
-                                    className={`px-2 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${isSelected
-                                        ? "bg-blue-600 text-white shadow-xs font-bold scale-105"
-                                        : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-50 hover:border-blue-300"
-                                      }`}
-                                  >
-                                    {tarifa.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Cálculo previo en vivo */}
-                        {Number(nuevoInsumoForm.precioUnitario) > 0 && (
-                          <div className="p-2.5 bg-white dark:bg-gray-800/80 rounded-xl border border-blue-200/60 dark:border-blue-900/40 flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <span className="text-gray-600 dark:text-gray-300 font-medium text-[11px]">
-                              Base: <strong className="text-gray-900 dark:text-gray-100">${Number(nuevoInsumoForm.precioUnitario).toLocaleString("es-CO")}</strong>
-                            </span>
-                            <span className="text-blue-600 dark:text-blue-400 font-bold text-[11px]">
-                              + IVA ({nuevoInsumoForm.porcentajeIva || 19}%): +${Math.round(Number(nuevoInsumoForm.precioUnitario) * ((Number(nuevoInsumoForm.porcentajeIva) || 19) / 100)).toLocaleString("es-CO")}
-                            </span>
-                            <span className="text-gray-900 dark:text-gray-100 font-extrabold bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-lg border border-blue-200 dark:border-blue-800 text-[11px]">
-                              Total: ${Math.round(Number(nuevoInsumoForm.precioUnitario) * (1 + ((Number(nuevoInsumoForm.porcentajeIva) || 19) / 100))).toLocaleString("es-CO")}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ════ SECCIÓN DISPONIBLE COMO ADICIÓN ════ */}
-                  <div className={`p-4 rounded-2xl border transition-all ${nuevoInsumoForm.esAdicion
-                      ? "border-purple-300 dark:border-purple-800/80 bg-purple-50/40 dark:bg-purple-950/20 shadow-xs"
-                      : "border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40"
-                    }`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${nuevoInsumoForm.esAdicion
-                            ? "bg-purple-600 text-white shadow-xs"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                          }`}>
-                          <Sparkles className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5 flex-wrap">
-                            <span>¿Disponible como adición en menú?</span>
-                            {nuevoInsumoForm.esAdicion && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                                Adición Activa
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            Permite que los clientes o cajeros seleccionen este insumo como extra o ingrediente adicional al ordenar productos
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Switch Toggle */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={nuevoInsumoForm.esAdicion}
-                        onClick={() => {
-                          const nextVal = !nuevoInsumoForm.esAdicion;
-                          setNuevoInsumoForm(prev => ({
-                            ...prev,
-                            esAdicion: nextVal,
-                            precioAdicion: nextVal && !prev.precioAdicion ? "1500" : prev.precioAdicion,
-                            imagen: nextVal && !prev.imagen ? "bacon" : prev.imagen
-                          }));
-                        }}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${nuevoInsumoForm.esAdicion ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-700'
-                          }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out ${nuevoInsumoForm.esAdicion ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Subformulario de Adición */}
-                    {nuevoInsumoForm.esAdicion && (
-                      <div className="mt-3.5 pt-3.5 border-t border-purple-100 dark:border-purple-900/40 space-y-3.5">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className={labelCls}>
-                              Precio de Venta como Adición <span className="text-red-500">*</span>
-                            </label>
-                            <div className="relative">
-                              <DollarSign className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
-                              <NumberInput
-                                min="0"
-                                step="100"
-                                formatThousands={true}
-                                placeholder="1500"
-                                value={nuevoInsumoForm.precioAdicion}
-                                onBlur={() => handleNuevoInsumoBlur("precioAdicion")}
-                                onChange={(e) => handleNuevoInsumoChange("precioAdicion", e.target.value)}
-                                className={`${inputCls} pl-8 ${(nuevoInsumoTouched.precioAdicion) && nuevoInsumoErrors.precioAdicion
-                                    ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
-                                    : ""
-                                  }`}
-                              />
-                            </div>
-                            {(nuevoInsumoTouched.precioAdicion) && nuevoInsumoErrors.precioAdicion ? (
-                              <p className="flex items-center gap-1 text-[11px] text-red-500 mt-1 font-medium">
-                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                {nuevoInsumoErrors.precioAdicion}
-                              </p>
-                            ) : nuevoInsumoForm.precioAdicion !== "" && Number(nuevoInsumoForm.precioAdicion) > 0 ? (
-                              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                <span>Precio de adición válido</span>
-                              </p>
-                            ) : null}
-                            <p className="text-[10px] text-gray-400 mt-0.5">Valor extra que se cobrará al agregar esta adición.</p>
-                          </div>
-
-                          <div>
-                            <label className={labelCls}>
-                              Ícono o Imagen de la Adición
-                            </label>
-                            <div className="flex items-center gap-2">
-                              {/* Preview */}
-                              <div className="w-9 h-9 rounded-xl bg-white dark:bg-gray-900 border-2 border-purple-300 dark:border-purple-700 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
-                                {nuevoInsumoForm.imagen && (nuevoInsumoForm.imagen.startsWith("http") || nuevoInsumoForm.imagen.startsWith("/")) ? (
-                                  <img src={nuevoInsumoForm.imagen} alt="Preview" className="w-full h-full object-cover" />
-                                ) : (
-                                  <FoodIcon name={nuevoInsumoForm.imagen || nuevoInsumoForm.nombre} size={20} stroke={1.75} className="text-purple-600 dark:text-purple-400" />
-                                )}
-                              </div>
-
-                              {/* Input slug / URL */}
-                              <input
-                                type="text"
-                                value={nuevoInsumoForm.imagen}
-                                onChange={(e) => setNuevoInsumoForm(prev => ({ ...prev, imagen: e.target.value }))}
-                                className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs focus:ring-2 focus:ring-purple-500"
-                                placeholder="Slug de ícono (ej. bacon) o URL..."
-                              />
-
-                              {/* Botón subir imagen */}
-                              <button
-                                type="button"
-                                onClick={() => nuevoInsumoFileInputRef.current?.click()}
-                                disabled={uploadingNuevoInsumo}
-                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
-                                title="Subir imagen"
-                              >
-                                {uploadingNuevoInsumo ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <UploadCloud className="w-3.5 h-3.5" />
-                                )}
-                                <span className="hidden sm:inline">{uploadingNuevoInsumo ? "..." : "Subir"}</span>
-                              </button>
-                              <input
-                                ref={nuevoInsumoFileInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleImageFileChangeNuevoInsumo}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Paleta rápida de íconos gastronómicos */}
-                        <div className="space-y-1.5 pt-1">
-                          <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                            O elige rápidamente un ícono sugerido:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {QUICK_ADICION_ICONS.map((ic) => {
-                              const isSelected = nuevoInsumoForm.imagen === ic.slug;
-                              return (
-                                <button
-                                  key={ic.slug}
-                                  type="button"
-                                  onClick={() => setNuevoInsumoForm(prev => ({ ...prev, imagen: ic.slug }))}
-                                  className={`flex items-center gap-1 px-2 py-1 rounded-xl text-xs transition-all cursor-pointer ${isSelected
-                                      ? "bg-purple-600 text-white font-bold shadow-xs scale-105"
-                                      : "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-50 hover:border-purple-300"
-                                    }`}
-                                >
-                                  <FoodIcon name={ic.slug} size={13} stroke={1.75} />
-                                  <span>{ic.label}</span>
-                                  {isSelected && <Check className="w-3 h-3 ml-0.5" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Descripción */}
-                  <div>
-                    <label className={labelCls}>Descripción (Opcional)</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Notas o descripción del insumo..."
-                      value={nuevoInsumoForm.descripcion}
-                      onChange={(e) =>
-                        setNuevoInsumoForm((prev) => ({ ...prev, descripcion: e.target.value }))
-                      }
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-
-                {/* Footer del drawer */}
-                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-850 flex items-center justify-end gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setPanelNuevoInsumoOpen(false)}
-                    className="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingNuevoInsumo}
-                    className="px-5 py-2 bg-[#F05454] hover:bg-[#d84343] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
-                  >
-                    {savingNuevoInsumo ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Guardando insumo...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        <span>Guardar y Seleccionar</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </>
-        )}
       </div>
 
       <style>{`
@@ -2035,6 +1439,16 @@ export function NuevaCompraModal({ isOpen, onClose, onCreated, initialInsumo }) 
         onClose={() => setModalProveedorOpen(false)}
         onSave={handleSaveProveedor}
         proveedores={proveedores}
+      />
+
+      {/* Modal de Insumo Completo (#77) */}
+      <InsumoModal
+        isOpen={modalNuevoInsumoOpen}
+        onClose={() => setModalNuevoInsumoOpen(false)}
+        onSave={handleGuardarNuevoInsumo}
+        categorias={categorias}
+        proveedores={proveedores}
+        insumosDisponibles={insumos}
       />
     </div>
   );

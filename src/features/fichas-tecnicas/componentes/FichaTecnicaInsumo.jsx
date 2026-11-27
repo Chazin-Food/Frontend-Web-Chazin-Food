@@ -10,7 +10,7 @@ import { matchesSmartSearch } from "@/shared/utils/searchUtils";
 import { insumosService } from "@/features/compras/servicios/insumosService";
 import { fichasTecnicasService } from "../servicios/fichasTecnicasService";
 import { FichaVersionesHistorial } from "./FichaVersionesHistorial";
-import { normalizeUnidadMedida, resolveRecetaUnidadYCantidad, convertirUnidadYCantidad, getUnidadesCompatibles, parsePorciones } from "../utils/costoUtils";
+import { normalizeUnidadMedida, resolveRecetaUnidadYCantidad, convertirUnidadYCantidad, getUnidadesCompatibles, parsePorciones, parsePaqueteSize, calculateRecipeTotals } from "../utils/costoUtils";
 import { diffCalendarDaysColombia } from "@/shared/utils/dateUtils";
 import {
   normalizeFichaWithVersions,
@@ -137,6 +137,39 @@ export const checkInsumoInvalido = (insumoItem) => {
   return { vencido, agotado };
 };
 
+export const getMaxCantidadByUnidad = (unidadRaw) => {
+  const u = normalizeUnidadMedida(unidadRaw);
+  if (u === "gr") return 1000;
+  if (u === "kg") return 2;
+  if (u === "ml") return 1000;
+  if (u === "und") return 5;
+  if (u === "porción") return 5;
+  return null;
+};
+
+export const checkStockSuficiente = (insumoObj, cantidadReq, unidadReq) => {
+  if (!insumoObj) return { suficiente: true, stockDisponible: 0, unidadBase: "und", requeridoEnBase: 0 };
+  const stockDisponible = Math.max(0, Number(insumoObj.stock ?? 0));
+  const unidadBase = normalizeUnidadMedida(insumoObj.unidadMedida || "und");
+  const uReq = normalizeUnidadMedida(unidadReq || unidadBase);
+  const cant = Number(cantidadReq || 0);
+  if (cant <= 0) return { suficiente: true, stockDisponible, unidadBase, requeridoEnBase: 0 };
+
+  let requeridoEnBase = cant;
+  if (unidadBase === "paq" && (uReq === "und" || uReq === "porción")) {
+    const pkgSize = parsePaqueteSize(insumoObj.tamanioPaquete);
+    requeridoEnBase = cant / pkgSize;
+  } else if (uReq !== unidadBase) {
+    requeridoEnBase = convertirUnidadYCantidad(cant, uReq, unidadBase);
+  }
+  return {
+    suficiente: requeridoEnBase <= stockDisponible + 0.0001,
+    stockDisponible,
+    unidadBase,
+    requeridoEnBase: Math.round(requeridoEnBase * 1000) / 1000
+  };
+};
+
 export function FichaTecnicaInsumo({
   insumoId,
   insumoName,
@@ -144,6 +177,7 @@ export function FichaTecnicaInsumo({
   onSave,
   onChange,
   readOnly = false,
+  excludePaquete = true,
   entityData = null,
   prevEntityData = null,
   onRestoreEntityData = null
@@ -413,12 +447,13 @@ export function FichaTecnicaInsumo({
         : null,
       _isRestoredVersionCommit: Boolean(cleanPrev?._isRestoredVersionCommit),
       _restoredSnapshot: cleanPrev,
+      costoEstimado: calculateRecipeTotals(insumos, rendimiento).costoTotalBatch,
       detalles: insumos.map((i) => ({
         idInsumo: i.idInsumo || i.id,
         nombreInsumo: i.nombreInsumo || i.insumo?.nombre || i.nombre,
         cantidad: Number(i.cantidad || 1),
         unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und",
-        precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? 0)
+        precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? i.insumo?.costo ?? 0)
       }))
     };
 
@@ -650,7 +685,19 @@ export function FichaTecnicaInsumo({
       setSearchInsumo("");
       return;
     }
-    const { cantidad: cantDefault, unidadMedida: uDefault } = resolveRecetaUnidadYCantidad(ins, rendimiento);
+    const { cantidad: rawCantDefault, unidadMedida: rawUDefault } = resolveRecetaUnidadYCantidad(ins, rendimiento);
+    const uDefault = (excludePaquete && normalizeUnidadMedida(rawUDefault) === "paq") ? "und" : rawUDefault;
+    const maxLim = getMaxCantidadByUnidad(uDefault);
+    const cantDefault = maxLim ? Math.min(rawCantDefault, maxLim) : rawCantDefault;
+
+    const stockCheck = checkStockSuficiente(ins, cantDefault, uDefault);
+    if (!stockCheck.suficiente) {
+      notify.warning(
+        "Stock insuficiente",
+        `La cantidad requerida (${cantDefault} ${uDefault}) supera el stock disponible de "${ins.nombre}" (${stockCheck.stockDisponible} ${stockCheck.unidadBase}).`
+      );
+    }
+
     const nuevo = {
       idInsumo: id,
       nombreInsumo: ins.nombre,
@@ -662,7 +709,9 @@ export function FichaTecnicaInsumo({
     const next = [...insumos, nuevo];
     setInsumos(next);
     setSearchInsumo("");
-    notify.success("Insumo agregado", `"${ins.nombre}" añadido a la receta.`);
+    if (stockCheck.suficiente) {
+      notify.success("Insumo agregado", `"${ins.nombre}" añadido a la receta.`);
+    }
     if (touched.insumos) {
       setErrors((prev) => ({ ...prev, insumos: validateField("insumos", null, next) }));
     }
@@ -689,7 +738,20 @@ export function FichaTecnicaInsumo({
       } else if (u === 'kg' || u === 'lt') {
         step = 0.05;
       }
-      const nuevo = Math.max(u === 'gr' || u === 'ml' ? 1 : 0.05, Math.round((actual + delta * step) * 100) / 100);
+      const maxLim = getMaxCantidadByUnidad(u);
+      let nuevo = Math.max(u === 'gr' || u === 'ml' ? 1 : 0.05, Math.round((actual + delta * step) * 100) / 100);
+      if (maxLim && nuevo > maxLim) {
+        nuevo = maxLim;
+        notify.warning("Límite alcanzado", `La cantidad máxima permitida para ${u} es ${maxLim} ${u}.`);
+      }
+      const dbMatch = dbInsumosList.find(d => String(d.id || d.idInsumo) === String(item.idInsumo || item.id)) || item.insumo;
+      const stockCheck = checkStockSuficiente(dbMatch, nuevo, u);
+      if (!stockCheck.suficiente) {
+        notify.warning(
+          "Stock insuficiente",
+          `"${item.nombreInsumo || dbMatch?.nombre}" solo tiene ${stockCheck.stockDisponible} ${stockCheck.unidadBase} en stock.`
+        );
+      }
       return { ...item, cantidad: nuevo };
     }));
   };
@@ -698,7 +760,20 @@ export function FichaTecnicaInsumo({
     clearRestoredCommitFlag();
     setInsumos((prev) => prev.map((item, i) => {
       if (i !== idx) return item;
-      const cantConvertida = convertirUnidadYCantidad(item.cantidad, item.unidadMedida, nuevaUnidad);
+      let cantConvertida = convertirUnidadYCantidad(item.cantidad, item.unidadMedida, nuevaUnidad);
+      const maxLim = getMaxCantidadByUnidad(nuevaUnidad);
+      if (maxLim && cantConvertida > maxLim) {
+        cantConvertida = maxLim;
+        notify.warning("Cantidad ajustada al límite", `El máximo permitido en ${nuevaUnidad} es ${maxLim} ${nuevaUnidad}.`);
+      }
+      const dbMatch = dbInsumosList.find(d => String(d.id || d.idInsumo) === String(item.idInsumo || item.id)) || item.insumo;
+      const stockCheck = checkStockSuficiente(dbMatch, cantConvertida, nuevaUnidad);
+      if (!stockCheck.suficiente) {
+        notify.warning(
+          "Stock insuficiente",
+          `"${item.nombreInsumo || dbMatch?.nombre}" solo tiene ${stockCheck.stockDisponible} ${stockCheck.unidadBase} en stock.`
+        );
+      }
       return { ...item, unidadMedida: nuevaUnidad, cantidad: cantConvertida };
     }));
   };
@@ -825,12 +900,13 @@ export function FichaTecnicaInsumo({
         : null,
       _isRestoredVersionCommit: Boolean(cleanPrev?._isRestoredVersionCommit),
       _restoredSnapshot: cleanPrev,
+      costoEstimado: calculateRecipeTotals(insumos, rendimiento).costoTotalBatch,
       detalles: insumos.map((i) => ({
         idInsumo: i.idInsumo || i.id,
         nombreInsumo: i.nombreInsumo || i.insumo?.nombre || i.nombre,
         cantidad: Number(i.cantidad || 1),
         unidadMedida: i.unidadMedida || i.insumo?.unidadMedida || "und",
-        precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? 0)
+        precioUnitario: Number(i.precioUnitario ?? i.costoUnitario ?? i.insumo?.precioUnitario ?? i.insumo?.costo ?? 0)
       }))
     };
 
@@ -1122,6 +1198,7 @@ export function FichaTecnicaInsumo({
                       insumos.map((item, idx) => {
                         const dbMatch = dbInsumosList.find(d => String(d.id || d.idInsumo) === String(item.idInsumo || item.id)) || item.insumo || item;
                         const { vencido, agotado } = checkInsumoInvalido(dbMatch);
+                        const stockCheck = checkStockSuficiente(dbMatch, item.cantidad, item.unidadMedida);
                         return (
                         <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
                           <td className="px-4 py-2.5 font-bold text-gray-800 dark:text-gray-200">
@@ -1135,6 +1212,11 @@ export function FichaTecnicaInsumo({
                               {agotado && !vencido && (
                                 <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
                                   ⚠️ AGOTADO
+                                </span>
+                              )}
+                              {!agotado && !stockCheck.suficiente && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                                  ⚠️ Supera stock ({stockCheck.stockDisponible} {stockCheck.unidadBase})
                                 </span>
                               )}
                             </div>
@@ -1164,7 +1246,16 @@ export function FichaTecnicaInsumo({
                                   setInsumos(prev => prev.map((x, i) => {
                                     if (i === idx) {
                                       const parsed = parseFloat(x.cantidad);
-                                      const finalVal = (!isNaN(parsed) && parsed > 0) ? parsed : 1;
+                                      let finalVal = (!isNaN(parsed) && parsed > 0) ? parsed : 1;
+                                      const maxLim = getMaxCantidadByUnidad(x.unidadMedida);
+                                      if (maxLim && finalVal > maxLim) {
+                                        finalVal = maxLim;
+                                        notify.warning("Límite excedido", `La cantidad máxima permitida para ${normalizeUnidadMedida(x.unidadMedida)} es ${maxLim}.`);
+                                      }
+                                      const sc = checkStockSuficiente(dbMatch, finalVal, x.unidadMedida);
+                                      if (!sc.suficiente) {
+                                        notify.warning("Stock insuficiente", `"${x.nombreInsumo || dbMatch?.nombre}" solo tiene ${sc.stockDisponible} ${sc.unidadBase} en stock.`);
+                                      }
                                       return { ...x, cantidad: finalVal };
                                     }
                                     return x;
@@ -1188,7 +1279,7 @@ export function FichaTecnicaInsumo({
                                 onChange={(e) => actualizarUnidad(idx, e.target.value)}
                                 className="px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-semibold outline-none text-gray-700 dark:text-gray-300"
                               >
-                                {getUnidadesCompatibles(item.unidadMedida).map(u => (
+                                {getUnidadesCompatibles(item.insumo?.unidadMedida || dbMatch?.unidadMedida || item.unidadMedida, excludePaquete).map(u => (
                                   <option key={u.value} value={u.value}>{u.value}</option>
                                 ))}
                               </select>

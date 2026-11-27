@@ -32,6 +32,7 @@ export function normalizeUnidadMedida(raw) {
   if (s === "kg" || s.startsWith("kilo") || s.includes("(kg)") || s === "kgs") return "kg";
   if (s === "gr" || s === "g" || s.startsWith("gram") || s.includes("(gr)") || s === "grs") return "gr";
   if (s === "mg" || s.startsWith("miligram")) return "mg";
+  if (s === "lb" || s.startsWith("libra") || s.includes("(lb)") || s === "lbs") return "lb";
   
   // Volumen / Líquidos
   if (s === "lt" || s === "l" || s.startsWith("litr") || s.includes("(lt)") || s === "lts") return "lt";
@@ -63,12 +64,29 @@ export const ALL_UNIDADES_MEDIDA = [
  * Retorna las unidades de medida disponibles para fichas técnicas sin restricciones
  * ni validaciones de compatibilidad forzada, conservando cualquier unidad personalizada actual.
  */
-export function getUnidadesCompatibles(unidadActualRaw) {
-  const u = normalizeUnidadMedida(unidadActualRaw);
-  if (u && !ALL_UNIDADES_MEDIDA.some((item) => item.value === u)) {
-    return [...ALL_UNIDADES_MEDIDA, { value: u, label: u }];
+export function getUnidadesCompatibles(unidadBaseRaw, excludePaquete = false) {
+  const u = normalizeUnidadMedida(unidadBaseRaw);
+  if (u === 'kg' || u === 'gr' || u === 'mg' || u === 'lb') {
+    return [
+      { value: 'gr', label: 'gr (Gramos)' },
+      { value: 'kg', label: 'kg (Kilos)' },
+      { value: 'lb', label: 'lb (Libras)' }
+    ];
   }
-  return ALL_UNIDADES_MEDIDA;
+  if (u === 'lt' || u === 'ml' || u === 'cc') {
+    return [
+      { value: 'ml', label: 'ml (Mililitros)' },
+      { value: 'lt', label: 'lt (Litros)' }
+    ];
+  }
+  const countUnits = [
+    { value: 'und', label: 'und (Unidad)' },
+    { value: 'porción', label: 'porción' }
+  ];
+  if (!excludePaquete) {
+    countUnits.push({ value: 'paq', label: 'paq' });
+  }
+  return countUnits;
 }
 
 export function resolveRecetaUnidadYCantidad(insumoItem, rendimiento = 1) {
@@ -82,7 +100,7 @@ export function resolveRecetaUnidadYCantidad(insumoItem, rendimiento = 1) {
   }
 
   // 1. Extraer gramaje explícito si está en el nombre (ej: "Carne 150g", "Papas (150g)", "40g", etc.)
-  if (uBase === "kg" || uBase === "gr" || uBase === "mg") {
+  if (uBase === "kg" || uBase === "gr" || uBase === "mg" || uBase === "lb") {
     const matchGram = nombre.match(/(?:^|\s|\()(\d+(?:[.,]\d+)?)\s*(?:g|gr|gramos)(?:\s|\)|\b|$)/i);
     if (matchGram) {
       const num = parseFloat(matchGram[1].replace(',', '.'));
@@ -103,8 +121,8 @@ export function resolveRecetaUnidadYCantidad(insumoItem, rendimiento = 1) {
     }
   }
 
-  // 3. Si la unidad base de inventario es de peso (kg, gr)
-  if (uBase === "kg" || uBase === "gr") {
+  // 3. Si la unidad base de inventario es de peso (kg, gr, lb)
+  if (uBase === "kg" || uBase === "gr" || uBase === "lb") {
     // Para recetas gastronómicas individuales, la unidad de consumo estándar es gramos (gr)
     let cantPorcion = 30; // default para toppings/verduras/embutidos
     if (nombre.includes("carne") || nombre.includes("pechuga") || nombre.includes("pollo") || nombre.includes("angus") || nombre.includes("res")) {
@@ -171,6 +189,13 @@ export function convertirUnidadYCantidad(cantidadActual, unidadViejaRaw, unidadN
     return Math.round((cant / 1000) * 1000) / 1000;
   }
 
+  // Conversiones con Libra (lb)
+  const weightToGr = { kg: 1000, gr: 1, mg: 0.001, lb: 453.592 };
+  if (weightToGr[uVieja] && weightToGr[uNueva]) {
+    const inGr = cant * weightToGr[uVieja];
+    return Math.round((inGr / weightToGr[uNueva]) * 1000) / 1000;
+  }
+
   return cant > 0 ? cant : 1;
 }
 
@@ -223,13 +248,42 @@ export function sanitizeRecetaInsumos(insumos = [], dbList = [], rendimiento = 1
  * - Miligramos (mg) a Kilos (kg): divide entre 1,000,000
  * - Unidades (und, pieza, paq): multiplicación directa 1:1
  */
-export function calculateInsumoCost(cantidadRaw, unidadRecetaRaw, costoUnitarioRaw, unidadBaseRaw) {
+export function parsePaqueteSize(tamanioPaquete) {
+  if (!tamanioPaquete) return 1;
+  const str = String(tamanioPaquete).trim();
+  const matchX = str.match(/^\d+\s*[xX×]\s*(\d+(?:[.,]\d+)?)$/);
+  if (matchX) {
+    const val = parseFloat(matchX[1].replace(',', '.'));
+    return val > 0 ? val : 1;
+  }
+  const matchNum = str.match(/(\d+(?:[.,]\d+)?)/);
+  if (matchNum) {
+    const val = parseFloat(matchNum[1].replace(',', '.'));
+    return val > 0 ? val : 1;
+  }
+  return 1;
+}
+
+export function calculateInsumoCost(cantidadRaw, unidadRecetaRaw, costoUnitarioRaw, unidadBaseRaw, tamanioPaquete = null) {
   const cantidad = Number(cantidadRaw) || 0;
   const costoUnitario = Number(costoUnitarioRaw) || 0;
   if (cantidad <= 0 || costoUnitario <= 0) return 0;
 
   const uReceta = normalizeUnidadMedida(unidadRecetaRaw);
   const uBase = normalizeUnidadMedida(unidadBaseRaw || uReceta);
+
+  // Si el insumo base viene en Paquete y se usa en unidades o porciones
+  if (uBase === "paq" && (uReceta === "und" || uReceta === "porción")) {
+    const pkgSize = parsePaqueteSize(tamanioPaquete);
+    return (cantidad / pkgSize) * costoUnitario;
+  }
+
+  // Peso con Libra / Kg / Gr / Mg
+  const weightToGr = { kg: 1000, gr: 1, mg: 0.001, lb: 453.592 };
+  if (weightToGr[uReceta] && weightToGr[uBase] && uReceta !== uBase) {
+    const factor = weightToGr[uReceta] / weightToGr[uBase];
+    return cantidad * factor * costoUnitario;
+  }
 
   // Si las unidades coinciden exactamente
   if (uReceta === uBase && uReceta !== "") {
@@ -305,7 +359,7 @@ export function calculateRecipeTotals(insumos = [], rendimiento = 1) {
     const unidadReceta = normalizeUnidadMedida(item.unidadMedida || item.unidad || "und");
     const unidadBase = normalizeUnidadMedida(item.insumo?.unidadMedida || item.unidadMedidaBase || unidadReceta);
     
-    return acc + calculateInsumoCost(cant, unidadReceta, unitCost, unidadBase);
+    return acc + calculateInsumoCost(cant, unidadReceta, unitCost, unidadBase, item.insumo?.tamanioPaquete);
   }, 0);
 
   const porciones = parsePorciones(rendimiento);

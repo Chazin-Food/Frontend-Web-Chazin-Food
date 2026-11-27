@@ -25,6 +25,8 @@ const INSUMO_CATEGORY_ICONS = [
 
 export function CategoriaInsumoModal({ isOpen, onClose, onSave, categoria = null }) {
   const isEditing = !!categoria;
+  const insumosCount = Number(categoria?.insumosCount ?? categoria?.cantidad ?? (categoria?.insumos?.length || 0));
+  const tieneInsumos = isEditing && insumosCount > 0;
   const { warning, error: notifyError } = useNotifications();
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -318,11 +320,12 @@ export function CategoriaInsumoModal({ isOpen, onClose, onSave, categoria = null
               {/* Campo Nombre */}
               <div>
                 <label className={labelCls}>
-                  Nombre de la Categoría <span className="text-red-500">*</span>
+                  Nombre de la Categoría {tieneInsumos ? <span className="text-amber-600 dark:text-amber-400 font-normal normal-case">(Inmutable: tiene {insumosCount} insumo{insumosCount === 1 ? "" : "s"} asociado{insumosCount === 1 ? "" : "s"})</span> : <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
                   value={nombre}
+                  disabled={tieneInsumos}
                   onBlur={() => handleBlur("nombre")}
                   onKeyDown={(e) => {
                     if (/^[0-9]$/.test(e.key)) {
@@ -331,7 +334,9 @@ export function CategoriaInsumoModal({ isOpen, onClose, onSave, categoria = null
                   }}
                   onChange={(e) => handleChange("nombre", e.target.value)}
                   className={`${inputCls} ${
-                    (touched.nombre || submitted || nombre.length > 0) && errors.nombre
+                    tieneInsumos
+                      ? "bg-gray-100 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 cursor-not-allowed border-gray-200 dark:border-gray-700"
+                      : (touched.nombre || submitted || nombre.length > 0) && errors.nombre
                       ? "border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-900 focus:ring-red-400"
                       : (touched.nombre || submitted || nombre.length > 0) && !errors.nombre && nombre.trim().length >= 2
                       ? "border-emerald-500/80 bg-emerald-50/15 text-gray-900 dark:text-gray-100 focus:ring-emerald-400"
@@ -394,17 +399,32 @@ export function CategoriaInsumoModal({ isOpen, onClose, onSave, categoria = null
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEstado("Inactivo")}
-                    className={`py-2 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
-                      estado === "Inactivo"
-                        ? "border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 ring-2 ring-rose-400/30"
-                        : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300"
+                    disabled={tieneInsumos}
+                    title={tieneInsumos ? "No se puede inactivar porque esta categoría tiene insumos asociados" : "Inactivar categoría"}
+                    onClick={() => {
+                      if (tieneInsumos) {
+                        warning("Acción bloqueada", "No se puede inactivar la categoría porque tiene insumos asociados.");
+                        return;
+                      }
+                      setEstado("Inactivo");
+                    }}
+                    className={`py-2 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all ${
+                      tieneInsumos
+                        ? "opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400"
+                        : estado === "Inactivo"
+                        ? "border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 ring-2 ring-rose-400/30 cursor-pointer"
+                        : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-300 cursor-pointer"
                     }`}
                   >
                     <span className="w-2 h-2 rounded-full bg-rose-500" />
                     <span>Inactivo</span>
                   </button>
                 </div>
+                {tieneInsumos && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium">
+                    Esta categoría tiene {insumosCount} insumo{insumosCount === 1 ? "" : "s"} asociado{insumosCount === 1 ? "" : "s"}: no se puede editar su nombre ni inactivar.
+                  </p>
+                )}
               </div>
             </div>
 

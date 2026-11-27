@@ -284,14 +284,21 @@ export function ProveedorModal({ isOpen, onClose, onSave, proveedor = null, prov
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92dvh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-3xl max-h-[95dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 shrink-0">
-          <div className="flex items-center gap-2">
-            <Building className="w-5 h-5 text-[#F05454]" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              {isEditing ? "Editar Proveedor" : "Nuevo Proveedor"}
-            </h2>
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-gray-100 dark:border-gray-800 shrink-0 bg-gray-50/60 dark:bg-gray-800/40">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#F05454]/10 text-[#F05454] flex items-center justify-center">
+              <Building className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                {isEditing ? "Editar Proveedor" : "Nuevo Proveedor"}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Completa los datos comerciales y de contacto del proveedor
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
