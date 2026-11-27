@@ -166,7 +166,7 @@ export function ProductoDetalleCliente() {
       }
     }
 
-    return [...sameCat, ...otherCat].slice(0, 4);
+    return [...sameCat, ...otherCat].slice(0, 5);
   }, [producto, productosList, categoryLabel]);
 
   const handleConfirmAdd = ({
@@ -292,9 +292,9 @@ export function ProductoDetalleCliente() {
 
   return (
     <div className="min-h-[100dvh] bg-[#F8FAFC] dark:bg-gray-950 flex flex-col transition-colors">
-      {/* Navbar superior editorial y limpia (SIN llamado a iniciar sesión) */}
+      {/* Navbar superior panorámica y compacta (SIN llamado a iniciar sesión) */}
       <header className="sticky top-0 z-40 bg-white/92 dark:bg-gray-900/92 backdrop-blur-xl border-b border-slate-200/75 dark:border-gray-800/90">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+        <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -361,8 +361,8 @@ export function ProductoDetalleCliente() {
         </div>
       </header>
 
-      {/* Contenido principal amplio sin zonas muertas (max-w-7xl) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-9 space-y-12">
+      {/* Contenido principal panorámico (max-w-[1800px]) aprovechando todo el ancho lateral para minimizar scroll */}
+      <main className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-5 space-y-8">
         {loading ? (
           <div className="py-24">
             <ChazinLoader text="PREPARANDO EXPERIENCIA GASTRONÓMICA" size="md" />
@@ -422,7 +422,7 @@ export function ProductoDetalleCliente() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {recommendedProducts.map((rec) => {
                     const recId = rec.id || rec.idProducto;
                     const recIsDrink = isDrinkProduct(rec);

@@ -2873,7 +2873,7 @@ export function FastFoodProductModal({
   );
 
   const configuratorPanels = (
-          <div className={asPage ? "p-5 sm:p-7 space-y-6" : "p-4 sm:p-6 space-y-5"}>
+          <div className={asPage ? "p-4 sm:p-5 space-y-4" : "p-4 sm:p-6 space-y-5"}>
             {/* ─── TAB 0: VARIANTES SIN TAMAÑO PARA BEBIDAS ─── */}
             {!drinkHasSizes && isDrink && activeTab === "presentacion" && (drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
               <div className="space-y-4 animate-in fade-in duration-200">
@@ -3138,16 +3138,16 @@ export function FastFoodProductModal({
               <EventoToppingsCard event={eventInfo} />
             )}
             {!isDrink && activeTab === "personalizar" && !(comboRecipeInfo.isComboProd && comboRecipeInfo.comboItems.length > 0) && (personalizables.length > 0 || foodVariants.length > 0) && (
-              <div className="space-y-5">
+              <div className={asPage ? "space-y-3.5" : "space-y-5"}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                  <div className="flex flex-wrap items-baseline gap-2">
                     <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
                       <ChefHat className="w-4 h-4 text-[#D9383A] dark:text-red-400" />
                       <span>Personalización de Receta</span>
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">
-                      Elige tu variante preferida y ajusta los ingredientes opcionales a tu gusto:
-                    </p>
+                    <span className="text-xs text-slate-500 dark:text-gray-400">
+                      Elige tu variante y ajusta ingredientes opcionales
+                    </span>
                   </div>
                   {removedIngredients.length > 0 && (
                     <button
@@ -3176,79 +3176,103 @@ export function FastFoodProductModal({
                     basePrice={Number(producto?.precio || 0)}
                     getPriceInfo={(vObj) => resolveFoodVariantPrice(vObj)}
                     includeBaseOption={true}
-                    baseOptionLabel="Preparación Clásica / Estándar"
+                    baseOptionLabel={asPage ? "Clásica Original" : "Preparación Clásica / Estándar"}
                     isDrink={false}
                     title="Elige tu versión o variante"
+                    wideLayout={asPage}
                   />
                 )}
 
-                {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (DISEÑO NEUTRO Y LIMPIO) ── */}
+                {/* ── SECCIÓN 1: INGREDIENTES BASE OBLIGATORIOS (BARRA INLINE ULTRA COMPACTA EN MODO PÁGINA) ── */}
                 {baseIngredients.length > 0 && (
-                  <div className="bg-slate-50/90 dark:bg-gray-800/45 border border-slate-200/80 dark:border-gray-700/70 rounded-2xl p-3.5 sm:p-4 space-y-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-gray-200">
-                        <ShieldCheck className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
-                        <span>Base esencial de la preparación</span>
-                      </div>
-                      <span className="text-[10px] font-bold bg-slate-200/80 dark:bg-gray-700 text-slate-700 dark:text-gray-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" /> Fijos en cocina
+                  asPage ? (
+                    <div className="bg-slate-50/90 dark:bg-gray-800/45 border border-slate-200/80 dark:border-gray-700/70 rounded-xl px-3 py-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-extrabold text-slate-700 dark:text-gray-300 inline-flex items-center gap-1 mr-1 shrink-0">
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        <span>Base fija:</span>
                       </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {baseIngredients.map((baseIng) => (
-                        <div
+                        <span
                           key={baseIng.id}
-                          className={`p-2.5 rounded-xl flex items-center justify-between gap-2 select-none border ${
-                            baseIng.variantStatus?.kind === "reemplazo"
-                              ? "bg-slate-100/80 dark:bg-gray-800 border-slate-300 dark:border-gray-600"
-                              : baseIng.variantStatus?.isExtra
-                                ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-800/60"
-                                : "bg-white dark:bg-gray-900/70 border-slate-200/80 dark:border-gray-700/70"
-                          }`}
-                          title={baseIng.variantStatus?.badgeText || "Ingrediente esencial de la receta (no removible)"}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-gray-900/80 border border-slate-200/80 dark:border-gray-700/80 text-[11px] font-bold text-slate-700 dark:text-gray-200"
                         >
-                          <span className="flex items-center gap-2.5 min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-gray-200">
-                            <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-slate-700 dark:text-gray-300">
-                              <FoodIcon name={baseIng.icono || baseIng.nombre} size={15} stroke={1.75} />
+                          <FoodIcon name={baseIng.icono || baseIng.nombre} size={13} stroke={1.75} className="text-slate-500 shrink-0" />
+                          <span>{baseIng.nombre}</span>
+                          {baseIng.variantStatus?.isExtra && (
+                            <span className="text-[9.5px] font-extrabold px-1 py-0.2 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200">
+                              {baseIng.variantStatus.shortBadge}
                             </span>
-                            <span className="min-w-0 flex-1 text-left">
-                              <span className="block truncate">{baseIng.nombre}</span>
-                              {baseIng.variantStatus?.isExtra && (
-                                <span
-                                  className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md border ${
-                                    baseIng.variantStatus.kind === "reemplazo"
-                                      ? "bg-slate-200/80 text-slate-800 border-slate-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
-                                      : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700"
-                                  }`}
-                                >
-                                  {baseIng.variantStatus.shortBadge}
-                                </span>
-                              )}
-                            </span>
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
-                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" /> Base
-                          </span>
-                        </div>
+                          )}
+                        </span>
                       ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-slate-50/90 dark:bg-gray-800/45 border border-slate-200/80 dark:border-gray-700/70 rounded-2xl p-3.5 sm:p-4 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-gray-200">
+                          <ShieldCheck className="w-4 h-4 text-slate-600 dark:text-gray-300 shrink-0" />
+                          <span>Base esencial de la preparación</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-slate-200/80 dark:bg-gray-700 text-slate-700 dark:text-gray-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Fijos en cocina
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {baseIngredients.map((baseIng) => (
+                          <div
+                            key={baseIng.id}
+                            className={`p-2.5 rounded-xl flex items-center justify-between gap-2 select-none border ${
+                              baseIng.variantStatus?.kind === "reemplazo"
+                                ? "bg-slate-100/80 dark:bg-gray-800 border-slate-300 dark:border-gray-600"
+                                : baseIng.variantStatus?.isExtra
+                                  ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-800/60"
+                                  : "bg-white dark:bg-gray-900/70 border-slate-200/80 dark:border-gray-700/70"
+                            }`}
+                            title={baseIng.variantStatus?.badgeText || "Ingrediente esencial de la receta (no removible)"}
+                          >
+                            <span className="flex items-center gap-2.5 min-w-0 flex-1 text-xs font-bold text-slate-800 dark:text-gray-200">
+                              <span className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-slate-700 dark:text-gray-300">
+                                <FoodIcon name={baseIng.icono || baseIng.nombre} size={15} stroke={1.75} />
+                              </span>
+                              <span className="min-w-0 flex-1 text-left">
+                                <span className="block truncate">{baseIng.nombre}</span>
+                                {baseIng.variantStatus?.isExtra && (
+                                  <span
+                                    className={`inline-block max-w-full truncate mt-0.5 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+                                      baseIng.variantStatus.kind === "reemplazo"
+                                        ? "bg-slate-200/80 text-slate-800 border-slate-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                                        : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-700"
+                                    }`}
+                                  >
+                                    {baseIng.variantStatus.shortBadge}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
+                              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" /> Base
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
                 )}
 
-                {/* ── SECCIÓN 2: INGREDIENTES PERSONALIZABLES (EXCLUSIONES A PETICIÓN) ── */}
+                {/* ── SECCIÓN 2: INGREDIENTES PERSONALIZABLES (GRILLA DE 3 COLUMNAS EN PANTALLA ANCHA) ── */}
                 {customizableIngredients.length > 0 ? (
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-1.5">
                       <p className="text-xs font-extrabold text-slate-800 dark:text-gray-200">
-                        Ingredientes personalizables (toca para retirar o incluir)
+                        Ingredientes opcionales (toca para retirar o incluir)
                       </p>
                       <span className="text-[11px] font-medium text-slate-500 dark:text-gray-400">
                         Sin costo adicional
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2" : "grid grid-cols-1 sm:grid-cols-2 gap-2.5"}>
                       {customizableIngredients.map((ing) => {
                         const isRemoved = removedIngredients.includes(ing.nombre);
                         return (
@@ -3256,7 +3280,7 @@ export function FastFoodProductModal({
                             key={ing.id}
                             type="button"
                             onClick={() => toggleRemoveIngredient(ing.nombre)}
-                            className={`p-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] select-none ${
+                            className={`${asPage ? "p-2.5 rounded-xl" : "p-3 rounded-2xl"} border text-xs font-bold transition-all flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] select-none ${
                               isRemoved
                                 ? "border-[#D9383A]/60 bg-red-50/60 dark:bg-red-950/30 text-[#B91C1C] dark:text-red-300 shadow-2xs ring-1 ring-[#D9383A]/25"
                                 : ing.variantStatus?.isExtra
@@ -3264,13 +3288,13 @@ export function FastFoodProductModal({
                                   : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 text-slate-800 dark:text-gray-200 hover:border-slate-300 dark:hover:border-gray-600 hover:bg-slate-50/70 dark:hover:bg-gray-800"
                             }`}
                           >
-                            <span className="flex items-center gap-2.5 min-w-0 flex-1">
-                              <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                            <span className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                                 isRemoved
                                   ? "bg-red-100 dark:bg-red-950/60 text-[#D9383A] dark:text-red-400"
                                   : "bg-slate-100 dark:bg-gray-700/80 text-slate-700 dark:text-gray-200"
                               }`}>
-                                <FoodIcon name={ing.icono || ing.nombre} size={17} stroke={1.75} />
+                                <FoodIcon name={ing.icono || ing.nombre} size={15} stroke={1.75} />
                               </span>
                               <span className="min-w-0 flex-1 text-left">
                                 <span className={`block truncate ${isRemoved ? "line-through opacity-75" : ""}`}>
@@ -3284,13 +3308,13 @@ export function FastFoodProductModal({
                               </span>
                             </span>
                             <span
-                              className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0 transition-colors ${
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 transition-colors ${
                                 isRemoved
                                   ? "bg-[#D9383A] text-white"
                                   : "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50"
                               }`}
                             >
-                              {isRemoved ? "Sin" : "Incluido"}
+                              {isRemoved ? "Sin" : "Con"}
                             </span>
                           </button>
                         );
@@ -3451,7 +3475,7 @@ export function FastFoodProductModal({
                     No hay adiciones disponibles en este momento.
                   </div>
                 ) : (
-                  <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
+                  <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2.5" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
                     {filteredAdiciones.map((ad) => {
                       const adId = ad.idAdicion || ad.id;
                       const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
@@ -3585,7 +3609,7 @@ export function FastFoodProductModal({
                   </div>
                 )}
 
-                <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
+                <div className={asPage ? "grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2.5" : "space-y-2 max-h-[340px] overflow-y-auto overflow-x-hidden pr-1"}>
                   {availableBebidas.map((drink) => {
                     const dId = drink.id || drink.idProducto;
                     const selectedObj = selectedDrinks.find((d) => (d.id || d.idProducto) === dId);
@@ -4041,8 +4065,8 @@ export function FastFoodProductModal({
               </div>
             )}
 
-            {/* ═══ 4. NOTAS ESPECIALES PARA COCINA (GLOBAL) ═══ */}
-            <div className="pt-4 border-t border-slate-100 dark:border-gray-800 space-y-2.5">
+            {/* ═══ 4. NOTAS ESPECIALES PARA COCINA (EN XL+ VIVE EN EL TICKET DERECHO) ═══ */}
+            <div className={`${asPage ? "xl:hidden pt-3" : "pt-4"} border-t border-slate-100 dark:border-gray-800 space-y-2.5`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-slate-800 dark:text-gray-200 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
@@ -4153,11 +4177,11 @@ export function FastFoodProductModal({
 
     return (
       <div className="w-full pb-24 sm:pb-2">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-start">
-          {/* ═══ COLUMNA IZQUIERDA (STICKY): FOTOGRAFÍA EDITORIAL + FICHA RÁPIDA + RESUMEN EN VIVO ═══ */}
-          <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6 items-start">
+          {/* ═══ COLUMNA 1 — IZQUIERDA (3 COLS EN XL): FOTO + INDICADORES + PROMO ACTIVA ═══ */}
+          <div className="lg:col-span-4 xl:col-span-3 lg:sticky lg:top-20 space-y-3">
             {/* 1. Escenario Fotográfico Sin Barras Negras */}
-            <div className="relative w-full aspect-square sm:aspect-[4/3] lg:aspect-square rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/80 dark:border-gray-800 shadow-[0_20px_50px_-15px_rgba(15,23,42,0.18)] group">
+            <div className="relative w-full aspect-[4/3] lg:aspect-square xl:aspect-[4/3.5] rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 dark:border-gray-800 shadow-[0_16px_40px_-15px_rgba(15,23,42,0.18)] group">
               {optimizedHeroImage && !imageError ? (
                 isDrink ? (
                   <>
@@ -4167,7 +4191,7 @@ export function FastFoodProductModal({
                         background: `radial-gradient(circle at 50% 45%, ${ambientGlowColor}40 0%, rgba(15,23,42,0.92) 72%)`
                       }}
                     />
-                    <div className="relative z-10 w-full h-full flex items-center justify-center p-6 sm:p-8">
+                    <div className="relative z-10 w-full h-full flex items-center justify-center p-5">
                       <img
                         key={optimizedHeroImage}
                         src={optimizedHeroImage}
@@ -4184,7 +4208,7 @@ export function FastFoodProductModal({
                           }
                           setImageError(true);
                         }}
-                        className="max-h-[82%] w-auto max-w-[85%] object-contain drop-shadow-[0_28px_36px_rgba(0,0,0,0.65)] transition-transform duration-500 group-hover:scale-105 select-none"
+                        className="max-h-[82%] w-auto max-w-[85%] object-contain drop-shadow-[0_24px_32px_rgba(0,0,0,0.65)] transition-transform duration-500 group-hover:scale-105 select-none"
                       />
                     </div>
                   </>
@@ -4212,295 +4236,214 @@ export function FastFoodProductModal({
                 )
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950">
-                  <div className="flex items-center justify-center w-32 h-32 rounded-full bg-white/10 backdrop-blur-md border border-white/15">
-                    <FoodIcon name={producto.nombre} category={producto.categoria} size={64} stroke={1.75} className="text-white" />
+                  <div className="flex items-center justify-center w-28 h-28 rounded-full bg-white/10 backdrop-blur-md border border-white/15">
+                    <FoodIcon name={producto.nombre} category={producto.categoria} size={56} stroke={1.75} className="text-white" />
                   </div>
                 </div>
               )}
 
               {/* Pills superiores (Categoría + Descuento) */}
-              <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between gap-2">
-                <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/15 text-[11px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-sm">
-                  <FoodIcon name={producto.nombre} category={producto.categoria} size={14} stroke={2} className="text-white shrink-0" />
-                  <span className="truncate max-w-[160px]">{producto.categoria || "Especialidad"}</span>
+              <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
+                <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/15 text-[10.5px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+                  <FoodIcon name={producto.nombre} category={producto.categoria} size={13} stroke={2} className="text-white shrink-0" />
+                  <span className="truncate max-w-[135px]">{producto.categoria || "Especialidad"}</span>
                 </span>
 
                 {promoBadgeLabel && (
-                  <span className="px-3 py-1.5 rounded-full bg-[#D9383A] text-white text-[11px] font-black uppercase tracking-wide shadow-lg inline-flex items-center gap-1.5 shrink-0">
-                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span className="px-2.5 py-1 rounded-full bg-[#D9383A] text-white text-[10.5px] font-black uppercase tracking-wide shadow-lg inline-flex items-center gap-1 shrink-0">
+                    <Sparkles className="w-3 h-3 shrink-0" />
                     <span>{promoBadgeLabel}</span>
                   </span>
                 )}
               </div>
 
               {/* Pill inferior de frescura y variante activa */}
-              <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-2">
-                <span className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/15 text-xs font-semibold inline-flex items-center gap-2 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span>{isDrink ? "Servido bien frío" : "Preparado al momento"}</span>
+              <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-1.5">
+                <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/15 text-[11px] font-semibold inline-flex items-center gap-1.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span>{isDrink ? "Bien frío" : "Preparado al momento"}</span>
                 </span>
 
                 {(isCustomVariantSelected && selectedVariant?.nombre) ? (
-                  <span className="px-3 py-1.5 rounded-full bg-white/95 text-slate-900 text-[11px] font-extrabold shadow-md truncate max-w-[200px]">
+                  <span className="px-2.5 py-1 rounded-full bg-white/95 text-slate-900 text-[10.5px] font-extrabold shadow-md truncate max-w-[160px]">
                     {selectedVariant.nombre}
                   </span>
                 ) : (isDrink && drinkHasSizes && selectedSizeObj?.label) ? (
-                  <span className="px-3 py-1.5 rounded-full bg-white/95 text-slate-900 text-[11px] font-extrabold shadow-md">
+                  <span className="px-2.5 py-1 rounded-full bg-white/95 text-slate-900 text-[10.5px] font-extrabold shadow-md">
                     {selectedSizeObj.label}
                   </span>
                 ) : null}
               </div>
             </div>
 
-            {/* 2. Franja de 3 Indicadores Gastronómicos */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3 shadow-2xs flex flex-col justify-between gap-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400 shrink-0" />
+            {/* 2. Franja Compacta de 3 Indicadores Gastronómicos */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-xl p-2.5 shadow-2xs flex flex-col justify-between gap-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#D9383A] dark:text-red-400 shrink-0" />
                   <span>Tiempo</span>
                 </span>
-                <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white truncate">
+                <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
                   {prepDisplay}
                 </span>
               </div>
 
-              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3 shadow-2xs flex flex-col justify-between gap-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1.5">
-                  <Utensils className="w-3.5 h-3.5 text-slate-700 dark:text-gray-300 shrink-0" />
+              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-xl p-2.5 shadow-2xs flex flex-col justify-between gap-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1">
+                  <Utensils className="w-3 h-3 text-slate-700 dark:text-gray-300 shrink-0" />
                   <span>Porción</span>
                 </span>
-                <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white truncate" title={portionDisplay}>
+                <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate" title={portionDisplay}>
                   {portionDisplay}
                 </span>
               </div>
 
-              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-2xl p-3 shadow-2xs flex flex-col justify-between gap-1">
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1.5">
-                  <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isSoldOut ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
+              <div className="bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-800 rounded-xl p-2.5 shadow-2xs flex flex-col justify-between gap-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-500 flex items-center gap-1">
+                  <ShieldCheck className={`w-3 h-3 shrink-0 ${isSoldOut ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
                   <span>Estado</span>
                 </span>
-                <span className={`text-xs sm:text-[13px] font-extrabold truncate ${isSoldOut ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                <span className={`text-xs font-extrabold truncate ${isSoldOut ? "text-rose-600 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                   {isSoldOut ? "Agotado" : `${stockMax} disp.`}
                 </span>
               </div>
             </div>
 
-            {/* 3. Tarjeta de Resumen en Vivo (Desktop) */}
-            <div className="hidden lg:block bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 p-5 shadow-2xs space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400">
-                  Resumen de tu pedido
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 text-[11px] font-extrabold">
-                  {quantity} {quantity === 1 ? "unidad" : "unidades"}
-                </span>
-              </div>
-
-              {/* Etiquetas dinámicas de personalización */}
-              <div className="flex flex-wrap gap-1.5">
-                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 text-[11px] font-bold">
-                  {isDrink
-                    ? (drinkHasSizes ? `Tamaño ${selectedSizeObj?.label}` : displayDrinkTitle)
-                    : (isCustomVariantSelected && selectedVariant?.nombre ? selectedVariant.nombre : "Preparación Clásica")}
-                </span>
-                {removedIngredients.map((rem) => (
-                  <span
-                    key={rem}
-                    className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#B91C1C] dark:text-red-300 border border-red-200/70 dark:border-red-900/50 text-[11px] font-bold"
-                  >
-                    Sin {rem.toLowerCase()}
-                  </span>
-                ))}
-                {selectedAdditions.map((ad) => (
-                  <span
-                    key={ad.idAdicion || ad.id}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 text-[11px] font-bold"
-                  >
-                    +{ad.cantidad || 1}x {ad.nombre}
-                  </span>
-                ))}
-                {selectedDrinks.map((dr) => (
-                  <span
-                    key={dr.id || dr.idProducto}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700 text-[11px] font-bold"
-                  >
-                    +{dr.cantidad || 1}x {dr.nombre}
-                  </span>
-                ))}
-              </div>
-
-              {/* Desglose numérico limpio */}
-              <div className="pt-3 border-t border-slate-100 dark:border-gray-800 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
-                  <span>Producto base ({quantity}x)</span>
-                  <span className="font-bold text-slate-900 dark:text-gray-200">
-                    ${(basePrice * quantity).toLocaleString("es-CO")}
-                  </span>
+            {/* 3. Tarjeta de Evento Activo integrada bajo la foto (ahorra espacio vertical en el centro) */}
+            {eventInfo && (
+              <div className="rounded-2xl bg-white dark:bg-gray-900 border border-[#D9383A]/20 dark:border-red-900/40 p-3.5 shadow-2xs space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#D9383A] text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <h2 className="font-extrabold text-xs text-slate-900 dark:text-white truncate" title={eventInfo.nombre}>
+                        {eventInfo.nombre}
+                      </h2>
+                      <span className="text-[9.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#D9383A]/10 dark:bg-red-950/70 text-[#D9383A] dark:text-red-300 shrink-0">
+                        Activa
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-gray-400 mt-0.5 line-clamp-2 leading-snug">
+                      {eventInfo.descripcion && !/^(test|prueba|asdf)$/i.test(eventInfo.descripcion.trim())
+                        ? eventInfo.descripcion
+                        : "Beneficio especial aplicado automáticamente a este producto."}
+                    </p>
+                  </div>
                 </div>
-                {additionsUnitPrice > 0 && (
-                  <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
-                    <span>Adiciones gourmet ({quantity}x)</span>
-                    <span className="font-bold text-slate-900 dark:text-gray-200">
-                      +${(additionsUnitPrice * quantity).toLocaleString("es-CO")}
-                    </span>
+                {eventToppingsList.length > 0 && (
+                  <div className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 text-[11px] font-extrabold">
+                    + {formatEventoToppingsText(eventToppingsList)}
                   </div>
                 )}
-                {drinksTotal > 0 && (
-                  <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
-                    <span>Bebidas acompañantes</span>
-                    <span className="font-bold text-slate-900 dark:text-gray-200">
-                      +${drinksTotal.toLocaleString("es-CO")}
-                    </span>
-                  </div>
-                )}
-                <div className="pt-2 border-t border-slate-100 dark:border-gray-800 flex items-baseline justify-between">
-                  <span className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                    Total estimado
-                  </span>
-                  <span className="text-lg font-black text-[#D9383A] dark:text-red-400">
-                    ${grandTotal.toLocaleString("es-CO")}
-                  </span>
-                </div>
               </div>
-
-              <p className="text-[11px] text-slate-400 dark:text-gray-500 leading-relaxed flex items-start gap-1.5 pt-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span>Pago seguro en línea o al recibir. El valor del domicilio se cancela aparte al repartidor.</span>
-              </p>
-            </div>
+            )}
           </div>
 
-          {/* ═══ COLUMNA DERECHA: IDENTIDAD + PRECIO + CONFIGURADOR + DOCK DE COMPRA ═══ */}
-          <div className="lg:col-span-7 space-y-5">
-            {/* 1. Tarjeta Editorial de Identidad, Precio y Promoción */}
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-5 sm:p-7 border border-slate-200/80 dark:border-gray-800 shadow-2xs space-y-4">
-              {/* Fila superior: Calificación + Etiqueta de receta + Vigencia */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => scrollToConfigurator("resenas")}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-200 text-xs font-bold transition cursor-pointer border border-slate-200/80 dark:border-gray-700"
-                  >
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
-                    {hasRealRatings ? (
-                      <>
-                        <span className="font-black">{effectiveRating.toFixed(1)}</span>
-                        <span className="text-slate-500 dark:text-gray-400 font-medium">
-                          ({effectiveReviewsTotal} {effectiveReviewsTotal === 1 ? "opinión" : "opiniones"})
-                        </span>
-                      </>
-                    ) : (
-                      <span>Calificar este plato</span>
-                    )}
-                  </button>
+          {/* ═══ COLUMNA 2 — CENTRO AMPLIO (6 COLS EN XL): ENCABEZADO COMPACTO + CONFIGURADOR PANORÁMICO ═══ */}
+          <div className="lg:col-span-8 xl:col-span-6 space-y-3.5">
+            {/* 1. Encabezado Horizontal Compacto: Identidad a la izquierda + Precio a la derecha */}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-gray-800 shadow-2xs space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {/* Meta chips */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => scrollToConfigurator("resenas")}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200/80 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-200 text-[11px] font-bold transition cursor-pointer border border-slate-200/80 dark:border-gray-700"
+                    >
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                      {hasRealRatings ? (
+                        <>
+                          <span className="font-black">{effectiveRating.toFixed(1)}</span>
+                          <span className="text-slate-500 dark:text-gray-400 font-medium">
+                            ({effectiveReviewsTotal})
+                          </span>
+                        </>
+                      ) : (
+                        <span>Calificar</span>
+                      )}
+                    </button>
 
-                  <span className="px-2.5 py-1 rounded-full bg-slate-100/80 dark:bg-gray-800/80 text-slate-600 dark:text-gray-300 text-[11px] font-bold border border-slate-200/60 dark:border-gray-700/70">
-                    {isCustomVariantSelected && selectedVariant?.nombre
-                      ? `Variante: ${selectedVariant.nombre}`
-                      : isDrink
-                        ? brandMeta.badge
-                        : "Receta de la Casa"}
-                  </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-100/80 dark:bg-gray-800/80 text-slate-600 dark:text-gray-300 text-[11px] font-bold border border-slate-200/60 dark:border-gray-700/70">
+                      {isCustomVariantSelected && selectedVariant?.nombre
+                        ? `Variante: ${selectedVariant.nombre}`
+                        : isDrink
+                          ? brandMeta.badge
+                          : "Receta de la Casa"}
+                    </span>
+
+                    {eventInfo?.vigencia?.label && (
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                        eventInfo.vigencia.urgente
+                          ? "bg-red-50 dark:bg-red-950/40 text-[#D9383A] dark:text-red-300 border-red-200 dark:border-red-900/50"
+                          : "bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700"
+                      }`}>
+                        <Clock className="w-3 h-3 text-[#D9383A] dark:text-red-400 shrink-0" />
+                        <span>{eventInfo.vigencia.label}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Título Principal H1 */}
+                  <h1 className="text-xl sm:text-2xl xl:text-[26px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+                    {displayTitle}
+                  </h1>
                 </div>
 
-                {eventInfo?.vigencia?.label && (
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                    eventInfo.vigencia.urgente
-                      ? "bg-red-50 dark:bg-red-950/40 text-[#D9383A] dark:text-red-300 border-red-200 dark:border-red-900/50"
-                      : "bg-slate-50 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700"
-                  }`}>
-                    <Clock className="w-3 h-3 text-[#D9383A] dark:text-red-400 shrink-0" />
-                    <span>{eventInfo.vigencia.label}</span>
-                  </span>
-                )}
+                {/* Precio alineado a la derecha para evitar apilar verticalmente */}
+                <div className="sm:text-right shrink-0 flex sm:flex-col items-baseline sm:items-end gap-2 sm:gap-0.5">
+                  <div className="flex items-baseline gap-2">
+                    {hasDiscount && (
+                      <span className="text-xs sm:text-sm text-slate-400 dark:text-gray-500 line-through font-semibold tabular-nums">
+                        ${originalPrice.toLocaleString("es-CO")}
+                      </span>
+                    )}
+                    <span className="text-2xl sm:text-[28px] font-black text-[#D9383A] dark:text-red-400 tracking-tight tabular-nums leading-none">
+                      ${basePrice.toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                  {savingsAmount > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 text-[11px] font-extrabold">
+                      Ahorras ${savingsAmount.toLocaleString("es-CO")}
+                      {savingsPct > 0 ? ` (-${savingsPct}%)` : ""}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Título Principal H1 */}
-              <h1 className="text-2xl sm:text-3xl lg:text-[32px] font-black tracking-tight text-slate-900 dark:text-white leading-[1.15]">
-                {displayTitle}
-              </h1>
-
-              {/* Bloque de Precio de Alto Impacto */}
-              <div className="flex flex-wrap items-baseline gap-3 pt-0.5">
-                <span className="text-2xl sm:text-3xl font-black text-[#D9383A] dark:text-red-400 tracking-tight">
-                  ${basePrice.toLocaleString("es-CO")}
-                </span>
-                {hasDiscount && (
-                  <span className="text-sm sm:text-base text-slate-400 dark:text-gray-500 line-through font-semibold">
-                    ${originalPrice.toLocaleString("es-CO")}
-                  </span>
-                )}
-                {savingsAmount > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 text-xs font-extrabold">
-                    Ahorras ${savingsAmount.toLocaleString("es-CO")}
-                    {savingsPct > 0 ? ` (-${savingsPct}%)` : ""}
-                  </span>
-                )}
-              </div>
-
-              {/* Descripción limpia y legible (sin caja amarilla) */}
+              {/* Descripción concisa */}
               {producto.descripcion && (
-                <p className="text-sm sm:text-[15px] text-slate-600 dark:text-gray-300 leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-gray-300 leading-relaxed">
                   {producto.descripcion}
                 </p>
               )}
 
               {activeVariantSummary?.especificaciones && activeVariantSummary.especificaciones !== producto.descripcion && (
-                <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-gray-800/70 border border-slate-200/80 dark:border-gray-700/80 text-xs text-slate-700 dark:text-gray-200">
+                <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-gray-800/70 border border-slate-200/80 dark:border-gray-700/80 text-xs text-slate-700 dark:text-gray-200">
                   <strong className="font-extrabold text-slate-900 dark:text-white">Detalle de variante: </strong>
                   {activeVariantSummary.especificaciones}
                 </div>
               )}
-
-              {/* Banner Cohesivo y Elegante de Evento Activo */}
-              {eventInfo && (
-                <div className="rounded-2xl bg-gradient-to-r from-[#D9383A]/[0.06] via-slate-50/90 to-white dark:from-[#D9383A]/15 dark:via-gray-800/70 dark:to-gray-900 border border-[#D9383A]/20 dark:border-red-900/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-[#D9383A] text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                          {eventInfo.nombre}
-                        </h2>
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#D9383A]/10 dark:bg-red-950/70 text-[#D9383A] dark:text-red-300">
-                          Promoción activa
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 dark:text-gray-300 mt-0.5 leading-relaxed">
-                        {eventInfo.descripcion && !/^(test|prueba|asdf)$/i.test(eventInfo.descripcion.trim())
-                          ? eventInfo.descripcion
-                          : "Beneficio especial aplicado automáticamente a este producto."}
-                      </p>
-                    </div>
-                  </div>
-
-                  {eventToppingsList.length > 0 && (
-                    <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 text-xs font-extrabold shrink-0">
-                      + {formatEventoToppingsText(eventToppingsList)}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* 2. Tarjeta de Configuración Unificada */}
+            {/* 2. Tarjeta de Configuración Panorámica (Sin barras flotantes encima) */}
             <div
               id="chazin-product-configurator"
-              className="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200/80 dark:border-gray-800 shadow-2xs overflow-hidden scroll-mt-20"
+              className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/80 dark:border-gray-800 shadow-2xs overflow-hidden scroll-mt-20"
             >
-              {/* Barra de Pestañas Segmentadas con Paleta Unificada */}
-              <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-gray-800 bg-slate-50/60 dark:bg-gray-900/70">
-                <div className="flex items-center gap-1 p-1 bg-slate-200/65 dark:bg-gray-800 rounded-2xl w-full overflow-x-auto no-scrollbar touch-scroll-x">
+              {/* Barra de Pestañas Segmentadas Compacta */}
+              <div className="px-3 sm:px-4 py-2.5 border-b border-slate-100 dark:border-gray-800 bg-slate-50/60 dark:bg-gray-900/70">
+                <div className="flex items-center gap-1 p-1 bg-slate-200/65 dark:bg-gray-800 rounded-xl w-full overflow-x-auto no-scrollbar touch-scroll-x">
                   {isDrink ? (
                     <>
                       {(drinkHasSizes || drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
                         <button
                           type="button"
                           onClick={() => setActiveTab("presentacion")}
-                          className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                          className={`flex-1 min-w-0 py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
                             activeTab === "presentacion"
                               ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
                               : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
@@ -4514,7 +4457,7 @@ export function FastFoodProductModal({
                       <button
                         type="button"
                         onClick={() => setActiveTab("resenas")}
-                        className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
                           activeTab === "resenas"
                             ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
                             : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
@@ -4535,7 +4478,7 @@ export function FastFoodProductModal({
                         <button
                           type="button"
                           onClick={() => setActiveTab("personalizar")}
-                          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
+                          className={`flex-1 py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap shrink-0 ${
                             activeTab === "personalizar"
                               ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
                               : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
@@ -4560,7 +4503,7 @@ export function FastFoodProductModal({
                       <button
                         type="button"
                         onClick={() => setActiveTab("adiciones")}
-                        className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
                           activeTab === "adiciones"
                             ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
                             : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
@@ -4579,7 +4522,7 @@ export function FastFoodProductModal({
                         <button
                           type="button"
                           onClick={() => setActiveTab("bebidas")}
-                          className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                          className={`flex-1 min-w-0 py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
                             activeTab === "bebidas"
                               ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
                               : isComboWithDrinks && !isComboDrinkComplete
@@ -4606,7 +4549,7 @@ export function FastFoodProductModal({
                       <button
                         type="button"
                         onClick={() => setActiveTab("resenas")}
-                        className={`flex-1 min-w-0 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
+                        className={`flex-1 min-w-0 py-2 px-3 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none whitespace-nowrap ${
                           activeTab === "resenas"
                             ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
                             : "text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200"
@@ -4625,13 +4568,11 @@ export function FastFoodProductModal({
                 </div>
               </div>
 
-              {/* Contenido del tab activo + notas de cocina */}
               {configuratorPanels}
             </div>
 
-            {/* 3. Barra de Compra Flotante Siempre Visible (Desktop Sticky Dock) */}
-            <div className="hidden sm:flex sticky bottom-4 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-gray-700/90 rounded-2xl p-3.5 sm:p-4 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.22)] items-center justify-between gap-4">
-              {/* Selector de Cantidad */}
+            {/* Dock intermedio solo para tablets (sm..lg); en XL+ el pago vive en la Columna 3 sin tapar nada */}
+            <div className="hidden sm:flex xl:hidden bg-white dark:bg-gray-900 border border-slate-200/90 dark:border-gray-700/90 rounded-2xl p-3.5 shadow-sm items-center justify-between gap-4">
               <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-gray-800 p-1 rounded-xl border border-slate-200/80 dark:border-gray-700 shrink-0">
                 <button
                   type="button"
@@ -4656,35 +4597,207 @@ export function FastFoodProductModal({
                 </button>
               </div>
 
-              {/* Resumen del Total */}
               <div className="flex flex-col text-right ml-auto">
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-gray-400">
-                  {additionsUnitPrice > 0 || drinksTotal > 0
-                    ? `Incluye extras seleccionados`
-                    : `${quantity} ${quantity === 1 ? "unidad" : "unidades"}`}
+                  Total estimado
                 </span>
-                <span className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                <span className="text-xl font-black text-slate-900 dark:text-white leading-tight tabular-nums">
                   ${grandTotal.toLocaleString("es-CO")}
                 </span>
               </div>
 
-              {/* Botón Primario Chazin Crimson */}
               <button
                 type="button"
                 onClick={handleConfirm}
-                className={`px-7 py-3.5 rounded-xl text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.98] shrink-0 ${
+                className={`px-6 py-3.5 rounded-xl text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] shrink-0 ${
                   isSoldOut
                     ? "bg-slate-400 dark:bg-gray-700 cursor-not-allowed"
-                    : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-lg shadow-[#D9383A]/25"
+                    : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-md shadow-[#D9383A]/25"
                 }`}
               >
                 <ShoppingCart className="w-4 h-4 stroke-[2.5]" />
                 <span>
                   {isSoldOut
-                    ? "Agotado por el momento"
+                    ? "Agotado"
                     : `Agregar al Carrito · $${grandTotal.toLocaleString("es-CO")}`}
                 </span>
               </button>
+            </div>
+          </div>
+
+          {/* ═══ COLUMNA 3 — DERECHA DEDICADA (3 COLS EN XL): TU PEDIDO + NOTAS + COMPRA INMEDIATA ═══ */}
+          <div className="hidden xl:block xl:col-span-3 xl:sticky xl:top-20">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200/85 dark:border-gray-800 p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-gray-800">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <ShoppingCart className="w-4 h-4 text-[#D9383A] dark:text-red-400" />
+                  <span>Tu Pedido</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 text-[11px] font-extrabold">
+                  {quantity} {quantity === 1 ? "unidad" : "unidades"}
+                </span>
+              </div>
+
+              {/* Etiquetas dinámicas de personalización */}
+              <div className="flex flex-wrap gap-1.5">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 text-[11px] font-bold">
+                  {isDrink
+                    ? (drinkHasSizes ? `Tamaño ${selectedSizeObj?.label}` : displayDrinkTitle)
+                    : (isCustomVariantSelected && selectedVariant?.nombre ? selectedVariant.nombre : "Clásica Original")}
+                </span>
+                {removedIngredients.map((rem) => (
+                  <span
+                    key={rem}
+                    className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#B91C1C] dark:text-red-300 border border-red-200/70 dark:border-red-900/50 text-[10.5px] font-bold"
+                  >
+                    Sin {rem.toLowerCase()}
+                  </span>
+                ))}
+                {selectedAdditions.map((ad) => (
+                  <span
+                    key={ad.idAdicion || ad.id}
+                    className="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-900/50 text-[10.5px] font-bold"
+                  >
+                    +{ad.cantidad || 1}x {ad.nombre}
+                  </span>
+                ))}
+                {selectedDrinks.map((dr) => (
+                  <span
+                    key={dr.id || dr.idProducto}
+                    className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700 text-[10.5px] font-bold"
+                  >
+                    +{dr.cantidad || 1}x {dr.nombre}
+                  </span>
+                ))}
+              </div>
+
+              {/* Notas rápidas para cocina integradas en el ticket derecho */}
+              <div className="pt-2.5 border-t border-slate-100 dark:border-gray-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold text-slate-700 dark:text-gray-200 flex items-center gap-1">
+                    <FileText className="w-3 h-3 text-[#D9383A] dark:text-red-400" />
+                    <span>Notas de cocina</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Opcional</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {(isDrink ? QUICK_DRINK_TAGS : QUICK_KITCHEN_TAGS).map((tag) => {
+                    const active = customObservation.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleQuickTag(tag)}
+                        className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer select-none ${
+                          active
+                            ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900"
+                            : "bg-slate-50 dark:bg-gray-800 border-slate-200/80 dark:border-gray-700 text-slate-600 dark:text-gray-300 hover:border-slate-300"
+                        }`}
+                      >
+                        {active ? `✓ ${tag}` : `+ ${tag}`}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <input
+                  type="text"
+                  maxLength={200}
+                  placeholder={isDrink ? "Ej: Hielo extra, sin pitillo..." : "Ej: Carne 3/4, salsas aparte..."}
+                  value={customObservation}
+                  onChange={(e) => setCustomObservation(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50/80 dark:bg-gray-800/80 text-slate-900 dark:text-gray-100 outline-none focus:border-[#D9383A] focus:bg-white dark:focus:bg-gray-900 transition"
+                />
+              </div>
+
+              {/* Desglose numérico */}
+              <div className="pt-2.5 border-t border-slate-100 dark:border-gray-800 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
+                  <span>Producto base ({quantity}x)</span>
+                  <span className="font-bold text-slate-900 dark:text-gray-200 tabular-nums">
+                    ${(basePrice * quantity).toLocaleString("es-CO")}
+                  </span>
+                </div>
+                {additionsUnitPrice > 0 && (
+                  <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
+                    <span>Adiciones ({quantity}x)</span>
+                    <span className="font-bold text-slate-900 dark:text-gray-200 tabular-nums">
+                      +${(additionsUnitPrice * quantity).toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                )}
+                {drinksTotal > 0 && (
+                  <div className="flex items-center justify-between text-slate-600 dark:text-gray-400">
+                    <span>Bebidas</span>
+                    <span className="font-bold text-slate-900 dark:text-gray-200 tabular-nums">
+                      +${drinksTotal.toLocaleString("es-CO")}
+                    </span>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-slate-100 dark:border-gray-800 flex items-baseline justify-between">
+                  <span className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                    Total a pagar
+                  </span>
+                  <span className="text-2xl font-black text-[#D9383A] dark:text-red-400 tabular-nums tracking-tight">
+                    ${grandTotal.toLocaleString("es-CO")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Selector de Cantidad + Botón Primario */}
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-gray-800/70 px-3 py-2 rounded-xl border border-slate-200/80 dark:border-gray-700/80">
+                  <span className="text-xs font-bold text-slate-700 dark:text-gray-300">
+                    Cantidad
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      disabled={quantity <= 1}
+                      aria-label="Disminuir cantidad"
+                      className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-100 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95"
+                    >
+                      <Minus className="w-3.5 h-3.5 stroke-[2.75]" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-black text-slate-900 dark:text-white tabular-nums">
+                      {quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity((q) => Math.min(stockMax, q + 1))}
+                      disabled={quantity >= stockMax}
+                      aria-label="Aumentar cantidad"
+                      className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 text-slate-800 dark:text-gray-100 flex items-center justify-center font-black hover:bg-slate-100 dark:hover:bg-gray-600 disabled:opacity-35 transition cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.75]" />
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  className={`w-full py-3.5 px-5 rounded-xl text-white font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+                    isSoldOut
+                      ? "bg-slate-400 dark:bg-gray-700 cursor-not-allowed"
+                      : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-lg shadow-[#D9383A]/25"
+                  }`}
+                >
+                  <ShoppingCart className="w-4 h-4 stroke-[2.5] shrink-0" />
+                  <span>
+                    {isSoldOut
+                      ? "Agotado por el momento"
+                      : `Agregar al Carrito · $${grandTotal.toLocaleString("es-CO")}`}
+                  </span>
+                </button>
+              </div>
+
+              <p className="text-[11px] text-slate-400 dark:text-gray-500 leading-snug flex items-start gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span>Pago seguro con Wompi o al recibir. El valor del domicilio se cancela aparte al repartidor.</span>
+              </p>
             </div>
           </div>
         </div>
