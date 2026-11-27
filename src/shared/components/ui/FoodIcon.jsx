@@ -685,122 +685,122 @@ export const getFoodColorTheme = (nameOrCategory = "") => {
 
   if (k.includes("hambur")) {
     return {
-      bg: "bg-amber-50/90 dark:bg-amber-950/35",
-      text: "text-amber-800 dark:text-amber-300",
+      bg: "bg-amber-100 dark:bg-amber-950/50",
+      text: "text-amber-600 dark:text-amber-400",
       border: "border-amber-200/70 dark:border-amber-900/50",
-      pill: "bg-amber-700 text-white"
+      pill: "bg-amber-500 text-white"
     };
   }
   if (k.includes("perro") || k.includes("hot dog") || k.includes("salchicha")) {
     return {
-      bg: "bg-orange-50/85 dark:bg-orange-950/35",
-      text: "text-orange-800 dark:text-orange-300",
+      bg: "bg-orange-100 dark:bg-orange-950/50",
+      text: "text-orange-600 dark:text-orange-400",
       border: "border-orange-200/70 dark:border-orange-900/50",
-      pill: "bg-orange-700 text-white"
+      pill: "bg-orange-500 text-white"
     };
   }
   if (k.includes("salchipapa") || k.includes("papa")) {
     return {
-      bg: "bg-amber-50/80 dark:bg-yellow-950/35",
-      text: "text-amber-800 dark:text-amber-300",
-      border: "border-amber-200/65 dark:border-yellow-900/50",
-      pill: "bg-amber-700 text-white"
+      bg: "bg-yellow-100 dark:bg-yellow-950/50",
+      text: "text-yellow-700 dark:text-yellow-400",
+      border: "border-yellow-200/70 dark:border-yellow-900/50",
+      pill: "bg-yellow-600 text-white"
     };
   }
   if (k.includes("bebida") || k.includes("gaseosa") || k.includes("refresco") || k.includes("sprite") || k.includes("coca") || k.includes("pepsi") || k.includes("jugo") || k.includes("agua")) {
     return {
-      bg: "bg-sky-50/85 dark:bg-sky-950/35",
-      text: "text-sky-800 dark:text-sky-300",
+      bg: "bg-sky-100 dark:bg-sky-950/50",
+      text: "text-sky-600 dark:text-sky-400",
       border: "border-sky-200/70 dark:border-sky-900/50",
-      pill: "bg-sky-700 text-white"
+      pill: "bg-sky-500 text-white"
     };
   }
   if (k.includes("combo")) {
     return {
-      bg: "bg-stone-100 dark:bg-stone-800/70",
-      text: "text-stone-700 dark:text-stone-300",
-      border: "border-stone-200/80 dark:border-stone-700",
-      pill: "bg-stone-800 text-white"
+      bg: "bg-purple-100 dark:bg-purple-950/50",
+      text: "text-purple-600 dark:text-purple-400",
+      border: "border-purple-200/70 dark:border-purple-900/50",
+      pill: "bg-purple-500 text-white"
     };
   }
   if (k.includes("pizza")) {
     return {
-      bg: "bg-[#FBF2F1] dark:bg-rose-950/35",
-      text: "text-[#9E2F2C] dark:text-rose-300",
-      border: "border-[#ECD4D2] dark:border-rose-900/50",
-      pill: "bg-[#B83B38] text-white"
+      bg: "bg-rose-100 dark:bg-rose-950/50",
+      text: "text-rose-600 dark:text-rose-400",
+      border: "border-rose-200/70 dark:border-rose-900/50",
+      pill: "bg-rose-500 text-white"
     };
   }
   if (k.includes("toci") || k.includes("bacon")) {
     return {
-      bg: "bg-[#FBF2F1] dark:bg-red-950/35",
-      text: "text-[#9E2F2C] dark:text-red-300",
-      border: "border-[#ECD4D2] dark:border-red-900/50",
-      pill: "bg-[#B83B38] text-white"
+      bg: "bg-red-100 dark:bg-red-950/50",
+      text: "text-red-600 dark:text-red-400",
+      border: "border-red-200/70 dark:border-red-900/50",
+      pill: "bg-red-500 text-white"
     };
   }
   if (k.includes("guacamole") || k.includes("aguacate") || k.includes("avocado")) {
     return {
-      bg: "bg-emerald-50/85 dark:bg-emerald-950/35",
-      text: "text-emerald-800 dark:text-emerald-300",
+      bg: "bg-emerald-100 dark:bg-emerald-950/50",
+      text: "text-emerald-700 dark:text-emerald-300",
       border: "border-emerald-200/70 dark:border-emerald-900/50",
-      pill: "bg-emerald-700 text-white"
+      pill: "bg-emerald-600 text-white"
     };
   }
   if (k.includes("jalap") || k.includes("picante") || k.includes("chile") || k.includes("pepper")) {
     return {
-      bg: "bg-[#FBF2F1] dark:bg-red-950/35",
-      text: "text-[#9E2F2C] dark:text-red-300",
-      border: "border-[#ECD4D2] dark:border-red-900/50",
-      pill: "bg-[#B83B38] text-white"
+      bg: "bg-red-100 dark:bg-red-950/50",
+      text: "text-red-700 dark:text-red-400",
+      border: "border-red-200/70 dark:border-red-900/50",
+      pill: "bg-red-600 text-white"
     };
   }
   if (k.includes("cebolla") || k.includes("onion")) {
     return {
-      bg: "bg-stone-100 dark:bg-stone-800/70",
-      text: "text-stone-700 dark:text-stone-300",
-      border: "border-stone-200/80 dark:border-stone-700",
-      pill: "bg-stone-700 text-white"
+      bg: "bg-purple-100 dark:bg-purple-950/50",
+      text: "text-purple-700 dark:text-purple-300",
+      border: "border-purple-200/70 dark:border-purple-900/50",
+      pill: "bg-purple-600 text-white"
     };
   }
   if (k.includes("tomate") || k.includes("tomato")) {
     return {
-      bg: "bg-[#FBF2F1] dark:bg-rose-950/35",
-      text: "text-[#9E2F2C] dark:text-rose-300",
-      border: "border-[#ECD4D2] dark:border-rose-900/50",
-      pill: "bg-[#B83B38] text-white"
+      bg: "bg-rose-100 dark:bg-rose-950/50",
+      text: "text-rose-600 dark:text-rose-400",
+      border: "border-rose-200/70 dark:border-rose-900/50",
+      pill: "bg-rose-500 text-white"
     };
   }
   if (k.includes("salsa") || k.includes("queso") || k.includes("cheddar")) {
     return {
-      bg: "bg-amber-50/85 dark:bg-amber-950/35",
-      text: "text-amber-800 dark:text-amber-300",
+      bg: "bg-amber-100 dark:bg-amber-950/50",
+      text: "text-amber-700 dark:text-amber-300",
       border: "border-amber-200/70 dark:border-amber-900/50",
-      pill: "bg-amber-700 text-white"
+      pill: "bg-amber-600 text-white"
     };
   }
   if (k.includes("postre") || k.includes("helado") || k.includes("torta")) {
     return {
-      bg: "bg-rose-50/80 dark:bg-rose-950/35",
-      text: "text-rose-800 dark:text-rose-300",
-      border: "border-rose-200/70 dark:border-rose-900/50",
-      pill: "bg-rose-700 text-white"
+      bg: "bg-pink-100 dark:bg-pink-950/50",
+      text: "text-pink-600 dark:text-pink-400",
+      border: "border-pink-200/70 dark:border-pink-900/50",
+      pill: "bg-pink-500 text-white"
     };
   }
   if (k.includes("acompa") || k.includes("ensalada") || k.includes("veggie")) {
     return {
-      bg: "bg-emerald-50/85 dark:bg-emerald-950/35",
-      text: "text-emerald-800 dark:text-emerald-300",
+      bg: "bg-emerald-100 dark:bg-emerald-950/50",
+      text: "text-emerald-600 dark:text-emerald-400",
       border: "border-emerald-200/70 dark:border-emerald-900/50",
-      pill: "bg-emerald-700 text-white"
+      pill: "bg-emerald-500 text-white"
     };
   }
 
   return {
-    bg: "bg-stone-100/90 dark:bg-stone-800/70",
-    text: "text-stone-700 dark:text-stone-300",
-    border: "border-stone-200/80 dark:border-stone-700",
-    pill: "bg-[#B83B38] text-white"
+    bg: "bg-red-100 dark:bg-red-950/50",
+    text: "text-[#f05454] dark:text-red-400",
+    border: "border-red-200/70 dark:border-red-900/50",
+    pill: "bg-[#f05454] text-white"
   };
 };
 
@@ -1223,7 +1223,7 @@ export function FoodIconBadge({
   if (isSelected) {
     return (
       <div
-        className={`flex items-center justify-center shrink-0 bg-white dark:bg-stone-900 text-[#B83B38] dark:text-amber-300 shadow-xs transition-all ${sizeClasses} ${className}`}
+        className={`flex items-center justify-center shrink-0 bg-white dark:bg-gray-900 text-[#f05454] dark:text-red-400 shadow-md transition-all ${sizeClasses} ${className}`}
         {...props}
       >
         <FoodIcon name={name} category={category} size={actualIconSize} stroke={2} />
@@ -1276,14 +1276,14 @@ export function getEventBadgeConfig(event, product = null) {
   const combined = `${rawIcon} ${rawType} ${rawName}`;
   const cleanName = stripEmojis(event.nombreEvento || event.nombre || "");
 
-  // Paleta terracota artesanal mate de baja fatiga visual (cero neón, alto contraste WCAG AA)
+  // Paleta naranja / ámbar consistente con degradado (degradado cálido conmemorativo según diseño)
   const orangeBadgeStyle = {
-    gradient: "from-[#B83B38] to-[#9E2F2C]",
-    border: "border-white/20",
-    glow: "shadow-md shadow-stone-950/20",
+    gradient: "from-orange-600 via-amber-600 to-red-600",
+    border: "border-amber-300/50",
+    glow: "shadow-[0_4px_16px_rgba(249,115,22,0.45)]",
     textColor: "text-white",
-    pillBg: "bg-[#FBF2F1] dark:bg-red-950/45 text-[#9E2F2C] dark:text-rose-200 border-[#ECD4D2] dark:border-red-900/50 font-bold",
-    accentColor: "#B83B38"
+    pillBg: "bg-amber-100/90 dark:bg-amber-950/70 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-750/70 font-black",
+    accentColor: "#f97316"
   };
 
   // 1. PROMOCIÓN 2X1 (Evento 1: Jueves 2x1)
@@ -1482,13 +1482,13 @@ export function EventoToppingsCard({ event, className = "" }) {
   if (toppings.length === 0) return null;
 
   return (
-    <div className={`p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/25 border border-emerald-200/80 dark:border-emerald-800/50 space-y-2 animate-in fade-in duration-150 ${className}`}>
+    <div className={`p-3.5 rounded-2xl bg-purple-50/90 dark:bg-purple-950/35 border border-purple-200 dark:border-purple-800/60 space-y-2 animate-in fade-in duration-150 ${className}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 dark:text-emerald-200">
-          <IconBaconStrip size={16} stroke={2} className="text-emerald-700 dark:text-emerald-400 shrink-0" />
+        <div className="flex items-center gap-1.5 text-xs font-black text-purple-900 dark:text-purple-200">
+          <IconBaconStrip size={16} stroke={2} className="text-purple-600 dark:text-purple-400 shrink-0" />
           <span>Topping(s) Extra de Cortesía en esta Promoción</span>
         </div>
-        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 shrink-0">
+        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 shrink-0">
           Incluido Gratis
         </span>
       </div>
@@ -1496,15 +1496,15 @@ export function EventoToppingsCard({ event, className = "" }) {
         {toppings.map((top, idx) => (
           <div
             key={top.idInsumo || top.id || idx}
-            className="p-2.5 rounded-xl bg-white/95 dark:bg-stone-900/95 border border-emerald-200/70 dark:border-emerald-900/50 flex items-center justify-between gap-2 shadow-2xs"
+            className="p-2.5 rounded-xl bg-white/95 dark:bg-gray-800/95 border border-purple-200/70 dark:border-purple-900/50 flex items-center justify-between gap-2 shadow-2xs"
           >
-            <span className="flex items-center gap-2 truncate text-xs font-semibold text-stone-800 dark:text-stone-200">
-              <span className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 flex items-center justify-center shrink-0 text-emerald-700 dark:text-emerald-300">
+            <span className="flex items-center gap-2 truncate text-xs font-bold text-gray-800 dark:text-gray-200">
+              <span className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/70 flex items-center justify-center shrink-0 text-purple-700 dark:text-purple-300">
                 <FoodIcon name={top.nombre} size={15} stroke={1.75} />
               </span>
               <span className="truncate">{top.nombre}</span>
             </span>
-            <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/50 px-2 py-0.5 rounded-md shrink-0">
+            <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/50 px-2 py-0.5 rounded-md shrink-0">
               +{top.cantidad} {top.unidadMedida || top.unidad}
             </span>
           </div>

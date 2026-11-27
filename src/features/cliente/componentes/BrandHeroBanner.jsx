@@ -44,13 +44,13 @@ export function BrandHeroBanner({
       aria-label="Presentación Chazin Food"
       className="w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 select-none"
     >
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1C1917] via-[#231F1C] to-[#151311] shadow-xl shadow-stone-900/10 border border-stone-800/80 text-white">
-        {/* Iluminación ambiental cálida sutil (cero fatiga visual) */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#B83B38]/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-400/[0.06] rounded-full blur-[120px] pointer-events-none" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#121319] via-[#181922] to-[#0d0e13] shadow-2xl border border-white/10 text-white">
+        {/* Iluminación ambiental cálida gourmet (sin saturar) */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-red-600/15 rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-500/10 rounded-full blur-[110px] pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.02)_0%,transparent_70%)] pointer-events-none" />
         <div
-          className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
             backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
             backgroundSize: "24px 24px"
@@ -61,65 +61,65 @@ export function BrandHeroBanner({
           {/* Columna Izquierda: Texto, Badges y Acciones */}
           <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left">
             {/* Pill de Autenticidad */}
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.09] backdrop-blur-md border border-white/10 text-amber-200 text-[11px] sm:text-sm font-semibold tracking-wide transition-colors">
-              <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300/90 shrink-0" />
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/[0.05] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 text-amber-300 text-[11px] sm:text-sm font-semibold tracking-wide shadow-xs transition-colors">
+              <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-pulse shrink-0" />
               <span>Sabor Urbano 100% Artesanal</span>
               <span className="text-white/30 hidden sm:inline">•</span>
-              <span className="text-stone-300 font-bold hidden sm:inline">Chazin Food</span>
+              <span className="text-zinc-300 font-bold hidden sm:inline">Chazin Food</span>
             </div>
 
             {/* Gran Título */}
             <div className="space-y-2">
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-[#FAF8F5]">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.15] text-white">
                 El auténtico placer de la comida rápida,{" "}
-                <span className="bg-gradient-to-r from-amber-200 via-orange-200 to-amber-300 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400 bg-clip-text text-transparent">
                   hecha con pasión artesanal.
                 </span>
               </h1>
-              <p className="text-sm sm:text-base text-stone-300 font-normal max-w-xl mx-auto lg:mx-0 leading-relaxed">
+              <p className="text-sm sm:text-base text-zinc-300 font-normal max-w-xl mx-auto lg:mx-0 leading-relaxed">
                 Hamburguesas de pura carne de res a la parrilla, salchipapas gourmet cargadas y perros calientes especiales con los ingredientes más frescos de la casa.
               </p>
             </div>
 
             {/* Badges de Valor y Confianza */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-left transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-300/20 flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4 text-amber-200" />
+              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] text-left transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4 text-amber-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold leading-tight text-[#FAF8F5]">15-20 min</p>
-                  <p className="text-[10px] text-stone-400 truncate">Preparación</p>
+                  <p className="text-[12px] font-bold leading-tight text-white">15-20 min</p>
+                  <p className="text-[10px] text-zinc-400 truncate">Preparación</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-left transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-emerald-400/10 border border-emerald-300/20 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-emerald-300" />
+              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] text-left transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold leading-tight text-[#FAF8F5]">100% Fresco</p>
-                  <p className="text-[10px] text-stone-400 truncate">Carne seleccionada</p>
+                  <p className="text-[12px] font-bold leading-tight text-white">100% Fresco</p>
+                  <p className="text-[10px] text-zinc-400 truncate">Carne seleccionada</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-left transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-stone-200/10 border border-white/15 flex items-center justify-center shrink-0">
-                  <Truck className="w-4 h-4 text-stone-200" />
+              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] text-left transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
+                  <Truck className="w-4 h-4 text-sky-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold leading-tight text-[#FAF8F5]">Caliente</p>
-                  <p className="text-[10px] text-stone-400 truncate">A tu puerta</p>
+                  <p className="text-[12px] font-bold leading-tight text-white">Caliente</p>
+                  <p className="text-[10px] text-zinc-400 truncate">A tu puerta</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-left transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-300/20 flex items-center justify-center shrink-0">
-                  <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
+              <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.07] text-left transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold leading-tight text-[#FAF8F5]">4.9 / 5.0</p>
-                  <p className="text-[10px] text-stone-400 truncate">Clientes felices</p>
+                  <p className="text-[12px] font-bold leading-tight text-white">4.9 / 5.0</p>
+                  <p className="text-[10px] text-zinc-400 truncate">Clientes felices</p>
                 </div>
               </div>
             </div>
@@ -129,7 +129,7 @@ export function BrandHeroBanner({
               <button
                 type="button"
                 onClick={scrollToMenu}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#B83B38] hover:bg-[#9E2F2C] text-white font-bold text-sm tracking-wide transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-md shadow-black/25 flex items-center justify-center gap-2 cursor-pointer group"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-sm tracking-wide transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-lg shadow-red-950/50 hover:shadow-red-600/30 flex items-center justify-center gap-2 cursor-pointer group"
               >
                 <span>Explorar Menú Completo</span>
                 <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
@@ -138,9 +138,9 @@ export function BrandHeroBanner({
               <button
                 type="button"
                 onClick={() => handleSelectCategoryByKeyword("combo")}
-                className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.11] text-stone-200 hover:text-white font-semibold text-sm tracking-wide transition-all border border-white/12 hover:border-white/20 backdrop-blur-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.10] text-zinc-200 hover:text-white font-semibold text-sm tracking-wide transition-all border border-white/10 hover:border-white/20 backdrop-blur-md flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-amber-200" />
+                <Sparkles className="w-4 h-4 text-amber-300" />
                 <span>Ver Combos Especiales</span>
               </button>
             </div>
@@ -151,24 +151,24 @@ export function BrandHeroBanner({
             {/* Card 1: Hamburguesas */}
             <div
               onClick={() => handleSelectCategoryByKeyword("hamburguesa")}
-              className="p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-200/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
+              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
             >
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.07] border border-white/12 flex items-center justify-center text-amber-200 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-red-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <FoodIcon name="burger" size={26} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center flex-wrap gap-1.5 min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-[#FAF8F5] group-hover:text-amber-200 transition-colors leading-tight">
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">
                       Hamburguesas Artesanales
                     </h4>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#B83B38]/25 text-rose-200 border border-[#B83B38]/40 shrink-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 shrink-0">
                       Favoritas
                     </span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-amber-200 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
-                <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">
                   Pan brioche dorado, carne jugosa y queso cheddar
                 </p>
               </div>
@@ -177,24 +177,24 @@ export function BrandHeroBanner({
             {/* Card 2: Salchipapas */}
             <div
               onClick={() => handleSelectCategoryByKeyword("salchipapa")}
-              className="p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-200/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
+              className="p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
             >
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.07] border border-white/12 flex items-center justify-center text-amber-200 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <FoodIcon name="fries" size={26} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center flex-wrap gap-1.5 min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-[#FAF8F5] group-hover:text-amber-200 transition-colors leading-tight">
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">
                       Salchipapas Gourmet
                     </h4>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-200 border border-amber-300/25 shrink-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
                       Populares
                     </span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-amber-200 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
-                <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">
                   Papas crujientes con lluvia de queso y tocineta
                 </p>
               </div>
@@ -203,24 +203,24 @@ export function BrandHeroBanner({
             {/* Card 3: Perros Calientes */}
             <div
               onClick={() => handleSelectCategoryByKeyword("perro")}
-              className="md:col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-amber-200/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
+              className="md:col-span-2 lg:col-span-1 p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-md border border-white/10 hover:border-rose-500/30 transition-all duration-300 cursor-pointer group flex items-center gap-3.5 hover:-translate-y-0.5 overflow-hidden"
             >
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.07] border border-white/12 flex items-center justify-center text-amber-200 shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500/20 to-orange-500/20 border border-rose-500/30 flex items-center justify-center text-rose-300 shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <FoodIcon name="hotdog" size={26} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center flex-wrap gap-1.5 min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-[#FAF8F5] group-hover:text-amber-200 transition-colors leading-tight">
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors leading-tight">
                       Perros Calientes Especiales
                     </h4>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-stone-200 border border-white/15 shrink-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0">
                       Clásicos
                     </span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-amber-200 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-amber-300 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
-                <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">
                   Salchicha suiza ahumada y salsas de la casa
                 </p>
               </div>
