@@ -637,9 +637,7 @@ export function PersonalizarEventoModal({
     return { promedio: 0, total: 0, resenas: [] };
   }, [hasRealRatings, reviewsData, selectedProduct, ratingsMap]);
 
-  if (!isOpen || !evento) return null;
-
-  // Price Calculation (considerando variante seleccionada + promoción del evento)
+  // Price Calculation (considerando variante seleccionada + promoción del evento) — debe ir antes del return condicional
   const resolveVariantPricing = useCallback(
     (variantObj) => {
       const prodBase = Number(resolvedProduct?.precio || 0);
@@ -702,6 +700,8 @@ export function PersonalizarEventoModal({
     },
     [resolvedProduct, evento]
   );
+
+  if (!isOpen || !evento) return null;
 
   const activePricing = resolveVariantPricing(selectedVariant);
   const basePrice = activePricing.originalPrice;

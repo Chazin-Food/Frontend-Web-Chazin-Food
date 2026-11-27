@@ -43,7 +43,7 @@ export function ProductoDetalleCliente() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
 
-  // Cargar desde API si se entró por URL directa o faltan catálogos complementarios
+  // Cargar o actualizar datos cada vez que cambie el :id (incluyendo clics en "También te puede encantar")
   useEffect(() => {
     let cancelled = false;
     const prodId = Number(id);
@@ -52,24 +52,37 @@ export function ProductoDetalleCliente() {
       return;
     }
 
-    const needsFullLoad = !state.producto || String(state.producto.id || state.producto.idProducto) !== String(id);
-    const needsCatalogs = allAdiciones.length === 0 || allBebidas.length === 0;
+    const passedProdMatchesId =
+      state.producto && String(state.producto.id || state.producto.idProducto) === String(prodId);
+    const cachedListProd = productosList.find(
+      (p) => String(p.id || p.idProducto) === String(prodId)
+    );
+    const initialCandidate = passedProdMatchesId ? state.producto : (cachedListProd || null);
+    const cachedFichaForTarget = fichasMap[prodId] || (passedProdMatchesId ? state.ficha : null) || null;
 
-    if (!needsFullLoad && !needsCatalogs && ficha) {
+    if (initialCandidate) {
+      setProducto(initialCandidate);
+      setFicha(cachedFichaForTarget);
+      setRatingsInfo(passedProdMatchesId && state.ratingsInfo ? state.ratingsInfo : null);
       setLoading(false);
-      return;
+    } else {
+      setLoading(true);
     }
 
+    const needsProdFromApi = !initialCandidate;
+    const needsFichaFromApi = !cachedFichaForTarget;
+    const needsCatalogs = allAdiciones.length === 0 || allBebidas.length === 0 || productosList.length === 0;
+    const needsEventsCheck = !initialCandidate || !Array.isArray(initialCandidate.eventos);
+
     const loadData = async () => {
-      if (needsFullLoad) setLoading(true);
       try {
         const [prodRes, fichaRes, allProdsRes, adicsRes, eventosRes, ratingRes] = await Promise.all([
-          needsFullLoad ? productosService.getProductoById(prodId).catch(() => null) : Promise.resolve(state.producto),
-          !ficha ? fichasTecnicasService.getFichaByProducto(prodId).catch(() => null) : Promise.resolve(ficha),
+          needsProdFromApi ? productosService.getProductoById(prodId).catch(() => null) : Promise.resolve(initialCandidate),
+          needsFichaFromApi ? fichasTecnicasService.getFichaByProducto(prodId).catch(() => null) : Promise.resolve(cachedFichaForTarget),
           needsCatalogs ? productosService.getProductos().catch(() => []) : Promise.resolve(productosList),
           needsCatalogs ? adicionesService.getAdiciones().catch(() => []) : Promise.resolve(allAdiciones),
-          needsFullLoad ? eventosService.getEventos().catch(() => []) : Promise.resolve([]),
-          !ratingsInfo ? apiClient.get(`/resenas/ratings?ids=${prodId}`).catch(() => null) : Promise.resolve(null)
+          needsEventsCheck ? eventosService.getEventos().catch(() => []) : Promise.resolve([]),
+          apiClient.get(`/resenas/ratings?ids=${prodId}`).catch(() => null)
         ]);
 
         if (cancelled) return;
@@ -78,7 +91,7 @@ export function ProductoDetalleCliente() {
         const adicsArr = Array.isArray(adicsRes) ? adicsRes : (adicsRes?.data || []);
         const evtsArr = Array.isArray(eventosRes) ? eventosRes : (eventosRes?.data || []);
 
-        let resolvedProd = prodRes || prodsArr.find((p) => String(p.id || p.idProducto) === String(prodId)) || null;
+        let resolvedProd = prodRes || prodsArr.find((p) => String(p.id || p.idProducto) === String(prodId)) || initialCandidate;
         if (resolvedProd && evtsArr.length > 0 && (!Array.isArray(resolvedProd.eventos) || resolvedProd.eventos.length === 0)) {
           const matchedEvents = evtsArr.filter((e) => {
             if (String(e.idProducto || e.producto?.id || e.producto?.idProducto) === String(prodId)) return true;
@@ -101,6 +114,8 @@ export function ProductoDetalleCliente() {
         if (fichaRes) {
           setFicha(fichaRes);
           setFichasMap((prev) => ({ ...prev, [prodId]: fichaRes }));
+        } else {
+          setFicha(null);
         }
         if (prodsArr.length > 0) {
           setProductosList(prodsArr);
@@ -115,9 +130,7 @@ export function ProductoDetalleCliente() {
           const activeAdics = adicsArr.filter((a) => a.estado === "Activo" || a.estado === 1 || a.estado === "1");
           setAllAdiciones(activeAdics);
         }
-        if (ratingRes && ratingRes[prodId]) {
-          setRatingsInfo(ratingRes[prodId]);
-        }
+        setRatingsInfo(ratingRes && ratingRes[prodId] ? ratingRes[prodId] : null);
       } catch (err) {
         console.warn("Error cargando detalle de producto:", err);
       } finally {
@@ -386,6 +399,7 @@ export function ProductoDetalleCliente() {
         ) : (
           <>
             <FastFoodProductModal
+              key={producto.id || producto.idProducto}
               asPage={true}
               isOpen={true}
               onClose={() => navigate("/")}

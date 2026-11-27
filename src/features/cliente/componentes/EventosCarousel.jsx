@@ -687,29 +687,55 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                         </div>
                       )}
 
-                      {/* Comparativa de precio */}
-                      <div className="pt-2 flex items-baseline gap-3 flex-wrap">
-                        {origPrice > curPrice && (
-                          <div className="text-sm sm:text-base font-bold text-gray-400 line-through">
-                            ${Number(origPrice).toLocaleString("es-CO")} COP
+                      {/* Comparativa de precio + Acción directa siempre visible */}
+                      <div className="pt-2 flex items-center gap-3.5 flex-wrap">
+                        <div className="flex items-baseline gap-2.5 flex-wrap">
+                          {origPrice > curPrice && (
+                            <div className="text-sm sm:text-base font-bold text-gray-400 line-through">
+                              ${Number(origPrice).toLocaleString("es-CO")} COP
+                            </div>
+                          )}
+                          <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white flex items-center gap-1 tracking-tight">
+                            <span className="text-emerald-400">$</span>
+                            <span>{Number(curPrice).toLocaleString("es-CO")}</span>
+                            <span className="text-xs font-bold text-emerald-300 ml-1">COP</span>
                           </div>
-                        )}
-                        <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-white flex items-center gap-1 tracking-tight">
-                          <span className="text-emerald-400">$</span>
-                          <span>{Number(curPrice).toLocaleString("es-CO")}</span>
-                          <span className="text-xs font-bold text-emerald-300 ml-1">COP</span>
+                          {saveAmount > 0 && (
+                            <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs">
+                              Ahorras ${Number(saveAmount).toLocaleString("es-CO")}
+                            </span>
+                          )}
                         </div>
-                        {saveAmount > 0 && (
-                          <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs">
-                            Ahorras ${Number(saveAmount).toLocaleString("es-CO")}
-                          </span>
-                        )}
+                      </div>
+
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => onSelectEvento && onSelectEvento(evt, prod || evt.producto)}
+                          className={`px-6 py-3 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider inline-flex items-center justify-center gap-2.5 bg-gradient-to-r ${theme.btnGrad} transition-all duration-200 shadow-xl hover:scale-[1.02] active:scale-95 cursor-pointer`}
+                        >
+                          <Sparkles className="w-4 h-4 text-white" />
+                          <span>{evt.esProductoAleatorio ? "Pedir Ahora" : "Ver y Pedir Oferta"}</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Plato gastronómico flotante con sombra suave */}
+                    {/* Plato gastronómico flotante clickeable */}
                     <div className="lg:col-span-5 flex justify-center items-center relative">
-                      <div className="relative w-52 h-52 sm:w-64 sm:h-64 lg:w-72 lg:h-72 flex items-center justify-center animate-float-plate">
+                      <div
+                        onClick={() => onSelectEvento && onSelectEvento(evt, prod || evt.producto)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelectEvento && onSelectEvento(evt, prod || evt.producto);
+                          }
+                        }}
+                        title={`Abrir ${stripEmojis(evt.nombreEvento || evt.nombre || "promoción")}`}
+                        className="relative w-52 h-52 sm:w-64 sm:h-64 lg:w-72 lg:h-72 flex items-center justify-center animate-float-plate cursor-pointer"
+                      >
                         {/* Glow interior de fondo detrás del plato */}
                         <div
                           className="absolute inset-4 rounded-full blur-2xl opacity-60 pointer-events-none"
@@ -744,42 +770,38 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                     </div>
                   </div>
 
-                  {/* Footer de la diapositiva con Botón CTA directo */}
-                  <div className="relative z-10 px-4 sm:px-10 lg:px-16 pb-5 sm:pb-6 pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-white/10 bg-black/25 backdrop-blur-md">
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => onSelectEvento && onSelectEvento(evt, prod || evt.producto)}
-                        className={`w-full sm:w-auto px-7 py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2.5 bg-gradient-to-r ${theme.btnGrad} transition-all duration-200 shadow-xl hover:scale-[1.02] active:scale-98 cursor-pointer group/cta`}
-                      >
-                        <Sparkles className="w-4 h-4 text-white" />
-                        <span>{evt.esProductoAleatorio ? "¡Pedir Ahora!" : "¡Aprovechar Oferta!"}</span>
-                        <ArrowRight className="w-4 h-4 transition-transform group-hover/cta:translate-x-1" />
-                      </button>
-                    </div>
+                  {/* Footer de indicadores del carrusel (sin duplicar botón ni usar selectores susceptibles a bloqueadores) */}
+                  <div className="relative z-10 px-4 sm:px-10 lg:px-16 pb-4 pt-2 flex items-center justify-between gap-4 border-t border-white/10 bg-black/25 backdrop-blur-md">
+                    <button
+                      type="button"
+                      onClick={() => onSelectEvento && onSelectEvento(evt, prod || evt.producto)}
+                      className="text-xs font-bold text-amber-300 hover:text-white transition inline-flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Personalizar y agregar al carrito</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
 
-                    {/* Indicadores de diapositivas totalmente centrados con áreas táctiles accesibles */}
-                    <div className="sm:absolute sm:left-1/2 sm:-translate-x-1/2 flex items-center justify-center gap-1 py-1 sm:py-0">
+                    {/* Indicadores de diapositivas */}
+                    <div className="flex items-center justify-center gap-1">
                       {combinedEventos.map((_, dotIdx) => (
                         <button
                           key={dotIdx}
                           type="button"
                           onClick={() => goToSlide(dotIdx)}
-                          className="p-2.5 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
-                          aria-label={`Ir a la diapositiva ${dotIdx + 1}`}
+                          className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center cursor-pointer"
+                          aria-label={`Diapositiva ${dotIdx + 1}`}
                         >
                           <span
-                            className={`h-2.5 rounded-full transition-all duration-300 block ${
+                            className={`h-2 rounded-full transition-all duration-300 block ${
                               currentIndex === dotIdx
-                                ? "w-8 bg-white shadow-lg shadow-white/60"
-                                : "w-2.5 bg-white/35 hover:bg-white/70"
+                                ? "w-7 bg-white shadow-sm"
+                                : "w-2 bg-white/35 hover:bg-white/70"
                             }`}
                           />
                         </button>
                       ))}
                     </div>
 
-                    {/* Contador discreto a la derecha para equilibrio visual */}
                     <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-white/50">
                       <span>{currentIndex + 1}</span>
                       <span>/</span>
@@ -837,7 +859,14 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
               type="button"
               onClick={() => {
                 if (pillsHasDragged.current) return;
-                goToSlide(idx);
+                if (isSelected) {
+                  const matchedProd = productos.find(
+                    (p) => String(p.id || p.idProducto) === String(evt.idProducto)
+                  );
+                  onSelectEvento?.(evt, matchedProd || evt.producto);
+                } else {
+                  goToSlide(idx);
+                }
               }}
               className={`shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer border ${
                 isSelected
