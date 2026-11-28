@@ -45,6 +45,7 @@ import { formatTime12h } from "@/shared/utils/dateUtils";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { hasPrivilege } from "@/shared/utils/privilegiosUtils";
 import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
+import { apiClient } from "@/shared/api/apiClient";
 
 function StatVariation({ value, label = "vs mes anterior" }) {
   const num = Number(value || 0);
@@ -166,6 +167,12 @@ export function Dashboard() {
     hasPrivilege(user, "Devoluciones", "ver") ||
     hasPrivilege(user, "Gestión de Ventas", "ver") ||
     hasPrivilege(user, "Ventas", "ver");
+
+  useEffect(() => {
+    if (hasPrivilege(user, "Insumos", "ver")) {
+      apiClient.get("/insumos", { params: { limit: 1 } }).catch(() => {});
+    }
+  }, [user]);
   const {
     stats,
     ventasChart,
