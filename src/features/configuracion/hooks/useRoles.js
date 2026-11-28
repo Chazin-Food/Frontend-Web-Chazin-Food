@@ -4,7 +4,7 @@ import { useNotifications } from "@/shared/hooks/useNotifications";
 import { useConfirm } from "@/shared/context/ConfirmContext";
 import { matchesSmartSearch, formatStatusTokens, formatIdTokens } from "@/shared/utils/searchUtils";
 import { validateNombreRol } from "@/shared/utils/validationUtils";
-import { AlertTriangle, CheckCircle } from "lucide-react";
+import { AlertTriangle, AlertCircle } from "lucide-react";
 
 const isRolActivo = (estado) =>
   estado === "Activo" ||
@@ -201,8 +201,8 @@ export function useRoles() {
     const isInactivar = nuevoEstado === "Inactivo";
 
     const confirmed = await confirm({
-      type: isInactivar ? "danger" : "success",
-      icon: isInactivar ? AlertTriangle : CheckCircle,
+      type: "danger",
+      icon: isInactivar ? AlertTriangle : AlertCircle,
       title: isInactivar
         ? `¿Deseas inactivar el rol ${rolActual.nombre}?`
         : `¿Deseas activar el rol ${rolActual.nombre}?`,
