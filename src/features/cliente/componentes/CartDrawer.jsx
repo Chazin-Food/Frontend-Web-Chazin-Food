@@ -27,7 +27,9 @@ import {
   resolveAdicionUnitMeta,
   resolveAdicionMaxPortions,
   getAdicionQuantityInCart,
-  resolveValidAdicionImage
+  resolveValidAdicionImage,
+  resolveDishTotalAdicionesCap,
+  computeEffectiveAdicionMaxPerDish
 } from "@/shared/utils/adicionUtils";
 
 /**
@@ -104,6 +106,7 @@ export function CartDrawer({
   const [activeToppingCat, setActiveToppingCat] = useState("todos");
   const [confirmClearCart, setConfirmClearCart] = useState(false);
   const [undoToppingsSnapshot, setUndoToppingsSnapshot] = useState(null);
+  const [toppingLimitHint, setToppingLimitHint] = useState("");
   const itemRefs = useRef({});
 
   const totalUnits = useMemo(
@@ -376,29 +379,52 @@ export function CartDrawer({
                   return nextKey;
                 };
 
+                const dishTotalCap = resolveDishTotalAdicionesCap(item);
+
                 const getToppingStockInfo = (ad) => {
                   const adId = Number(ad?.idAdicion || ad?.id || ad?.idInsumo);
                   const noCtrl =
                     ad?.controlarStock === false ||
                     String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
-                  if (noCtrl) return { maxPerDish: 99, availableBeforeThisLine: 99, noCtrl: true };
-                  const totalPortions = resolveAdicionMaxPortions(ad);
-                  const usedInOtherLines = getAdicionQuantityInCart(cart, adId, item.cartItemId);
-                  const availableBeforeThisLine = Math.max(0, totalPortions - usedInOtherLines);
-                  const maxPerDish = Math.floor(
-                    availableBeforeThisLine / Math.max(1, Number(item.cantidad || 1))
-                  );
-                  return { maxPerDish, availableBeforeThisLine, noCtrl: false };
+                  const totalPortions = noCtrl ? 99 : resolveAdicionMaxPortions(ad);
+                  const usedInOtherLines = noCtrl ? 0 : getAdicionQuantityInCart(cart, adId, item.cartItemId);
+                  const availableBeforeThisLine = noCtrl ? 99 : Math.max(0, totalPortions - usedInOtherLines);
+                  const stockMaxPerDish = noCtrl
+                    ? 99
+                    : Math.floor(
+                        availableBeforeThisLine / Math.max(1, Number(item.cantidad || 1))
+                      );
+                  const limitInfo = computeEffectiveAdicionMaxPerDish({
+                    adicion: ad,
+                    producto: item,
+                    stockMaxPerDish,
+                    currentAdditions: currentAdds
+                  });
+                  return {
+                    ...limitInfo,
+                    stockMaxPerDish,
+                    availableBeforeThisLine,
+                    noCtrl
+                  };
+                };
+
+                const showLimitNotice = (msg) => {
+                  setToppingLimitHint(msg);
                 };
 
                 const handleToggleOrAddTopping = (ad) => {
                   setUndoToppingsSnapshot(null);
+                  setToppingLimitHint("");
                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
                   const exists = currentAdds.some((x) => Number(x.idAdicion || x.id) === adId);
                   if (!exists) {
-                    const { maxPerDish, noCtrl } = getToppingStockInfo(ad);
-                    if (!noCtrl && maxPerDish <= 0) {
-                      onStockLimitError?.(ad.nombre, 0);
+                    const { maxPerDish, dishTotalCap: cap, noCtrl, stockMaxPerDish, limitReason } = getToppingStockInfo(ad);
+                    if (maxPerDish <= 0) {
+                      if (limitReason === "dish_total") {
+                        showLimitNotice(`Máximo ${cap} porciones de adiciones en total por plato.`);
+                      } else if (!noCtrl && stockMaxPerDish <= 0) {
+                        onStockLimitError?.(ad.nombre, 0);
+                      }
                       return;
                     }
                   }
@@ -422,6 +448,7 @@ export function CartDrawer({
 
                 const handleSetToppingExactQty = (ad, exactQty) => {
                   setUndoToppingsSnapshot(null);
+                  setToppingLimitHint("");
                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
                   const cleanQty = Math.floor(Number(exactQty) || 0);
                   if (cleanQty <= 0) {
@@ -429,8 +456,8 @@ export function CartDrawer({
                     applyUpdatedAdiciones(nextAdds);
                     return;
                   }
-                  const { maxPerDish, noCtrl } = getToppingStockInfo(ad);
-                  const clamped = noCtrl ? Math.min(99, cleanQty) : Math.min(Math.max(1, maxPerDish), cleanQty);
+                  const { maxPerDish } = getToppingStockInfo(ad);
+                  const clamped = Math.min(Math.max(1, maxPerDish), cleanQty);
                   const nextAdds = currentAdds.map((x) =>
                     Number(x.idAdicion || x.id) === adId ? { ...x, cantidad: clamped } : x
                   );
@@ -778,10 +805,13 @@ export function CartDrawer({
                     {isEditingThisItem && (
                       <div className="border-t border-slate-100 dark:border-gray-800 bg-slate-50/90 dark:bg-gray-800/35 p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Flame className="w-4 h-4 text-[#D9383A] dark:text-red-400 shrink-0" />
                             <span className="text-sm font-black text-slate-900 dark:text-white">
                               Personaliza tus toppings y salsas
+                            </span>
+                            <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-white dark:bg-gray-900 border border-slate-200/80 dark:border-gray-700 text-slate-600 dark:text-gray-300 tabular-nums">
+                              {totalToppingsUnits}/{dishTotalCap} máx. por plato
                             </span>
                             {totalToppingsUnits > 0 && (
                               <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
@@ -800,6 +830,19 @@ export function CartDrawer({
                             </button>
                           )}
                         </div>
+
+                        {toppingLimitHint && (
+                          <div className="px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 flex items-center justify-between gap-2 text-xs text-amber-900 dark:text-amber-200 font-semibold">
+                            <span>{toppingLimitHint}</span>
+                            <button
+                              type="button"
+                              onClick={() => setToppingLimitHint("")}
+                              className="text-amber-700 dark:text-amber-300 hover:underline font-bold cursor-pointer shrink-0"
+                            >
+                              Entendido
+                            </button>
+                          </div>
+                        )}
 
                         {/* Upselling contextual espacioso de 3 columnas */}
                         {contextualRecommendedToppings.length > 0 && !normalizedQuery && activeToppingCat === "todos" && (
@@ -919,13 +962,22 @@ export function CartDrawer({
                               );
                               const isSelected = Boolean(selectedEntry);
                               const selectedQty = Number(selectedEntry?.cantidad || 1);
-                              const unitMeta = resolveAdicionUnitMeta(ad, selectedQty);
-                              const { maxPerDish, availableBeforeThisLine, noCtrl } = getToppingStockInfo(ad);
+                              const unitMeta = resolveAdicionUnitMeta(ad, selectedQty, item);
+                              const {
+                                maxPerDish,
+                                culinaryMax,
+                                dishTotalCap: itemCap,
+                                stockMaxPerDish,
+                                availableBeforeThisLine,
+                                noCtrl,
+                                limitReason
+                              } = getToppingStockInfo(ad);
                               const consumedHere = isSelected
                                 ? selectedQty * Math.max(1, Number(item.cantidad || 1))
                                 : 0;
                               const liveRemaining = Math.max(0, availableBeforeThisLine - consumedHere);
-                              const isSoldOut = !noCtrl && maxPerDish <= 0 && !isSelected;
+                              const isSoldOut = !noCtrl && stockMaxPerDish <= 0 && !isSelected;
+                              const isDishCapReached = !isSoldOut && maxPerDish <= 0 && !isSelected;
 
                               return (
                                 <div
@@ -934,7 +986,7 @@ export function CartDrawer({
                                   className={`p-3 rounded-2xl border flex flex-col justify-between gap-2.5 transition-all select-none ${
                                     isSelected
                                       ? "bg-white dark:bg-gray-900 border-[#D9383A] ring-1 ring-[#D9383A]/20 shadow-xs"
-                                      : isSoldOut
+                                      : isSoldOut || isDishCapReached
                                         ? "bg-white/60 dark:bg-gray-900/50 border-slate-200/70 dark:border-gray-800 opacity-65"
                                         : "bg-white dark:bg-gray-900/90 border-slate-200/85 dark:border-gray-700/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
                                   }`}
@@ -956,6 +1008,9 @@ export function CartDrawer({
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                         <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 text-[10.5px] font-bold">
                                           {unitMeta.badge}
+                                        </span>
+                                        <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400 tabular-nums">
+                                          · Máx. {culinaryMax}/plato
                                         </span>
                                         {isSelected && selectedQty > 1 && (
                                           <span className="text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400">
@@ -1001,9 +1056,19 @@ export function CartDrawer({
                                         ariaLabel={`porción de ${ad.nombre}`}
                                         onChange={(val) => handleSetToppingExactQty(ad, val)}
                                         onRemove={() => handleToggleOrAddTopping(ad)}
-                                        onMaxReached={(limit) =>
-                                          onStockLimitError?.(ad.nombre, limit)
-                                        }
+                                        onMaxReached={(limit) => {
+                                          if (limitReason === "dish_total") {
+                                            showLimitNotice(
+                                              `Alcanzaste el máximo de ${itemCap} porciones de adiciones en este plato.`
+                                            );
+                                          } else if (limitReason === "culinary") {
+                                            showLimitNotice(
+                                              `Por calidad de preparación, puedes agregar máximo ${culinaryMax} ${culinaryMax === 1 ? unitMeta.singular : unitMeta.plural} de "${ad.nombre}" por plato.`
+                                            );
+                                          } else {
+                                            onStockLimitError?.(ad.nombre, limit);
+                                          }
+                                        }}
                                       />
                                     ) : (
                                       <button
@@ -1017,11 +1082,13 @@ export function CartDrawer({
                                         className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1 transition shrink-0 active:scale-95 ${
                                           isSoldOut
                                             ? "bg-slate-100 dark:bg-gray-800 text-slate-400 cursor-not-allowed"
-                                            : "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
+                                            : isDishCapReached
+                                              ? "bg-slate-100 dark:bg-gray-800 text-slate-500 cursor-pointer"
+                                              : "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
                                         }`}
                                       >
                                         <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>{isSoldOut ? "Agotado" : "Agregar"}</span>
+                                        <span>{isSoldOut ? "Agotado" : isDishCapReached ? "Tope plato" : "Agregar"}</span>
                                       </button>
                                     )}
                                   </div>

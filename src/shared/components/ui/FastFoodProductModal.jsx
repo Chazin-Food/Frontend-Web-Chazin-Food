@@ -40,7 +40,10 @@ import {
   resolveAdicionMaxPortions,
   getAdicionQuantityInCart,
   resolveDrinkUnitBadge,
-  resolveValidAdicionImage
+  resolveValidAdicionImage,
+  resolveAdicionCulinaryLimit,
+  resolveDishTotalAdicionesCap,
+  computeEffectiveAdicionMaxPerDish
 } from "@/shared/utils/adicionUtils";
 import { FoodIcon, FoodIconBadge, EventoToppingsCard } from "@/shared/components/ui/FoodIcon";
 import { apiClient } from "@/shared/api/apiClient";
@@ -1985,34 +1988,46 @@ export function FastFoodProductModal({
   const stockMax = Math.max(0, Math.floor(stockMaxRaw) - inCartMainQty);
   const liveRemainingMainStock = Math.max(0, stockMax - (stockMax > 0 ? quantity : 0));
 
-  // Ajustar automáticamente adiciones seleccionadas si al aumentar la cantidad de platos superan el stock
+  // Ajustar automáticamente adiciones seleccionadas si superan el stock o el límite gastronómico por plato
   useEffect(() => {
     if (selectedAdditions.length === 0) return;
     setSelectedAdditions((prev) => {
       let changed = false;
+      const dishCap = resolveDishTotalAdicionesCap(producto);
+      let remainingDishSlots = dishCap;
       const next = prev
         .map((a) => {
+          if (remainingDishSlots <= 0) {
+            changed = true;
+            return null;
+          }
           const adId = a.idAdicion || a.id;
           const catalogAd = filteredAdiciones.find((x) => Number(x.idAdicion || x.id) === Number(adId)) || a;
+          const culinaryMax = resolveAdicionCulinaryLimit(catalogAd, producto);
           const noCtrl = catalogAd?.controlarStock === false || String(catalogAd?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
-          if (noCtrl) return a;
-          const totalPortions = resolveAdicionMaxPortions(catalogAd);
-          const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId, editingExcludeCartId);
-          const maxPerDish = Math.floor(Math.max(0, totalPortions - inCartPortions) / Math.max(1, quantity));
+          const totalPortions = noCtrl ? 99 : resolveAdicionMaxPortions(catalogAd);
+          const inCartPortions = noCtrl || mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId, editingExcludeCartId);
+          const stockMaxPerDish = noCtrl
+            ? 99
+            : Math.floor(Math.max(0, totalPortions - inCartPortions) / Math.max(1, quantity));
+          const maxPerDish = Math.min(stockMaxPerDish, culinaryMax, remainingDishSlots);
           if (maxPerDish <= 0) {
             changed = true;
             return null;
           }
-          if ((a.cantidad || 1) > maxPerDish) {
+          const currQty = Math.max(1, Number(a.cantidad || 1));
+          const finalQty = Math.min(currQty, maxPerDish);
+          remainingDishSlots -= finalQty;
+          if (finalQty !== currQty) {
             changed = true;
-            return { ...a, cantidad: maxPerDish };
+            return { ...a, cantidad: finalQty };
           }
           return a;
         })
         .filter(Boolean);
       return changed ? next : prev;
     });
-  }, [quantity, filteredAdiciones, cartItems, mode, editingExcludeCartId]);
+  }, [quantity, filteredAdiciones, cartItems, mode, editingExcludeCartId, producto]);
 
   // Toggle remover ingrediente (protegido por lógica humana de cocina)
   const toggleRemoveIngredient = (nombre) => {
@@ -2023,30 +2038,47 @@ export function FastFoodProductModal({
   };
 
   const getAdditionMaxPerDish = useCallback(
-    (ad) => {
+    (ad, additionsSnapshot = selectedAdditions) => {
       const adId = ad?.idAdicion || ad?.id;
       const noCtrl = ad?.controlarStock === false || String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
-      if (noCtrl) return { maxPerDish: 99, availableBeforeThis: 99, noCtrl: true };
-      const totalPortions = resolveAdicionMaxPortions(ad);
-      const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId, editingExcludeCartId);
-      const availableBeforeThis = Math.max(0, totalPortions - inCartPortions);
-      const maxPerDish = Math.floor(availableBeforeThis / Math.max(1, quantity));
-      return { maxPerDish, availableBeforeThis, noCtrl: false };
+      const totalPortions = noCtrl ? 99 : resolveAdicionMaxPortions(ad);
+      const inCartPortions = noCtrl || mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId, editingExcludeCartId);
+      const availableBeforeThis = noCtrl ? 99 : Math.max(0, totalPortions - inCartPortions);
+      const stockMaxPerDish = noCtrl ? 99 : Math.floor(availableBeforeThis / Math.max(1, quantity));
+      const limitInfo = computeEffectiveAdicionMaxPerDish({
+        adicion: ad,
+        producto,
+        stockMaxPerDish,
+        currentAdditions: additionsSnapshot
+      });
+      return {
+        ...limitInfo,
+        stockMaxPerDish,
+        availableBeforeThis,
+        noCtrl
+      };
     },
-    [cartItems, mode, quantity, editingExcludeCartId]
+    [cartItems, mode, quantity, editingExcludeCartId, producto, selectedAdditions]
   );
 
   // Toggle o cambiar adición
   const toggleAddition = (ad) => {
     const adId = ad.idAdicion || ad.id;
-    const { maxPerDish } = getAdditionMaxPerDish(ad);
     setSelectedAdditions((prev) => {
       const exists = prev.find((a) => (a.idAdicion || a.id) === adId);
       if (exists) {
         return prev.filter((a) => (a.idAdicion || a.id) !== adId);
       }
+      const { maxPerDish, dishTotalCap, limitReason } = getAdditionMaxPerDish(ad, prev);
       if (maxPerDish <= 0) {
-        warning("Adición agotada", `No quedan más porciones disponibles de "${ad.nombre}".`);
+        if (limitReason === "dish_total") {
+          warning(
+            "Límite de adiciones por plato",
+            `Por calidad de preparación, puedes agregar máximo ${dishTotalCap} porciones de extras en total por plato.`
+          );
+        } else {
+          warning("Adición agotada", `No quedan más porciones disponibles de "${ad.nombre}".`);
+        }
         return prev;
       }
       return [
@@ -3835,23 +3867,39 @@ export function FastFoodProductModal({
               </div>
             )}
 
-            {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS & EXTRAS CON UNIDAD Y STOCK EN VIVO) ─── */}
+            {/* ─── TAB 2: ADICIONES GOURMET (TOPPINGS & EXTRAS CON UNIDAD, LÍMITE CULINARIO Y STOCK EN VIVO) ─── */}
             {!isDrink && activeTab === "adiciones" && (
               <div className="space-y-3.5 animate-in fade-in duration-150">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
-                      <Flame className="w-4 h-4 text-[#D9383A] dark:text-red-400" />
-                      <span>Toppings y Extras Gourmet</span>
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">
-                      Cada adición indica su unidad de servicio y descuenta la disponibilidad en tiempo real:
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-extrabold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
-                    {filteredAdiciones.length} opciones
-                  </span>
-                </div>
+                {(() => {
+                  const dishCap = resolveDishTotalAdicionesCap(producto);
+                  const totalAddsSelected = selectedAdditions.reduce(
+                    (sum, x) => sum + Math.max(1, Number(x.cantidad || 1)),
+                    0
+                  );
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 dark:text-gray-100 flex items-center gap-1.5">
+                          <Flame className="w-4 h-4 text-[#D9383A] dark:text-red-400" />
+                          <span>Toppings y Extras Gourmet</span>
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">
+                          Cada adición tiene su unidad y límite por plato para garantizar la mejor preparación:
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-extrabold text-slate-600 dark:text-gray-300 bg-slate-100 dark:bg-gray-800 border border-slate-200/80 dark:border-gray-700 px-2.5 py-1 rounded-full tabular-nums">
+                          {totalAddsSelected > 0
+                            ? `${totalAddsSelected}/${dishCap} extras en plato`
+                            : `Máx. ${dishCap} extras por plato`}
+                        </span>
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
+                          {filteredAdiciones.length} opciones
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {filteredAdiciones.length === 0 ? (
                   <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-gray-800/50 border border-dashed border-slate-200 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
@@ -3864,11 +3912,20 @@ export function FastFoodProductModal({
                       const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
                       const isSelected = Boolean(selectedObj);
                       const itemQty = Number(selectedObj?.cantidad || 1);
-                      const unitMeta = resolveAdicionUnitMeta(ad, itemQty);
-                      const { maxPerDish, availableBeforeThis, noCtrl } = getAdditionMaxPerDish(ad);
+                      const unitMeta = resolveAdicionUnitMeta(ad, itemQty, producto);
+                      const {
+                        maxPerDish,
+                        culinaryMax,
+                        dishTotalCap,
+                        stockMaxPerDish,
+                        availableBeforeThis,
+                        noCtrl,
+                        limitReason
+                      } = getAdditionMaxPerDish(ad);
                       const consumedPortions = isSelected ? itemQty * Math.max(1, quantity) : 0;
                       const liveRemaining = Math.max(0, availableBeforeThis - consumedPortions);
-                      const isAdSoldOut = !noCtrl && maxPerDish <= 0 && !isSelected;
+                      const isAdSoldOut = !noCtrl && stockMaxPerDish <= 0 && !isSelected;
+                      const isDishCapReached = !isAdSoldOut && maxPerDish <= 0 && !isSelected;
 
                       return (
                         <div
@@ -3877,7 +3934,7 @@ export function FastFoodProductModal({
                           className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2.5 transition-all select-none ${
                             isSelected
                               ? "border-[#D9383A] bg-red-50/45 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/20"
-                              : isAdSoldOut
+                              : isAdSoldOut || isDishCapReached
                                 ? "border-slate-200 dark:border-gray-800 bg-slate-50/70 dark:bg-gray-900/50 opacity-65"
                                 : "border-slate-200/90 dark:border-gray-700/80 bg-white dark:bg-gray-800/80 hover:border-slate-300 dark:hover:border-gray-600 cursor-pointer"
                           }`}
@@ -3899,6 +3956,9 @@ export function FastFoodProductModal({
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 text-[10.5px] font-bold">
                                   {unitMeta.badge}
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400 tabular-nums">
+                                  · Máx. {culinaryMax}/plato
                                 </span>
                                 {isSelected && itemQty > 1 && (
                                   <span className="text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400">
@@ -3944,12 +4004,24 @@ export function FastFoodProductModal({
                                 ariaLabel={`cantidad de ${ad.nombre}`}
                                 onChange={(val) => setAdditionExactQty(ad, val)}
                                 onRemove={() => toggleAddition(ad)}
-                                onMaxReached={(limit) =>
-                                  warning(
-                                    "Límite disponible alcanzado",
-                                    `Solo puedes agregar hasta ${limit} ${limit === 1 ? unitMeta.shortUnit : `${unitMeta.shortUnit}es`} de "${ad.nombre}" según el stock actual.`
-                                  )
-                                }
+                                onMaxReached={(limit) => {
+                                  if (limitReason === "dish_total") {
+                                    warning(
+                                      "Límite de adiciones en el plato",
+                                      `Puedes agregar máximo ${dishTotalCap} porciones de extras en total por plato.`
+                                    );
+                                  } else if (limitReason === "culinary") {
+                                    warning(
+                                      "Máximo por plato alcanzado",
+                                      `Por estándar de cocina, puedes agregar hasta ${culinaryMax} ${culinaryMax === 1 ? unitMeta.singular : unitMeta.plural} de "${ad.nombre}" por plato.`
+                                    );
+                                  } else {
+                                    warning(
+                                      "Límite de stock disponible",
+                                      `Solo quedan ${limit} ${limit === 1 ? unitMeta.singular : unitMeta.plural} disponibles de "${ad.nombre}".`
+                                    );
+                                  }
+                                }}
                               />
                             ) : (
                               <button
@@ -3962,11 +4034,13 @@ export function FastFoodProductModal({
                                 className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
                                   isAdSoldOut
                                     ? "bg-slate-100 dark:bg-gray-800 text-slate-400 cursor-not-allowed"
-                                    : "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
+                                    : isDishCapReached
+                                      ? "bg-slate-100 dark:bg-gray-800 text-slate-500 cursor-pointer"
+                                      : "bg-slate-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-slate-800 dark:text-gray-200 cursor-pointer"
                                 }`}
                               >
                                 <Plus className="w-3.5 h-3.5" />
-                                <span>{isAdSoldOut ? "Agotado" : "Agregar"}</span>
+                                <span>{isAdSoldOut ? "Agotado" : isDishCapReached ? "Tope plato" : "Agregar"}</span>
                               </button>
                             )}
                           </div>

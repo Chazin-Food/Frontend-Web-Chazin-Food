@@ -165,10 +165,141 @@ export function getAdicionQuantityInCart(cart = [], adId, excludeCartItemId = nu
 }
 
 /**
+ * Resuelve el límite máximo gastronómico permitido por plato para una adición individual
+ * (funciona tanto para las adiciones actuales como para cualquier adición futura creada en administración).
+ */
+export function resolveAdicionCulinaryLimit(ad, producto = null) {
+  const explicit = Number(ad?.maxPorPlato ?? ad?.maximoPorPlato ?? ad?.limitePorPlato ?? 0);
+  if (Number.isFinite(explicit) && explicit >= 1 && explicit <= 10) {
+    return Math.floor(explicit);
+  }
+
+  const prodName = normalizeStr(
+    `${producto?.nombre || ""} ${producto?.categoriaNombre || ""} ${producto?.categoria?.nombre || producto?.categoria || ""}`
+  );
+  const isSharedDish =
+    Boolean(producto?.esCombo || producto?.configuracionCombo?.esCombo) ||
+    /\b(combo|pareja|familiar|compartir)\b/.test(prodName);
+  const sharedBonus = isSharedDish ? 1 : 0;
+
+  const name = normalizeStr(ad?.nombre);
+  const desc = normalizeStr(ad?.descripcion);
+  const isLiquidSauce =
+    /\b(salsa|mostaza|mayonesa|mayo|suero|guacamole|tartara|bbq|barbecue|heinz|rosada|aderezo|chimichurri|vinagreta|miel|chipotle|ajo|showy)\b/.test(
+      name
+    ) ||
+    (name.includes("queso") && name.includes("fundido")) ||
+    desc.includes("salsa");
+
+  // 1. Quesos en loncha/tajada/rallado y tocineta/jamón: hasta 4 por plato individual (5 en combos)
+  if (
+    !isLiquidSauce &&
+    /\b(loncha|tajada|queso|cheddar|mozzarella|parmesano|provolone|sabana|suizo|tocineta|bacon|tocino|jamon)\b/.test(
+      name
+    )
+  ) {
+    return 4 + sharedBonus;
+  }
+
+  // 2. Proteínas enteras, carnes, aves, embutidos (salchicha, chorizo, carne, pollo, huevo),
+  //    acompañamientos, salsas, vegetales y cualquier nueva adición futura creada en el catálogo:
+  //    máximo 3 por plato individual (4 en combos para compartir).
+  return 3 + sharedBonus;
+}
+
+/**
+ * Tope máximo combinado de porciones extra (suma de todas las adiciones) en un mismo plato,
+ * evitando combinaciones desproporcionadas que impidan empacar o preparar el producto.
+ */
+export function resolveDishTotalAdicionesCap(producto = null) {
+  const prodName = normalizeStr(
+    `${producto?.nombre || ""} ${producto?.categoriaNombre || ""} ${producto?.categoria?.nombre || producto?.categoria || ""}`
+  );
+  const isSharedDish =
+    Boolean(producto?.esCombo || producto?.configuracionCombo?.esCombo) ||
+    /\b(combo|pareja|familiar|compartir)\b/.test(prodName);
+  return isSharedDish ? 12 : 8;
+}
+
+/**
+ * Calcula el máximo efectivo seleccionable para una adición en un plato combinando:
+ * 1) Disponibilidad real de inventario (`stockMaxPerDish`),
+ * 2) Límite gastronómico individual de esa adición (`culinaryMax`), y
+ * 3) Cupo restante de adiciones totales del plato (`remainingDishSlots`).
+ */
+export function computeEffectiveAdicionMaxPerDish({
+  adicion,
+  producto = null,
+  stockMaxPerDish = 99,
+  currentAdditions = []
+}) {
+  const culinaryMax = resolveAdicionCulinaryLimit(adicion, producto);
+  const dishTotalCap = resolveDishTotalAdicionesCap(producto);
+  const adId = Number(adicion?.idAdicion || adicion?.id || adicion?.idInsumo || 0);
+
+  const otherAdditionsSum = (Array.isArray(currentAdditions) ? currentAdditions : []).reduce(
+    (sum, item) => {
+      const itemId = Number(item?.idAdicion || item?.id || 0);
+      if (adId && itemId === adId) return sum;
+      return sum + Math.max(1, Math.floor(Number(item?.cantidad) || 1));
+    },
+    0
+  );
+
+  const remainingDishSlots = Math.max(0, dishTotalCap - otherAdditionsSum);
+  const cleanStockMax = Math.max(0, Math.floor(Number(stockMaxPerDish ?? 99)));
+  const maxPerDish = Math.max(0, Math.min(cleanStockMax, culinaryMax, remainingDishSlots));
+
+  let limitReason = "culinary";
+  if (cleanStockMax <= 0 || (cleanStockMax < culinaryMax && cleanStockMax <= remainingDishSlots)) {
+    limitReason = "stock";
+  } else if (remainingDishSlots < culinaryMax && remainingDishSlots <= cleanStockMax) {
+    limitReason = "dish_total";
+  }
+
+  return {
+    maxPerDish,
+    culinaryMax,
+    dishTotalCap,
+    remainingDishSlots,
+    otherAdditionsSum,
+    limitReason
+  };
+}
+
+/**
+ * Sanea una lista de adiciones de un plato garantizando que ninguna supere su límite
+ * gastronómico individual ni el tope combinado de adiciones por plato.
+ */
+export function sanitizeDishAdicionesList(adiciones = [], producto = null) {
+  if (!Array.isArray(adiciones) || adiciones.length === 0) return [];
+  const dishCap = resolveDishTotalAdicionesCap(producto);
+  let remaining = dishCap;
+  const result = [];
+
+  for (const rawAd of adiciones) {
+    if (!rawAd || remaining <= 0) continue;
+    const rawQty = Math.floor(Number(rawAd.cantidad) || 0);
+    if (rawQty <= 0) continue;
+    const perAdMax = resolveAdicionCulinaryLimit(rawAd, producto);
+    const clampedQty = Math.min(rawQty, perAdMax, remaining);
+    if (clampedQty <= 0) continue;
+    remaining -= clampedQty;
+    result.push({
+      ...rawAd,
+      cantidad: clampedQty
+    });
+  }
+
+  return result;
+}
+
+/**
  * Resuelve de forma inteligente y humana la unidad gastronómica que corresponde a cada adición
  * del catálogo de Chazin Food (y de nuevas adiciones creadas en administración).
  */
-export function resolveAdicionUnitMeta(ad, qty = 1) {
+export function resolveAdicionUnitMeta(ad, qty = 1, producto = null) {
+  const maxPorPlato = resolveAdicionCulinaryLimit(ad, producto);
   const safeQty = Math.max(1, Math.floor(Number(qty) || 1));
   const name = normalizeStr(ad?.nombre);
   const desc = normalizeStr(ad?.descripcion);
@@ -201,7 +332,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "porción",
       singular: "porción (copa)",
       plural: "porciones (copa)",
-      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`
+      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`,
+      maxPorPlato
     };
   }
 
@@ -220,7 +352,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "loncha",
       singular: "loncha",
       plural: "lonchas",
-      formattedQty: safeQty === 1 ? "1 loncha" : `${safeQty} lonchas`
+      formattedQty: safeQty === 1 ? "1 loncha" : `${safeQty} lonchas`,
+      maxPorPlato
     };
   }
 
@@ -232,7 +365,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "porción",
       singular: "porción en tiras",
       plural: "porciones en tiras",
-      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`
+      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`,
+      maxPorPlato
     };
   }
 
@@ -247,7 +381,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "unidad",
       singular: "unidad",
       plural: "unidades",
-      formattedQty: safeQty === 1 ? "1 unidad" : `${safeQty} unidades`
+      formattedQty: safeQty === 1 ? "1 unidad" : `${safeQty} unidades`,
+      maxPorPlato
     };
   }
 
@@ -260,7 +395,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "porción",
       singular: "porción",
       plural: "porciones",
-      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`
+      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`,
+      maxPorPlato
     };
   }
 
@@ -272,7 +408,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "porción",
       singular: "porción",
       plural: "porciones",
-      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`
+      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`,
+      maxPorPlato
     };
   }
 
@@ -287,7 +424,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "porción",
       singular: "porción",
       plural: "porciones",
-      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`
+      formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`,
+      maxPorPlato
     };
   }
 
@@ -299,7 +437,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
       shortUnit: "unidad",
       singular: "unidad",
       plural: "unidades",
-      formattedQty: safeQty === 1 ? "1 unidad" : `${safeQty} unidades`
+      formattedQty: safeQty === 1 ? "1 unidad" : `${safeQty} unidades`,
+      maxPorPlato
     };
   }
 
@@ -309,7 +448,8 @@ export function resolveAdicionUnitMeta(ad, qty = 1) {
     shortUnit: "porción",
     singular: "porción",
     plural: "porciones",
-    formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`
+    formattedQty: safeQty === 1 ? "1 porción" : `${safeQty} porciones`,
+    maxPorPlato
   };
 }
 

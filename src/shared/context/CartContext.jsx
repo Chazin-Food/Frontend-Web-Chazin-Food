@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback } f
 import { loadStoredCart, saveStoredCart, clearStoredCart } from "@/shared/utils/secureStorage";
 import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 import { isVariantActive } from "@/shared/utils/productVariantUtils";
+import { sanitizeDishAdicionesList } from "@/shared/utils/adicionUtils";
 
 export const IVA_RATE = 0.19;
 const CartContext = createContext(undefined);
@@ -78,10 +79,16 @@ export function CartProvider({ children }) {
     try {
       const parsed = loadStoredCart();
       if (Array.isArray(parsed)) {
-        return parsed.map((it) => ({
-          ...it,
-          cartItemId: it.cartItemId || generateCartItemId(it)
-        }));
+        return parsed.map((it) => {
+          const cleanAds = Array.isArray(it?.adiciones)
+            ? sanitizeDishAdicionesList(it.adiciones, it)
+            : [];
+          const nextIt = { ...it, adiciones: cleanAds };
+          return {
+            ...nextIt,
+            cartItemId: generateCartItemId(nextIt)
+          };
+        });
       }
       return [];
     } catch (e) {
@@ -137,9 +144,12 @@ export function CartProvider({ children }) {
     let lastError = null;
     let addedCount = 0;
 
-    for (const item of items) {
-      if (!item) continue;
-      const cartItemId = item.cartItemId || generateCartItemId(item);
+    for (const rawItem of items) {
+      if (!rawItem) continue;
+      const item = Array.isArray(rawItem.adiciones)
+        ? { ...rawItem, adiciones: sanitizeDishAdicionesList(rawItem.adiciones, rawItem) }
+        : rawItem;
+      const cartItemId = generateCartItemId(item);
       const prodId = item.id || item.idProducto;
       const stock = Number(item.stock !== undefined ? item.stock : (item.stockActual !== undefined ? item.stockActual : 0));
       const qtyToAdd = Number(item.cantidad || 1);
@@ -255,7 +265,8 @@ export function CartProvider({ children }) {
     if (idx === -1) return cartItemId;
 
     const target = prev[idx];
-    const normalized = (Array.isArray(newAdiciones) ? newAdiciones : [])
+    const sanitizedInput = sanitizeDishAdicionesList(newAdiciones, target);
+    const normalized = sanitizedInput
       .filter((a) => a && Number(a.cantidad || 1) > 0)
       .map((a) => ({
         idAdicion: a.idAdicion || a.id,
@@ -340,6 +351,9 @@ export function CartProvider({ children }) {
 
     const normalizedNew = {
       ...newItem,
+      adiciones: Array.isArray(newItem.adiciones)
+        ? sanitizeDishAdicionesList(newItem.adiciones, newItem)
+        : [],
       cantidad: newQty,
       stock
     };

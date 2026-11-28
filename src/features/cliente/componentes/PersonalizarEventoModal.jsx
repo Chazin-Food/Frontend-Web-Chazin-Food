@@ -39,7 +39,8 @@ import {
   resolveAdicionMaxPortions,
   getAdicionQuantityInCart,
   resolveDrinkUnitBadge,
-  resolveValidAdicionImage
+  resolveValidAdicionImage,
+  computeEffectiveAdicionMaxPerDish
 } from "@/shared/utils/adicionUtils";
 import ProductVariantInspector from "@/shared/components/ui/ProductVariantInspector";
 
@@ -736,18 +737,28 @@ export function PersonalizarEventoModal({
   const unitTotal = promoPrice + additionsTotal;
   const grandTotal = unitTotal * cantidad + drinksTotal;
 
-  // Handlers con stock en vivo e input numérico directo
-  const getAdicionStockMeta = (ad) => {
+  // Handlers con stock en vivo, límite gastronómico por plato e input numérico directo
+  const getAdicionStockMeta = (ad, additionsSnapshot = selectedAdditions) => {
     const adId = ad?.idAdicion || ad?.id;
     const noCtrl =
       ad?.controlarStock === false ||
       String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
-    if (noCtrl) return { maxPerDish: 99, availableBeforeThis: 99, noCtrl: true };
-    const totalPortions = resolveAdicionMaxPortions(ad);
-    const inCartPortions = getAdicionQuantityInCart(cartItems, adId);
-    const availableBeforeThis = Math.max(0, totalPortions - inCartPortions);
-    const maxPerDish = Math.floor(availableBeforeThis / Math.max(1, cantidad));
-    return { maxPerDish, availableBeforeThis, noCtrl: false };
+    const totalPortions = noCtrl ? 99 : resolveAdicionMaxPortions(ad);
+    const inCartPortions = noCtrl ? 0 : getAdicionQuantityInCart(cartItems, adId);
+    const availableBeforeThis = noCtrl ? 99 : Math.max(0, totalPortions - inCartPortions);
+    const stockMaxPerDish = noCtrl ? 99 : Math.floor(availableBeforeThis / Math.max(1, cantidad));
+    const limitInfo = computeEffectiveAdicionMaxPerDish({
+      adicion: ad,
+      producto: resolvedProduct,
+      stockMaxPerDish,
+      currentAdditions: additionsSnapshot
+    });
+    return {
+      ...limitInfo,
+      stockMaxPerDish,
+      availableBeforeThis,
+      noCtrl
+    };
   };
 
   const toggleAdicion = (ad) => {
@@ -756,9 +767,16 @@ export function PersonalizarEventoModal({
     if (exists) {
       setSelectedAdditions(selectedAdditions.filter((a) => (a.idAdicion || a.id) !== adId));
     } else {
-      const { maxPerDish, noCtrl } = getAdicionStockMeta(ad);
-      if (!noCtrl && maxPerDish <= 0) {
-        warning("Adición agotada", `No quedan porciones disponibles de "${ad.nombre}".`);
+      const { maxPerDish, dishTotalCap, noCtrl, stockMaxPerDish, limitReason } = getAdicionStockMeta(ad, selectedAdditions);
+      if (maxPerDish <= 0) {
+        if (limitReason === "dish_total") {
+          warning(
+            "Límite de adiciones por plato",
+            `Por calidad de preparación, puedes agregar máximo ${dishTotalCap} porciones de extras en total por plato.`
+          );
+        } else if (!noCtrl && stockMaxPerDish <= 0) {
+          warning("Adición agotada", `No quedan porciones disponibles de "${ad.nombre}".`);
+        }
         return;
       }
       setSelectedAdditions([
@@ -785,8 +803,8 @@ export function PersonalizarEventoModal({
       setSelectedAdditions((prev) => prev.filter((a) => (a.idAdicion || a.id) !== adId));
       return;
     }
-    const { maxPerDish, noCtrl } = getAdicionStockMeta(ad);
-    const clamped = noCtrl ? Math.min(99, cleanQty) : Math.min(Math.max(1, maxPerDish), cleanQty);
+    const { maxPerDish } = getAdicionStockMeta(ad);
+    const clamped = Math.min(Math.max(1, maxPerDish), cleanQty);
     setSelectedAdditions((prev) =>
       prev.map((a) => ((a.idAdicion || a.id) === adId ? { ...a, cantidad: clamped } : a))
     );
@@ -1614,11 +1632,20 @@ export function PersonalizarEventoModal({
                     const selectedObj = selectedAdditions.find((a) => (a.idAdicion || a.id) === adId);
                     const isSelected = Boolean(selectedObj);
                     const itemQty = Number(selectedObj?.cantidad || 1);
-                    const unitMeta = resolveAdicionUnitMeta(ad, itemQty);
-                    const { maxPerDish, availableBeforeThis, noCtrl } = getAdicionStockMeta(ad);
+                    const unitMeta = resolveAdicionUnitMeta(ad, itemQty, resolvedProduct);
+                    const {
+                      maxPerDish,
+                      culinaryMax,
+                      dishTotalCap,
+                      stockMaxPerDish,
+                      availableBeforeThis,
+                      noCtrl,
+                      limitReason
+                    } = getAdicionStockMeta(ad);
                     const consumedHere = isSelected ? itemQty * Math.max(1, cantidad) : 0;
                     const liveRemaining = Math.max(0, availableBeforeThis - consumedHere);
-                    const isSoldOut = !noCtrl && maxPerDish <= 0 && !isSelected;
+                    const isSoldOut = !noCtrl && stockMaxPerDish <= 0 && !isSelected;
+                    const isDishCapReached = !isSoldOut && maxPerDish <= 0 && !isSelected;
 
                     return (
                       <div
@@ -1627,7 +1654,7 @@ export function PersonalizarEventoModal({
                         className={`p-3 rounded-2xl border text-xs flex flex-col justify-between gap-2.5 transition-all select-none ${
                           isSelected
                             ? "border-[#D9383A] bg-red-50/45 dark:bg-red-950/25 shadow-2xs ring-1 ring-[#D9383A]/20"
-                            : isSoldOut
+                            : isSoldOut || isDishCapReached
                               ? "border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/50 opacity-65"
                               : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
                         }`}
@@ -1649,6 +1676,9 @@ export function PersonalizarEventoModal({
                             <div className="flex flex-wrap items-center gap-1.5 mt-1">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200/80 dark:border-gray-700 text-[10.5px] font-bold">
                                 {unitMeta.badge}
+                              </span>
+                              <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 tabular-nums">
+                                · Máx. {culinaryMax}/plato
                               </span>
                               {isSelected && itemQty > 1 && (
                                 <span className="text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400">
@@ -1688,12 +1718,24 @@ export function PersonalizarEventoModal({
                               ariaLabel={`cantidad de ${ad.nombre}`}
                               onChange={(val) => setAdicionExactQty(ad, val)}
                               onRemove={() => toggleAdicion(ad)}
-                              onMaxReached={(limit) =>
-                                warning(
-                                  "Límite disponible alcanzado",
-                                  `Solo puedes agregar hasta ${limit} ${unitMeta.shortUnit}(es) de "${ad.nombre}".`
-                                )
-                              }
+                              onMaxReached={(limit) => {
+                                if (limitReason === "dish_total") {
+                                  warning(
+                                    "Límite de adiciones en el plato",
+                                    `Puedes agregar máximo ${dishTotalCap} porciones de extras en total por plato.`
+                                  );
+                                } else if (limitReason === "culinary") {
+                                  warning(
+                                    "Máximo por plato alcanzado",
+                                    `Por estándar de cocina, puedes agregar hasta ${culinaryMax} ${culinaryMax === 1 ? unitMeta.singular : unitMeta.plural} de "${ad.nombre}" por plato.`
+                                  );
+                                } else {
+                                  warning(
+                                    "Límite de stock disponible",
+                                    `Solo quedan ${limit} ${limit === 1 ? unitMeta.singular : unitMeta.plural} disponibles de "${ad.nombre}".`
+                                  );
+                                }
+                              }}
                             />
                           ) : (
                             <button
@@ -1706,11 +1748,13 @@ export function PersonalizarEventoModal({
                               className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 active:scale-95 shrink-0 ${
                                 isSoldOut
                                   ? "bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed"
-                                  : "bg-gray-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-gray-700 dark:text-gray-200 cursor-pointer"
+                                  : isDishCapReached
+                                    ? "bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-pointer"
+                                    : "bg-gray-100 dark:bg-gray-800 hover:bg-[#D9383A] hover:text-white text-gray-700 dark:text-gray-200 cursor-pointer"
                               }`}
                             >
                               <Plus className="w-3.5 h-3.5" />
-                              <span>{isSoldOut ? "Agotado" : "Agregar"}</span>
+                              <span>{isSoldOut ? "Agotado" : isDishCapReached ? "Tope plato" : "Agregar"}</span>
                             </button>
                           )}
                         </div>
