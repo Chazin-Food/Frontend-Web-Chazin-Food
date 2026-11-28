@@ -42,12 +42,11 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
                       <p className="font-bold text-sm text-[#1e293b] dark:text-gray-100 truncate">
                         {r.nombre}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[11px] text-gray-400 font-medium">ID #{r.id || startIndex + index + 1}</span>
-                        {isAdministrador && (
+                      {isAdministrador && (
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10.5px] font-semibold text-[#F05454]">Rol del Sistema</span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${
@@ -147,11 +146,10 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
         <table className="w-full table-fixed text-left border-collapse">
           <thead>
             <tr className="bg-[#f8fafc] dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 text-xs font-bold text-[#1e293b] dark:text-gray-200 tracking-wider uppercase">
-              <th className="px-4 py-3.5 w-[7%]">ID</th>
-              <th className="px-4 py-3.5 w-[20%]">ROL</th>
-              <th className="px-4 py-3.5 w-[25%]">DESCRIPCIÓN</th>
+              <th className="px-4 py-3.5 w-[22%]">ROL</th>
+              <th className="px-4 py-3.5 w-[29%]">DESCRIPCIÓN</th>
               <th className="px-3 py-3.5 text-center w-[11%]">USUARIOS</th>
-              <th className="px-3 py-3.5 text-center w-[13%]">PERMISOS</th>
+              <th className="px-3 py-3.5 text-center w-[14%]">PERMISOS</th>
               <th className="px-3 py-3.5 w-[10%]">ESTADO</th>
               <th className="px-3 py-3.5 text-center w-[14%]">ACCIONES</th>
             </tr>
@@ -159,7 +157,7 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
             {totalRecords === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   No se encontraron roles registrados
                 </td>
               </tr>
@@ -173,9 +171,6 @@ export function RolesTable({ roles = [], onView, onEdit, onToggleEstado, onDelet
 
                   return (
                     <tr key={r.id || index} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
-                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium">
-                        {r.id || startIndex + index + 1}
-                      </td>
                       <td className="px-4 py-3.5 align-middle">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-gray-700">
