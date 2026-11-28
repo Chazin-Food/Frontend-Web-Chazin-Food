@@ -292,6 +292,94 @@ export function CartProvider({ children }) {
   };
 
   /**
+   * Reemplaza (o separa una unidad de) un ítem existente del carrito al editar su variante,
+   * ingredientes, notas o incluso cambiarlo por otro plato/presentación desde el modal de edición.
+   */
+  const replaceCartItem = (oldCartItemId, newItem, { splitFromOriginal = false } = {}) => {
+    if (!newItem) return { success: false, message: "Ítem inválido." };
+    const prev = [...(cartRef.current || cart)];
+    const oldIdx = prev.findIndex((it) => it.cartItemId === oldCartItemId);
+    if (oldIdx === -1) {
+      return addToCart(newItem);
+    }
+
+    const oldItem = prev[oldIdx];
+    const newProdId = newItem.id || newItem.idProducto;
+    const stock = Number(
+      newItem.stock !== undefined
+        ? newItem.stock
+        : newItem.stockActual !== undefined
+          ? newItem.stockActual
+          : 0
+    );
+    const newQty = Math.max(1, Number(newItem.cantidad || 1));
+    const oldQty = Math.max(1, Number(oldItem.cantidad || 1));
+    const shouldSplit = Boolean(splitFromOriginal && oldQty > newQty);
+    const remainingOldQty = shouldSplit ? oldQty - newQty : 0;
+
+    // Validar stock disponible descontando las otras líneas del mismo producto
+    if (stock > 0) {
+      const otherLinesQty = prev
+        .filter((it, idx) => {
+          if (String(it.id || it.idProducto) !== String(newProdId)) return false;
+          if (idx === oldIdx) return false;
+          return true;
+        })
+        .reduce((sum, it) => sum + Number(it.cantidad || 0), 0);
+
+      const sameProductAsOld = String(oldItem.id || oldItem.idProducto) === String(newProdId);
+      const keptOldForSameProd = sameProductAsOld && shouldSplit ? remainingOldQty : 0;
+
+      if (otherLinesQty + keptOldForSameProd + newQty > stock) {
+        return {
+          success: false,
+          message: `Solo hay ${stock} unidades disponibles en stock de ${newItem.nombre}.`
+        };
+      }
+    }
+
+    const normalizedNew = {
+      ...newItem,
+      cantidad: newQty,
+      stock
+    };
+    const nextCartItemId = generateCartItemId(normalizedNew);
+    normalizedNew.cartItemId = nextCartItemId;
+
+    let next = [];
+    if (shouldSplit) {
+      prev.forEach((it, idx) => {
+        if (idx === oldIdx) {
+          next.push({ ...it, cantidad: remainingOldQty });
+          next.push(normalizedNew);
+        } else {
+          next.push(it);
+        }
+      });
+    } else {
+      next = prev.map((it, idx) => (idx === oldIdx ? normalizedNew : it));
+    }
+
+    // Consolidar si tras editar coincide exactamente con otra línea existente del carrito
+    const consolidated = [];
+    for (const line of next) {
+      const dupIdx = consolidated.findIndex((c) => c.cartItemId === line.cartItemId);
+      if (dupIdx >= 0) {
+        consolidated[dupIdx] = {
+          ...consolidated[dupIdx],
+          cantidad: Number(consolidated[dupIdx].cantidad || 1) + Number(line.cantidad || 1)
+        };
+      } else {
+        consolidated.push(line);
+      }
+    }
+
+    cartRef.current = consolidated;
+    setCart(consolidated);
+    return { success: true, cartItemId: nextCartItemId };
+  };
+
+  /**
    * Reconcilia los ítems persistidos en localStorage contra el catálogo vivo del backend
    * para que cambios en nombre, precio, imagen, stock, variantes, eventos o adiciones
    * se reflejen de inmediato en el carrito y ventas.
@@ -468,12 +556,51 @@ export function CartProvider({ children }) {
       const nextCantidad = Math.min(Number(item.cantidad || 1), availableForLine);
       usedQtyByProd.set(prodId, alreadyUsed + nextCantidad);
 
-      const nextNombre = liveProd.nombre || item.nombre;
+      const nextVarianteNombre = matchedVariant ? (matchedVariant.nombre || item.varianteNombre) : item.varianteNombre;
+      const rawLiveProdName = String(liveProd.nombre || item.nombre || "");
+      const prodCatId = Number(liveProd.idCategoriaProducto ?? liveProd.categoria ?? 0);
+      const isSizedDrinkProd =
+        (prodCatId === 4 || /gaseosa|coca|postob|pepsi|colombiana|sprite|quatro|cuatro/i.test(rawLiveProdName)) &&
+        !/agua|cristal|hamburguesa|perro|salchipapa|combo/i.test(rawLiveProdName);
+
+      let nextNombre = rawLiveProdName;
+      let nextPersonalizaciones = Array.isArray(item.personalizaciones)
+        ? item.personalizaciones.filter(
+            (p) => !/^sabor:\s*(mega\s*)?botella\b/i.test(String(p || "").trim())
+          )
+        : item.personalizaciones;
+
+      if (isSizedDrinkProd) {
+        const cleanDrinkBase = rawLiveProdName
+          .replace(/\s*\(?\s*(400\s*ml|1[.,]5\s*(?:l|lt|litros?)|2[.,]5\s*(?:l|lt|litros?))\s*\)?/gi, "")
+          .trim() || rawLiveProdName;
+        const sizeProbe = `${matchedVariant?.nombre || ""} ${nextVarianteNombre || ""} ${(nextPersonalizaciones || []).join(" ")} ${item.idVariante || ""} ${item.nombre || ""}`.toLowerCase();
+        let sizeLabel = "400 ml";
+        if (sizeProbe.includes("2.5") || sizeProbe.includes("2,5") || sizeProbe.includes("mega")) {
+          sizeLabel = "2.5 Litros";
+        } else if (sizeProbe.includes("1.5") || sizeProbe.includes("1,5")) {
+          sizeLabel = "1.5 Litros";
+        }
+        nextNombre = `${cleanDrinkBase} (${sizeLabel})`;
+      } else if (
+        !item.esVarianteBase &&
+        nextVarianteNombre &&
+        String(nextVarianteNombre).trim() &&
+        !rawLiveProdName.toLowerCase().includes(String(nextVarianteNombre).trim().toLowerCase())
+      ) {
+        nextNombre = `${rawLiveProdName} (${String(nextVarianteNombre).trim()})`;
+      }
+
+      if (item.is2x1Promo && !nextNombre.toLowerCase().includes("2x1") && !nextNombre.toLowerCase().includes("lleva 2")) {
+        nextNombre = `${nextNombre} (Promo 2x1 - Paga 1 Lleva 2)`;
+      }
+
       const nextImagen = (!item.esVarianteBase && matchedVariant?.imagen && String(matchedVariant.imagen).trim())
         ? String(matchedVariant.imagen).trim()
-        : (liveProd.imagen || item.imagen);
+        : (isSizedDrinkProd && item.imagen && (String(item.imagen).includes("2.5") || String(item.imagen).includes("25") || String(item.imagen).includes("mega") || String(item.imagen).includes("1.5") || String(item.imagen).includes("15"))
+            ? item.imagen
+            : (liveProd.imagen || item.imagen));
       const nextDescripcion = liveProd.descripcion !== undefined ? liveProd.descripcion : item.descripcion;
-      const nextVarianteNombre = matchedVariant ? (matchedVariant.nombre || item.varianteNombre) : item.varianteNombre;
 
       const updatedItem = {
         ...item,
@@ -486,6 +613,7 @@ export function CartProvider({ children }) {
         stockActual: liveStock,
         cantidad: nextCantidad,
         varianteNombre: nextVarianteNombre,
+        personalizaciones: nextPersonalizaciones,
         adiciones: nextAdiciones,
         isEvento: nextIsEvento,
         esPromocionEvento: nextIsEvento ? Boolean(item.esPromocionEvento || wasAddedFromEventModal) : false,
@@ -541,6 +669,7 @@ export function CartProvider({ children }) {
         removeFromCart,
         updateQuantity,
         updateItemAdiciones,
+        replaceCartItem,
         clearCart,
         syncCartWithCatalog,
         getTotalItems,

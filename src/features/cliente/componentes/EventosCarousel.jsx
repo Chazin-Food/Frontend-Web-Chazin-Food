@@ -30,17 +30,17 @@ import { stripEmojis, formatTipoEvento, parseEventoInsumos, formatEventoToppings
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
 import { calculateCountdown, isEventActiveInColombia } from "@/shared/utils/dateUtils";
 
-// Paleta de color unificada premium gastronómica para la sección de eventos (Color Chazin Red/Amber)
+// Paleta institucional unificada Chazin Food: Deep Navy-Slate (#0F172A) + Chazin Crimson (#D9383A) + Emerald Ahorro
 const UNIFIED_EVENT_THEME = {
-  bg: "from-[#380e12] via-[#22070a] to-stone-950",
-  glow: "rgba(239, 68, 68, 0.45)",
-  border: "border-red-500/30",
-  badgeBg: "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md shadow-red-900/40",
-  accent: "text-amber-400",
-  btnGrad: "from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-lg shadow-red-950/60",
-  pillBg: "bg-red-500/15 border-red-400/30 text-red-200",
-  heroGradient: "from-red-600 via-rose-600 to-amber-500",
-  heroSubtext: "text-red-100"
+  bg: "from-[#0F172A] via-[#151F32] to-[#0B1120]",
+  glow: "rgba(15, 23, 42, 0.16)",
+  border: "border-slate-700/60",
+  badgeBg: "bg-[#D9383A] text-white shadow-sm",
+  accent: "text-amber-300",
+  btnGrad: "from-[#D9383A] to-[#B91C1C] hover:from-[#C92F31] hover:to-[#991B1B] text-white shadow-lg shadow-[#D9383A]/25",
+  pillBg: "bg-white/10 border-white/15 text-slate-200",
+  heroGradient: "from-[#0F172A] via-[#1E293B] to-[#0F172A]",
+  heroSubtext: "text-slate-300"
 };
 
 export const THEMES = {
@@ -476,24 +476,24 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 min-h-[52px]">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-red-600 text-white flex items-center justify-center shadow-lg shadow-orange-500/30">
-              <Flame className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-2xl bg-slate-900 dark:bg-[#D9383A] text-white flex items-center justify-center shadow-sm">
+              <Flame className="w-5 h-5 text-[#D9383A] dark:text-white" />
             </div>
-            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white dark:border-gray-900"></span>
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white dark:border-gray-900"></span>
             </span>
           </div>
 
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                 Experiencias & Ofertas Exclusivas
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wide uppercase bg-red-100 dark:bg-red-950/80 text-red-900 dark:text-red-200 border border-red-300 dark:border-red-800">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold tracking-wide uppercase bg-red-50 dark:bg-red-950/60 text-[#D9383A] dark:text-red-300 border border-red-200/80 dark:border-red-900/50">
                 En Vivo
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-gray-400 font-medium">
               Desliza para descubrir nuestras promociones especiales y platos recomendados de la casa.
             </p>
           </div>
@@ -511,14 +511,14 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
               type="button"
               onClick={() => goToSlide(idx)}
               aria-label={`Ver oferta ${idx + 1}`}
-              className="flex-1 h-1.5 sm:h-2 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 transition-all cursor-pointer relative group"
+              className="flex-1 h-1.5 sm:h-2 rounded-full overflow-hidden bg-slate-200/90 dark:bg-gray-800 transition-all cursor-pointer relative group"
             >
               <div
                 className={`h-full transition-all ${
                   isCurrent
-                    ? "bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 w-full"
+                    ? "bg-[#D9383A] w-full"
                     : isPast
-                    ? "bg-gray-400 dark:bg-gray-600 w-full"
+                    ? "bg-slate-400 dark:bg-gray-600 w-full"
                     : "w-0"
                 }`}
                 style={{
@@ -540,14 +540,8 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
         onTouchEnd={handleTouchEnd}
         className="relative"
       >
-        {/* Halo de luz difusa ambiental detrás del carrusel */}
-        <div
-          className="absolute -inset-2 sm:-inset-4 rounded-3xl sm:rounded-4xl blur-3xl opacity-50 dark:opacity-60 transition-colors duration-700 pointer-events-none"
-          style={{ backgroundColor: activeTheme.glow }}
-        />
-
         {/* Ventana de visualización con esquinas redondeadas y overflow hidden */}
-        <div className="relative overflow-hidden rounded-3xl sm:rounded-4xl border border-white/10 shadow-2xl bg-stone-950">
+        <div className="relative overflow-hidden rounded-3xl sm:rounded-4xl border border-slate-800/80 shadow-xl bg-[#0F172A]">
           {/* TRACK DESLIZANTE CON TRANSICIÓN HORIZONTAL SILKY SMOOTH */}
           <div
             className="flex transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform"
@@ -646,7 +640,7 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                     </div>
 
                     {savePct > 0 && (
-                      <div className="shrink-0 flex items-center gap-1.5 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg shadow-red-950/60">
+                      <div className="shrink-0 flex items-center gap-1.5 bg-[#D9383A] text-white px-3 py-1 rounded-full text-xs font-black shadow-md">
                         <Percent className="w-3.5 h-3.5" />
                         <span>-{savePct}% OFF</span>
                       </div>
@@ -679,9 +673,9 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                       </p>
 
                       {parseEventoInsumos(evt).length > 0 && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/25 border border-purple-300/40 backdrop-blur-sm max-w-full">
-                          <Gift className="w-4 h-4 text-purple-200 shrink-0" />
-                          <span className="text-xs sm:text-sm font-black text-purple-100 truncate">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/35 backdrop-blur-sm max-w-full">
+                          <Gift className="w-4 h-4 text-emerald-300 shrink-0" />
+                          <span className="text-xs sm:text-sm font-extrabold text-emerald-100 truncate">
                             Incluye Topping Extra Gratis: {formatEventoToppingsText(evt)}
                           </span>
                         </div>
@@ -870,12 +864,12 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
               }}
               className={`shrink-0 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer border ${
                 isSelected
-                  ? "bg-gray-900 text-white dark:bg-white dark:text-gray-950 border-gray-900 dark:border-white shadow-lg ring-2 ring-gray-900/15 dark:ring-white/20"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 hover:border-gray-300 dark:hover:border-gray-600 shadow-xs"
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-md"
+                  : "bg-white dark:bg-gray-900 text-slate-700 dark:text-gray-300 border-slate-200/85 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-gray-800 hover:border-slate-300 dark:hover:border-gray-700 shadow-2xs"
               }`}
             >
               {BadgeIcon ? (
-                <BadgeIcon size={16} stroke={2} className={isSelected ? "text-amber-400 dark:text-amber-500" : "text-gray-500 dark:text-gray-400"} />
+                <BadgeIcon size={16} stroke={2} className={isSelected ? "text-amber-400 dark:text-[#D9383A]" : "text-slate-500 dark:text-gray-400"} />
               ) : (
                 <FoodIcon name={evt.icono || "burger"} size={16} />
               )}
@@ -884,8 +878,8 @@ export function EventosCarousel({ eventos = [], productos = [], ratingsMap = {},
                 <span
                   className={`text-[10px] font-black px-2 py-0.5 rounded-md shrink-0 ${
                     isSelected
-                      ? "bg-black text-amber-300 border border-amber-400/50 font-black"
-                      : "bg-red-800 text-white font-black"
+                      ? "bg-[#D9383A] text-white font-black"
+                      : "bg-red-50 dark:bg-red-950/60 text-[#D9383A] dark:text-red-300 border border-red-200/80 dark:border-red-900/50 font-extrabold"
                   }`}
                 >
                   -{evt.descuento}%

@@ -510,33 +510,72 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* 4. Clientes y Usuarios */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">
-                Clientes y Usuarios
-              </span>
-              <span className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight truncate">
-                {Number(stats.clientesTotal || 0).toLocaleString("es-CO")}{" "}
-                <span className="text-xs font-bold text-gray-400 dark:text-gray-500">
-                  {Number(stats.clientesTotal || 0) === 1 ? "cliente" : "clientes"}
+        {/* 4. Ticket Promedio & Rentabilidad por Orden (Indicador Estratégico de Decisión Comercial) */}
+        {(() => {
+          const ventasPer = Number(stats.ventasTotal || 0);
+          const pedidosPer = Number(stats.pedidosTotal || 0);
+          const ticketPromedioReal =
+            stats.ticketPromedio !== undefined && Number(stats.ticketPromedio) > 0
+              ? Number(stats.ticketPromedio)
+              : pedidosPer > 0
+                ? Math.round(ventasPer / pedidosPer)
+                : 0;
+          const totalVentasChart = balanceOperativoData.reduce((acc, r) => acc + Number(r.ventas || 0), 0);
+          const totalComprasChart = balanceOperativoData.reduce((acc, r) => acc + Number(r.compras || 0), 0);
+          const margenPct =
+            stats.margenOperativoPct !== undefined && stats.ventasTotal > 0
+              ? Number(stats.margenOperativoPct)
+              : totalVentasChart > 0
+                ? Number((((totalVentasChart - totalComprasChart) / totalVentasChart) * 100).toFixed(1))
+                : 0;
+          const ticketVar =
+            stats.ticketVariacion !== undefined
+              ? Number(stats.ticketVariacion)
+              : 0;
+
+          return (
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs border border-gray-100 dark:border-gray-800 p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
+                      Ticket Promedio / Orden
+                    </span>
+                    <HelpTooltip
+                      title="Ticket Promedio y Margen"
+                      content="Mide cuánto gasta en promedio cada cliente por pedido (Ventas ÷ Pedidos) y el margen bruto frente a compras de insumos. Si baja, activa combos, bebidas familiares (2.5L) o adiciones sugeridas en el carrito."
+                    />
+                  </div>
+                  <span
+                    title={`$${ticketPromedioReal.toLocaleString("es-CO")} COP por pedido`}
+                    className="text-base sm:text-lg xl:text-xl font-extrabold text-gray-900 dark:text-gray-100 block tracking-tight leading-snug break-words tabular-nums"
+                  >
+                    ${ticketPromedioReal.toLocaleString("es-CO")}{" "}
+                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500">COP / ped.</span>
+                  </span>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100/80 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-2xs">
+                  <BarChart3 className="w-5 h-5 stroke-[2.2]" />
+                </div>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between text-xs gap-2">
+                <StatVariation value={ticketVar} label={stats.labelVariacion || "vs período ant."} />
+                <span
+                  title="Margen bruto operativo estimado (Ventas menos Compras de insumos)"
+                  className={`font-bold px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap tabular-nums ${
+                    margenPct >= 25
+                      ? "text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40"
+                      : margenPct >= 0
+                        ? "text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40"
+                        : "text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40"
+                  }`}
+                >
+                  Margen {margenPct >= 0 ? `${margenPct}%` : `${margenPct}%`}
                 </span>
-              </span>
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-purple-100/80 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-2xs">
-              <Users className="w-5 h-5 stroke-[2.2]" />
-            </div>
-          </div>
-          <div className="mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800/60 flex items-center justify-between text-xs gap-2">
-            <span className="text-purple-600 dark:text-purple-400 font-bold bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md text-[11px] truncate">
-              {Number(stats.usuariosTotal || 0).toLocaleString("es-CO")} usuarios
-            </span>
-            <span className="text-gray-400 dark:text-gray-500 font-medium text-[11px] truncate">
-              {Number(stats.clientesActivos ?? stats.clientesTotal ?? 0).toLocaleString("es-CO")} activos
-            </span>
-          </div>
-        </div>
+          );
+        })()}
 
       </div>
 

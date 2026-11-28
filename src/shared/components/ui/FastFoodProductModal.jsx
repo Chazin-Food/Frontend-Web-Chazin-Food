@@ -710,7 +710,9 @@ export function FastFoodProductModal({
   onConfirm,
   mode = "pos", // "pos" | "cliente"
   initialTab = "personalizar",
-  asPage = false
+  asPage = false,
+  editingCartItem = null,
+  onSwitchProduct = null
 }) {
   const { warning } = useNotifications();
   const { user, isAuthenticated } = useAuth?.() || {};
@@ -751,6 +753,8 @@ export function FastFoodProductModal({
     return initialTab || "personalizar";
   });
   const [quantity, setQuantity] = useState(1);
+  const [splitSingleUnit, setSplitSingleUnit] = useState(false);
+  const [showAllSwitchCategories, setShowAllSwitchCategories] = useState(false);
   const [removedIngredients, setRemovedIngredients] = useState([]);
   const [selectedAdditions, setSelectedAdditions] = useState([]); // [{ idAdicion, nombre, precio, cantidad, imagen }]
   const [selectedDrinks, setSelectedDrinks] = useState([]); // [{ id, nombre, precio, cantidad, imagen }]
@@ -1622,36 +1626,138 @@ export function FastFoodProductModal({
       lastInitKeyRef.current = null;
       return;
     }
-    const currentKey = `${producto.id || producto.idProducto}_${isOpen}`;
+    const editKey = editingCartItem?.cartItemId || "";
+    const currentKey = `${producto.id || producto.idProducto}_${isOpen}_${editKey}`;
     if (lastInitKeyRef.current !== currentKey) {
+      const prevKey = lastInitKeyRef.current;
       lastInitKeyRef.current = currentKey;
+      const isNewEditSession = !prevKey || !prevKey.endsWith(`_${editKey}`);
+      if (isNewEditSession) {
+        setSplitSingleUnit(false);
+        setShowAllSwitchCategories(false);
+      }
+
       const drinkMode = isDrinkProduct(producto);
       const hasSizes = hasDrinkSizes(producto);
+      const isEditingSameProd = Boolean(
+        editingCartItem &&
+        String(editingCartItem.idProducto || editingCartItem.id) === String(producto.id || producto.idProducto)
+      );
+
       if (drinkMode) {
         const defFlavor = detectDefaultFlavor(producto);
         setSelectedFlavor(defFlavor);
         if (drinkFormulaVariants.length > 0) {
-          setSelectedVariant(drinkFormulaVariants[0]);
+          if (isEditingSameProd) {
+            const editRaw = `${editingCartItem.nombre || ""} ${editingCartItem.varianteNombre || ""} ${(editingCartItem.personalizaciones || []).join(" ")}`.toLowerCase();
+            const wantDiet =
+              /sin az|light|zero|black|cero/i.test(editRaw) ||
+              [20, 22, 58, 65, 79, 80].includes(Number(editingCartItem.idVariante));
+            const matchedFormula = drinkFormulaVariants.find((fv) => {
+              const fn = String(fv.nombre || "").toLowerCase();
+              const fvIsDiet = /sin az|light|zero|black|cero/i.test(fn);
+              return wantDiet ? fvIsDiet : !fvIsDiet;
+            });
+            setSelectedVariant(matchedFormula || drinkFormulaVariants[0]);
+          } else {
+            setSelectedVariant(drinkFormulaVariants[0]);
+          }
         }
         if (hasSizes) {
-          const defSize = detectDefaultDrinkSize(producto);
-          setSelectedSizeId(defSize);
+          if (isEditingSameProd) {
+            const sizeRaw = `${editingCartItem.nombre || ""} ${editingCartItem.varianteNombre || ""} ${(editingCartItem.personalizaciones || []).join(" ")}`.toLowerCase();
+            const editVarId = Number(editingCartItem.idVariante);
+            let detectedEditSize = detectDefaultDrinkSize(producto);
+            if (sizeRaw.includes("2.5") || sizeRaw.includes("2,5") || sizeRaw.includes("mega") || [60, 62, 64, 67, 75, 77, 80, 82, 84].includes(editVarId)) {
+              detectedEditSize = "2.5L";
+            } else if (sizeRaw.includes("1.5") || sizeRaw.includes("1,5") || sizeRaw.includes("familiar") || [59, 61, 63, 66, 74, 76, 79, 81, 83].includes(editVarId)) {
+              detectedEditSize = "1.5L";
+            } else if (sizeRaw.includes("400")) {
+              detectedEditSize = "400ml";
+            }
+            setSelectedSizeId(detectedEditSize);
+          } else {
+            const defSize = detectDefaultDrinkSize(producto);
+            setSelectedSizeId(defSize);
+          }
           setActiveTab("presentacion");
         } else {
           setActiveTab("presentacion");
         }
       } else {
-        setSelectedVariant(foodVariants[0] || defaultBaseFoodVariant);
+        if (isEditingSameProd && editingCartItem) {
+          if (!editingCartItem.esVarianteBase && (editingCartItem.idVariante || editingCartItem.varianteNombre)) {
+            const targetVarId = String(editingCartItem.idVariante || "");
+            const targetVarName = String(editingCartItem.varianteNombre || "").toLowerCase().trim();
+            const matchedFv = foodVariants.find((fv) => {
+              if (fv.esOriginal) return false;
+              if (targetVarId && String(fv.idVariante || fv.id) === targetVarId) return true;
+              if (targetVarName && String(fv.nombre || "").toLowerCase().trim() === targetVarName) return true;
+              return false;
+            });
+            setSelectedVariant(matchedFv || foodVariants[0] || defaultBaseFoodVariant);
+          } else {
+            setSelectedVariant(foodVariants.find((fv) => fv.esOriginal) || foodVariants[0] || defaultBaseFoodVariant);
+          }
+        } else {
+          setSelectedVariant(foodVariants[0] || defaultBaseFoodVariant);
+        }
         const canPersonalize = extractPersonalizables(producto, liveFicha).length > 0;
         const hasVarsOrIngs = canPersonalize || foodVariants.length > 0 || hasRecipeTabContent;
         const fallbackTab = isComboWithDrinks && availableBebidas.length > 0 ? "bebidas" : "adiciones";
         setActiveTab(initialTab && initialTab !== "personalizar" ? initialTab : (hasVarsOrIngs ? "personalizar" : fallbackTab));
       }
-      setQuantity(1);
-      setRemovedIngredients([]);
-      setSelectedAdditions([]);
+
+      if (editingCartItem) {
+        const effectiveSplit = isNewEditSession ? false : splitSingleUnit;
+        const initQty = effectiveSplit ? 1 : Math.max(1, Number(editingCartItem.cantidad || 1));
+        setQuantity(initQty);
+        if (isEditingSameProd) {
+          setRemovedIngredients(
+            Array.isArray(editingCartItem.ingredientesRemovidos)
+              ? [...editingCartItem.ingredientesRemovidos]
+              : []
+          );
+          setSelectedAdditions(
+            Array.isArray(editingCartItem.adiciones)
+              ? editingCartItem.adiciones.map((a) => ({
+                  ...a,
+                  idAdicion: a.idAdicion || a.id,
+                  id: a.idAdicion || a.id,
+                  nombre: a.nombre,
+                  precio: Number(a.precio || 0),
+                  cantidad: Math.max(1, Number(a.cantidad || 1)),
+                  imagen: getAdicionDisplayImage(a)
+                }))
+              : []
+          );
+          const rawObs = String(editingCartItem.observaciones || editingCartItem.observacion || "");
+          const manualParts = rawObs
+            .split("•")
+            .map((part) => part.trim())
+            .filter((part) => {
+              if (!part) return false;
+              if (/^(¡PROMO 2x1!|Topping Extra Evento|Bebidas combo:|Presentaci[oó]n:|Sabor:|Versi[oó]n:)/i.test(part)) return false;
+              const commaTokens = part.split(",").map((t) => t.trim()).filter(Boolean);
+              if (commaTokens.length > 0 && commaTokens.every((t) => /^(Sin\s+|Presentaci[oó]n:|Sabor:|Versi[oó]n:)/i.test(t))) {
+                return false;
+              }
+              return true;
+            });
+          setCustomObservation(manualParts.join(", "));
+        } else {
+          setRemovedIngredients([]);
+          setSelectedAdditions([]);
+          setCustomObservation("");
+        }
+      } else {
+        setQuantity(1);
+        setRemovedIngredients([]);
+        setSelectedAdditions([]);
+        setCustomObservation("");
+      }
+
       setSelectedDrinks([]);
-      setCustomObservation("");
       setImageError(false);
       setHeroFallbackToBase(false);
       setShowWriteReview(false);
@@ -1661,7 +1767,7 @@ export function FastFoodProductModal({
       setShowFullDesc(false);
       fetchReviews();
     }
-  }, [producto?.id, producto?.idProducto, isOpen, fetchReviews, initialTab]);
+  }, [producto?.id, producto?.idProducto, isOpen, fetchReviews, initialTab, editingCartItem?.cartItemId]);
 
   // Keyboard shortcut: Escape to close
   useEffect(() => {
@@ -1858,6 +1964,13 @@ export function FastFoodProductModal({
   // Stock disponible y descuento en vivo frente al carrito del cliente
   const cartCtx = useCart?.() || {};
   const cartItems = mode === "pos" ? [] : (cartCtx.cart || []);
+  const editingExcludeCartId = editingCartItem && !splitSingleUnit ? editingCartItem.cartItemId : null;
+  const editingSameProdCredit =
+    editingCartItem &&
+    !splitSingleUnit &&
+    String(editingCartItem.idProducto || editingCartItem.id) === String(producto?.id || producto?.idProducto)
+      ? Number(editingCartItem.cantidad || 0)
+      : 0;
   const stockMaxRaw = Number(
     producto?.stock !== undefined
       ? producto.stock
@@ -1868,7 +1981,7 @@ export function FastFoodProductModal({
   const inCartMainQty =
     mode === "pos"
       ? 0
-      : Number(cartCtx.getProductQuantityInCart?.(producto?.id || producto?.idProducto) || 0);
+      : Math.max(0, Number(cartCtx.getProductQuantityInCart?.(producto?.id || producto?.idProducto) || 0) - editingSameProdCredit);
   const stockMax = Math.max(0, Math.floor(stockMaxRaw) - inCartMainQty);
   const liveRemainingMainStock = Math.max(0, stockMax - (stockMax > 0 ? quantity : 0));
 
@@ -1884,7 +1997,7 @@ export function FastFoodProductModal({
           const noCtrl = catalogAd?.controlarStock === false || String(catalogAd?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
           if (noCtrl) return a;
           const totalPortions = resolveAdicionMaxPortions(catalogAd);
-          const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId);
+          const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId, editingExcludeCartId);
           const maxPerDish = Math.floor(Math.max(0, totalPortions - inCartPortions) / Math.max(1, quantity));
           if (maxPerDish <= 0) {
             changed = true;
@@ -1899,7 +2012,7 @@ export function FastFoodProductModal({
         .filter(Boolean);
       return changed ? next : prev;
     });
-  }, [quantity, filteredAdiciones, cartItems, mode]);
+  }, [quantity, filteredAdiciones, cartItems, mode, editingExcludeCartId]);
 
   // Toggle remover ingrediente (protegido por lógica humana de cocina)
   const toggleRemoveIngredient = (nombre) => {
@@ -1915,12 +2028,12 @@ export function FastFoodProductModal({
       const noCtrl = ad?.controlarStock === false || String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
       if (noCtrl) return { maxPerDish: 99, availableBeforeThis: 99, noCtrl: true };
       const totalPortions = resolveAdicionMaxPortions(ad);
-      const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId);
+      const inCartPortions = mode === "pos" ? 0 : getAdicionQuantityInCart(cartItems, adId, editingExcludeCartId);
       const availableBeforeThis = Math.max(0, totalPortions - inCartPortions);
       const maxPerDish = Math.floor(availableBeforeThis / Math.max(1, quantity));
       return { maxPerDish, availableBeforeThis, noCtrl: false };
     },
-    [cartItems, mode, quantity]
+    [cartItems, mode, quantity, editingExcludeCartId]
   );
 
   // Toggle o cambiar adición
@@ -2267,20 +2380,39 @@ export function FastFoodProductModal({
       const prodName = String(producto?.nombre || "").toLowerCase();
       const vName = String(selectedVariant?.nombre || "").toLowerCase();
 
-      // Detect active flavor
+      // Detect active flavor (evaluar vName para variantes de sabor explícitas y siempre caer en prodName si vName es solo un tamaño como "Mega Botella 2.5 Litros")
       let flavor = "original";
-      if (vName.includes("uva") || (!vName && prodName.includes("uva"))) flavor = "uva";
-      else if (vName.includes("naranja") || (!vName && prodName.includes("naranja"))) flavor = "naranja";
-      else if (vName.includes("colombiana") || (!vName && prodName.includes("colombiana"))) flavor = "colombiana";
-      else if (vName.includes("manzana") || (!vName && prodName.includes("manzana"))) flavor = "manzana";
-      else if (vName.includes("sprite") || (!vName && prodName.includes("sprite"))) flavor = "sprite";
-      else if (vName.includes("cuatro") || vName.includes("quatro") || (!vName && (prodName.includes("cuatro") || prodName.includes("quatro")))) flavor = "quatro";
-      else if (prodName.includes("coca") || vName.includes("coca")) flavor = "coca";
-      else if (prodName.includes("pepsi") || vName.includes("pepsi")) flavor = "pepsi";
+      if (vName.includes("uva")) flavor = "uva";
+      else if (vName.includes("naranja")) flavor = "naranja";
+      else if (vName.includes("colombiana")) flavor = "colombiana";
+      else if (vName.includes("manzana")) flavor = "manzana";
+      else if (vName.includes("sprite")) flavor = "sprite";
+      else if (vName.includes("cuatro") || vName.includes("quatro") || vName.includes("toronja")) flavor = "quatro";
+      else if (vName.includes("coca")) flavor = "coca";
+      else if (vName.includes("pepsi")) flavor = "pepsi";
+      else if (prodName.includes("uva")) flavor = "uva";
+      else if (prodName.includes("naranja")) flavor = "naranja";
+      else if (prodName.includes("colombiana")) flavor = "colombiana";
+      else if (prodName.includes("manzana")) flavor = "manzana";
+      else if (prodName.includes("sprite")) flavor = "sprite";
+      else if (prodName.includes("cuatro") || prodName.includes("quatro") || prodName.includes("toronja")) flavor = "quatro";
+      else if (prodName.includes("coca")) flavor = "coca";
+      else if (prodName.includes("pepsi")) flavor = "pepsi";
       else if (prodName.includes("agua") || prodName.includes("cristal")) flavor = "agua";
 
-      const isDiet = vName.includes("sin az") || vName.includes("light") || vName.includes("zero") || vName.includes("black") ||
-        (!vName && (prodName.includes("sin az") || prodName.includes("light") || prodName.includes("zero")));
+      const isExplicitRegularVar =
+        vName.includes("con az") || vName.includes("original") || vName.includes("regular");
+      const isDiet = isExplicitRegularVar
+        ? false
+        : vName.includes("sin az") ||
+          vName.includes("light") ||
+          vName.includes("zero") ||
+          vName.includes("black") ||
+          vName.includes("cero") ||
+          prodName.includes("sin az") ||
+          prodName.includes("light") ||
+          prodName.includes("zero") ||
+          prodName.includes("cero");
 
       if (flavor === "coca") {
         if (isDiet) {
@@ -2424,9 +2556,17 @@ export function FastFoodProductModal({
       ? []
       : removedIngredients.filter((r) => !isEssentialIngredient(r, producto));
 
+    const isDrinkDietChip = Boolean(
+      isDrink &&
+      formulaTitle &&
+      /sin az|light|zero|black|cero/i.test(formulaTitle) &&
+      !String(customName || "").toLowerCase().includes("sin az") &&
+      !String(customName || "").toLowerCase().includes("light")
+    );
+
     const personalizacionesFormatted = isDrink
       ? [
-          formulaTitle ? `Sabor: ${formulaTitle}` : null,
+          isDrinkDietChip ? `Versión: ${formulaTitle}` : null,
           drinkHasSizes ? `Presentación: ${selectedSizeObj.label}` : null
         ].filter(Boolean)
       : safeRemovedIngredients.map((r) => `Sin ${r}`);
@@ -2491,7 +2631,8 @@ export function FastFoodProductModal({
       personalizaciones: personalizacionesFormatted,
       ingredientesRemovidos: safeRemovedIngredients,
       observacion: finalObservationString,
-      totalCalculado: grandTotal
+      totalCalculado: grandTotal,
+      splitFromOriginal: Boolean(editingCartItem && splitSingleUnit && Number(editingCartItem.cantidad || 1) > 1)
     });
 
     onClose();
@@ -2959,6 +3100,36 @@ export function FastFoodProductModal({
     </>
   );
 
+  const switchableProducts = useMemo(() => {
+    if (!editingCartItem || !onSwitchProduct || !Array.isArray(productosList) || productosList.length <= 1) {
+      return [];
+    }
+    const currentCatId = Number(producto?.idCategoriaProducto || producto?.categoriaId || 0);
+    const currentCatName = String(producto?.categoriaNombre || producto?.categoria?.nombre || producto?.categoria || "")
+      .toLowerCase()
+      .trim();
+    const activeEligible = productosList.filter((p) => {
+      const st = Number(p?.stock !== undefined ? p.stock : p?.stockActual ?? 0);
+      const agot = Boolean(p?.agotado || st <= 0 || p?.estado === "Inactivo" || p?.estado === 0);
+      return !agot;
+    });
+    if (showAllSwitchCategories) {
+      return activeEligible;
+    }
+    const sameCategory = activeEligible.filter((p) => {
+      if (isDrink) return isDrinkProduct(p);
+      if (isDrinkProduct(p)) return false;
+      const pCatId = Number(p?.idCategoriaProducto || p?.categoriaId || 0);
+      const pCatName = String(p?.categoriaNombre || p?.categoria?.nombre || p?.categoria || "")
+        .toLowerCase()
+        .trim();
+      if (currentCatId > 0 && pCatId > 0) return pCatId === currentCatId;
+      if (currentCatName && pCatName) return pCatName === currentCatName || pCatName.includes(currentCatName);
+      return true;
+    });
+    return sameCategory.length > 1 ? sameCategory : activeEligible.filter((p) => (isDrink ? isDrinkProduct(p) : !isDrinkProduct(p)));
+  }, [editingCartItem, onSwitchProduct, productosList, producto, isDrink, showAllSwitchCategories]);
+
   const configuratorPanels = (
           <div
             className={
@@ -2967,6 +3138,125 @@ export function FastFoodProductModal({
                 : "h-[370px] sm:h-[400px] overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4 scrollbar-thin"
             }
           >
+            {/* ─── PANEL DE EDICIÓN RÁPIDA DESDE EL CARRITO (CAMBIAR PLATO / VARIANTE / SEPARAR UNIDAD) ─── */}
+            {editingCartItem && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-gray-800/80 border border-slate-200/90 dark:border-gray-700 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-7 h-7 rounded-lg bg-[#D9383A]/10 text-[#D9383A] dark:text-red-400 flex items-center justify-center shrink-0">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                        Editando de tu carrito: {editingCartItem.nombre}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-gray-400">
+                        {isDrink
+                          ? "Cambia el tamaño (400 ml, 1.5 L, 2.5 L) o elige otra bebida"
+                          : "Cambia de variante, elige otra hamburguesa/plato o ajusta ingredientes"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {Number(editingCartItem.cantidad || 1) > 1 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSplitSingleUnit(false);
+                        setQuantity(Math.max(1, Number(editingCartItem.cantidad || 1)));
+                      }}
+                      className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer text-left flex items-center justify-between gap-2 ${
+                        !splitSingleUnit
+                          ? "bg-slate-900 border-slate-900 text-white dark:bg-white dark:border-white dark:text-slate-900 shadow-2xs"
+                          : "bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300"
+                      }`}
+                    >
+                      <span>Actualizar las {editingCartItem.cantidad} unidades</span>
+                      {!splitSingleUnit && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSplitSingleUnit(true);
+                        setQuantity(1);
+                      }}
+                      className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer text-left flex items-center justify-between gap-2 ${
+                        splitSingleUnit
+                          ? "bg-[#D9383A] border-[#D9383A] text-white shadow-2xs"
+                          : "bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300"
+                      }`}
+                    >
+                      <span>Separar solo 1 unidad diferente</span>
+                      {splitSingleUnit && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                  </div>
+                )}
+
+                {switchableProducts.length > 1 && (
+                  <div className="space-y-2 pt-1 border-t border-slate-200/80 dark:border-gray-700/80">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-gray-300">
+                        {isDrink ? "¿Prefieres otra bebida?" : "¿Prefieres cambiar por otro plato?"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllSwitchCategories((prev) => !prev)}
+                        className="text-[11px] font-bold text-[#D9383A] dark:text-red-400 hover:underline cursor-pointer"
+                      >
+                        {showAllSwitchCategories ? "Solo misma categoría" : "Ver todo el menú"}
+                      </button>
+                    </div>
+                    <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {switchableProducts.map((cand) => {
+                        const candId = cand.id || cand.idProducto;
+                        const isCurrentProd = String(candId) === String(producto?.id || producto?.idProducto);
+                        const candImg = isDrinkProduct(cand)
+                          ? resolveDrinkImage(cand)
+                          : cand.imagen || cand.imagenUrl || "";
+                        return (
+                          <button
+                            key={candId}
+                            type="button"
+                            onClick={() => {
+                              if (!isCurrentProd) onSwitchProduct?.(cand);
+                            }}
+                            className={`shrink-0 w-44 p-2 rounded-xl border text-left flex items-center gap-2 transition cursor-pointer ${
+                              isCurrentProd
+                                ? "bg-white dark:bg-gray-900 border-[#D9383A] ring-1 ring-[#D9383A]/30 shadow-2xs"
+                                : "bg-white/90 dark:bg-gray-900/70 border-slate-200/80 dark:border-gray-700 hover:border-slate-300"
+                            }`}
+                          >
+                            {candImg ? (
+                              <img
+                                src={getOptimizedImageUrl(candImg, 96)}
+                                alt={cand.nombre}
+                                width="36"
+                                height="36"
+                                loading="lazy"
+                                decoding="async"
+                                className="w-9 h-9 rounded-lg object-cover bg-slate-100 dark:bg-gray-800 shrink-0"
+                              />
+                            ) : (
+                              <FoodIconBadge name={cand.nombre} size="sm" className="shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold text-slate-900 dark:text-gray-100 truncate">
+                                {cand.nombre}
+                              </p>
+                              <p className="text-[10.5px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
+                                ${Number(cand.precio || 0).toLocaleString("es-CO")}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {/* ─── TAB 0: VARIANTES SIN TAMAÑO PARA BEBIDAS ─── */}
             {!drinkHasSizes && isDrink && activeTab === "presentacion" && (drinkFormulaVariants.length > 1 || realVariants.length > 1) && (
               <div className="space-y-4 animate-in fade-in duration-200">
@@ -4938,7 +5228,7 @@ export function FastFoodProductModal({
                   <span>
                     {isSoldOut
                       ? "Agotado por el momento"
-                      : `Agregar al Carrito · $${grandTotal.toLocaleString("es-CO")}`}
+                      : `${editingCartItem ? "Guardar Cambios" : "Agregar al Carrito"} · $${grandTotal.toLocaleString("es-CO")}`}
                   </span>
                 </button>
               </div>
@@ -4976,7 +5266,7 @@ export function FastFoodProductModal({
           >
             <ShoppingCart className="w-4 h-4 stroke-[2.5] shrink-0" />
             <span className="truncate">
-              {isSoldOut ? "Agotado" : `Agregar · $${grandTotal.toLocaleString("es-CO")}`}
+              {isSoldOut ? "Agotado" : `${editingCartItem ? "Guardar" : "Agregar"} · $${grandTotal.toLocaleString("es-CO")}`}
             </span>
           </button>
         </div>
@@ -5069,7 +5359,7 @@ export function FastFoodProductModal({
           <span>
             {stockMax <= 0 || producto?.agotado
               ? "Agotado por el momento"
-              : `${mode === "pos" ? "Agregar al Pedido" : "Agregar al Carrito"} • $${grandTotal.toLocaleString("es-CO")}`}
+              : `${editingCartItem ? "Guardar Cambios" : mode === "pos" ? "Agregar al Pedido" : "Agregar al Carrito"} • $${grandTotal.toLocaleString("es-CO")}`}
           </span>
         </button>
       </div>

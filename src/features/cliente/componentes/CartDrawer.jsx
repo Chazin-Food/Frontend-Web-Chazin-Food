@@ -17,7 +17,8 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Pencil
 } from "lucide-react";
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import QuantityStepperInput, { AdicionAvatar } from "@/shared/components/ui/QuantityStepperInput";
@@ -95,7 +96,8 @@ export function CartDrawer({
   isDrinkProduct,
   resolveDrinkImage,
   complementosRef,
-  onScrollComplementos
+  onScrollComplementos,
+  onEditCartItem
 }) {
   const [editingCartToppingsKey, setEditingCartToppingsKey] = useState(null);
   const [toppingSearch, setToppingSearch] = useState("");
@@ -530,8 +532,14 @@ export function CartDrawer({
                           </button>
                         </div>
 
-                        {/* Chips espaciosos de extras activos y exclusiones */}
+                        {/* Chips espaciosos de extras activos, variante y exclusiones */}
                         {(isPromoEvent ||
+                          (!isItemDrink &&
+                            !item.esVarianteBase &&
+                            item.varianteNombre &&
+                            !String(item.nombre || "")
+                              .toLowerCase()
+                              .includes(String(item.varianteNombre || "").toLowerCase())) ||
                           (item.observaciones && item.observaciones.toLowerCase().includes("bebida")) ||
                           currentAdds.length > 0 ||
                           (item.personalizaciones && item.personalizaciones.length > 0)) && (
@@ -542,6 +550,18 @@ export function CartDrawer({
                                 <span>{item.eventoInfo?.nombre || "Promoción activa"}</span>
                               </span>
                             )}
+
+                            {!isItemDrink &&
+                              !item.esVarianteBase &&
+                              item.varianteNombre &&
+                              !String(item.nombre || "")
+                                .toLowerCase()
+                                .includes(String(item.varianteNombre || "").toLowerCase()) && (
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border border-slate-200/80 dark:border-gray-700 inline-flex items-center gap-1.5">
+                                  <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span>Variante: {item.varianteNombre}</span>
+                                </span>
+                              )}
 
                             {item.observaciones && item.observaciones.toLowerCase().includes("bebida") && (
                               <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 inline-flex items-center gap-1.5">
@@ -593,15 +613,33 @@ export function CartDrawer({
                             })}
 
                             {item.personalizaciones &&
-                              item.personalizaciones.map((p, pIdx) => (
-                                <span
-                                  key={pIdx}
-                                  className="text-xs bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 px-2.5 py-1 rounded-xl font-semibold inline-flex items-center gap-1.5"
-                                >
-                                  <Ban className="w-3 h-3 text-[#D9383A] shrink-0" />
-                                  <span>{p}</span>
-                                </span>
-                              ))}
+                              item.personalizaciones
+                                .filter(
+                                  (p) =>
+                                    !/^sabor:\s*(mega|botella|familiar|personal|400\s*ml|1\.5|2\.5)/i.test(
+                                      String(p || "").trim()
+                                    )
+                                )
+                                .map((p, pIdx) => {
+                                  const isExclusion = /^sin\b/i.test(String(p || "").trim());
+                                  return (
+                                    <span
+                                      key={pIdx}
+                                      className={`text-xs px-2.5 py-1 rounded-xl font-semibold inline-flex items-center gap-1.5 border ${
+                                        isExclusion
+                                          ? "bg-red-50/70 dark:bg-red-950/30 text-slate-700 dark:text-gray-200 border-red-200/70 dark:border-red-900/40"
+                                          : "bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border-slate-200/80 dark:border-gray-700"
+                                      }`}
+                                    >
+                                      {isExclusion ? (
+                                        <Ban className="w-3 h-3 text-[#D9383A] shrink-0" />
+                                      ) : (
+                                        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                      )}
+                                      <span>{p}</span>
+                                    </span>
+                                  );
+                                })}
                           </div>
                         )}
 
@@ -662,6 +700,22 @@ export function CartDrawer({
                                 </>
                               );
                             })()}
+
+                            {onEditCartItem && (
+                              <button
+                                type="button"
+                                onClick={() => onEditCartItem(item)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-[13px] font-extrabold bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-100 border border-slate-200/90 dark:border-gray-700 hover:border-[#D9383A]/45 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                                title={
+                                  isItemDrink
+                                    ? "Cambiar tamaño de botella (400 ml, 1.5 L, 2.5 L) o cambiar bebida"
+                                    : "Cambiar variante, elegir otra hamburguesa/plato o personalizar receta"
+                                }
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400 shrink-0" />
+                                <span>{isItemDrink ? "Cambiar tamaño" : "Editar plato"}</span>
+                              </button>
+                            )}
 
                             {!isItemDrink && foodAdiciones.length > 0 && (
                               <button

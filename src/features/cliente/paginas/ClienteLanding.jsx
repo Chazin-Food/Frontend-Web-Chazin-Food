@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, Phone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers, Lock, Trash2 } from "lucide-react";
+import { LogOut, LogIn, ShoppingCart, User, Search, Package, Clock, X, Plus, Minus, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckCircle, Check, MapPin, CreditCard, Banknote, Smartphone, Phone, RefreshCw, Sun, Moon, Zap, Truck, Store, Info, Flame, Sparkles, AlertTriangle, ShieldCheck, Loader2, Star, Sliders, Coins, Beaker, Ban, ArrowRight, Globe, AlertCircle, CheckCircle2, Layers, Lock, Trash2, ChefHat } from "lucide-react";
 import { useAuth } from "@/features/autenticacion/hooks/useAuth";
 import { useDarkMode } from "@/shared/hooks/useDarkMode";
 import { useNotifications } from "@/shared/hooks/useNotifications";
@@ -28,7 +28,7 @@ import { fichasTecnicasService } from "@/features/fichas-tecnicas/servicios/fich
 import { adicionesService } from "@/features/compras/servicios/adicionesService";
 import { wompiService } from "@/features/ventas/servicios/wompiService";
 import { eventosService } from "@/features/ventas/servicios/eventosService";
-import { EventosCarousel, THEMES } from "../componentes/EventosCarousel";
+import { EventosCarousel } from "../componentes/EventosCarousel";
 import { BrandHeroBanner } from "../componentes/BrandHeroBanner";
 import { FoodIcon, FoodIconBadge, EventBadge, getEventBadgeConfig, stripEmojis } from "@/shared/components/ui/FoodIcon";
 import { parseEventoInsumos, formatEventoToppingsText } from "@/shared/utils/foodEmojiUtils";
@@ -331,7 +331,7 @@ export function ClienteLanding() {
     if (userRol === "cliente" || Number(user?.idRol) === 4) return false;
     return Boolean(userRol || (user?.idRol !== undefined && user?.idRol !== null));
   }, [isAuthenticated, user]);
-  const { cart, addToCart, updateQuantity, updateItemAdiciones, removeFromCart, clearCart, syncCartWithCatalog, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
+  const { cart, addToCart, replaceCartItem, updateQuantity, updateItemAdiciones, removeFromCart, clearCart, syncCartWithCatalog, getTotalItems, getSubtotal, getProductQuantityInCart } = useCart();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { success, error, warning, info, confirmAction, confirmLogout } = useNotifications();
 
@@ -488,6 +488,7 @@ export function ClienteLanding() {
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [editingCartItem, setEditingCartItem] = useState(null);
   const [modalInitialTab, setModalInitialTab] = useState("personalizar");
   const [showResenasModal, setShowResenasModal] = useState(false);
 
@@ -1628,6 +1629,60 @@ export function ClienteLanding() {
     success("¡Producto agregado!", msg);
   };
 
+  const handleEditCartItem = async (cartItem) => {
+    if (!cartItem) return;
+    const targetId = cartItem.idProducto || cartItem.id;
+    const matchedProd =
+      activeProductos.find((p) => String(p.id || p.idProducto) === String(targetId)) || {
+        id: targetId,
+        idProducto: targetId,
+        nombre: String(cartItem.nombre || "Producto").replace(/\s*\([^)]*\)\s*$/, "").trim(),
+        precio: Number(cartItem.precio || 0),
+        stock: Number(cartItem.stock ?? 99),
+        imagen: cartItem.imagen,
+        categoria: cartItem.categoria
+      };
+
+    const prodId = matchedProd.id || matchedProd.idProducto;
+    let ficha = fichasMap[prodId] || fichasTecnicasDefault[prodId] || null;
+    if (!ficha && !isDrinkProduct(matchedProd) && prodId) {
+      try {
+        const fetchedFicha = await fichasTecnicasService.getFichaByProducto(prodId);
+        if (fetchedFicha) {
+          ficha = fetchedFicha;
+          setFichasMap((prev) => ({ ...prev, [prodId]: fetchedFicha }));
+        }
+      } catch (_) {
+        // continuar con ficha base
+      }
+    }
+
+    setEditingCartItem(cartItem);
+    setModalInitialTab(isDrinkProduct(matchedProd) ? "presentacion" : "personalizar");
+    setProductoSeleccionado({ producto: matchedProd, ficha });
+    setShowCart(false);
+    setShowProductModal(true);
+  };
+
+  const handleSwitchModalProduct = async (nextProd) => {
+    if (!nextProd) return;
+    const prodId = nextProd.id || nextProd.idProducto;
+    let ficha = fichasMap[prodId] || fichasTecnicasDefault[prodId] || null;
+    if (!ficha && !isDrinkProduct(nextProd) && prodId) {
+      try {
+        const fetchedFicha = await fichasTecnicasService.getFichaByProducto(prodId);
+        if (fetchedFicha) {
+          ficha = fetchedFicha;
+          setFichasMap((prev) => ({ ...prev, [prodId]: fetchedFicha }));
+        }
+      } catch (_) {
+        // continuar con ficha base
+      }
+    }
+    setModalInitialTab(isDrinkProduct(nextProd) ? "presentacion" : "personalizar");
+    setProductoSeleccionado({ producto: nextProd, ficha });
+  };
+
   const handleClientModalConfirm = ({
     producto,
     cantidad,
@@ -1642,7 +1697,8 @@ export function ClienteLanding() {
     varianteDescripcion,
     varianteEspecificaciones,
     varianteCambios,
-    esVarianteDeEvento
+    esVarianteDeEvento,
+    splitFromOriginal
   }) => {
     // Ítem #16: Evitar doble descuento si el modal ya calculó el precio final
     let basePrice = Number(producto.precioFinal !== undefined ? producto.precioFinal : (producto.precioCalculado !== undefined ? producto.precioCalculado : producto.precio || 0));
@@ -1689,6 +1745,9 @@ export function ClienteLanding() {
         nombre: a.nombre,
         precio: Number(a.precio) || 0,
         cantidad: Number(a.cantidad) || 1,
+        unidadMedida: a.unidadMedida,
+        porcionMinimaCantidad: a.porcionMinimaCantidad,
+        porcionMinimaUnidad: a.porcionMinimaUnidad,
         imagen: a.imagen || ""
       }))
     };
@@ -1726,6 +1785,28 @@ export function ClienteLanding() {
           bebidasCount += (isComboProd ? extraQty : qty);
         }
       }
+    }
+
+    if (editingCartItem && replaceCartItem) {
+      const replaceRes = replaceCartItem(editingCartItem.cartItemId, itemToAdd, {
+        splitFromOriginal: Boolean(splitFromOriginal)
+      });
+      if (replaceRes && replaceRes.success === false) {
+        error("Stock insuficiente", replaceRes.message || "No hay suficiente stock disponible para actualizar este plato.");
+        return;
+      }
+      if (itemsToBatch.length > 1) {
+        const extraRes = addToCart(itemsToBatch.slice(1));
+        if (extraRes && extraRes.success === false) {
+          warning("Bebida sin stock suficiente", extraRes.message || "El plato se actualizó, pero la bebida extra excede el stock.");
+        }
+      }
+      setEditingCartItem(null);
+      setShowProductModal(false);
+      setProductoSeleccionado(null);
+      setShowCart(true);
+      success("¡Pedido actualizado!", `${finalProdName} se actualizó en tu carrito.`);
+      return;
     }
 
     const res = addToCart(itemsToBatch);
@@ -2331,10 +2412,9 @@ export function ClienteLanding() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-950 transition-colors">
-      {/* Header — Navbar dinámico con barra de acento, navegación interactiva y efecto cristal */}
-      <header className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800 shadow-xs sticky top-0 z-40 transition-colors">
-        <div className="h-0.5 w-full bg-gradient-to-r from-[#c84545] via-amber-400/80 to-[#2e4257]" />
+    <div className="min-h-[100dvh] bg-[#F8FAFC] dark:bg-gray-950 text-slate-900 dark:text-gray-100 transition-colors">
+      {/* Header — Navbar unificado con ProductoDetalleCliente y CartDrawer (Slate-900 + Chazin Crimson #D9383A) */}
+      <header className="bg-white/92 dark:bg-gray-900/92 backdrop-blur-xl border-b border-slate-200/80 dark:border-gray-800 sticky top-0 z-40 transition-colors">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 py-3 sm:py-3.5">
             <div
@@ -2349,7 +2429,7 @@ export function ClienteLanding() {
               }}
               title="Ir al menú - Chazin Food"
             >
-              <div className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-white shadow-xs ring-2 ring-red-100 dark:ring-red-900/40 group-hover:scale-105 group-hover:ring-red-300 transition-all duration-200">
+              <div className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-white shadow-2xs ring-1 ring-slate-200 dark:ring-gray-700 group-hover:scale-105 group-hover:ring-[#D9383A]/40 transition-all duration-200">
                 <img
                   src={logoImg}
                   alt="Chazin Food"
@@ -2363,8 +2443,8 @@ export function ClienteLanding() {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-base sm:text-xl font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors truncate tracking-tight">
-                    Chazin <span className="text-red-600 dark:text-red-400">Food</span>
+                  <h1 className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white group-hover:text-[#D9383A] dark:group-hover:text-red-400 transition-colors truncate tracking-tight">
+                    Chazin <span className="text-[#D9383A] dark:text-red-400">Food</span>
                   </h1>
                   {isAuthenticated && !isStaffUser && (
                     <div className="hidden xs:inline-flex sm:inline-flex">
@@ -2377,15 +2457,15 @@ export function ClienteLanding() {
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 truncate flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-gray-400 truncate flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                   <span>{isAuthenticated ? `Hola, ${user?.nombre}` : "Medellín · Pedidos en línea"}</span>
                 </p>
               </div>
             </div>
 
-            {/* Navegación central interactiva en escritorio */}
-            <nav aria-label="Navegación principal" className="hidden lg:flex items-center gap-1 bg-gray-100/80 dark:bg-gray-800/80 p-1 rounded-2xl border border-gray-200/70 dark:border-gray-700/70">
+            {/* Navegación central interactiva en escritorio (estilo segmentado limpio) */}
+            <nav aria-label="Navegación principal" className="hidden lg:flex items-center gap-1 bg-slate-100/90 dark:bg-gray-800/80 p-1 rounded-2xl border border-slate-200/70 dark:border-gray-700/70">
               <button
                 type="button"
                 onClick={() => {
@@ -2396,8 +2476,8 @@ export function ClienteLanding() {
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   selectedCategoria !== "eventos"
-                    ? "bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-2xs"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
+                    : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 Menú
@@ -2412,11 +2492,11 @@ export function ClienteLanding() {
                   }}
                   className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedCategoria === "eventos"
-                      ? "bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-2xs"
-                      : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                      ? "bg-[#D9383A] text-white shadow-2xs"
+                      : "text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <Sparkles className={`w-3.5 h-3.5 ${selectedCategoria === "eventos" ? "text-amber-200" : "text-[#D9383A]"}`} />
                   <span>Eventos</span>
                 </button>
               )}
@@ -2426,30 +2506,30 @@ export function ClienteLanding() {
                   const footerEl = document.querySelector("footer");
                   if (footerEl) footerEl.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
               >
                 Contacto y Horarios
               </button>
             </nav>
 
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               <button
                 onClick={toggleDarkMode}
                 aria-label={darkMode ? "Activar modo claro" : "Activar modo oscuro"}
-                className="p-2 sm:p-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
+                className="p-2 sm:p-2.5 text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
                 title="Cambiar Modo"
               >
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {darkMode ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
 
               {isAuthenticated && isStaffUser && (
                 <button
                   onClick={() => navigate("/")}
                   aria-label="Ir al panel administrativo"
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors text-xs sm:text-sm font-semibold cursor-pointer"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-slate-700 dark:text-gray-200 bg-slate-100 dark:bg-gray-800 hover:bg-slate-200/80 dark:hover:bg-gray-700 rounded-xl transition-colors text-xs sm:text-sm font-semibold cursor-pointer"
                   title="Volver al Panel"
                 >
-                  <Store className="w-4 h-4 text-[#f05454]" />
+                  <Store className="w-4 h-4 text-[#D9383A]" />
                   <span className="hidden sm:inline">Panel</span>
                 </button>
               )}
@@ -2458,15 +2538,15 @@ export function ClienteLanding() {
                 <button
                   onClick={() => navigate("/perfil")}
                   aria-label="Ir a mi perfil"
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-xs sm:text-sm font-medium cursor-pointer relative"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-xs sm:text-sm font-semibold cursor-pointer relative"
                   title={!isStaffUser && isGoogleUser && googlePendingFields.length > 0 ? "Datos pendientes en tu perfil" : "Mi Perfil"}
                 >
-                  <User className="w-5 h-5 text-[#f05454]" />
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-[#D9383A]" />
                   <span className="hidden sm:inline">Mi Perfil</span>
                   {!isStaffUser && isGoogleUser && googlePendingFields.length > 0 && (
                     <>
                       <span className="sm:hidden absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-gray-900 animate-pulse" />
-                      <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                      <span className="hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
                         Datos pendientes
                       </span>
                     </>
@@ -2476,7 +2556,7 @@ export function ClienteLanding() {
                 <button
                   onClick={() => navigate("/login")}
                   aria-label="Iniciar sesión"
-                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors font-medium text-xs sm:text-sm cursor-pointer whitespace-nowrap"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 hover:bg-slate-200/80 dark:hover:bg-gray-700 rounded-xl transition-colors font-semibold text-xs sm:text-sm cursor-pointer whitespace-nowrap"
                 >
                   <LogIn className="w-4 h-4 shrink-0" />
                   <span className="sm:hidden">Ingresar</span>
@@ -2487,25 +2567,25 @@ export function ClienteLanding() {
               <button
                 onClick={() => setShowCart(true)}
                 aria-label="Abrir carrito de compras"
-                className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-xl transition-colors shadow-md font-bold text-xs sm:text-sm cursor-pointer"
+                className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white rounded-xl transition-all shadow-xs font-bold text-xs sm:text-sm cursor-pointer active:scale-95"
               >
-                <ShoppingCart className="w-5 h-5" />
+                <ShoppingCart className="w-4 h-4" />
+                <span className="hidden sm:inline">Carrito</span>
                 {getTotalItems() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-white text-red-600 font-extrabold text-xs w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shadow-md">
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#D9383A] dark:bg-white text-white dark:text-[#B91C1C] font-black text-[10.5px] leading-none min-w-[18px] text-center">
                     {getTotalItems()}
                   </span>
                 )}
-                <span className="hidden sm:inline">Carrito</span>
               </button>
 
               {isAuthenticated && (
                 <button
                   onClick={handleLogout}
                   aria-label="Cerrar sesión"
-                  className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
+                  className="p-2 sm:p-2.5 text-slate-500 dark:text-gray-400 hover:bg-red-50 hover:text-[#D9383A] dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
                   title="Cerrar Sesión"
                 >
-                  <LogOut className="w-5 h-5" />
+                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
             </div>
@@ -2515,16 +2595,16 @@ export function ClienteLanding() {
 
       {/* Banner de aviso amigable para completar datos de Google Auth (Sin toasts) */}
       {isAuthenticated && !isStaffUser && isGoogleUser && googlePendingFields.length > 0 && !dismissedGoogleBanner && (
-        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-[#f05454] text-white shadow-md relative z-30 transition-all">
+        <div className="bg-slate-900 text-white border-b border-slate-800 relative z-30 transition-all">
           <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs sm:text-sm">
             <div className="flex items-center gap-2.5 text-center sm:text-left">
-              <span className="p-1.5 rounded-lg bg-white/20 shrink-0">
-                <Globe className="w-4 h-4 text-white" />
+              <span className="p-1.5 rounded-lg bg-white/10 shrink-0">
+                <Globe className="w-4 h-4 text-amber-300" />
               </span>
-              <p className="font-medium leading-tight">
-                <span className="font-bold">¡Bienvenido con Google, {user?.nombre}!</span>
+              <p className="font-medium leading-tight text-slate-200">
+                <span className="font-bold text-white">¡Bienvenido con Google, {user?.nombre}!</span>
                 {" "}Para habilitar tus pedidos y entregas, completa tu{" "}
-                <span className="underline font-bold bg-white/10 px-1.5 py-0.5 rounded">
+                <span className="underline font-bold bg-white/10 px-1.5 py-0.5 rounded text-white">
                   {googlePendingFields.join(", ")}
                 </span>
                 {" "}en tu perfil.
@@ -2533,7 +2613,7 @@ export function ClienteLanding() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => navigate("/perfil?tab=editar")}
-                className="px-3.5 py-1.5 bg-white text-gray-900 font-bold rounded-xl text-xs hover:bg-amber-50 transition shadow-sm cursor-pointer flex items-center gap-1.5 active:scale-95"
+                className="px-3.5 py-1.5 bg-[#D9383A] hover:bg-[#B91C1C] text-white font-bold rounded-xl text-xs transition shadow-2xs cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <span>Completar datos</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -2543,7 +2623,7 @@ export function ClienteLanding() {
                   setDismissedGoogleBanner(true);
                   sessionStorage.setItem("chazin_google_banner_dismissed", "true");
                 }}
-                className="p-1 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition cursor-pointer"
+                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition cursor-pointer"
                 title="Cerrar aviso"
               >
                 <X className="w-4 h-4" />
@@ -2577,58 +2657,34 @@ export function ClienteLanding() {
           />
         )}
 
-        {/* Hero Section con integración cromática dinámica (Solo cuando hay eventos activos en el carrusel) */}
-        {hasActiveEvents && (
-          <div className="relative overflow-hidden text-white py-10 md:py-14 shadow-inner">
-            {/* Capas temáticas integradas con los colores del carrusel de eventos */}
-            {Object.entries(THEMES).map(([tKey, tVal]) => {
-              const isThemeActive = (currentCarouselTheme?.themeKey || "fire") === tKey;
-              return (
-                <div
-                  key={tKey}
-                  className={`absolute inset-0 bg-gradient-to-r ${tVal.heroGradient} transition-opacity duration-700 ease-in-out ${
-                    isThemeActive ? "opacity-100" : "opacity-0"
-                  }`}
-                />
-              );
-            })}
-
-            {/* Halo de luz superior difusa ambiental conectado con el carrusel */}
-            <div
-              className="absolute -top-10 inset-x-0 h-20 blur-xl pointer-events-none transition-opacity duration-700"
-              style={{
-                backgroundColor: currentCarouselTheme?.theme?.glow || "rgba(239, 68, 68, 0.4)",
-                opacity: 0.35
-              }}
-            />
-
-            {/* Contenido del Hero */}
-            <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 text-center space-y-2">
-              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight drop-shadow-xs">¡El sabor auténtico de Chazin Food!</h2>
-              <p
-                className={`text-sm sm:text-lg font-medium transition-colors duration-500 ${
-                  currentCarouselTheme?.theme?.heroSubtext || "text-red-100"
-                }`}
-              >
-                Haz tu pedido online y recíbelo fresco en tu puerta
-              </p>
+      {/* Barra limpia de Búsqueda y Eslogan (Descanso visual sobre lienzo #F8FAFC sin bloques saturados) */}
+      <div className="w-full px-3 sm:px-6 lg:px-8 pt-2">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xs p-3.5 sm:p-4 border border-slate-200/85 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {hasActiveEvents && (
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="w-9 h-9 rounded-xl bg-[#D9383A]/10 dark:bg-red-950/50 text-[#D9383A] dark:text-red-400 flex items-center justify-center shrink-0">
+                <ChefHat className="w-4 h-4" />
+              </span>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                  ¡El sabor auténtico de Chazin Food!
+                </h2>
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-gray-400">
+                  Haz tu pedido en línea y recíbelo fresco en tu puerta
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-
-      {/* Search Bar */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 -mt-6">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-3 border border-gray-100 dark:border-gray-800">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          )}
+          <div className={`relative ${hasActiveEvents ? "flex-1 md:max-w-xl" : "w-full"}`}>
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 sm:w-5 sm:h-5 pointer-events-none" />
             <input
               id="search-menu-input"
               type="text"
               aria-label="Buscar producto por nombre"
-              placeholder="Buscar por nombre de producto..."
+              placeholder="Buscar hamburguesa, perro, salchipapa o bebida..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border-0 bg-gray-50 dark:bg-gray-800 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-red-500 focus:bg-white dark:focus:bg-gray-800 transition-all text-sm outline-none"
+              className="w-full pl-11 pr-4 py-2.5 sm:py-3 border border-slate-200/80 dark:border-gray-700 bg-slate-50/90 dark:bg-gray-800 text-slate-900 dark:text-gray-100 placeholder:text-slate-400 rounded-xl focus:ring-2 focus:ring-[#D9383A]/20 focus:border-[#D9383A] focus:bg-white dark:focus:bg-gray-800 transition-all text-sm outline-none"
             />
           </div>
         </div>
@@ -2636,19 +2692,19 @@ export function ClienteLanding() {
 
       {/* Banner de Fidelidad del Cliente */}
       {isAuthenticated && !isStaffUser && (
-        <div className="w-full px-4 sm:px-6 lg:px-8 mt-6">
-          <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10 dark:from-amber-950/20 dark:via-orange-950/20 dark:to-red-950/20 border border-amber-200 dark:border-amber-900/40 rounded-3xl p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 sm:gap-4 shadow-xs overflow-hidden">
+        <div className="w-full px-3 sm:px-6 lg:px-8 mt-5">
+          <div className="bg-white dark:bg-gray-900 border border-slate-200/85 dark:border-gray-800 rounded-3xl p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 sm:gap-4 shadow-2xs overflow-hidden">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 w-full lg:w-auto">
               <div className="w-full sm:w-auto sm:shrink-0">
                 <FidelidadBadge tipo={tipoFidelidad} size="lg" />
               </div>
               <div className="min-w-0 w-full sm:flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-black uppercase tracking-wider text-orange-900 dark:text-orange-300">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
                     Membresía {tipoFidelidad}
                   </span>
                   {discountPercent > 0 && (
-                    <span className="px-2 py-0.5 bg-[#f05454] text-white text-[10px] font-black rounded-lg">
+                    <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 text-[10px] font-black rounded-lg">
                       {discountPercent}% OFF activo
                     </span>
                   )}
@@ -2659,18 +2715,18 @@ export function ClienteLanding() {
                     </span>
                   )}
                   {heroLiveStatus.esNuevo && (
-                    <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold rounded-lg">
+                    <span className="px-2 py-0.5 bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 text-[10px] font-bold rounded-lg">
                       Membresía Permanente
                     </span>
                   )}
                 </div>
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                  <Flame className="w-3.5 h-3.5 text-orange-500" />
+                <p className="text-xs font-semibold text-slate-600 dark:text-gray-300 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <Flame className="w-3.5 h-3.5 text-[#D9383A]" />
                   <span>
-                    Racha: <strong>{comprasCiclo} de 3</strong>
+                    Racha: <strong className="text-slate-900 dark:text-white">{comprasCiclo} de 3</strong>
                   </span>
-                  <span className="text-gray-400">•</span>
-                  <span className="text-[#f05454] font-bold flex items-center gap-1">
+                  <span className="text-slate-300 dark:text-gray-600">•</span>
+                  <span className="text-[#D9383A] dark:text-red-400 font-bold flex items-center gap-1">
                     {comprasFaltantes === 0 
                       ? <><span>¡Meta alcanzada!</span> <Sparkles className="w-3.5 h-3.5 text-amber-500 inline" /></> 
                       : tipoFidelidad === "VIP"
@@ -2679,9 +2735,9 @@ export function ClienteLanding() {
                   </span>
                   {!heroLiveStatus.esNuevo && heroLiveStatus.countdownStr && !heroLiveStatus.enGracia && (
                     <>
-                      <span className="text-gray-400">•</span>
-                      <span className="text-gray-600 dark:text-gray-300 flex items-center gap-1 font-mono font-bold bg-white/70 dark:bg-gray-800/70 px-2 py-0.5 rounded-md border border-gray-200 dark:border-gray-700">
-                        <Clock className="w-3 h-3 text-[#f05454]" />
+                      <span className="text-slate-300 dark:text-gray-600">•</span>
+                      <span className="text-slate-600 dark:text-gray-300 flex items-center gap-1 font-mono font-bold bg-slate-50 dark:bg-gray-800/70 px-2 py-0.5 rounded-md border border-slate-200/80 dark:border-gray-700">
+                        <Clock className="w-3 h-3 text-[#D9383A]" />
                         <span>Vigencia: {heroLiveStatus.countdownStr}</span>
                       </span>
                     </>
@@ -2693,9 +2749,9 @@ export function ClienteLanding() {
             <button
               type="button"
               onClick={() => navigate("/perfil")}
-              className="w-full sm:w-auto px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-750 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-gray-800 dark:hover:bg-gray-750 text-white border border-slate-900 dark:border-gray-700 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>Ver Beneficios y Racha</span>
             </button>
           </div>
@@ -2703,10 +2759,10 @@ export function ClienteLanding() {
       )}
 
       {/* Categorías Carousel */}
-      <div id="menu-categorias" className="w-full px-3 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div id="menu-categorias" className="w-full px-3 sm:px-6 lg:px-8 py-6 sm:py-7">
         <div className="mb-3 sm:mb-4">
-          <h3 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Categorías</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Explora nuestro menú</p>
+          <h3 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Categorías</h3>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Explora nuestro menú artesanal</p>
         </div>
 
         {/* Carousel Wrapper with Left & Right Buttons (desktop/tablet) */}
@@ -2716,7 +2772,7 @@ export function ClienteLanding() {
             type="button"
             onClick={() => scrollCategories("left")}
             aria-label="Anterior categoría"
-            className="hidden sm:flex shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md hover:shadow-lg transition-all active:scale-95 items-center justify-center cursor-pointer z-10"
+            className="hidden sm:flex shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-900 border border-slate-200/85 dark:border-gray-800 text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 shadow-sm hover:shadow-md transition-all active:scale-95 items-center justify-center cursor-pointer z-10"
           >
             <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -2735,10 +2791,10 @@ export function ClienteLanding() {
               onClick={() => setSelectedCategoria(null)}
               aria-label="Todos: mostrar todas las categorías y productos"
               style={{ scrollSnapAlign: "start" }}
-              className={`shrink-0 w-28 sm:w-32 p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer ${
+              className={`shrink-0 w-28 sm:w-32 p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer border ${
                 selectedCategoria === null
-                  ? "bg-red-700 text-white shadow-lg shadow-red-700/25 scale-105 font-bold"
-                  : "bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-xs"
+                  ? "bg-slate-900 dark:bg-[#D9383A] text-white border-slate-900 dark:border-[#D9383A] shadow-md scale-[1.02] font-bold"
+                  : "bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-200 border-slate-200/85 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 shadow-2xs"
               }`}
             >
               <FoodIconBadge
@@ -2747,7 +2803,7 @@ export function ClienteLanding() {
                 size="lg"
                 isSelected={selectedCategoria === null}
               />
-              <p className={`text-xs font-semibold truncate w-full ${selectedCategoria === null ? "text-white font-bold" : "text-gray-800 dark:text-gray-200"}`}>Todos</p>
+              <p className={`text-xs font-semibold truncate w-full ${selectedCategoria === null ? "text-white font-bold" : "text-slate-800 dark:text-gray-200"}`}>Todos</p>
             </button>
 
             {/* Quick Filter Pill: Edición Especial / Eventos */}
@@ -2757,23 +2813,27 @@ export function ClienteLanding() {
                 onClick={() => setSelectedCategoria("eventos")}
                 aria-label={`${eventProductsCount} DROP - Edición Evento`}
                 style={{ scrollSnapAlign: "start" }}
-                className={`shrink-0 w-32 sm:w-36 p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer relative overflow-hidden ${
+                className={`shrink-0 w-32 sm:w-36 p-3.5 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer relative overflow-hidden border ${
                   selectedCategoria === "eventos"
-                    ? "bg-gradient-to-r from-orange-600 via-amber-600 to-red-600 text-white shadow-lg shadow-orange-500/30 ring-2 ring-orange-400/40 scale-105 font-bold"
-                    : "bg-white dark:bg-gray-900 dark:text-gray-200 border-2 border-orange-400/70 dark:border-orange-500/60 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 shadow-xs"
+                    ? "bg-[#D9383A] text-white border-[#D9383A] shadow-md shadow-[#D9383A]/20 scale-[1.02] font-bold"
+                    : "bg-white dark:bg-gray-900 dark:text-gray-200 border-[#D9383A]/35 dark:border-red-500/40 hover:bg-red-50/40 dark:hover:bg-red-950/20 shadow-2xs"
                 }`}
               >
-                <div aria-hidden="true" className="absolute top-1 right-1 bg-gradient-to-r from-orange-600 to-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter shadow-xs">
+                <div aria-hidden="true" className={`absolute top-1.5 right-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tighter ${
+                  selectedCategoria === "eventos"
+                    ? "bg-black/20 text-white"
+                    : "bg-[#D9383A] text-white"
+                }`}>
                   {eventProductsCount} DROP
                 </div>
-                <div className={`flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-2xl shadow-xs transition-all ${
+                <div className={`flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-2xl transition-all ${
                   selectedCategoria === "eventos"
-                    ? "bg-white text-orange-600 shadow-sm"
-                    : "bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border border-orange-200/80 dark:border-orange-800/40"
+                    ? "bg-white/15 text-white"
+                    : "bg-red-50 dark:bg-red-950/50 text-[#D9383A] dark:text-red-300 border border-red-200/70 dark:border-red-900/40"
                 }`}>
                   <Flame size={26} strokeWidth={2} />
                 </div>
-                <p className={`text-xs font-black truncate w-full ${selectedCategoria === "eventos" ? "text-white" : "text-orange-700 dark:text-orange-300"}`}>
+                <p className={`text-xs font-black truncate w-full ${selectedCategoria === "eventos" ? "text-white" : "text-[#D9383A] dark:text-red-300"}`}>
                   Edición Evento
                 </p>
               </button>
@@ -2788,14 +2848,14 @@ export function ClienteLanding() {
                   onClick={() => setSelectedCategoria(cat.id || cat.idCategoriaProducto)}
                   aria-label={`Filtrar menú por categoría ${cat.nombre}`}
                   style={{ scrollSnapAlign: "start" }}
-                  className={`shrink-0 min-w-[116px] sm:min-w-[138px] px-2.5 sm:px-3 py-3 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer ${
+                  className={`shrink-0 min-w-[116px] sm:min-w-[138px] px-2.5 sm:px-3 py-3 rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer border ${
                     isSelected
-                      ? "bg-red-700 text-white shadow-lg shadow-red-700/25 scale-105 font-bold"
-                      : "bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-xs"
+                      ? "bg-slate-900 dark:bg-[#D9383A] text-white border-slate-900 dark:border-[#D9383A] shadow-md scale-[1.02] font-bold"
+                      : "bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-200 border-slate-200/85 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700 shadow-2xs"
                   }`}
                 >
                   {cat.icon && (cat.icon.includes("/") || cat.icon.includes(".")) ? (
-                    <div className="flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-2xl overflow-hidden bg-white/30 dark:bg-gray-800/60 shadow-xs border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-center h-12 w-12 sm:h-14 sm:w-14 rounded-2xl overflow-hidden bg-white/30 dark:bg-gray-800/60 shadow-2xs border border-slate-100 dark:border-gray-700">
                       <img
                         src={getOptimizedImageUrl(cat.icon, 120)}
                         alt=""
@@ -2816,7 +2876,7 @@ export function ClienteLanding() {
                       isSelected={isSelected}
                     />
                   )}
-                  <p className={`text-[11px] sm:text-xs font-semibold leading-tight line-clamp-2 break-words text-center w-full ${isSelected ? "text-white font-bold" : "text-gray-800 dark:text-gray-200"}`} title={cat.nombre}>
+                  <p className={`text-[11px] sm:text-xs font-semibold leading-tight line-clamp-2 break-words text-center w-full ${isSelected ? "text-white font-bold" : "text-slate-800 dark:text-gray-200"}`} title={cat.nombre}>
                     {cat.nombre}
                   </p>
                 </button>
@@ -2829,7 +2889,7 @@ export function ClienteLanding() {
             type="button"
             onClick={() => scrollCategories("right")}
             aria-label="Siguiente categoría"
-            className="hidden sm:flex shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 shadow-md hover:shadow-lg transition-all active:scale-95 items-center justify-center cursor-pointer z-10"
+            className="hidden sm:flex shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-900 border border-slate-200/85 dark:border-gray-800 text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 shadow-sm hover:shadow-md transition-all active:scale-95 items-center justify-center cursor-pointer z-10"
           >
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -2840,14 +2900,14 @@ export function ClienteLanding() {
       <div className="w-full px-3 sm:px-6 lg:px-8 pb-16">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               {selectedCategoria === "eventos" ? (
                 <>
                   <span className="flex items-center gap-1.5">
-                    <Flame className="w-5 h-5 text-amber-500 inline shrink-0" />
+                    <Flame className="w-5 h-5 text-[#D9383A] inline shrink-0" />
                     Edición Especial & Eventos Gastronómicos
                   </span>
-                  <span className="text-xs font-black bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 px-2.5 py-1 rounded-full uppercase tracking-wider border border-red-200 dark:border-red-900/50">
+                  <span className="text-xs font-extrabold bg-red-50 dark:bg-red-950/60 text-[#D9383A] dark:text-red-300 px-2.5 py-1 rounded-full uppercase tracking-wider border border-red-200/80 dark:border-red-900/50">
                     Tiempo Limitado
                   </span>
                 </>
@@ -2857,7 +2917,7 @@ export function ClienteLanding() {
                 "Menú Principal"
               )}
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
               {selectedCategoria === "eventos"
                 ? "Platillos conmemorativos de edición limitada, recetas exclusivas y ahorros directos del festival"
                 : "Preparados al instante con los ingredientes más frescos"}
@@ -2879,14 +2939,14 @@ export function ClienteLanding() {
                   setModalInitialTab("personalizar");
                   handleProductClick(producto, "personalizar");
                 }}
-                className={`bg-white dark:bg-gray-900 cv-auto rounded-3xl shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between cursor-pointer group hover:-translate-y-1.5 duration-300 relative ${
+                className={`bg-white dark:bg-gray-900 cv-auto rounded-3xl shadow-2xs hover:shadow-xl transition-all overflow-hidden flex flex-col justify-between cursor-pointer group hover:-translate-y-1 duration-300 relative ${
                   isAgotado
-                    ? "border border-gray-300 dark:border-gray-700 opacity-85"
-                    : "border border-gray-200/90 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700"
+                    ? "border border-slate-300 dark:border-gray-700 opacity-85"
+                    : "border border-slate-200/85 dark:border-gray-800 hover:border-slate-300 dark:hover:border-gray-700"
                 }`}
               >
                 {/* ═══ ESCENARIO GOURMET AMBIENTAL (Eventos resaltados únicamente con etiqueta/badge) ═══ */}
-                <div className="relative h-48 sm:h-52 w-full bg-slate-950 flex items-center justify-center overflow-hidden border-b border-gray-100 dark:border-gray-800/80">
+                <div className="relative h-48 sm:h-52 w-full bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-gray-800/80">
                   {/* Capa 1: Glow ambiental sutil */}
                   {hasRealImage ? (
                     <>
@@ -2937,7 +2997,7 @@ export function ClienteLanding() {
                 {/* Badge de Producto Agotado o Últimas Unidades */}
                 {isAgotado ? (
                   <div className="absolute inset-0 z-20 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-3">
-                    <span className="px-4 py-2 rounded-2xl bg-red-600/95 text-white font-black text-xs uppercase tracking-wider shadow-lg border border-white/25 flex items-center gap-1.5">
+                    <span className="px-4 py-2 rounded-2xl bg-[#D9383A] text-white font-black text-xs uppercase tracking-wider shadow-lg border border-white/25 flex items-center gap-1.5">
                       <Ban className="w-4 h-4 stroke-[2.5]" />
                       <span>Agotado por el momento</span>
                     </span>
@@ -2951,10 +3011,10 @@ export function ClienteLanding() {
 
               <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div>
-                    <h4 className="font-bold text-lg text-gray-800 dark:text-gray-100 group-hover:text-[#f05454] transition-colors line-clamp-1">
+                    <h4 className="font-extrabold text-lg text-slate-900 dark:text-gray-100 group-hover:text-[#D9383A] dark:group-hover:text-red-400 transition-colors line-clamp-1">
                       {producto.nombre}
                     </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                    <p className="text-xs text-slate-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">
                       {producto.descripcion || "Platillo gourmet preparado con ingredientes frescos de primera calidad."}
                     </p>
 
@@ -2964,11 +3024,11 @@ export function ClienteLanding() {
                       const basePrice = Number(producto.precio || 0);
                       return (
                         <div
-                          className="mt-2 flex items-center flex-wrap gap-1"
+                          className="mt-2.5 flex items-center flex-wrap gap-1"
                           title={`Variantes disponibles: ${variantSummary.names.join(", ")}`}
                         >
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60">
-                            <Layers className="w-2.5 h-2.5 shrink-0" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700">
+                            <Layers className="w-2.5 h-2.5 text-slate-500 shrink-0" />
                             <span>
                               {variantSummary.count} {variantSummary.count === 1 ? "variante" : "variantes"}:
                             </span>
@@ -2979,11 +3039,11 @@ export function ClienteLanding() {
                             return (
                               <span
                                 key={v.idVariante || v.id || `${v.nombre}-${vIdx}`}
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50/50 dark:bg-gray-800 text-indigo-800 dark:text-indigo-200 border border-indigo-200/60 dark:border-gray-700 max-w-[130px] truncate"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 dark:bg-gray-800/80 text-slate-700 dark:text-gray-200 border border-slate-200/70 dark:border-gray-700 max-w-[135px] truncate"
                               >
                                 <span className="truncate">{v.nombre}</span>
                                 {customPrice && (
-                                  <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-300 shrink-0">
+                                  <span className="text-[9.5px] font-bold text-slate-500 dark:text-gray-400 shrink-0 tabular-nums">
                                     ${vp.toLocaleString("es-CO")}
                                   </span>
                                 )}
@@ -2991,7 +3051,7 @@ export function ClienteLanding() {
                             );
                           })}
                           {variantSummary.count > 2 && (
-                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-gray-400">
                               +{variantSummary.count - 2}
                             </span>
                           )}
@@ -3010,15 +3070,15 @@ export function ClienteLanding() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setModalInitialTab("resenas");
-                                handleProductClick(producto);
+                                handleProductClick(producto, "resenas");
                               }}
                               className="flex items-center gap-1.5 hover:opacity-80 transition cursor-pointer group/rate"
                               title="Ver opiniones y calificaciones de comensales"
                             >
                               <StarRating value={rInfo.promedio} readonly size="xs" />
-                              <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{rInfo.promedio.toFixed(1)}</span>
-                              <span className="text-[10.5px] text-gray-600 dark:text-gray-400">({rInfo.total})</span>
-                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold opacity-0 group-hover/rate:opacity-100 transition-opacity">
+                              <span className="text-xs font-bold text-slate-800 dark:text-amber-400">{rInfo.promedio.toFixed(1)}</span>
+                              <span className="text-[10.5px] text-slate-500 dark:text-gray-400">({rInfo.total})</span>
+                              <span className="text-[10px] text-[#D9383A] dark:text-amber-400 font-bold opacity-0 group-hover/rate:opacity-100 transition-opacity">
                                 • Calificar
                               </span>
                             </div>
@@ -3030,51 +3090,56 @@ export function ClienteLanding() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setModalInitialTab("resenas");
-                              handleProductClick(producto);
+                              handleProductClick(producto, "resenas");
                             }}
                             aria-label={`Sin reseñas • Calificar ${producto.nombre}`}
-                            className="text-[11px] text-gray-600 dark:text-gray-300 hover:text-amber-500 flex items-center gap-1 transition cursor-pointer font-medium"
+                            className="text-[11px] text-slate-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 transition cursor-pointer font-medium"
                           >
-                            <Star className="w-3.5 h-3.5" />
-                            <span className="text-gray-600 dark:text-gray-300">Sin reseñas • Calificar</span>
+                            <Star className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Sin reseñas • Calificar</span>
                           </button>
                         );
                       })()}
                     </div>
                   </div>
-                <div className="space-y-3 pt-2">
+                <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-gray-800/80">
                   <div className="flex flex-col">
                     {activeEvent ? (
                       <>
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                           <EventBadge event={activeEvent} product={producto} variant="pill" />
                           {parseEventoInsumos(activeEvent).length > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-800/60 max-w-full truncate"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 max-w-full truncate"
                               title={`Incluye gratis: ${formatEventoToppingsText(activeEvent)}`}
                             >
                               + Gratis: {formatEventoToppingsText(activeEvent)}
                             </span>
                           )}
                         </div>
-                        {(activeEvent.tipoEvento === "Promoción Precio" || activeEvent.tipoEvento === "Descuento" || activeEvent.nuevoPrecio) ? (
-                          <>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 line-through">${Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}</span>
-                            <span className="text-2xl font-black text-[#f05454] dark:text-red-400 flex items-center gap-1">
-                              <Sparkles className="w-4 h-4 text-amber-500" />
+                        {(activeEvent.tipoEvento === "Promoción Precio" || activeEvent.tipoEvento === "Descuento" || activeEvent.nuevoPrecio || activeEvent.descuento) ? (
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-2xl font-black text-[#D9383A] dark:text-red-400 tabular-nums tracking-tight">
                               ${(() => {
                                 if (activeEvent.nuevoPrecio) return Number(activeEvent.nuevoPrecio).toLocaleString("es-CO", { maximumFractionDigits: 0 });
                                 if (activeEvent.descuento) return Math.round(Number(producto.precio || 0) * (1 - Number(activeEvent.descuento)/100)).toLocaleString("es-CO", { maximumFractionDigits: 0 });
                                 return Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 });
                               })()}
                             </span>
-                          </>
+                            <span className="text-xs font-semibold text-slate-400 dark:text-gray-500 line-through tabular-nums">
+                              ${Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}
+                            </span>
+                          </div>
                         ) : (
-                          <p className="text-2xl font-black text-[#f05454] dark:text-red-400">${Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}</p>
+                          <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                            ${Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}
+                          </p>
                         )}
                       </>
                     ) : (
-                      <p className="text-2xl font-black text-red-700 dark:text-red-400">${Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}</p>
+                      <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                        ${Number(producto.precio || 0).toLocaleString("es-CO", { maximumFractionDigits: 0 })}
+                      </p>
                     )}
                   </div>
                   <button
@@ -3084,10 +3149,10 @@ export function ClienteLanding() {
                       handleProductClick(producto, "personalizar");
                     }}
                     aria-label={isAgotado ? `${producto.nombre} agotado por el momento` : `Agregar ${producto.nombre} al pedido`}
-                    className={`w-full py-3 text-white rounded-2xl transition-all font-bold text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-[0.98] ${
+                    className={`w-full py-3 text-white rounded-2xl transition-all font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] ${
                       isAgotado
-                        ? "bg-gray-500 hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 shadow-none"
-                        : "bg-red-600 hover:bg-red-700 shadow-red-600/15"
+                        ? "bg-slate-400 hover:bg-slate-500 dark:bg-gray-700 dark:hover:bg-gray-600 shadow-none"
+                        : "bg-[#D9383A] hover:bg-[#B91C1C] shadow-xs shadow-[#D9383A]/15"
                     }`}
                   >
                     {isAgotado ? (
@@ -3102,7 +3167,7 @@ export function ClienteLanding() {
                       </>
                     ) : (
                       <>
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-4 h-4 stroke-[2.5]" />
                         <span>Agregar</span>
                       </>
                     )}
@@ -3119,7 +3184,7 @@ export function ClienteLanding() {
             <button
               type="button"
               onClick={() => setMaxVisibleProducts(productosFiltrados.length)}
-              className="px-6 py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold text-sm transition shadow-sm cursor-pointer"
+              className="px-6 py-3 rounded-2xl bg-white hover:bg-slate-50 dark:bg-gray-900 dark:hover:bg-gray-800 border border-slate-200/85 dark:border-gray-800 text-slate-800 dark:text-gray-200 font-bold text-sm transition shadow-2xs cursor-pointer"
             >
               Ver más productos ({productosFiltrados.length - maxVisibleProducts} restantes)
             </button>
@@ -3133,8 +3198,13 @@ export function ClienteLanding() {
           <FastFoodProductModal
             isOpen={true}
             onClose={() => {
+              const wasEditing = Boolean(editingCartItem);
               setShowProductModal(false);
               setProductoSeleccionado(null);
+              setEditingCartItem(null);
+              if (wasEditing) {
+                setShowCart(true);
+              }
             }}
             producto={productoSeleccionado?.producto}
             ficha={
@@ -3163,6 +3233,8 @@ export function ClienteLanding() {
             onConfirm={handleClientModalConfirm}
             mode="cliente"
             initialTab={modalInitialTab}
+            editingCartItem={editingCartItem}
+            onSwitchProduct={handleSwitchModalProduct}
           />
         </Suspense>
       )}
@@ -3195,6 +3267,7 @@ export function ClienteLanding() {
             resolveDrinkImage={resolveDrinkImage}
             complementosRef={complementosRef}
             onScrollComplementos={scrollComplementos}
+            onEditCartItem={handleEditCartItem}
           />
         </Suspense>
       )}
@@ -3782,28 +3855,28 @@ export function ClienteLanding() {
           aria-label="Resumen de tu Pedido"
           className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-xl animate-in slide-in-from-bottom-6 duration-300 pointer-events-auto"
         >
-          <div className="bg-slate-900/95 dark:bg-gray-900/95 backdrop-blur-md text-white px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl shadow-2xl border border-red-500/30 flex items-center justify-between gap-3">
+          <div className="bg-slate-900/95 dark:bg-gray-900/95 backdrop-blur-md text-white px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center justify-between gap-3">
             <div
               className="flex items-center gap-3 cursor-pointer select-none min-w-0 group"
               onClick={() => setShowCart(true)}
               title="Abrir detalle del carrito"
             >
-              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+              <div className="relative w-10 h-10 rounded-xl bg-[#D9383A] flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                 <ShoppingCart className="w-5 h-5 text-white" />
-                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-white text-red-600 text-[11px] font-black flex items-center justify-center shadow-xs">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-white text-[#D9383A] text-[11px] font-black flex items-center justify-center shadow-xs">
                   {getTotalItems()}
                 </span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-400">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
                     Resumen de tu Pedido
                   </span>
                   <span className="text-[10px] text-slate-400">• {getTotalItems()} {getTotalItems() === 1 ? "ítem" : "ítems"}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-sm font-black text-white truncate">
-                    Total: <span className="text-red-400 font-extrabold">${clientSubtotal.toLocaleString("es-CO")}</span>
+                  <p className="text-sm font-black text-white truncate tabular-nums">
+                    Total: <span className="text-emerald-400 font-extrabold">${clientSubtotal.toLocaleString("es-CO")}</span>
                   </p>
                   {/* Vista previa de miniaturas en barra flotante (Ítem #6) */}
                   <div className="hidden sm:flex items-center -space-x-1.5 overflow-hidden ml-1">
@@ -3816,7 +3889,7 @@ export function ClienteLanding() {
                         {it.imagen ? (
                           <img src={it.imagen} alt={it.nombre} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-amber-400 bg-red-950">
+                          <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-white bg-slate-700">
                             {it.nombre?.[0] || 'P'}
                           </div>
                         )}
@@ -3841,7 +3914,7 @@ export function ClienteLanding() {
               <button
                 type="button"
                 onClick={handleAbrirCheckout}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-black text-xs sm:text-sm shadow-md transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl bg-[#D9383A] hover:bg-[#B91C1C] text-white font-extrabold text-xs sm:text-sm shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5"
               >
                 <span>Pagar</span>
                 <ArrowRight className="w-4 h-4" />

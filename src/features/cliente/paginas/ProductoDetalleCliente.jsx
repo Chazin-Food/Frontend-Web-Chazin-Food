@@ -11,6 +11,7 @@ import { adicionesService } from "@/features/compras/servicios/adicionesService"
 import { eventosService } from "@/features/ventas/servicios/eventosService";
 import { apiClient } from "@/shared/api/apiClient";
 import { getOptimizedImageUrl } from "@/shared/utils/imageUtils";
+import { resolveValidAdicionImage } from "@/shared/utils/adicionUtils";
 import { isEventActiveInColombia } from "@/shared/utils/dateUtils";
 import { ChazinLoader } from "@/shared/components/ui/ChazinLoader";
 import { HelpTooltip } from "@/shared/components/ui/HelpTooltip";
@@ -71,7 +72,8 @@ export function ProductoDetalleCliente() {
 
     const needsProdFromApi = !initialCandidate;
     const needsFichaFromApi = !cachedFichaForTarget;
-    const needsCatalogs = allAdiciones.length === 0 || allBebidas.length === 0 || productosList.length === 0;
+    const needsProductosList = productosList.length === 0 || allBebidas.length === 0;
+    const needsAdicionesList = allAdiciones.length === 0;
     const needsEventsCheck = !initialCandidate || !Array.isArray(initialCandidate.eventos);
 
     const loadData = async () => {
@@ -79,8 +81,8 @@ export function ProductoDetalleCliente() {
         const [prodRes, fichaRes, allProdsRes, adicsRes, eventosRes, ratingRes] = await Promise.all([
           needsProdFromApi ? productosService.getProductoById(prodId).catch(() => null) : Promise.resolve(initialCandidate),
           needsFichaFromApi ? fichasTecnicasService.getFichaByProducto(prodId).catch(() => null) : Promise.resolve(cachedFichaForTarget),
-          needsCatalogs ? productosService.getProductos().catch(() => []) : Promise.resolve(productosList),
-          needsCatalogs ? adicionesService.getAdiciones().catch(() => []) : Promise.resolve(allAdiciones),
+          needsProductosList ? productosService.getProductos().catch(() => []) : Promise.resolve(productosList),
+          needsAdicionesList ? adicionesService.getAdiciones().catch(() => []) : Promise.resolve(allAdiciones),
           needsEventsCheck ? eventosService.getEventos().catch(() => []) : Promise.resolve([]),
           apiClient.get(`/resenas/ratings?ids=${prodId}`).catch(() => null)
         ]);
@@ -127,13 +129,21 @@ export function ProductoDetalleCliente() {
           }
         }
         if (adicsArr.length > 0 && allAdiciones.length === 0) {
-          const activeAdics = adicsArr.filter(
-            (a) =>
-              !isDrinkProduct(a) &&
-              Number(a.idAdicion || a.id) !== 1 &&
-              Number(a.idAdicion || a.id) !== 2 &&
-              (a.estado === "Activo" || a.estado === 1 || a.estado === "1" || a.estado === true)
-          );
+          const activeAdics = adicsArr
+            .filter(
+              (a) =>
+                !isDrinkProduct(a) &&
+                Number(a.idAdicion || a.id) !== 1 &&
+                Number(a.idAdicion || a.id) !== 2 &&
+                (a.estado === undefined || a.estado === "Activo" || a.estado === 1 || a.estado === "1" || a.estado === true)
+            )
+            .map((a) => ({
+              ...a,
+              idAdicion: a.idAdicion || a.id,
+              id: a.id || a.idAdicion,
+              precio: parseFloat(a.precio || 0),
+              imagen: resolveValidAdicionImage(a)
+            }));
           setAllAdiciones(activeAdics);
         }
         setRatingsInfo(ratingRes && ratingRes[prodId] ? ratingRes[prodId] : null);

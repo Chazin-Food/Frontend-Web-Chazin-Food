@@ -1276,14 +1276,14 @@ export function getEventBadgeConfig(event, product = null) {
   const combined = `${rawIcon} ${rawType} ${rawName}`;
   const cleanName = stripEmojis(event.nombreEvento || event.nombre || "");
 
-  // Paleta naranja / ámbar consistente con degradado (degradado cálido conmemorativo según diseño)
+  // Paleta Chazin Crimson coherente con ProductoDetalleCliente y CartDrawer (cero fatiga visual)
   const orangeBadgeStyle = {
-    gradient: "from-orange-600 via-amber-600 to-red-600",
-    border: "border-amber-300/50",
-    glow: "shadow-[0_4px_16px_rgba(249,115,22,0.45)]",
+    gradient: "from-[#D9383A] to-[#B91C1C]",
+    border: "border-white/20",
+    glow: "shadow-md shadow-black/25",
     textColor: "text-white",
-    pillBg: "bg-amber-100/90 dark:bg-amber-950/70 text-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-750/70 font-black",
-    accentColor: "#f97316"
+    pillBg: "bg-red-50 dark:bg-red-950/50 text-[#D9383A] dark:text-red-300 border-red-200/80 dark:border-red-900/50 font-extrabold",
+    accentColor: "#D9383A"
   };
 
   // 1. PROMOCIÓN 2X1 (Evento 1: Jueves 2x1)
@@ -1482,10 +1482,10 @@ export function EventoToppingsCard({ event, className = "" }) {
   if (toppings.length === 0) return null;
 
   return (
-    <div className={`p-3.5 rounded-2xl bg-purple-50/90 dark:bg-purple-950/35 border border-purple-200 dark:border-purple-800/60 space-y-2 animate-in fade-in duration-150 ${className}`}>
+    <div className={`p-3.5 rounded-2xl bg-emerald-50/85 dark:bg-emerald-950/35 border border-emerald-200/90 dark:border-emerald-800/60 space-y-2 animate-in fade-in duration-150 ${className}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-xs font-black text-purple-900 dark:text-purple-200">
-          <IconBaconStrip size={16} stroke={2} className="text-purple-600 dark:text-purple-400 shrink-0" />
+        <div className="flex items-center gap-1.5 text-xs font-black text-emerald-900 dark:text-emerald-200">
+          <IconBaconStrip size={16} stroke={2} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span>Topping(s) Extra de Cortesía en esta Promoción</span>
         </div>
         <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 shrink-0">
@@ -1496,15 +1496,15 @@ export function EventoToppingsCard({ event, className = "" }) {
         {toppings.map((top, idx) => (
           <div
             key={top.idInsumo || top.id || idx}
-            className="p-2.5 rounded-xl bg-white/95 dark:bg-gray-800/95 border border-purple-200/70 dark:border-purple-900/50 flex items-center justify-between gap-2 shadow-2xs"
+            className="p-2.5 rounded-xl bg-white/95 dark:bg-gray-800/95 border border-emerald-200/70 dark:border-emerald-900/50 flex items-center justify-between gap-2 shadow-2xs"
           >
-            <span className="flex items-center gap-2 truncate text-xs font-bold text-gray-800 dark:text-gray-200">
-              <span className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/70 flex items-center justify-center shrink-0 text-purple-700 dark:text-purple-300">
+            <span className="flex items-center gap-2 truncate text-xs font-bold text-slate-800 dark:text-gray-200">
+              <span className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 flex items-center justify-center shrink-0 text-emerald-700 dark:text-emerald-300">
                 <FoodIcon name={top.nombre} size={15} stroke={1.75} />
               </span>
               <span className="truncate">{top.nombre}</span>
             </span>
-            <span className="text-[10px] font-black text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/50 px-2 py-0.5 rounded-md shrink-0">
+            <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/50 px-2 py-0.5 rounded-md shrink-0">
               +{top.cantidad} {top.unidadMedida || top.unidad}
             </span>
           </div>
