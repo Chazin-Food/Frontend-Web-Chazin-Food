@@ -18,7 +18,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
-  Pencil
+  Pencil,
+  Layers,
+  ChefHat,
+  RefreshCw,
+  FileText
 } from "lucide-react";
 import { FoodIcon, FoodIconBadge } from "@/shared/components/ui/FoodIcon";
 import QuantityStepperInput, { AdicionAvatar } from "@/shared/components/ui/QuantityStepperInput";
@@ -29,8 +33,18 @@ import {
   getAdicionQuantityInCart,
   resolveValidAdicionImage,
   resolveDishTotalAdicionesCap,
-  computeEffectiveAdicionMaxPerDish
+  computeEffectiveAdicionMaxPerDish,
+  sanitizeDishAdicionesList
 } from "@/shared/utils/adicionUtils";
+import {
+  canChangeCartDrinkSize,
+  detectCartDrinkSizeId,
+  getCartDrinkSizeOptions,
+  buildUpdatedDrinkCartItem,
+  getCartDishVariantOptions,
+  getCartDishRemovableIngredients,
+  resolveCatalogDishPrice
+} from "@/shared/utils/cartItemEditUtils";
 
 /**
  * Clasifica cada topping/adición en una categoría gastronómica clara
@@ -68,18 +82,67 @@ const TOPPING_CATEGORY_TABS = [
   { id: "acompanamientos", label: "Acompañamientos" }
 ];
 
+const QUICK_KITCHEN_NOTES = [
+  "Bien cocida",
+  "Salsas aparte",
+  "Sin sal adicional",
+  "Poco picante"
+];
+
 const formatCOP = (value) => `$${Math.round(Number(value || 0)).toLocaleString("es-CO")}`;
+
+function extractPreservedComboDrinkObs(item) {
+  const raw = String(item?.observaciones || item?.observacion || "");
+  if (!raw) return "";
+  return raw
+    .split("•")
+    .map((s) => s.trim())
+    .filter((s) => s.toLowerCase().includes("bebida"))
+    .join(" • ");
+}
+
+function extractCustomNoteText(item) {
+  const raw = String(item?.observaciones || item?.observacion || "");
+  if (!raw) return "";
+  return raw
+    .split(/•|,/)
+    .map((s) => s.trim())
+    .filter(
+      (s) =>
+        s &&
+        !/^sin\s+/i.test(s) &&
+        !/^presentaci[oó]n:/i.test(s) &&
+        !/bebida/i.test(s)
+    )
+    .join(", ");
+}
+
+function composeFoodItemNotes(removedList = [], customNote = "", preservedDrinkObs = "") {
+  const sinLabels = removedList.map((ing) => `Sin ${String(ing).toLowerCase()}`);
+  const cleanCustom = String(customNote || "").trim();
+  const personalizaciones = cleanCustom ? [...sinLabels, cleanCustom] : [...sinLabels];
+  const obsParts = [];
+  if (preservedDrinkObs) obsParts.push(preservedDrinkObs);
+  if (sinLabels.length > 0) obsParts.push(sinLabels.join(", "));
+  if (cleanCustom) obsParts.push(cleanCustom);
+  const observaciones = obsParts.join(" • ");
+  return { personalizaciones, observaciones };
+}
 
 /**
  * Carrito de Compras Amplio Split-Panel ("Tu Carrito") de Chazin Food.
- * En escritorio despliega una arquitectura espaciosa de 2 columnas (hasta 1180px):
- *  - Izquierda (66%): Lienzo amplio y respirable para platos y personalización de toppings en 3 columnas.
- *  - Derecha (34%): Columna dedicada a acompañamientos sugeridos, resumen transparente, domicilio y pago.
+ * Incluye cambio de tamaño de bebidas 100% inline en 1 clic y edición completa
+ * de variantes, ingredientes, notas y cambio de plato dentro del mismo carrito
+ * (cero modales antiguos externos).
  */
 export function CartDrawer({
   isOpen,
   onClose,
   cart = [],
+  productosCatalogo = [],
+  fichasMap = {},
+  fichasDefault = {},
+  onEnsureFicha,
   foodAdiciones = [],
   complementosOrden = [],
   clientSubtotal = 0,
@@ -88,20 +151,24 @@ export function CartDrawer({
   totalCheckout = 0,
   updateQuantity,
   updateItemAdiciones,
+  replaceCartItem,
   removeFromCart,
   clearCart,
   getProductQuantityInCart,
   onAddComplemento,
   onProceedToCheckout,
   onStockLimitError,
-  getAdicionImage,
   isDrinkProduct,
   resolveDrinkImage,
   complementosRef,
-  onScrollComplementos,
-  onEditCartItem
+  onScrollComplementos
 }) {
   const [editingCartToppingsKey, setEditingCartToppingsKey] = useState(null);
+  const [editingCartDishKey, setEditingCartDishKey] = useState(null);
+  const [splitSingleByKey, setSplitSingleByKey] = useState({});
+  const [showAllMenuSwitch, setShowAllMenuSwitch] = useState(false);
+  const [dishSwitchSearch, setDishSwitchSearch] = useState("");
+  const [kitchenNoteDrafts, setKitchenNoteDrafts] = useState({});
   const [toppingSearch, setToppingSearch] = useState("");
   const [activeToppingCat, setActiveToppingCat] = useState("todos");
   const [confirmClearCart, setConfirmClearCart] = useState(false);
@@ -125,14 +192,45 @@ export function CartDrawer({
     }, 0);
   }, [cart]);
 
+  const activeDrinkCatalog = useMemo(() => {
+    if (!Array.isArray(productosCatalogo)) return [];
+    return productosCatalogo.filter((p) => {
+      if (!isDrinkProduct?.(p)) return false;
+      const st = Number(p?.stock !== undefined ? p.stock : p?.stockActual ?? 0);
+      const inactive = p?.agotado || st <= 0 || p?.estado === "Inactivo" || p?.estado === 0;
+      return !inactive;
+    });
+  }, [productosCatalogo, isDrinkProduct]);
+
+  const activeFoodCatalog = useMemo(() => {
+    if (!Array.isArray(productosCatalogo)) return [];
+    return productosCatalogo.filter((p) => {
+      if (isDrinkProduct?.(p)) return false;
+      const st = Number(p?.stock !== undefined ? p.stock : p?.stockActual ?? 0);
+      const inactive = p?.agotado || st <= 0 || p?.estado === "Inactivo" || p?.estado === 0;
+      return !inactive;
+    });
+  }, [productosCatalogo, isDrinkProduct]);
+
   if (!isOpen) return null;
 
   const handleCloseDrawer = () => {
     setEditingCartToppingsKey(null);
+    setEditingCartDishKey(null);
+    setDishSwitchSearch("");
     setToppingSearch("");
     setActiveToppingCat("todos");
     setConfirmClearCart(false);
     onClose?.();
+  };
+
+  const scrollCardIntoView = (key) => {
+    setTimeout(() => {
+      itemRefs.current[key]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }, 60);
   };
 
   return (
@@ -168,7 +266,7 @@ export function CartDrawer({
               </div>
               <p className="text-xs text-slate-500 dark:text-gray-400 hidden sm:block mt-0.5">
                 {totalUnits > 0
-                  ? "Ajusta cantidades, personaliza toppings por categoría y revisa tu resumen con total claridad"
+                  ? "Cambia presentaciones, edita platos o personaliza toppings al instante sin salir del carrito"
                   : "Tu orden artesanal comienza aquí"}
               </p>
             </div>
@@ -186,8 +284,8 @@ export function CartDrawer({
               </button>
             )}
 
-            {cart.length > 0 && (
-              confirmClearCart ? (
+            {cart.length > 0 &&
+              (confirmClearCart ? (
                 <div className="inline-flex items-center gap-1.5 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/70 px-2.5 py-1.5 rounded-xl animate-in fade-in duration-150">
                   <span className="text-xs font-bold text-[#B91C1C] dark:text-red-300 px-1">
                     ¿Vaciar todo?
@@ -198,6 +296,7 @@ export function CartDrawer({
                       clearCart?.();
                       setConfirmClearCart(false);
                       setEditingCartToppingsKey(null);
+                      setEditingCartDishKey(null);
                       setUndoToppingsSnapshot(null);
                     }}
                     className="px-2.5 py-1 rounded-lg bg-[#D9383A] hover:bg-[#B91C1C] text-white text-xs font-extrabold cursor-pointer transition"
@@ -222,8 +321,7 @@ export function CartDrawer({
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline">Vaciar</span>
                 </button>
-              )
-            )}
+              ))}
 
             <button
               type="button"
@@ -267,8 +365,10 @@ export function CartDrawer({
             <div className="flex-1 lg:col-span-7 xl:col-span-8 overflow-y-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-4 scrollbar-thin">
               {cart.map((item, index) => {
                 const itemKey = item.cartItemId || `${item.id}-${index}`;
+                const prodId = item.idProducto || item.id;
                 const prodStock = Number(item.stock !== undefined ? item.stock : 0);
-                const totalInCartForProd = getProductQuantityInCart?.(item.id || item.idProducto) ?? item.cantidad;
+                const totalInCartForProd =
+                  getProductQuantityInCart?.(item.id || item.idProducto) ?? item.cantidad;
                 const isPromoEvent = Boolean(
                   item.esPromocionEvento || (item.isEvento && Boolean(item.eventoInfo?.nombre))
                 );
@@ -285,8 +385,38 @@ export function CartDrawer({
                 const unitPriceWithAdds = baseItemPrice + additionsUnit;
                 const lineTotalPrice = unitPriceWithAdds * (Number(item.cantidad) || 1);
                 const isItemDrink = Boolean(isDrinkProduct?.(item));
+                const drinkCanChangeSize = isItemDrink && canChangeCartDrinkSize(item);
+                const currentDrinkSizeId = isItemDrink ? detectCartDrinkSizeId(item) : "400ml";
+                const drinkSizeOptions = drinkCanChangeSize
+                  ? getCartDrinkSizeOptions(item, productosCatalogo)
+                  : [];
+
                 const isEditingThisItem =
                   editingCartToppingsKey === itemKey && !isItemDrink && foodAdiciones.length > 0;
+                const isEditingDishInline = editingCartDishKey === itemKey;
+                const shouldSplitSingle =
+                  Number(item.cantidad || 1) > 1 && Boolean(splitSingleByKey[itemKey]);
+
+                const liveCatalogProd =
+                  (Array.isArray(productosCatalogo)
+                    ? productosCatalogo.find(
+                        (p) => String(p?.id || p?.idProducto) === String(prodId)
+                      )
+                    : null) || item;
+                const itemFicha =
+                  fichasMap?.[prodId] || fichasDefault?.[prodId] || liveCatalogProd?.fichaTecnica || null;
+
+                const dishVariantOptions =
+                  !isItemDrink && isEditingDishInline && !isPromoEvent
+                    ? getCartDishVariantOptions(liveCatalogProd)
+                    : [];
+                const dishRemovableIngredients =
+                  !isItemDrink && isEditingDishInline
+                    ? getCartDishRemovableIngredients(liveCatalogProd, itemFicha)
+                    : [];
+                const currentRemovedIngredients = Array.isArray(item.ingredientesRemovidos)
+                  ? item.ingredientesRemovidos
+                  : [];
 
                 let displayImg = item.imagen;
                 if (
@@ -311,6 +441,235 @@ export function CartDrawer({
                     displayImg.startsWith("data:"))
                     ? getOptimizedImageUrl(displayImg, 160)
                     : "";
+
+                const applyCartReplacement = (nextItemPayload, forceSplit = shouldSplitSingle) => {
+                  if (!replaceCartItem) return;
+                  const effectiveQty = forceSplit ? 1 : Math.max(1, Number(item.cantidad || 1));
+                  const res = replaceCartItem(
+                    item.cartItemId,
+                    {
+                      ...nextItemPayload,
+                      cantidad: effectiveQty
+                    },
+                    { splitFromOriginal: forceSplit }
+                  );
+                  if (res && res.success === false) {
+                    onStockLimitError?.(
+                      nextItemPayload.nombre || item.nombre,
+                      nextItemPayload.stock ?? prodStock
+                    );
+                    return;
+                  }
+                  if (res?.cartItemId) {
+                    if (isEditingDishInline && !forceSplit) {
+                      setEditingCartDishKey(res.cartItemId);
+                    }
+                    if (isEditingThisItem && !forceSplit) {
+                      setEditingCartToppingsKey(res.cartItemId);
+                    }
+                  }
+                };
+
+                const handleSelectDrinkSizeInline = (targetSizeId) => {
+                  if (targetSizeId === currentDrinkSizeId && !shouldSplitSingle) return;
+                  const updatedDrink = buildUpdatedDrinkCartItem(
+                    item,
+                    item,
+                    targetSizeId,
+                    productosCatalogo
+                  );
+                  applyCartReplacement(updatedDrink, shouldSplitSingle);
+                };
+
+                const handleSwitchDrinkProductInline = (nextDrinkProd) => {
+                  const preferredSize = canChangeCartDrinkSize(nextDrinkProd)
+                    ? currentDrinkSizeId
+                    : "400ml";
+                  const updatedDrink = buildUpdatedDrinkCartItem(
+                    item,
+                    nextDrinkProd,
+                    preferredSize,
+                    productosCatalogo
+                  );
+                  applyCartReplacement(updatedDrink, shouldSplitSingle);
+                  if (!shouldSplitSingle) {
+                    setEditingCartDishKey(null);
+                  }
+                };
+
+                const handleSelectFoodVariantInline = (varOpt) => {
+                  if (!varOpt) return;
+                  const preservedDrinkObs = extractPreservedComboDrinkObs(item);
+                  const customNote =
+                    kitchenNoteDrafts[itemKey] !== undefined
+                      ? kitchenNoteDrafts[itemKey]
+                      : extractCustomNoteText(item);
+                  const { personalizaciones, observaciones } = composeFoodItemNotes(
+                    currentRemovedIngredients,
+                    customNote,
+                    preservedDrinkObs
+                  );
+                  const nextDish = {
+                    ...item,
+                    idVariante: varOpt.esVarianteBase
+                      ? liveCatalogProd?.idVarianteBase || null
+                      : varOpt.idVariante,
+                    esVarianteBase: Boolean(varOpt.esVarianteBase),
+                    varianteNombre: varOpt.esVarianteBase ? null : varOpt.nombre,
+                    varianteDescripcion: varOpt.esVarianteBase ? null : varOpt.descripcion || null,
+                    varianteEspecificaciones: varOpt.esVarianteBase
+                      ? null
+                      : varOpt.especificaciones || null,
+                    precio: Number(varOpt.precio || item.precio),
+                    imagen: varOpt.imagen || item.imagen,
+                    personalizaciones,
+                    observaciones,
+                    observacion: observaciones
+                  };
+                  applyCartReplacement(nextDish, false);
+                };
+
+                const handleToggleIngredientInline = (ingName) => {
+                  const exists = currentRemovedIngredients.some(
+                    (r) => String(r).toLowerCase() === String(ingName).toLowerCase()
+                  );
+                  const nextRemoved = exists
+                    ? currentRemovedIngredients.filter(
+                        (r) => String(r).toLowerCase() !== String(ingName).toLowerCase()
+                      )
+                    : [...currentRemovedIngredients, ingName];
+
+                  const preservedDrinkObs = extractPreservedComboDrinkObs(item);
+                  const customNote =
+                    kitchenNoteDrafts[itemKey] !== undefined
+                      ? kitchenNoteDrafts[itemKey]
+                      : extractCustomNoteText(item);
+                  const { personalizaciones, observaciones } = composeFoodItemNotes(
+                    nextRemoved,
+                    customNote,
+                    preservedDrinkObs
+                  );
+
+                  const nextDish = {
+                    ...item,
+                    ingredientesRemovidos: nextRemoved,
+                    personalizaciones,
+                    observaciones,
+                    observacion: observaciones
+                  };
+                  applyCartReplacement(nextDish, shouldSplitSingle);
+                  if (shouldSplitSingle) {
+                    setSplitSingleByKey((prev) => ({ ...prev, [itemKey]: false }));
+                  }
+                };
+
+                const handleApplyKitchenNoteInline = (noteValue) => {
+                  const preservedDrinkObs = extractPreservedComboDrinkObs(item);
+                  const { personalizaciones, observaciones } = composeFoodItemNotes(
+                    currentRemovedIngredients,
+                    noteValue,
+                    preservedDrinkObs
+                  );
+                  const nextDish = {
+                    ...item,
+                    personalizaciones,
+                    observaciones,
+                    observacion: observaciones
+                  };
+                  applyCartReplacement(nextDish, false);
+                };
+
+                const handleSwitchFoodDishInline = (nextProd) => {
+                  if (!nextProd) return;
+                  const nextProdId = nextProd.id || nextProd.idProducto;
+                  const nextPrice = resolveCatalogDishPrice(nextProd, null);
+                  const nextStock = Number(
+                    nextProd.stock !== undefined
+                      ? nextProd.stock
+                      : nextProd.stockActual ?? 99
+                  );
+                  const compatibleAdds = sanitizeDishAdicionesList(currentAdds, nextProd);
+                  const customNote =
+                    kitchenNoteDrafts[itemKey] !== undefined
+                      ? kitchenNoteDrafts[itemKey]
+                      : extractCustomNoteText(item);
+                  const { personalizaciones, observaciones } = composeFoodItemNotes(
+                    [],
+                    customNote,
+                    ""
+                  );
+
+                  const switchedItem = {
+                    id: nextProdId,
+                    idProducto: nextProdId,
+                    idVariante: nextProd.idVarianteBase || null,
+                    esVarianteBase: true,
+                    varianteNombre: null,
+                    varianteDescripcion: null,
+                    varianteEspecificaciones: null,
+                    varianteCambios: [],
+                    esVarianteDeEvento: false,
+                    esPromocionEvento: false,
+                    isEvento: false,
+                    eventoInfo: undefined,
+                    nombre: nextProd.nombre,
+                    precio: nextPrice,
+                    precioOriginal:
+                      Number(nextProd.precio || 0) > nextPrice
+                        ? Number(nextProd.precio)
+                        : undefined,
+                    stock: nextStock,
+                    imagen: nextProd.imagen,
+                    categoria: nextProd.categoriaNombre || nextProd.categoria,
+                    adiciones: compatibleAdds,
+                    ingredientesRemovidos: [],
+                    personalizaciones,
+                    observaciones,
+                    observacion: observaciones
+                  };
+
+                  onEnsureFicha?.(nextProdId);
+                  applyCartReplacement(switchedItem, shouldSplitSingle);
+                  if (shouldSplitSingle) {
+                    setSplitSingleByKey((prev) => ({ ...prev, [itemKey]: false }));
+                  }
+                };
+
+                const switchableFoodDishes =
+                  !isItemDrink && isEditingDishInline && !isPromoEvent
+                    ? (() => {
+                        const curCatId = Number(
+                          liveCatalogProd?.idCategoriaProducto || liveCatalogProd?.categoriaId || 0
+                        );
+                        const curCatName = String(
+                          liveCatalogProd?.categoriaNombre ||
+                            liveCatalogProd?.categoria?.nombre ||
+                            liveCatalogProd?.categoria ||
+                            ""
+                        )
+                          .toLowerCase()
+                          .trim();
+                        const q = dishSwitchSearch.trim().toLowerCase();
+
+                        return activeFoodCatalog.filter((p) => {
+                          const pid = p.id || p.idProducto;
+                          if (String(pid) === String(prodId)) return false;
+                          if (q && !String(p.nombre || "").toLowerCase().includes(q)) return false;
+                          if (showAllMenuSwitch) return true;
+                          const pCatId = Number(p.idCategoriaProducto || p.categoriaId || 0);
+                          const pCatName = String(
+                            p.categoriaNombre || p.categoria?.nombre || p.categoria || ""
+                          )
+                            .toLowerCase()
+                            .trim();
+                          if (curCatId > 0 && pCatId > 0) return curCatId === pCatId;
+                          if (curCatName && pCatName) {
+                            return pCatName === curCatName || pCatName.includes(curCatName);
+                          }
+                          return true;
+                        });
+                      })()
+                    : [];
 
                 const categoryCounts = isEditingThisItem
                   ? foodAdiciones.reduce(
@@ -387,8 +746,12 @@ export function CartDrawer({
                     ad?.controlarStock === false ||
                     String(ad?.descripcion || "").includes("[SIN_CONTROL_STOCK]");
                   const totalPortions = noCtrl ? 99 : resolveAdicionMaxPortions(ad);
-                  const usedInOtherLines = noCtrl ? 0 : getAdicionQuantityInCart(cart, adId, item.cartItemId);
-                  const availableBeforeThisLine = noCtrl ? 99 : Math.max(0, totalPortions - usedInOtherLines);
+                  const usedInOtherLines = noCtrl
+                    ? 0
+                    : getAdicionQuantityInCart(cart, adId, item.cartItemId);
+                  const availableBeforeThisLine = noCtrl
+                    ? 99
+                    : Math.max(0, totalPortions - usedInOtherLines);
                   const stockMaxPerDish = noCtrl
                     ? 99
                     : Math.floor(
@@ -418,7 +781,13 @@ export function CartDrawer({
                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
                   const exists = currentAdds.some((x) => Number(x.idAdicion || x.id) === adId);
                   if (!exists) {
-                    const { maxPerDish, dishTotalCap: cap, noCtrl, stockMaxPerDish, limitReason } = getToppingStockInfo(ad);
+                    const {
+                      maxPerDish,
+                      dishTotalCap: cap,
+                      noCtrl,
+                      stockMaxPerDish,
+                      limitReason
+                    } = getToppingStockInfo(ad);
                     if (maxPerDish <= 0) {
                       if (limitReason === "dish_total") {
                         showLimitNotice(`Máximo ${cap} porciones de adiciones en total por plato.`);
@@ -452,7 +821,9 @@ export function CartDrawer({
                   const adId = Number(ad.idAdicion || ad.id || ad.idInsumo);
                   const cleanQty = Math.floor(Number(exactQty) || 0);
                   if (cleanQty <= 0) {
-                    const nextAdds = currentAdds.filter((x) => Number(x.idAdicion || x.id) !== adId);
+                    const nextAdds = currentAdds.filter(
+                      (x) => Number(x.idAdicion || x.id) !== adId
+                    );
                     applyUpdatedAdiciones(nextAdds);
                     return;
                   }
@@ -492,6 +863,21 @@ export function CartDrawer({
                   undoToppingsSnapshot.targetKey === item.cartItemId &&
                   currentAdds.length === 0;
 
+                const visiblePersonalizaciones = (item.personalizaciones || []).filter((p) => {
+                  const text = String(p || "").trim();
+                  if (!text) return false;
+                  if (
+                    /^sabor:\s*(mega|botella|familiar|personal|400\s*ml|1\.5|2\.5)/i.test(text)
+                  ) {
+                    return false;
+                  }
+                  // En bebidas con selector de tamaño inline ya se resalta el tamaño activo en la barra
+                  if (drinkCanChangeSize && /^presentaci[oó]n:/i.test(text)) {
+                    return false;
+                  }
+                  return true;
+                });
+
                 return (
                   <article
                     key={itemKey}
@@ -499,7 +885,7 @@ export function CartDrawer({
                       if (el) itemRefs.current[itemKey] = el;
                     }}
                     className={`bg-white dark:bg-gray-900 rounded-3xl border transition-all overflow-hidden ${
-                      isEditingThisItem
+                      isEditingThisItem || isEditingDishInline
                         ? "border-[#D9383A]/55 dark:border-red-500/50 shadow-lg ring-1 ring-[#D9383A]/15"
                         : "border-slate-200/85 dark:border-gray-800 shadow-2xs hover:border-slate-300 dark:hover:border-gray-700"
                     }`}
@@ -549,6 +935,9 @@ export function CartDrawer({
                                 setEditingCartToppingsKey(null);
                                 setToppingSearch("");
                               }
+                              if (isEditingDishInline) {
+                                setEditingCartDishKey(null);
+                              }
                               removeFromCart?.(item.cartItemId || item.id);
                             }}
                             aria-label={`Eliminar ${item.nombre} del carrito`}
@@ -558,6 +947,132 @@ export function CartDrawer({
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
+
+                        {/* ── SELECTOR DE TAMAÑO DE BEBIDA 100% INLINE EN EL CARRITO (SIN MODAL APARTE) ── */}
+                        {isItemDrink && replaceCartItem && drinkSizeOptions.length > 0 && (
+                          <div className="mt-3.5 p-3 rounded-2xl bg-slate-50/90 dark:bg-gray-800/55 border border-slate-200/80 dark:border-gray-700/80 space-y-2">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-gray-300 inline-flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400 shrink-0" />
+                                <span>Tamaño de presentación</span>
+                              </span>
+
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {Number(item.cantidad || 1) > 1 && (
+                                  <div className="inline-flex items-center rounded-lg bg-white dark:bg-gray-900 p-0.5 border border-slate-200/90 dark:border-gray-700 text-[10.5px] font-bold">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSplitSingleByKey((prev) => ({
+                                          ...prev,
+                                          [itemKey]: false
+                                        }))
+                                      }
+                                      className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
+                                        !shouldSplitSingle
+                                          ? "bg-slate-900 text-white dark:bg-[#D9383A]"
+                                          : "text-slate-600 dark:text-gray-300"
+                                      }`}
+                                    >
+                                      Todas ({item.cantidad})
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSplitSingleByKey((prev) => ({
+                                          ...prev,
+                                          [itemKey]: true
+                                        }))
+                                      }
+                                      className={`px-2 py-0.5 rounded-md transition cursor-pointer ${
+                                        shouldSplitSingle
+                                          ? "bg-slate-900 text-white dark:bg-[#D9383A]"
+                                          : "text-slate-600 dark:text-gray-300"
+                                      }`}
+                                    >
+                                      Separar 1
+                                    </button>
+                                  </div>
+                                )}
+
+                                {activeDrinkCatalog.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditingCartDishKey((prev) =>
+                                        prev === itemKey ? null : itemKey
+                                      )
+                                    }
+                                    className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <RefreshCw className="w-3 h-3" />
+                                    <span>{isEditingDishInline ? "Ocultar sabores" : "Cambiar bebida"}</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2">
+                              {drinkSizeOptions.map((opt) => {
+                                const isActiveSize = opt.id === currentDrinkSizeId;
+                                return (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    onClick={() => handleSelectDrinkSizeInline(opt.id)}
+                                    className={`px-2.5 py-2 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] flex flex-col justify-between gap-0.5 ${
+                                      isActiveSize
+                                        ? "bg-slate-900 border-slate-900 text-white dark:bg-[#D9383A] dark:border-[#D9383A] shadow-xs"
+                                        : "bg-white hover:bg-red-50/55 dark:bg-gray-900 dark:hover:bg-red-950/25 border-slate-200/90 hover:border-[#D9383A]/45 dark:border-gray-700 text-slate-800 dark:text-gray-100"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-1 w-full">
+                                      <span className="text-xs sm:text-[13px] font-black leading-none">
+                                        {opt.shortLabel}
+                                      </span>
+                                      {isActiveSize && (
+                                        <Check className="w-3.5 h-3.5 text-emerald-400 dark:text-white stroke-[2.75] shrink-0" />
+                                      )}
+                                    </div>
+                                    <span
+                                      className={`text-[11px] font-bold tabular-nums ${
+                                        isActiveSize
+                                          ? "text-slate-200 dark:text-white/90"
+                                          : "text-[#D9383A] dark:text-red-400"
+                                      }`}
+                                    >
+                                      {formatCOP(opt.price)}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bebidas de presentación única (ej. Agua Cristal o Pepsi Light 400ml): opción inline para cambiar por otra bebida */}
+                        {isItemDrink &&
+                          replaceCartItem &&
+                          drinkSizeOptions.length === 0 &&
+                          activeDrinkCatalog.length > 1 && (
+                            <div className="mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-gray-800/60 border border-slate-200/80 dark:border-gray-700/80 text-xs">
+                              <span className="text-slate-600 dark:text-gray-300 font-semibold">
+                                Presentación única personal
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setEditingCartDishKey((prev) =>
+                                    prev === itemKey ? null : itemKey
+                                  )
+                                }
+                                className="font-extrabold text-[#D9383A] dark:text-red-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                <span>{isEditingDishInline ? "Cerrar bebidas" : "Cambiar bebida"}</span>
+                              </button>
+                            </div>
+                          )}
 
                         {/* Chips espaciosos de extras activos, variante y exclusiones */}
                         {(isPromoEvent ||
@@ -569,7 +1084,7 @@ export function CartDrawer({
                               .includes(String(item.varianteNombre || "").toLowerCase())) ||
                           (item.observaciones && item.observaciones.toLowerCase().includes("bebida")) ||
                           currentAdds.length > 0 ||
-                          (item.personalizaciones && item.personalizaciones.length > 0)) && (
+                          visiblePersonalizaciones.length > 0) && (
                           <div className="flex flex-wrap gap-2 mt-3">
                             {isPromoEvent && (
                               <span className="text-xs font-extrabold px-2.5 py-1 rounded-xl bg-red-50 dark:bg-red-950/50 text-[#D9383A] dark:text-red-300 border border-red-200/70 dark:border-red-900/50 inline-flex items-center gap-1.5">
@@ -590,17 +1105,22 @@ export function CartDrawer({
                                 </span>
                               )}
 
-                            {item.observaciones && item.observaciones.toLowerCase().includes("bebida") && (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 inline-flex items-center gap-1.5">
-                                <FoodIcon name="drink" size={13} className="text-[#D9383A] shrink-0" />
-                                <span>
-                                  {item.observaciones
-                                    .split("•")
-                                    .find((s) => s.toLowerCase().includes("bebida"))
-                                    ?.trim() || item.observaciones}
+                            {item.observaciones &&
+                              item.observaciones.toLowerCase().includes("bebida") && (
+                                <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200/80 dark:border-gray-700 inline-flex items-center gap-1.5">
+                                  <FoodIcon
+                                    name="drink"
+                                    size={13}
+                                    className="text-[#D9383A] shrink-0"
+                                  />
+                                  <span>
+                                    {item.observaciones
+                                      .split("•")
+                                      .find((s) => s.toLowerCase().includes("bebida"))
+                                      ?.trim() || item.observaciones}
+                                  </span>
                                 </span>
-                              </span>
-                            )}
+                              )}
 
                             {currentAdds.map((a, aIdx) => {
                               const chipAdId = Number(a.idAdicion || a.id);
@@ -609,7 +1129,11 @@ export function CartDrawer({
                                 foodAdiciones.find(
                                   (fa) => Number(fa.idAdicion || fa.id || fa.idInsumo) === chipAdId
                                 ) || a;
-                              const chipUnitMeta = resolveAdicionUnitMeta(catalogAd, a.cantidad || 1);
+                              const chipUnitMeta = resolveAdicionUnitMeta(
+                                catalogAd,
+                                a.cantidad || 1,
+                                item
+                              );
                               return (
                                 <span
                                   key={chipAdId || aIdx}
@@ -639,34 +1163,26 @@ export function CartDrawer({
                               );
                             })}
 
-                            {item.personalizaciones &&
-                              item.personalizaciones
-                                .filter(
-                                  (p) =>
-                                    !/^sabor:\s*(mega|botella|familiar|personal|400\s*ml|1\.5|2\.5)/i.test(
-                                      String(p || "").trim()
-                                    )
-                                )
-                                .map((p, pIdx) => {
-                                  const isExclusion = /^sin\b/i.test(String(p || "").trim());
-                                  return (
-                                    <span
-                                      key={pIdx}
-                                      className={`text-xs px-2.5 py-1 rounded-xl font-semibold inline-flex items-center gap-1.5 border ${
-                                        isExclusion
-                                          ? "bg-red-50/70 dark:bg-red-950/30 text-slate-700 dark:text-gray-200 border-red-200/70 dark:border-red-900/40"
-                                          : "bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border-slate-200/80 dark:border-gray-700"
-                                      }`}
-                                    >
-                                      {isExclusion ? (
-                                        <Ban className="w-3 h-3 text-[#D9383A] shrink-0" />
-                                      ) : (
-                                        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                      )}
-                                      <span>{p}</span>
-                                    </span>
-                                  );
-                                })}
+                            {visiblePersonalizaciones.map((p, pIdx) => {
+                              const isExclusion = /^sin\b/i.test(String(p || "").trim());
+                              return (
+                                <span
+                                  key={pIdx}
+                                  className={`text-xs px-2.5 py-1 rounded-xl font-semibold inline-flex items-center gap-1.5 border ${
+                                    isExclusion
+                                      ? "bg-red-50/70 dark:bg-red-950/30 text-slate-700 dark:text-gray-200 border-red-200/70 dark:border-red-900/40"
+                                      : "bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border-slate-200/80 dark:border-gray-700"
+                                  }`}
+                                >
+                                  {isExclusion ? (
+                                    <Ban className="w-3 h-3 text-[#D9383A] shrink-0" />
+                                  ) : (
+                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  )}
+                                  <span>{p}</span>
+                                </span>
+                              );
+                            })}
                           </div>
                         )}
 
@@ -688,13 +1204,22 @@ export function CartDrawer({
                           </div>
                         )}
 
-                        {/* Fila inferior del plato: Stepper táctil editable + Stock vivo + Botón Toppings + Subtotal de línea */}
+                        {/* Fila inferior del plato: Stepper táctil editable + Stock vivo + Editar plato inline + Botón Toppings + Subtotal de línea */}
                         <div className="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-100 dark:border-gray-800/80">
                           <div className="flex items-center gap-2.5 flex-wrap">
                             {(() => {
-                              const otherLinesQty = Math.max(0, totalInCartForProd - Number(item.cantidad || 1));
-                              const maxLineStock = prodStock > 0 ? Math.max(1, Math.floor(prodStock) - otherLinesQty) : 99;
-                              const liveRemainingProd = Math.max(0, Math.floor(prodStock) - totalInCartForProd);
+                              const otherLinesQty = Math.max(
+                                0,
+                                totalInCartForProd - Number(item.cantidad || 1)
+                              );
+                              const maxLineStock =
+                                prodStock > 0
+                                  ? Math.max(1, Math.floor(prodStock) - otherLinesQty)
+                                  : 99;
+                              const liveRemainingProd = Math.max(
+                                0,
+                                Math.floor(prodStock) - totalInCartForProd
+                              );
                               return (
                                 <>
                                   <QuantityStepperInput
@@ -706,7 +1231,8 @@ export function CartDrawer({
                                     ariaLabel={`cantidad de ${item.nombre}`}
                                     onChange={(nextVal) => {
                                       const delta = nextVal - Number(item.cantidad || 1);
-                                      if (delta !== 0) updateQuantity?.(item.cartItemId || item.id, delta);
+                                      if (delta !== 0)
+                                        updateQuantity?.(item.cartItemId || item.id, delta);
                                     }}
                                     onRemove={() => removeFromCart?.(item.cartItemId || item.id)}
                                     onMaxReached={() => onStockLimitError?.(item.nombre, prodStock)}
@@ -728,19 +1254,42 @@ export function CartDrawer({
                               );
                             })()}
 
-                            {onEditCartItem && (
+                            {!isItemDrink && replaceCartItem && (
                               <button
                                 type="button"
-                                onClick={() => onEditCartItem(item)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-[13px] font-extrabold bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-100 border border-slate-200/90 dark:border-gray-700 hover:border-[#D9383A]/45 transition-all cursor-pointer active:scale-95 shadow-2xs"
-                                title={
-                                  isItemDrink
-                                    ? "Cambiar tamaño de botella (400 ml, 1.5 L, 2.5 L) o cambiar bebida"
-                                    : "Cambiar variante, elegir otra hamburguesa/plato o personalizar receta"
-                                }
+                                onClick={() => {
+                                  onEnsureFicha?.(prodId);
+                                  setEditingCartToppingsKey(null);
+                                  setDishSwitchSearch("");
+                                  setShowAllMenuSwitch(false);
+                                  setKitchenNoteDrafts((prev) => ({
+                                    ...prev,
+                                    [itemKey]: extractCustomNoteText(item)
+                                  }));
+                                  setEditingCartDishKey((prev) => {
+                                    const next = prev === itemKey ? null : itemKey;
+                                    if (next) scrollCardIntoView(itemKey);
+                                    return next;
+                                  });
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-[13px] font-extrabold transition-all cursor-pointer active:scale-95 ${
+                                  isEditingDishInline
+                                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                                    : "bg-white hover:bg-slate-50 dark:bg-gray-800 dark:hover:bg-gray-750 text-slate-800 dark:text-gray-100 border border-slate-200/90 dark:border-gray-700 hover:border-[#D9383A]/45 shadow-2xs"
+                                }`}
+                                title="Cambiar variante, retirar ingredientes o cambiar por otro plato dentro del carrito"
                               >
-                                <Pencil className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400 shrink-0" />
-                                <span>{isItemDrink ? "Cambiar tamaño" : "Editar plato"}</span>
+                                {isEditingDishInline ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 stroke-[2.75]" />
+                                    <span>Listo</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pencil className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400 shrink-0" />
+                                    <span>Editar plato</span>
+                                  </>
+                                )}
                               </button>
                             )}
 
@@ -748,18 +1297,12 @@ export function CartDrawer({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  setEditingCartDishKey(null);
                                   setToppingSearch("");
                                   setActiveToppingCat("todos");
                                   setEditingCartToppingsKey((prev) => {
                                     const next = prev === itemKey ? null : itemKey;
-                                    if (next) {
-                                      setTimeout(() => {
-                                        itemRefs.current[itemKey]?.scrollIntoView({
-                                          behavior: "smooth",
-                                          block: "nearest"
-                                        });
-                                      }, 60);
-                                    }
+                                    if (next) scrollCardIntoView(itemKey);
                                     return next;
                                   });
                                 }}
@@ -801,7 +1344,373 @@ export function CartDrawer({
                       </div>
                     </div>
 
-                    {/* ── ESTUDIO AMPLIO DE TOPPINGS (HASTA 3 COLUMNAS EN ESCRITORIO) ── */}
+                    {/* ── PANEL INLINE: CAMBIAR SABOR DE BEBIDA DENTRO DEL CARRITO ── */}
+                    {isItemDrink && isEditingDishInline && activeDrinkCatalog.length > 1 && (
+                      <div className="border-t border-slate-100 dark:border-gray-800 bg-slate-50/90 dark:bg-gray-800/35 p-4 sm:p-5 space-y-3 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <RefreshCw className="w-3.5 h-3.5 text-[#D9383A]" />
+                            <span>Cambiar sabor o bebida (conserva tu presentación elegida)</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCartDishKey(null)}
+                            className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-white cursor-pointer"
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {activeDrinkCatalog
+                            .filter((d) => String(d.id || d.idProducto) !== String(prodId))
+                            .map((drinkProd) => {
+                              const dId = drinkProd.id || drinkProd.idProducto;
+                              const dImg = getOptimizedImageUrl(
+                                resolveDrinkImage?.(drinkProd) || drinkProd.imagen,
+                                96
+                              );
+                              return (
+                                <button
+                                  key={dId}
+                                  type="button"
+                                  onClick={() => handleSwitchDrinkProductInline(drinkProd)}
+                                  className="p-2.5 rounded-2xl bg-white hover:bg-red-50/50 dark:bg-gray-900 dark:hover:bg-red-950/20 border border-slate-200/85 hover:border-[#D9383A]/45 dark:border-gray-700 flex items-center justify-between gap-2.5 text-left transition cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    {dImg ? (
+                                      <img
+                                        src={dImg}
+                                        alt={drinkProd.nombre}
+                                        width="40"
+                                        height="40"
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="w-10 h-10 rounded-xl object-contain p-1 bg-slate-50 dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shrink-0"
+                                      />
+                                    ) : (
+                                      <FoodIconBadge name={drinkProd.nombre} size="sm" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-slate-900 dark:text-gray-100 line-clamp-1">
+                                        {drinkProd.nombre}
+                                      </p>
+                                      <span className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
+                                        Desde {formatCOP(drinkProd.precio)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-gray-800 text-[11px] font-extrabold text-slate-800 dark:text-gray-200 shrink-0">
+                                    Elegir
+                                  </span>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── PANEL INLINE: EDITAR PLATO / HAMBURGUESA DENTRO DEL CARRITO (SIN MODAL APARTE) ── */}
+                    {!isItemDrink && isEditingDishInline && (
+                      <div className="border-t border-slate-100 dark:border-gray-800 bg-slate-50/90 dark:bg-gray-800/35 p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <ChefHat className="w-4 h-4 text-[#D9383A] dark:text-red-400 shrink-0" />
+                            <span className="text-sm font-black text-slate-900 dark:text-white">
+                              Editar plato en tu carrito
+                            </span>
+                          </div>
+
+                          {Number(item.cantidad || 1) > 1 && (
+                            <div className="inline-flex items-center rounded-xl bg-white dark:bg-gray-900 p-1 border border-slate-200/90 dark:border-gray-700 text-xs font-bold">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSplitSingleByKey((prev) => ({ ...prev, [itemKey]: false }))
+                                }
+                                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                  !shouldSplitSingle
+                                    ? "bg-slate-900 text-white dark:bg-[#D9383A]"
+                                    : "text-slate-600 dark:text-gray-300"
+                                }`}
+                              >
+                                Actualizar las {item.cantidad} uds.
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSplitSingleByKey((prev) => ({ ...prev, [itemKey]: true }))
+                                }
+                                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                  shouldSplitSingle
+                                    ? "bg-slate-900 text-white dark:bg-[#D9383A]"
+                                    : "text-slate-600 dark:text-gray-300"
+                                }`}
+                              >
+                                Separar 1 unidad diferente
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 1. Selector de Variante del plato */}
+                        {dishVariantOptions.length > 0 && (
+                          <div className="space-y-2">
+                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400 block">
+                              1. Variante de preparación
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {dishVariantOptions.map((vOpt) => {
+                                const isCurrentVar = vOpt.esVarianteBase
+                                  ? Boolean(item.esVarianteBase || !item.varianteNombre)
+                                  : String(item.idVariante) === String(vOpt.idVariante) ||
+                                    String(item.varianteNombre || "").toLowerCase() ===
+                                      String(vOpt.nombre || "").toLowerCase();
+                                return (
+                                  <button
+                                    key={vOpt.key}
+                                    type="button"
+                                    onClick={() => handleSelectFoodVariantInline(vOpt)}
+                                    className={`p-3 rounded-2xl border text-left flex items-center justify-between gap-2 transition cursor-pointer ${
+                                      isCurrentVar
+                                        ? "bg-slate-900 border-slate-900 text-white dark:bg-[#D9383A] dark:border-[#D9383A] shadow-xs"
+                                        : "bg-white hover:bg-red-50/45 dark:bg-gray-900 border-slate-200/85 dark:border-gray-700 text-slate-800 dark:text-gray-100"
+                                    }`}
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-xs sm:text-[13px] font-extrabold truncate">
+                                        {vOpt.nombre}
+                                      </p>
+                                      <span
+                                        className={`text-[11px] font-bold tabular-nums ${
+                                          isCurrentVar
+                                            ? "text-slate-200 dark:text-white/90"
+                                            : "text-[#D9383A] dark:text-red-400"
+                                        }`}
+                                      >
+                                        {formatCOP(vOpt.precio)}
+                                      </span>
+                                    </div>
+                                    {isCurrentVar && (
+                                      <Check className="w-4 h-4 text-emerald-400 dark:text-white stroke-[2.75] shrink-0" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2. Ingredientes opcionales (Con / Sin) */}
+                        {dishRemovableIngredients.length > 0 && (
+                          <div className="space-y-2">
+                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400 block">
+                              Ingredientes de la receta (toca para quitar o incluir)
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {dishRemovableIngredients.map((ing) => {
+                                const isRemoved = currentRemovedIngredients.some(
+                                  (r) => String(r).toLowerCase() === String(ing).toLowerCase()
+                                );
+                                return (
+                                  <button
+                                    key={ing}
+                                    type="button"
+                                    onClick={() => handleToggleIngredientInline(ing)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border inline-flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                                      isRemoved
+                                        ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/70 text-[#B91C1C] dark:text-red-300"
+                                        : "bg-white dark:bg-gray-900 border-slate-200/90 dark:border-gray-700 text-slate-800 dark:text-gray-100 hover:border-slate-300"
+                                    }`}
+                                  >
+                                    {isRemoved ? (
+                                      <>
+                                        <Ban className="w-3.5 h-3.5 text-[#D9383A] shrink-0" />
+                                        <span>Sin {ing.toLowerCase()}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                        <span>{ing}</span>
+                                      </>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Notas rápidas de cocina */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400 flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5 text-[#D9383A]" />
+                            <span>Nota de preparación (opcional)</span>
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {QUICK_KITCHEN_NOTES.map((quickNote) => {
+                              const draftVal =
+                                kitchenNoteDrafts[itemKey] !== undefined
+                                  ? kitchenNoteDrafts[itemKey]
+                                  : extractCustomNoteText(item);
+                              const isNoteActive = draftVal
+                                .toLowerCase()
+                                .includes(quickNote.toLowerCase());
+                              return (
+                                <button
+                                  key={quickNote}
+                                  type="button"
+                                  onClick={() => {
+                                    const parts = draftVal
+                                      .split(",")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean);
+                                    const nextParts = isNoteActive
+                                      ? parts.filter(
+                                          (p) => p.toLowerCase() !== quickNote.toLowerCase()
+                                        )
+                                      : [...parts, quickNote];
+                                    const nextText = nextParts.join(", ");
+                                    setKitchenNoteDrafts((prev) => ({
+                                      ...prev,
+                                      [itemKey]: nextText
+                                    }));
+                                    handleApplyKitchenNoteInline(nextText);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                                    isNoteActive
+                                      ? "bg-slate-900 text-white border-slate-900 dark:bg-[#D9383A] dark:border-[#D9383A]"
+                                      : "bg-white dark:bg-gray-900 text-slate-600 dark:text-gray-300 border-slate-200 dark:border-gray-700 hover:border-slate-300"
+                                  }`}
+                                >
+                                  + {quickNote}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={
+                                kitchenNoteDrafts[itemKey] !== undefined
+                                  ? kitchenNoteDrafts[itemKey]
+                                  : extractCustomNoteText(item)
+                              }
+                              onChange={(e) =>
+                                setKitchenNoteDrafts((prev) => ({
+                                  ...prev,
+                                  [itemKey]: e.target.value
+                                }))
+                              }
+                              onBlur={(e) => handleApplyKitchenNoteInline(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleApplyKitchenNoteInline(e.currentTarget.value);
+                                }
+                              }}
+                              placeholder="Ej: Carne término 3/4, partir a la mitad..."
+                              className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-gray-900 border border-slate-200/90 dark:border-gray-700 text-xs text-slate-800 dark:text-gray-100 placeholder:text-slate-400 outline-none focus:border-[#D9383A]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 4. Cambiar por otra hamburguesa o plato del menú */}
+                        {!isPromoEvent && activeFoodCatalog.length > 1 && (
+                          <div className="pt-2 border-t border-slate-200/80 dark:border-gray-700/80 space-y-2.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-gray-300 flex items-center gap-1.5">
+                                <RefreshCw className="w-3.5 h-3.5 text-[#D9383A]" />
+                                <span>¿Cambiar por otra hamburguesa o plato?</span>
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => setShowAllMenuSwitch((v) => !v)}
+                                className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 hover:underline cursor-pointer"
+                              >
+                                {showAllMenuSwitch ? "Solo misma categoría" : "Ver todo el menú"}
+                              </button>
+                            </div>
+
+                            {activeFoodCatalog.length > 5 && (
+                              <div className="relative">
+                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <input
+                                  type="text"
+                                  value={dishSwitchSearch}
+                                  onChange={(e) => setDishSwitchSearch(e.target.value)}
+                                  placeholder="Buscar otra hamburguesa o plato..."
+                                  className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white dark:bg-gray-900 border border-slate-200/90 dark:border-gray-700 text-xs text-slate-800 dark:text-gray-100 placeholder:text-slate-400 outline-none focus:border-[#D9383A]"
+                                />
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-0.5 scrollbar-thin">
+                              {switchableFoodDishes.slice(0, 12).map((altProd) => {
+                                const altId = altProd.id || altProd.idProducto;
+                                const altPrice = resolveCatalogDishPrice(altProd, null);
+                                const altImg =
+                                  altProd.imagen &&
+                                  (altProd.imagen.startsWith("http") ||
+                                    altProd.imagen.startsWith("/"))
+                                    ? getOptimizedImageUrl(altProd.imagen, 96)
+                                    : "";
+                                return (
+                                  <button
+                                    key={altId}
+                                    type="button"
+                                    onClick={() => handleSwitchFoodDishInline(altProd)}
+                                    className="p-2.5 rounded-2xl bg-white hover:bg-red-50/50 dark:bg-gray-900 dark:hover:bg-red-950/20 border border-slate-200/85 hover:border-[#D9383A]/45 dark:border-gray-700 flex items-center justify-between gap-2.5 text-left transition cursor-pointer group"
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      {altImg ? (
+                                        <img
+                                          src={altImg}
+                                          alt={altProd.nombre}
+                                          width="44"
+                                          height="44"
+                                          loading="lazy"
+                                          decoding="async"
+                                          className="w-11 h-11 rounded-xl object-cover bg-slate-100 dark:bg-gray-800 shrink-0"
+                                        />
+                                      ) : (
+                                        <FoodIconBadge name={altProd.nombre} size="sm" />
+                                      )}
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-900 dark:text-gray-100 line-clamp-1">
+                                          {altProd.nombre}
+                                        </p>
+                                        <span className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
+                                          {formatCOP(altPrice)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 group-hover:bg-[#D9383A] group-hover:text-white dark:bg-gray-800 text-[11px] font-extrabold text-slate-800 dark:text-gray-200 shrink-0 transition">
+                                      Cambiar
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="pt-1 flex items-center justify-between gap-2">
+                          <span className="text-xs text-slate-500 dark:text-gray-400">
+                            Cambios aplicados en tiempo real sobre tu carrito
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCartDishKey(null)}
+                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#D9383A] dark:hover:bg-[#B91C1C] text-white text-xs font-extrabold cursor-pointer transition"
+                          >
+                            Guardar y cerrar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── ESTUDIO AMPLIO DE TOPPINGS (HASTA 2 COLUMNAS EN ESCRITORIO) ── */}
                     {isEditingThisItem && (
                       <div className="border-t border-slate-100 dark:border-gray-800 bg-slate-50/90 dark:bg-gray-800/35 p-4 sm:p-6 space-y-4 animate-in fade-in duration-150">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -845,55 +1754,58 @@ export function CartDrawer({
                         )}
 
                         {/* Upselling contextual espacioso de 3 columnas */}
-                        {contextualRecommendedToppings.length > 0 && !normalizedQuery && activeToppingCat === "todos" && (
-                          <div className="bg-white dark:bg-gray-900/90 rounded-2xl border border-slate-200/80 dark:border-gray-700/80 p-3.5 space-y-2.5">
-                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400 flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
-                              <span>Recomendados para acompañar este plato</span>
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                              {contextualRecommendedToppings.map((recAd) => {
-                                const recId = Number(recAd.idAdicion || recAd.id || recAd.idInsumo);
-                                const recUnit = resolveAdicionUnitMeta(recAd, 1);
-                                const { maxPerDish, availableBeforeThisLine, noCtrl } = getToppingStockInfo(recAd);
-                                if (!noCtrl && maxPerDish <= 0) return null;
-                                return (
-                                  <button
-                                    key={recId}
-                                    type="button"
-                                    onClick={() => handleToggleOrAddTopping(recAd)}
-                                    className="p-2.5 rounded-xl bg-slate-50/90 hover:bg-red-50/60 dark:bg-gray-800 dark:hover:bg-red-950/25 border border-slate-200/80 hover:border-[#D9383A]/40 dark:border-gray-700 text-left flex items-center justify-between gap-2.5 transition cursor-pointer group"
-                                  >
-                                    <AdicionAvatar adicion={recAd} size="sm" />
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-xs font-bold text-slate-800 dark:text-gray-100 leading-snug line-clamp-2">
-                                        {recAd.nombre}
-                                      </p>
-                                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                        <span className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
-                                          +{formatCOP(recAd.precio)}
-                                        </span>
-                                        <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400">
-                                          · {recUnit.badge}
-                                        </span>
-                                        {!noCtrl && (
-                                          <span className="text-[10px] font-semibold text-slate-400 dark:text-gray-500 tabular-nums">
-                                            · {availableBeforeThisLine} disp.
+                        {contextualRecommendedToppings.length > 0 &&
+                          !normalizedQuery &&
+                          activeToppingCat === "todos" && (
+                            <div className="bg-white dark:bg-gray-900/90 rounded-2xl border border-slate-200/80 dark:border-gray-700/80 p-3.5 space-y-2.5">
+                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-gray-400 flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-[#D9383A] dark:text-red-400" />
+                                <span>Recomendados para acompañar este plato</span>
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                {contextualRecommendedToppings.map((recAd) => {
+                                  const recId = Number(recAd.idAdicion || recAd.id || recAd.idInsumo);
+                                  const recUnit = resolveAdicionUnitMeta(recAd, 1);
+                                  const { maxPerDish, availableBeforeThisLine, noCtrl } =
+                                    getToppingStockInfo(recAd);
+                                  if (!noCtrl && maxPerDish <= 0) return null;
+                                  return (
+                                    <button
+                                      key={recId}
+                                      type="button"
+                                      onClick={() => handleToggleOrAddTopping(recAd)}
+                                      className="p-2.5 rounded-xl bg-slate-50/90 hover:bg-red-50/60 dark:bg-gray-800 dark:hover:bg-red-950/25 border border-slate-200/80 hover:border-[#D9383A]/40 dark:border-gray-700 text-left flex items-center justify-between gap-2.5 transition cursor-pointer group"
+                                    >
+                                      <AdicionAvatar adicion={recAd} size="sm" />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-gray-100 leading-snug line-clamp-2">
+                                          {recAd.nombre}
+                                        </p>
+                                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                          <span className="text-[11px] font-extrabold text-[#D9383A] dark:text-red-400 tabular-nums">
+                                            +{formatCOP(recAd.precio)}
                                           </span>
-                                        )}
+                                          <span className="text-[10px] font-semibold text-slate-500 dark:text-gray-400">
+                                            · {recUnit.badge}
+                                          </span>
+                                          {!noCtrl && (
+                                            <span className="text-[10px] font-semibold text-slate-400 dark:text-gray-500 tabular-nums">
+                                              · {availableBeforeThisLine} disp.
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                    <span className="w-7 h-7 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-600 group-hover:bg-[#D9383A] group-hover:text-white group-hover:border-[#D9383A] text-slate-700 dark:text-gray-200 flex items-center justify-center shrink-0 transition">
-                                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                                      <span className="w-7 h-7 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-600 group-hover:bg-[#D9383A] group-hover:text-white group-hover:border-[#D9383A] text-slate-700 dark:text-gray-200 flex items-center justify-center shrink-0 transition">
+                                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* Barra horizontal unificada: Buscador + Pestañas de Categoría en una sola línea en escritorio */}
+                        {/* Barra horizontal unificada: Buscador + Pestañas de Categoría */}
                         <div className="flex flex-col md:flex-row md:items-center gap-2.5">
                           <div className="relative md:w-64 shrink-0">
                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -948,7 +1860,7 @@ export function CartDrawer({
                           </div>
                         </div>
 
-                        {/* Grilla amplia de hasta 3 columnas en escritorio */}
+                        {/* Grilla amplia de toppings */}
                         {visibleToppings.length === 0 ? (
                           <div className="text-center py-6 px-4 rounded-2xl bg-white dark:bg-gray-900/60 border border-dashed border-slate-200 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
                             No encontramos extras para este filtro.
@@ -975,14 +1887,20 @@ export function CartDrawer({
                               const consumedHere = isSelected
                                 ? selectedQty * Math.max(1, Number(item.cantidad || 1))
                                 : 0;
-                              const liveRemaining = Math.max(0, availableBeforeThisLine - consumedHere);
+                              const liveRemaining = Math.max(
+                                0,
+                                availableBeforeThisLine - consumedHere
+                              );
                               const isSoldOut = !noCtrl && stockMaxPerDish <= 0 && !isSelected;
-                              const isDishCapReached = !isSoldOut && maxPerDish <= 0 && !isSelected;
+                              const isDishCapReached =
+                                !isSoldOut && maxPerDish <= 0 && !isSelected;
 
                               return (
                                 <div
                                   key={adId}
-                                  onClick={() => !isSelected && !isSoldOut && handleToggleOrAddTopping(ad)}
+                                  onClick={() =>
+                                    !isSelected && !isSoldOut && handleToggleOrAddTopping(ad)
+                                  }
                                   className={`p-3 rounded-2xl border flex flex-col justify-between gap-2.5 transition-all select-none ${
                                     isSelected
                                       ? "bg-white dark:bg-gray-900 border-[#D9383A] ring-1 ring-[#D9383A]/20 shadow-xs"
@@ -998,7 +1916,9 @@ export function CartDrawer({
                                         handleToggleOrAddTopping(ad);
                                       }
                                     }}
-                                    className={`flex items-start gap-3 min-w-0 ${isSelected || !isSoldOut ? "cursor-pointer" : ""}`}
+                                    className={`flex items-start gap-3 min-w-0 ${
+                                      isSelected || !isSoldOut ? "cursor-pointer" : ""
+                                    }`}
                                   >
                                     <AdicionAvatar adicion={ad} size="md" />
                                     <div className="min-w-0 flex-1">
@@ -1063,7 +1983,11 @@ export function CartDrawer({
                                             );
                                           } else if (limitReason === "culinary") {
                                             showLimitNotice(
-                                              `Por calidad de preparación, puedes agregar máximo ${culinaryMax} ${culinaryMax === 1 ? unitMeta.singular : unitMeta.plural} de "${ad.nombre}" por plato.`
+                                              `Por calidad de preparación, puedes agregar máximo ${culinaryMax} ${
+                                                culinaryMax === 1
+                                                  ? unitMeta.singular
+                                                  : unitMeta.plural
+                                              } de "${ad.nombre}" por plato.`
                                             );
                                           } else {
                                             onStockLimitError?.(ad.nombre, limit);
@@ -1088,7 +2012,13 @@ export function CartDrawer({
                                         }`}
                                       >
                                         <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>{isSoldOut ? "Agotado" : isDishCapReached ? "Tope plato" : "Agregar"}</span>
+                                        <span>
+                                          {isSoldOut
+                                            ? "Agotado"
+                                            : isDishCapReached
+                                              ? "Tope plato"
+                                              : "Agregar"}
+                                        </span>
                                       </button>
                                     )}
                                   </div>
@@ -1125,11 +2055,11 @@ export function CartDrawer({
                 COLUMNA DERECHA (LG: 4 COLS): COMPLEMENTOS + RESUMEN + PAGO
                ══════════════════════════════════════════════════════════════════ */}
             <div className="shrink-0 lg:col-span-5 xl:col-span-4 bg-white dark:bg-gray-900 border-t lg:border-t-0 lg:border-l border-slate-200/85 dark:border-gray-800 flex flex-col justify-between lg:overflow-y-auto scrollbar-thin">
-              {/* 1. Upselling de Bebidas / Acompañamientos: en móvil se oculta mientras se editan toppings; en escritorio vive holgado arriba */}
+              {/* 1. Upselling de Bebidas / Acompañamientos */}
               {complementosOrden.length > 0 && (
                 <div
                   className={`${
-                    editingCartToppingsKey ? "hidden lg:block" : "block"
+                    editingCartToppingsKey || editingCartDishKey ? "hidden lg:block" : "block"
                   } px-5 sm:px-6 pt-4 pb-3 lg:py-6 border-b border-slate-100 dark:border-gray-800`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -1138,7 +2068,6 @@ export function CartDrawer({
                       <span>Recomendados para acompañar</span>
                     </span>
 
-                    {/* Flechas solo en móvil/tablet donde es carrusel horizontal */}
                     <div className="flex lg:hidden items-center gap-1">
                       <button
                         type="button"
@@ -1159,7 +2088,6 @@ export function CartDrawer({
                     </div>
                   </div>
 
-                  {/* Carrusel horizontal en móvil / Lista vertical amplia de 3 opciones en escritorio */}
                   <div
                     ref={complementosRef}
                     className="flex lg:flex-col items-stretch gap-2.5 overflow-x-auto lg:overflow-visible no-scrollbar py-0.5 scroll-smooth snap-x snap-mandatory"
@@ -1239,20 +2167,25 @@ export function CartDrawer({
                         <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span>Beneficio Fidelidad ({discountPercent}%)</span>
                       </span>
-                      <span className="font-extrabold tabular-nums">-{formatCOP(clientDiscountMonto)}</span>
+                      <span className="font-extrabold tabular-nums">
+                        -{formatCOP(clientDiscountMonto)}
+                      </span>
                     </div>
                   )}
 
-                  {/* Aviso de envío (en móvil se compacta cuando se editan toppings para dar espacio) */}
+                  {/* Aviso de envío */}
                   <div
                     className={`${
-                      editingCartToppingsKey ? "hidden lg:flex" : "flex"
+                      editingCartToppingsKey || editingCartDishKey ? "hidden lg:flex" : "flex"
                     } items-start gap-2.5 p-3 rounded-2xl bg-slate-50 dark:bg-gray-800/70 border border-slate-200/80 dark:border-gray-700/80 text-xs text-slate-600 dark:text-gray-300 leading-relaxed`}
                   >
                     <Truck className="w-4 h-4 text-[#D9383A] dark:text-red-400 shrink-0 mt-0.5" />
                     <span>
-                      <strong className="font-bold text-slate-800 dark:text-gray-100">Sobre el envío:</strong>{" "}
-                      El costo del domicilio se cancela aparte al recibir tu pedido (o puedes recoger en tienda sin costo).
+                      <strong className="font-bold text-slate-800 dark:text-gray-100">
+                        Sobre el envío:
+                      </strong>{" "}
+                      El costo del domicilio se cancela aparte al recibir tu pedido (o puedes recoger
+                      en tienda sin costo).
                     </span>
                   </div>
 

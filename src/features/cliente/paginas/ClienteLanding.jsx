@@ -1629,40 +1629,20 @@ export function ClienteLanding() {
     success("¡Producto agregado!", msg);
   };
 
-  const handleEditCartItem = async (cartItem) => {
-    if (!cartItem) return;
-    const targetId = cartItem.idProducto || cartItem.id;
-    const matchedProd =
-      activeProductos.find((p) => String(p.id || p.idProducto) === String(targetId)) || {
-        id: targetId,
-        idProducto: targetId,
-        nombre: String(cartItem.nombre || "Producto").replace(/\s*\([^)]*\)\s*$/, "").trim(),
-        precio: Number(cartItem.precio || 0),
-        stock: Number(cartItem.stock ?? 99),
-        imagen: cartItem.imagen,
-        categoria: cartItem.categoria
-      };
-
-    const prodId = matchedProd.id || matchedProd.idProducto;
-    let ficha = fichasMap[prodId] || fichasTecnicasDefault[prodId] || null;
-    if (!ficha && !isDrinkProduct(matchedProd) && prodId) {
+  const handleEnsureFichaForCart = useCallback(
+    async (prodId) => {
+      if (!prodId || fichasMap[prodId] || fichasTecnicasDefault[prodId]) return;
       try {
         const fetchedFicha = await fichasTecnicasService.getFichaByProducto(prodId);
         if (fetchedFicha) {
-          ficha = fetchedFicha;
           setFichasMap((prev) => ({ ...prev, [prodId]: fetchedFicha }));
         }
       } catch (_) {
-        // continuar con ficha base
+        // continuar con descripción base del producto
       }
-    }
-
-    setEditingCartItem(cartItem);
-    setModalInitialTab(isDrinkProduct(matchedProd) ? "presentacion" : "personalizar");
-    setProductoSeleccionado({ producto: matchedProd, ficha });
-    setShowCart(false);
-    setShowProductModal(true);
-  };
+    },
+    [fichasMap]
+  );
 
   const handleSwitchModalProduct = async (nextProd) => {
     if (!nextProd) return;
@@ -3246,6 +3226,10 @@ export function ClienteLanding() {
             isOpen={showCart}
             onClose={() => setShowCart(false)}
             cart={cart}
+            productosCatalogo={activeProductos}
+            fichasMap={fichasMap}
+            fichasDefault={fichasTecnicasDefault}
+            onEnsureFicha={handleEnsureFichaForCart}
             foodAdiciones={foodAdiciones}
             complementosOrden={complementosOrden}
             clientSubtotal={clientSubtotal}
@@ -3254,6 +3238,7 @@ export function ClienteLanding() {
             totalCheckout={totalCheckout}
             updateQuantity={updateQuantity}
             updateItemAdiciones={updateItemAdiciones}
+            replaceCartItem={replaceCartItem}
             removeFromCart={removeFromCart}
             clearCart={clearCart}
             getProductQuantityInCart={getProductQuantityInCart}
@@ -3267,7 +3252,6 @@ export function ClienteLanding() {
             resolveDrinkImage={resolveDrinkImage}
             complementosRef={complementosRef}
             onScrollComplementos={scrollComplementos}
-            onEditCartItem={handleEditCartItem}
           />
         </Suspense>
       )}
